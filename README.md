@@ -8,6 +8,7 @@
 
 > **说明 / Note**: 以简体中文为标准 · Simplified Chinese is the standard reference.
 
+- **🩹 修复启动后灵动岛不显示（1.3.1）**：修正 1.3.0 中导致窗口 XAML 解析失败的非法 EdgeMode 取值，启动后灵动岛正常显示；并修复启动日志丢失、重新启动 exe 无法唤出灵动岛等稳定性问题。
 - **🚀 全面升级 120FPS 动画（1.3.0）**：所有动画从 60FPS 升级至 120FPS，展开/收起、卡拉OK歌词逐字高亮、弹簧动画等均以显示刷新率渲染（CompositionTarget.Rendering），帧率独立插值，丝滑无卡顿。
 - **🎵 卡拉OK歌词渲染重构（1.3.0）**：使用 CompositionTarget.Rendering 替代固定 16ms 定时器，帧率独立插值（ - exp(-dt × 42)），无论屏幕刷新率如何均保持流畅。
 - **⚙️ 弹簧动画 GC 压力消除（1.3.0）**：SpringEase / SoftSpringEase 改用预计算缓存，避免每次调用创建新对象。
@@ -81,13 +82,13 @@
 
 ---
 
-## 📥 下载（最新稳定版 1.2.9）
+## 📥 下载（最新稳定版 1.3.1）
 
 | 平台 | 下载 | 说明 |
 | --- | --- | --- |
-| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
-| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
-| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
+| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
+| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
+| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
 
 历史版本与完整更新日志见 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
 
@@ -334,13 +335,13 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 下載（最新穩定版 1.2.9）
+## 📥 下載（最新穩定版 1.3.1）
 
 | 平台 | 下載 | 說明 |
 | --- | --- | --- |
-| Windows x64 | [x64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | 主流 64 位元電腦首選，單檔免安裝，直接執行 |
-| Windows ARM64 | [ARM64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Surface Pro X / 驍龍機型等 ARM 裝置 |
-| Windows 通用 | [通用安裝包](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Inno Setup 安裝精靈，x64 / ARM64 自動依架構安裝 |
+| Windows x64 | [x64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | 主流 64 位元電腦首選，單檔免安裝，直接執行 |
+| Windows ARM64 | [ARM64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Surface Pro X / 驍龍機型等 ARM 裝置 |
+| Windows 通用 | [通用安裝包](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Inno Setup 安裝精靈，x64 / ARM64 自動依架構安裝 |
 
 歷史版本與完整更新日誌見 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
 
@@ -587,13 +588,13 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 Download (latest stable 1.2.9)
+## 📥 Download (latest stable 1.3.1)
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
-| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
-| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
+| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
+| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
+| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
 
 All historical versions and the full changelog: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -844,9 +845,9 @@ Use Tray menu → Quit; closing the island window only hides it (tray-resident b
 
 | Plataforma | Descarga | Notas |
 | --- | --- | --- |
-| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | Para PCs de 64 bits convencionales; archivo único, sin instalación |
-| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
-| Windows Universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Asistente Inno Setup; instala x64 / ARM64 según la arquitectura |
+| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | Para PCs de 64 bits convencionales; archivo único, sin instalación |
+| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
+| Windows Universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Asistente Inno Setup; instala x64 / ARM64 según la arquitectura |
 
 Todas las versiones históricas y el registro de cambios completo: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1093,13 +1094,13 @@ Usa Menú de la bandeja → Salir; cerrar la ventana de la isla solo la oculta (
 
 ---
 
-## 📥 Téléchargement (dernière version stable 1.2.9)
+## 📥 Téléchargement (dernière version stable 1.3.1)
 
 | Plateforme | Téléchargement | Notes |
 | --- | --- | --- |
-| Windows x64 | [Portable x64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | Le choix recommandé pour les PC 64 bits ; fichier unique, sans installation, exécution directe |
-| Windows ARM64 | [Portable ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Pour Surface Pro X / appareils ARM Snapdragon |
-| Windows universel | [Installeur universel](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Assistant Inno Setup ; installe x64 / ARM64 selon l'architecture |
+| Windows x64 | [Portable x64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | Le choix recommandé pour les PC 64 bits ; fichier unique, sans installation, exécution directe |
+| Windows ARM64 | [Portable ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Pour Surface Pro X / appareils ARM Snapdragon |
+| Windows universel | [Installeur universel](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Assistant Inno Setup ; installe x64 / ARM64 selon l'architecture |
 
 Toutes les versions historiques et le journal complet : [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1352,13 +1353,13 @@ Menu de la barre d'état → Quitter ; fermer la fenêtre de l'île ne fait que 
 
 ---
 
-## 📥 التحميل (آخر إصدار مستقر 1.2.9)
+## 📥 التحميل (آخر إصدار مستقر 1.3.1)
 
 | النظام | التحميل | ملاحظات |
 | --- | --- | --- |
-| Windows x64 | [نسخة محمولة x64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | الخيار الأول لأجهزة 64 بت الشائعة؛ ملف واحد بدون تثبيت، يعمل مباشرة |
-| Windows ARM64 | [نسخة محمولة ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | لأجهزة Surface Pro X / أجهزة ARM Snapdragon |
-| Windows شامل | [مثبّت شامل](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | معالج Inno Setup؛ يثبّت x64 / ARM64 حسب البنية |
+| Windows x64 | [نسخة محمولة x64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | الخيار الأول لأجهزة 64 بت الشائعة؛ ملف واحد بدون تثبيت، يعمل مباشرة |
+| Windows ARM64 | [نسخة محمولة ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | لأجهزة Surface Pro X / أجهزة ARM Snapdragon |
+| Windows شامل | [مثبّت شامل](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | معالج Inno Setup؛ يثبّت x64 / ARM64 حسب البنية |
 
 جميع الإصدارات السابقة وسجل التغييرات الكامل: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1609,9 +1610,9 @@ dotnet test  WinIslands.slnx -c Release
 
 | Платформа | Скачать | Примечания |
 | --- | --- | --- |
-| Windows x64 | [Портативная x64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | Рекомендуется для обычных 64-битных ПК; один файл, без установки, запуск сразу |
-| Windows ARM64 | [Портативная ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Для Surface Pro X / устройств ARM Snapdragon |
-| Windows универсальная | [Универсальный установщик](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Мастер Inno Setup; устанавливает x64 / ARM64 в зависимости от архитектуры |
+| Windows x64 | [Портативная x64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | Рекомендуется для обычных 64-битных ПК; один файл, без установки, запуск сразу |
+| Windows ARM64 | [Портативная ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Для Surface Pro X / устройств ARM Snapdragon |
+| Windows универсальная | [Универсальный установщик](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Мастер Inno Setup; устанавливает x64 / ARM64 в зависимости от архитектуры |
 
 Все предыдущие версии и полный журнал изменений: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1864,13 +1865,13 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 Download (última versão estável 1.2.9)
+## 📥 Download (última versão estável 1.3.1)
 
 | Plataforma | Download | Observações |
 | --- | --- | --- |
-| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-x64.exe) | Recomendado para PCs 64 bits comuns; arquivo único, sem instalação, execução direta |
-| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-1.2.9-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
-| Windows universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/1.2.9/WinIslands-Setup-1.2.9.exe) | Assistente Inno Setup; instala x64 / ARM64 conforme a arquitetura |
+| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-x64.exe) | Recomendado para PCs 64 bits comuns; arquivo único, sem instalação, execução direta |
+| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-1.3.1-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
+| Windows universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/1.3.1/WinIslands-Setup-1.3.1.exe) | Assistente Inno Setup; instala x64 / ARM64 conforme a arquitetura |
 
 Todas as versões anteriores e o changelog completo: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 

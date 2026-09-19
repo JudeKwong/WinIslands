@@ -57,7 +57,11 @@ public sealed class FullScreenMonitor : IDisposable
         }
     }
 
-    /// <summary>判定前台窗口是否为全屏：窗口矩形覆盖其所在显示器工作区（容差 4px）。</summary>
+    /// <summary>
+    /// 判定前台窗口是否「占用整个工作区」：窗口矩形覆盖其所在显示器工作区（不含任务栏，容差 4px）。
+    /// 注意：最大化的窗口矩形正好等于工作区，因此**最大化也会触发自动隐藏**——这是刻意设计，
+    /// 不要改成 rcMonitor：那样只有真全屏才隐藏，用户最大化窗口时灵动岛不再让位。
+    /// </summary>
     private static bool IsCurrentFullScreen()
     {
         var hwnd = Native.GetForegroundWindow();
@@ -77,7 +81,7 @@ public sealed class FullScreenMonitor : IDisposable
         Native.GetWindowRect(hwnd, out var rect);
         if (rect.Right - rect.Left < 200 || rect.Bottom - rect.Top < 200) return false;
 
-        // 找该窗口所在显示器的工作区（不含任务栏）
+        // 找该窗口所在显示器的工作区（不含任务栏）；最大化 == 覆盖工作区 == 让位隐藏
         var monitor = Native.MonitorFromWindow(hwnd, Native.MonitorDefaultToNearest);
         if (monitor == IntPtr.Zero) return false;
         var info = new Native.MonitorInfo { cbSize = (uint)Marshal.SizeOf<Native.MonitorInfo>() };

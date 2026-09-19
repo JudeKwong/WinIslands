@@ -12,6 +12,78 @@
 
 ## 简体中文
 
+## WinIslands 1.3.1（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🩹 修复启动后灵动岛完全不显示（严重）**：1.3.0 的窗口 XAML 误写了非法的 `RenderOptions.EdgeMode="Uninitialized"`（该枚举只有 `Unspecified` 与 `Aliased`），导致灵动岛窗口的 XAML 解析始终抛异常、窗口从未创建成功——进程在后台运行（托盘与上岛 API 都正常），但屏幕上什么都没有，再次双击 exe 也没有任何反应。现改为合法的 `Unspecified`，启动恢复正常
+
+- **🔍 修复启动失败信息被日志吞掉**：日志采用批量落盘（攒满 20 行或间隔 2 秒才写盘），启动阶段的关键报错会滞留在内存中随进程丢失。现在 ERROR / WARN 以及每份日志文件的首行都立即落盘，排查问题不再缺少证据
+
+- **🖱️ 修复「重新启动 exe 无法唤出灵动岛」**：显式要求显示时会一并清除全屏 / 锁屏造成的隐藏状态，前台有最大化窗口时也能把灵动岛叫回来
+
+- **🔇 修复音量 / 亮度指示条的绑定异常**：`VolumeTempPercent` 是只读属性却被默认双向绑定，每次显示都会抛异常，现改为单向绑定
+
+## WinIslands 1.3.0（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🚀 全面升级 120FPS 动画**：所有动画从 60FPS 升级至 120FPS，展开/收起、卡拉OK歌词逐字高亮、弹簧动画等均以显示刷新率渲染，丝滑无卡顿
+- **🎵 卡拉OK歌词渲染重构**：使用 `CompositionTarget.Rendering` 替代固定 16ms 定时器，帧率独立插值（`1 - exp(-dt × 42)`），无论屏幕刷新率如何均保持流畅
+- **⚙️ 弹簧动画 GC 压力消除**：`SpringEase` / `SoftSpringEase` 改用预计算缓存，避免每次调用创建新对象
+- **🖼️ 高质量位图缩放**：添加 `RenderOptions.BitmapScalingMode="HighQuality"`，封面图片渲染更清晰
+- **📊 波形与歌词定时器优化**：波形低功耗定时器 33ms→8ms，歌词滚动定时器 16ms→8ms，响应更及时
+- **🌐 官网"一眼看懂"模块修复**：紧凑态灵动岛宽度增加，添加溢出控制，文字不再超出范围
+
+## WinIslands 1.2.9（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🐛 修复点击桌面触发自动隐藏**：全屏检测现在排除 Windows 桌面窗口（Progman/WorkerW），点击桌面不再误判为全屏应用而触发灵动岛自动隐藏
+- **🐛 修复自动隐藏后重新显示时两侧被裁切**：灵动岛从隐藏恢复显示时，先调用 ApplyAppearance() + ApplySize() 恢复正确的窗口尺寸、圆角和字体缩放，再以 Loaded 优先级重新定位，确保窗口尺寸已生效、两侧完整无裁切
+
+## WinIslands 1.2.8（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **⚡ 性能与内存优化**：修复 8 处事件处理器泄漏，所有事件订阅现在在 `Dispose()` 中正确退订
+- **⚡ UpdateVisibility 级联优化**：添加缓存字典，仅在属性值实际变化时才触发 `PropertyChanged`，每次调用减少约 25 次不必要的通知
+- **⚡ 弹簧动画优化**：`SpringEase` / `SoftSpringEase` 使用缓存实例，避免每次调用创建新对象
+- **⚡ 画笔属性缓存**：推送卡片画笔、歌词画笔等不再每帧分配新的 `SolidColorBrush`，改为缓存冻结实例
+- **⚡ 封面色采样缓存**：展开/收起时跳过相同封面的重复 `RenderTargetBitmap.Render()` 调用
+- **⚡ GPU 性能计数器缓存**：`PerformanceCounterCategory("GPU Engine")` 不再每次新建，改为字段缓存
+- **⚡ 时钟文本去重**：仅在实际字符串变化时更新 `ClockText` / `DateText`
+- **⚡ 低功耗波形计时器**：从 16ms 改为 33ms（30fps），真正降低空闲 CPU 占用
+
+## WinIslands 1.2.7（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🐛 修复内存与句柄泄漏**：修复 `IslandApiServer` 中 CancellationTokenSource 泄漏、`Stop()` 误调 `Close()` 导致无法重启、`ContainsKey` + 索引器竞态等问题
+- **🐛 修复上岛 API 竞态**：PATCH 请求丢失 `ProgressAnchorUtc` 时间锚点导致进度漂移；WebSocket 分片消息未正确拼接
+- **🐛 修复卡拉OK歌词回跳**：每 200ms 歌词进度回跳到开头 —— 改为从时间轴插值计算每字进度，不再回跳
+- **🐛 修复卡拉OK GC 抖动**：每帧分配新的 SolidColorBrush 导致 GC 压力 —— 改为复用 Brush 实例
+- **🐛 修复 Cider 提供者资源泄漏**：`Dispose()` 只 Cancel 未 Dispose CTS
+- **🐛 修复歌词缓存全清问题**：缓存超 8 条时全部清空 —— 改为只淘汰最旧一条
+- **🐛 修复更新器仓库地址**：硬编码 `DMP-Pig/WinIslands` 改为按 `JudeKwong` / `DMP-Pig` 顺序尝试
+- **🐛 修复窗口标题媒体提供者句柄泄漏**：`Process.GetProcesses()` 返回的进程对象从未 Dispose
+- **🐛 修复组件显示遗漏**：`RebuildCompactItems` 遗漏 Disk / InputMethod / QuickToggles 三个组件
+- **🐛 修复展开时封面全屏残留**：孤儿窗口在展开时仍然存在
+- **🐛 修复紧凑尺寸动画竞态**：`AnimateCompactSize` 未停旧动画导致竞态
+- **🐛 修复拖动提示截断动画**：`ShowDragHint` 在动画中重置绑定导致截断
+- **🐛 修复设置窗口事件泄漏**：`Localization.LanguageChanged` 匿名订阅未退订
+- **⚡ 性能优化**：卡拉OK动画 `NeedsAnimation` 现在考虑速度倍率，避免不必要的重绘
+
 ## WinIslands 1.2.6（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -455,6 +527,78 @@
 ---
 
 ## 繁體中文
+
+## WinIslands 1.3.1（正式版 / Stable）
+
+一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新內容
+
+- **🩹 修復啟動後動感島完全不顯示（嚴重）**：1.3.0 的視窗 XAML 誤寫了非法的 `RenderOptions.EdgeMode="Uninitialized"`（該列舉只有 `Unspecified` 與 `Aliased`），導致動感島視窗的 XAML 解析一直拋出例外、視窗從未建立成功——行程在背景執行（系統匣與上島 API 都正常），但螢幕上什麼都沒有，再次雙擊 exe 也沒有任何反應。現改為合法的 `Unspecified`，啟動恢復正常
+
+- **🔍 修復啟動失敗資訊被日誌吞掉**：日誌採用批次寫入（累積 20 行或間隔 2 秒才寫入磁碟），啟動階段的關鍵錯誤會滯留在記憶體中隨行程遺失。現在 ERROR / WARN 以及每份日誌檔的首行都立即寫入，排查問題不再缺少證據
+
+- **🖱️ 修復「重新啟動 exe 無法喚出動感島」**：明確要求顯示時會一併清除全螢幕 / 鎖定畫面造成的隱藏狀態，前景有最大化視窗時也能把動感島叫回來
+
+- **🔇 修復音量 / 亮度指示列的綁定例外**：`VolumeTempPercent` 是唯讀屬性卻被預設雙向綁定，每次顯示都會拋出例外，現改為單向綁定
+
+## WinIslands 1.3.0（正式版 / Stable）
+
+一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新內容
+
+- **🚀 全面升級 120FPS 動畫**：所有動畫從 60FPS 升級至 120FPS，展開/收起、卡拉OK歌詞逐字高亮、彈簧動畫等均以顯示更新率渲染，絲滑無卡頓
+- **🎵 卡拉OK歌詞渲染重構**：使用 `CompositionTarget.Rendering` 替代固定 16ms 計時器，幀率獨立插值（`1 - exp(-dt × 42)`），無論螢幕更新率如何均保持流暢
+- **⚙️ 彈簧動畫 GC 壓力消除**：`SpringEase` / `SoftSpringEase` 改用預計算快取，避免每次呼叫建立新物件
+- **🖼️ 高品質點陣圖縮放**：新增 `RenderOptions.BitmapScalingMode="HighQuality"`，封面圖片渲染更清晰
+- **📊 波形與歌詞計時器最佳化**：波形低功耗計時器 33ms→8ms，歌詞捲動計時器 16ms→8ms，回應更及時
+- **🌐 官網「一眼看懂」模組修復**：緊湊態動感島寬度增加，新增溢出控制，文字不再超出範圍
+
+## WinIslands 1.2.9（正式版 / Stable）
+
+一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新內容
+
+- **🐛 修復點擊桌面觸發自動隱藏**：全螢幕偵測現在排除 Windows 桌面視窗（Progman/WorkerW），點擊桌面不再誤判為全螢幕應用而觸發動感島自動隱藏
+- **🐛 修復自動隱藏後重新顯示時兩側被裁切**：動感島從隱藏恢復顯示時，先呼叫 ApplyAppearance() + ApplySize() 恢復正確的視窗尺寸、圓角和字體縮放，再以 Loaded 優先級重新定位，確保視窗尺寸已生效、兩側完整無裁切
+
+## WinIslands 1.2.8（正式版 / Stable）
+
+一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新內容
+
+- **⚡ 效能與記憶體最佳化**：修復 8 處事件處理器洩漏，所有事件訂閱現在在 `Dispose()` 中正確退訂
+- **⚡ UpdateVisibility 級聯最佳化**：新增快取字典，僅在屬性值實際變化時才觸發 `PropertyChanged`，每次呼叫減少約 25 次不必要的通知
+- **⚡ 彈簧動畫最佳化**：`SpringEase` / `SoftSpringEase` 使用快取實例，避免每次呼叫建立新物件
+- **⚡ 筆刷屬性快取**：推送卡片筆刷、歌詞筆刷等不再每幀分配新的 `SolidColorBrush`，改為快取凍結實例
+- **⚡ 封面色取樣快取**：展開/收起時跳過相同封面的重複 `RenderTargetBitmap.Render()` 呼叫
+- **⚡ GPU 效能計數器快取**：`PerformanceCounterCategory("GPU Engine")` 不再每次新建，改為欄位快取
+- **⚡ 時鐘文字去重**：僅在實際字串變化時更新 `ClockText` / `DateText`
+- **⚡ 低功耗波形計時器**：從 16ms 改為 33ms（30fps），真正降低空閒 CPU 佔用
+
+## WinIslands 1.2.7（正式版 / Stable）
+
+一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新內容
+
+- **🐛 修復記憶體與句柄洩漏**：修復 `IslandApiServer` 中 CancellationTokenSource 洩漏、`Stop()` 誤調 `Close()` 導致無法重啟、`ContainsKey` + 索引器競態等問題
+- **🐛 修復上島 API 競態**：PATCH 請求丟失 `ProgressAnchorUtc` 時間錨點導致進度漂移；WebSocket 分片訊息未正確拼接
+- **🐛 修復卡拉OK歌詞回跳**：每 200ms 歌詞進度回跳到開頭 —— 改為從時間軸插值計算每字進度，不再回跳
+- **🐛 修復卡拉OK GC 抖動**：每幀分配新的 SolidColorBrush 導致 GC 壓力 —— 改為複用 Brush 實例
+- **🐛 修復 Cider 提供者資源洩漏**：`Dispose()` 只 Cancel 未 Dispose CTS
+- **🐛 修復歌詞快取全清問題**：快取超 8 條時全部清空 —— 改為只淘汰最舊一條
+- **🐛 修復更新器倉庫地址**：硬編碼 `DMP-Pig/WinIslands` 改為按 `JudeKwong` / `DMP-Pig` 順序嘗試
+- **🐛 修復視窗標題媒體提供者句柄洩漏**：`Process.GetProcesses()` 返回的進程對象從未 Dispose
+- **🐛 修復組件顯示遺漏**：`RebuildCompactItems` 遺漏 Disk / InputMethod / QuickToggles 三個組件
+- **🐛 修復展開時封面全屏殘留**：孤兒視窗在展開時仍然存在
+- **🐛 修復緊湊尺寸動畫競態**：`AnimateCompactSize` 未停舊動畫導致競態
+- **🐛 修復拖動提示截斷動畫**：`ShowDragHint` 在動畫中重置綁定導致截斷
+- **🐛 修復設定視窗事件洩漏**：`Localization.LanguageChanged` 匿名訂閱未退訂
+- **⚡ 效能最佳化**：卡拉OK動畫 `NeedsAnimation` 現在考慮速度倍率，避免不必要的重繪
 
 ## WinIslands 1.2.6（正式版 / Stable）
 
@@ -900,6 +1044,78 @@
 
 ## English
 
+## WinIslands 1.3.1 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🩹 Fixed the island never appearing after launch (critical)**: the 1.3.0 window XAML contained an invalid `RenderOptions.EdgeMode="Uninitialized"` (the enum only defines `Unspecified` and `Aliased`), so the island window's XAML failed to parse and the window was never created — the process kept running in the background (tray and Island API both healthy) while nothing was visible on screen, and relaunching the exe did nothing. Now uses the valid `Unspecified`
+
+- **🔍 Fixed startup failures being swallowed by the logger**: log writes are batched (flush every 20 lines or 2 seconds), so critical startup errors sat in the buffer and were lost with the process. ERROR / WARN and the first line of every log file now flush immediately
+
+- **🖱️ Fixed "relaunching the exe won't bring the island back"**: an explicit show request now also clears fullscreen / lock-screen hide state, so the island can be recalled even when a maximized window is focused
+
+- **🔇 Fixed a binding exception in the volume / brightness indicator**: `VolumeTempPercent` is read-only but was bound two-way by default, throwing every time it appeared; now one-way
+
+## WinIslands 1.3.0 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🚀 Full 120FPS animation upgrade**: All animations upgraded from 60FPS to 120FPS — expand/collapse, karaoke lyric highlighting, spring animations all render at display refresh rate, buttery smooth
+- **🎵 Karaoke lyric rendering rebuilt**: Replaced fixed 16ms timer with `CompositionTarget.Rendering`, frame-rate independent interpolation (`1 - exp(-dt × 42)`), smooth regardless of screen refresh rate
+- **⚙️ Spring animation GC pressure eliminated**: `SpringEase` / `SoftSpringEase` now use pre-computed caches, avoiding per-call object allocation
+- **🖼️ High-quality bitmap scaling**: Added `RenderOptions.BitmapScalingMode="HighQuality"` for crisper artwork rendering
+- **📊 Wave & lyric timers optimized**: Wave low-power timer 33ms→8ms, lyrics scroll timer 16ms→8ms, more responsive
+- **🌐 Website "Quick Overview" section fixed**: Compact island width increased with overflow control, text no longer overflows
+
+## WinIslands 1.2.9 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🐛 Fixed desktop click triggering auto-hide**: Full-screen detection now excludes Windows desktop windows (Progman/WorkerW). Clicking the desktop no longer falsely triggers auto-hide
+- **🐛 Fixed edge clipping after auto-hide re-show**: When the island transitions from hidden to visible, ApplyAppearance() + ApplySize() are now called first to restore correct window dimensions, corner radius, and font scale, then repositions at Loaded priority to ensure proper dimensions are applied — no more clipped edges
+
+## WinIslands 1.2.8 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **⚡ Performance & memory optimization**: Fixed 8 event handler leaks — all event subscriptions now properly unsubscribed in `Dispose()`
+- **⚡ UpdateVisibility cascade optimized**: Added cache dictionary, only fires `PropertyChanged` when property value actually changes (~25 fewer unnecessary notifications per call)
+- **⚡ Spring animation optimization**: `SpringEase` / `SoftSpringEase` use cached instances, avoiding per-call object allocation
+- **⚡ Brush property caching**: Push card brushes, lyric brushes no longer allocate new `SolidColorBrush` per frame — cached frozen instances instead
+- **⚡ Cover color sampling cache**: Skips redundant `RenderTargetBitmap.Render()` calls on expand/collapse when artwork unchanged
+- **⚡ GPU performance counter cached**: `PerformanceCounterCategory("GPU Engine")` no longer recreated each call — cached as field
+- **⚡ Clock text deduplication**: Only updates `ClockText` / `DateText` when string actually changes
+- **⚡ Low-power wave timer**: Changed from 16ms to 33ms (30fps), genuinely reducing idle CPU usage
+
+## WinIslands 1.2.7 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🐛 Fixed memory & handle leaks**: Fixed CancellationTokenSource leak in `IslandApiServer`, `Stop()` calling `Close()` preventing restart, `ContainsKey` + indexer race condition
+- **🐛 Fixed Island API race conditions**: PATCH requests losing `ProgressAnchorUtc` time anchor causing progress drift; WebSocket fragmented messages not reassembled correctly
+- **🐛 Fixed karaoke lyrics regression**: Every 200ms lyrics progress jumped back to the start — now uses timeline interpolation for per-character progress, no more jumping
+- **🐛 Fixed karaoke GC jitter**: Per-frame allocation of new SolidColorBrush causing GC pressure — now reuses Brush instances
+- **🐛 Fixed Cider provider resource leak**: `Dispose()` only cancelled but did not dispose CTS
+- **🐛 Fixed lyrics cache eviction**: Cache clearing all entries when exceeding 8 items — now only evicts the oldest entry
+- **🐛 Fixed updater repository URL**: Hardcoded `DMP-Pig/WinIslands` now tries `JudeKwong` / `DMP-Pig` in order
+- **🐛 Fixed window title media provider handle leak**: `Process.GetProcesses()` returned process objects were never disposed
+- **🐛 Fixed component display omission**: `RebuildCompactItems` was missing Disk / InputMethod / QuickToggles components
+- **🐛 Fixed full-screen cover residual on expand**: Orphan window still existed during expansion
+- **🐛 Fixed compact size animation race**: `AnimateCompactSize` didn't stop old animations causing race
+- **🐛 Fixed drag hint truncating animation**: `ShowDragHint` reset bindings mid-animation causing truncation
+- **🐛 Fixed settings window event leak**: `Localization.LanguageChanged` anonymous subscription never unsubscribed
+- **⚡ Performance**: Karaoke animation `NeedsAnimation` now considers speed multiplier, avoiding unnecessary repaints
+
 ## WinIslands 1.2.6（正式版 / Stable）
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -1343,6 +1559,78 @@ A modern, multi-functional Dynamic Island widget for Windows.
 ---
 
 ## Español
+
+## WinIslands 1.3.1 (Estable)
+
+Un widget Dynamic Island moderno y multifuncional para Windows.
+
+### Novedades
+
+- **🩹 Corregido: la isla no aparecía tras iniciar (crítico)**: el XAML de la ventana en 1.3.0 contenía un `RenderOptions.EdgeMode="Uninitialized"` no válido (la enumeración solo define `Unspecified` y `Aliased`), por lo que el XAML de la isla no se podía analizar y la ventana nunca se creaba: el proceso seguía en segundo plano (bandeja y API de la isla funcionando) pero no se veía nada en pantalla, y volver a ejecutar el .exe no hacía nada. Ahora usa el valor válido `Unspecified`
+
+- **🔍 Corregido: los fallos de inicio se perdían en el registro**: la escritura de registros va por lotes (se vacía cada 20 líneas o 2 segundos), así que los errores críticos de inicio se quedaban en el búfer y se perdían con el proceso. Ahora ERROR / WARN y la primera línea de cada archivo se escriben de inmediato
+
+- **🖱️ Corregido: "volver a ejecutar el .exe no restauraba la isla"**: una solicitud explícita de mostrar ahora también borra el estado de ocultación por pantalla completa / bloqueo, de modo que la isla puede recuperarse aunque haya una ventana maximizada en primer plano
+
+- **🔇 Corregida una excepción de enlace en el indicador de volumen / brillo**: `VolumeTempPercent` es de solo lectura pero se enlazaba bidireccionalmente por defecto, lanzando una excepción cada vez que aparecía; ahora es unidireccional
+
+## WinIslands 1.3.0 (Estable)
+
+Un Dynamic Island moderno y multifuncional para Windows.
+
+### Novedades
+
+- **🚀 Animación 120FPS completa**: Todas las animaciones pasaron de 60FPS a 120FPS — expandir/contraer, resaltado de letras karaoke, animaciones de resorte renderizan a la tasa de actualización de la pantalla
+- **🎵 Renderizado de letras karaoke reconstruido**: Reemplazado temporizador fijo de 16ms con `CompositionTarget.Rendering`, interpolación independiente de la tasa de fotogramas
+- **⚙️ Presión de GC de animación de resorte eliminada**: `SpringEase` / `SoftSpringEase` usan cachés precalculados, evitando asignación de objetos por llamada
+- **🖼️ Escalado de mapa de bits de alta calidad**: Agregado `RenderOptions.BitmapScalingMode="HighQuality"` para arte más nítido
+- **📊 Temporizadores de onda y letras optimizados**: Onda 33ms→8ms, letras 16ms→8ms, más responsivo
+- **🌐 Sección "Vista rápida" del sitio web corregida**: Ancho de isla compacta aumentado con control de desbordamiento
+
+## WinIslands 1.2.9 (Estable)
+
+Un Dynamic Island moderno y multifuncional para Windows.
+
+### Novedades
+
+- **🐛 Corregido el clic en el escritorio que activaba la ocultación automática**: La detección de pantalla completa ahora excluye las ventanas del escritorio de Windows (Progman/WorkerW). Hacer clic en el escritorio ya no activa la ocultación automática
+- **🐛 Corregido el recorte de bordes al volver a mostrar después de la ocultación automática**: Cuando la isla pasa de oculta a visible, ahora se llama primero a ApplyAppearance() + ApplySize() para restaurar las dimensiones correctas de la ventana, radio de esquina y escala de fuente, luego se reposiciona con prioridad Loaded — sin más bordes recortados
+
+## WinIslands 1.2.8 (Estable)
+
+Un Dynamic Island moderno y multifuncional para Windows.
+
+### Novedades
+
+- **⚡ Optimización de rendimiento y memoria**: Corregidas 8 fugas de controladores de eventos — todas las suscripciones ahora se cancelan correctamente en `Dispose()`
+- **⚡ Cascada UpdateVisibility optimizada**: Diccionario de caché añadido, solo dispara `PropertyChanged` cuando el valor cambia (~25 notificaciones innecesarias menos por llamada)
+- **⚡ Optimización de animación de resorte**: `SpringEase` / `SoftSpringEase` usan instancias en caché, evitando asignación de objetos por llamada
+- **⚡ Caché de propiedades de pincel**: Pinceles de tarjetas y letras ya no asignan nuevos `SolidColorBrush` por fotograma — instancias congeladas en caché
+- **⚡ Caché de muestreo de color de portada**: Omite llamadas redundantes a `RenderTargetBitmap.Render()` al expandir/contraer cuando la portada no cambia
+- **⚡ Contador de rendimiento GPU en caché**: `PerformanceCounterCategory("GPU Engine")` ya no se recrea en cada llamada — caché como campo
+- **⚡ Deduplicación de texto de reloj**: Solo actualiza `ClockText` / `DateText` cuando la cadena cambia realmente
+- **⚡ Temporizador de onda de bajo consumo**: Cambiado de 16ms a 33ms (30fps), reduciendo genuinamente el uso de CPU en reposo
+
+## WinIslands 1.2.7 (Estable)
+
+Una moderna y multifuncional Dynamic Island para Windows.
+
+### Novedades
+
+- **🐛 Corrección de fugas de memoria y handles**: Corregida fuga de CancellationTokenSource en `IslandApiServer`, `Stop()` llamando `Close()` impidiendo reinicio, condición de carrera `ContainsKey` + indexador
+- **🐛 Corrección de condiciones de carrera en Island API**: Las peticiones PATCH perdían el ancla temporal `ProgressAnchorUtc` causando deriva de progreso; los mensajes WebSocket fragmentados no se reensamblaban correctamente
+- **🐛 Corrección de regresión de letras karaoke**: Cada 200ms el progreso saltaba al inicio — ahora usa interpolación de línea temporal para el progreso por carácter, sin más saltos
+- **🐛 Corrección de jitter de GC en karaoke**: Asignación de nuevo SolidColorBrush en cada frame causando presión de GC — ahora reutiliza instancias de Brush
+- **🐛 Corrección de fuga de recursos en proveedor Cider**: `Dispose()` solo cancelaba pero no disposed el CTS
+- **🐛 Corrección de evicción de caché de letras**: La caché se vaciaba por completo al superar 8 elementos — ahora solo evicta el más antiguo
+- **🐛 Corrección de URL del repositorio en actualizador**: `DMP-Pig/WinIslands` hardcodeado ahora prueba `JudeKwong` / `DMP-Pig` en orden
+- **🐛 Corrección de fuga de handle en proveedor de medios por título de ventana**: Los objetos de proceso de `Process.GetProcesses()` nunca se disposed
+- **🐛 Corrección de omisión de visualización de componentes**: `RebuildCompactItems` omitía los componentes Disk / InputMethod / QuickToggles
+- **🐛 Corrección de residual de portada a pantalla completa al expandir**: Ventana huérfana seguía existiendo durante la expansión
+- **🐛 Corrección de condición de carrera en animación de tamaño compacto**: `AnimateCompactSize` no detenía animaciones antiguas causando carrera
+- **🐛 Corrección de truncamiento de animación de pista de arrastre**: `ShowDragHint` reiniciaba bindings a mitad de animación causando truncamiento
+- **🐛 Corrección de fuga de eventos en ventana de ajustes**: Suscripción anónima de `Localization.LanguageChanged` nunca cancelada
+- **⚡ Rendimiento**: La animación karaoke `NeedsAnimation` ahora considera el multiplicador de velocidad, evitando repintados innecesarios
 
 ## WinIslands 1.2.6（正式版 / Stable）
 
@@ -1788,6 +2076,78 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 
 ## Français
 
+## WinIslands 1.3.1 (Stable)
+
+Un widget Dynamic Island moderne et multifonction pour Windows.
+
+### Nouveautés
+
+- **🩹 Correction : l'îlot n'apparaissait pas après le lancement (critique)** : le XAML de la fenêtre en 1.3.0 contenait un `RenderOptions.EdgeMode="Uninitialized"` invalide (l'énumération ne définit que `Unspecified` et `Aliased`), le XAML de l'îlot ne pouvait donc pas être analysé et la fenêtre n'était jamais créée — le processus restait en arrière-plan (barre d'état et API de l'îlot fonctionnels) sans rien à l'écran, et relancer l'exe ne faisait rien. Utilise désormais la valeur valide `Unspecified`
+
+- **🔍 Correction : les échecs de démarrage étaient perdus dans le journal** : les écritures sont regroupées (vidage toutes les 20 lignes ou 2 secondes), les erreurs critiques de démarrage restaient donc en mémoire tampon et étaient perdues avec le processus. Désormais ERROR / WARN et la première ligne de chaque fichier de journal sont écrites immédiatement
+
+- **🖱️ Correction : « relancer l'exe ne ramenait pas l'îlot »** : une demande d'affichage explicite efface aussi l'état de masquage plein écran / verrouillage, l'îlot peut donc être rappelé même lorsqu'une fenêtre maximisée est au premier plan
+
+- **🔇 Correction d'une exception de liaison dans l'indicateur de volume / luminosité** : `VolumeTempPercent` est en lecture seule mais était lié en bidirectionnel par défaut, ce qui levait une exception à chaque affichage ; désormais en unidirectionnel
+
+## WinIslands 1.3.0 (Stable)
+
+Un Dynamic Island moderne et multifonctionnel pour Windows.
+
+### Nouveautés
+
+- **🚀 Animation 120FPS complète** : Toutes les animations passent de 60FPS à 120FPS — expansion/contraction, surlignage karaoke, animations ressort rendues au taux de rafraîchissement de l'écran
+- **🎵 Rendu des paroles karaoke reconstruit** : Remplacement du minuteur fixe 16ms par `CompositionTarget.Rendering`, interpolation indépendante du taux d'images
+- **⚙️ Pression GC d'animation ressort éliminée** : `SpringEase` / `SoftSpringEase` utilisent des caches précalculés
+- **🖼️ Mise à l'échelle bitmap haute qualité** : Ajout de `RenderOptions.BitmapScalingMode="HighQuality"`
+- **📊 Minuteurs onde et paroles optimisés** : Onde 33ms→8ms, paroles 16ms→8ms
+- **🌐 Section « Aperçu rapide » du site corrigée** : Largeur de l'île compacte augmentée avec contrôle de débordement
+
+## WinIslands 1.2.9 (Stable)
+
+Un Dynamic Island moderne et multifonctionnel pour Windows.
+
+### Nouveautés
+
+- **🐛 Correction du clic sur le bureau déclenchant le masquage automatique**: La détection plein écran exclut désormais les fenêtres du bureau Windows (Progman/WorkerW). Cliquer sur le bureau ne déclenche plus le masquage automatique
+- **🐛 Correction du rognage des bords lors de la réapparition après masquage automatique**: Lors du passage de masqué à visible, ApplyAppearance() + ApplySize() sont désormais appelés en premier pour restaurer les dimensions correctes de la fenêtre, le rayon des coins et l'échelle de police, puis repositionnement avec priorité Loaded — plus de bords rognés
+
+## WinIslands 1.2.8 (Stable)
+
+Un Dynamic Island moderne et multifonctionnel pour Windows.
+
+### Nouveautés
+
+- **⚡ Optimisation des performances et de la mémoire** : Correction de 8 fuites de gestionnaires d'événements — tous les abonnements sont désormais correctement désabonnés dans `Dispose()`
+- **⚡ Cascade UpdateVisibility optimisée** : Dictionnaire de cache ajouté, ne déclenche `PropertyChanged` que lorsque la valeur change réellement (~25 notifications inutiles en moins par appel)
+- **⚡ Optimisation de l'animation à ressort** : `SpringEase` / `SoftSpringEase` utilisent des instances en cache, évitant l'allocation d'objets à chaque appel
+- **⚡ Mise en cache des pinceaux** : Les pinceaux de cartes et de paroles n'allouent plus de nouveaux `SolidColorBrush` par image — instances figées en cache
+- **⚡ Cache d'échantillonnage de couleur de pochette** : Ignore les appels redondants à `RenderTargetBitmap.Render()` lors de l'expansion/contraction quand la pochette est inchangée
+- **⚡ Compteur de performance GPU en cache** : `PerformanceCounterCategory("GPU Engine")` n'est plus recréé à chaque appel — mis en cache comme champ
+- **⚡ Déduplication du texte d'horloge** : Ne met à jour `ClockText` / `DateText` que lorsque la chaîne change réellement
+- **⚡ Minuteur d'onde basse consommation** : Passé de 16ms à 33ms (30fps), réduisant réellement l'utilisation du CPU au repos
+
+## WinIslands 1.2.7 (Stable)
+
+Une Dynamic Island moderne et polyvalente pour Windows.
+
+### Nouveautés
+
+- **🐛 Correction des fuites de mémoire et de handles** : Correction de la fuite de CancellationTokenSource dans `IslandApiServer`, `Stop()` appelant `Close()` empêchant le redémarrage, condition de course `ContainsKey` + indexeur
+- **🐛 Correction des conditions de course dans l'API Island** : Les requêtes PATCH perdaient l'ancre temporelle `ProgressAnchorUtc` causant une dérive de progression ; les messages WebSocket fragmentés n'étaient pas réassemblés correctement
+- **🐛 Correction de la régression des paroles karaoke** : Toutes les 200ms la progression sautait au début — utilise désormais l'interpolation de timeline pour la progression par caractère, plus de sauts
+- **🐛 Correction du jitter GC en karaoke** : Allocation d'un nouveau SolidColorBrush à chaque frame causant une pression GC — réutilise désormais les instances de Brush
+- **🐛 Correction de la fuite de ressources du fournisseur Cider** : `Dispose()` annulait mais ne disposait pas le CTS
+- **🐛 Correction de l'éviction du cache des paroles** : Le cache se vidait entièrement au-delà de 8 éléments — n'évince désormais que l'élément le plus ancien
+- **🐛 Correction de l'URL du dépôt dans le mise à jour** : `DMP-Pig/WinIslands` codé en dur essaie désormais `JudeKwong` / `DMP-Pig` dans l'ordre
+- **🐛 Correction de la fuite de handle du fournisseur de médias par titre de fenêtre** : Les objets processus de `Process.GetProcesses()` n'étaient jamais disposés
+- **🐛 Correction de l'omission d'affichage des composants** : `RebuildCompactItems` omettait les composants Disk / InputMethod / QuickToggles
+- **🐛 Correction du résiduel de pochette plein écran à l'expansion** : Fenêtre orpheline toujours présente lors de l'expansion
+- **🐛 Correction de la condition de course d'animation de taille compacte** : `AnimateCompactSize` ne stoppait pas les anciennes animations causant une course
+- **🐛 Correction de la troncation d'animation d'indicateur de glissement** : `ShowDragHint` réinitialisait les liaisons en milieu d'animation causant une troncation
+- **🐛 Correction de la fuite d'événements de la fenêtre des paramètres** : Abonnement anonyme `Localization.LanguageChanged` jamais désabonné
+- **⚡ Performance** : L'animation karaoke `NeedsAnimation` prend désormais en compte le multiplicateur de vitesse, évitant les repeints inutiles
+
 ## WinIslands 1.2.6（正式版 / Stable）
 
 Une Dynamic Island moderne et polyvalente pour Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -2231,6 +2591,84 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 ---
 
 ## العربية
+
+## WinIslands 1.3.1 (مستقر)
+
+أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
+
+### الجديد
+
+- **🩹 إصلاح عدم ظهور الجزيرة بعد التشغيل (حرج)**: كان ملف XAML للنافذة في الإصدار 1.3.0 يحتوي على `RenderOptions.EdgeMode="Uninitialized"` غير صالح (التعداد يعرّف `Unspecified` و `Aliased` فقط)، لذا فشل تحليل XAML ولم تُنشأ النافذة أبدًا — بقي البرنامج يعمل في الخلفية (علبة النظام وواجهة API تعملان) دون أي شيء على الشاشة، ولم يحدث شيء عند إعادة تشغيل الملف. الآن يستخدم القيمة الصالحة `Unspecified`
+
+- **🔍 إصلاح فقدان أخطاء بدء التشغيل في السجل**: تُكتب السجلات على دفعات (كل 20 سطرًا أو ثانيتين)، فبقيت الأخطاء الحرجة في الذاكرة المؤقتة وضاعت مع العملية. الآن تُكتب رسائل ERROR / WARN وأول سطر من كل ملف سجل فورًا
+
+- **🖱️ إصلاح «إعادة تشغيل الملف لا تُعيد الجزيرة»**: طلب الإظهار الصريح يمسح الآن أيضًا حالة الإخفاء بسبب ملء الشاشة / شاشة القفل، لذا يمكن استدعاء الجزيرة حتى مع وجود نافذة مكبّرة في المقدمة
+
+- **🔇 إصلاح استثناء الربط في مؤشر الصوت / السطوع**: الخاصية `VolumeTempPercent` للقراءة فقط لكنها كانت مرتبطة باتجاهين افتراضيًا، ما سبب استثناءً في كل مرة؛ الآن الربط أحادي الاتجاه
+
+## WinIslands 1.3.0 (مستقر)
+
+جزيرة ديناميكية حديثة ومتعددة الوظائف لنظام Windows.
+
+### ما الجديد
+
+- **🚀 ترقية كاملة للرسوم المتحركة 120FPS**: جميع الرسوم المتحركة تمت ترقيتها من 60FPS إلى 120FPS — التوسيع/الطي، تمييز كاريوكي، رسوم الزنبرك تُعرض بمعدل تحديث الشاشة
+- **🎵 إعادة بناء عرض كلمات الكاريوكي**: استبدال مؤقت 16ms الثابت بـ `CompositionTarget.Rendering`، استيفاء مستقل عن معدل الإطارات
+- **⚙️ إزالة ضغط GC لرسوم الزنبرك**: `SpringEase` / `SoftSpringEase` تستخدم ذاكرات تخزين محسوبة مسبقاً
+- **🖼️ تحجيم صور عالي الجودة**: إضافة `RenderOptions.BitmapScalingMode="HighQuality"`
+- **📊 تحسين مؤقتات الموجة والكلمات**: الموجة 33ms→8ms، الكلمات 16ms→8ms
+- **🌐 إصلاح قسم "نظرة سريعة" للموقع**: زيادة عرض الجزيرة المضغوطة مع التحكم في الفائض
+
+## WinIslands 1.2.9 (مستقر)
+
+جزيرة ديناميكية حديثة ومتعددة الوظائف لنظام Windows.
+
+### ما الجديد
+
+- **⚡ تحسين الأداء والذاكرة**: إصلاح 8 تسربات في معالجات الأحداث — جميع الاشتراكات الآن تُلغى بشكل صحيح في `Dispose()`
+- **⚡ تحسين سلسلة UpdateVisibility**: إضافة قاموس ذاكرة مؤقتة، يتم إطلاق `PropertyChanged` فقط عندما تتغير القيمة فعليًا (~25 إشعارًا غير ضروري أقل لكل استدعاء)
+- **⚡ تحسين الرسوم المتحركة الزنبركية**: `SpringEase` / `SoftSpringEase` يستخدم مثيلات مخزنة، مما يتجنب تخصيص الكائنات لكل استدعاء
+- **⚡ تخزين خصائص الفرشاة**: فرش البطاقات والكلمات لم تعد تخصص `SolidColorBrush` جديد لكل إطار — مثيلات مجمدة مخزنة
+- **⚡ تخزين عينة لون الغلاف**: يتخطى استدعاءات `RenderTargetBitmap.Render()` المتكررة عند التوسيع/الطي عندما لا يتغير الغلاف
+- **⚡ تخزين عداد أداء GPU**: `PerformanceCounterCategory("GPU Engine")` لم يعد يُعاد إنشاؤه في كل استدعاء — مخزن كحقل
+- **⚡ إزالة تكرار نص الساعة**: يحدّث `ClockText` / `DateText` فقط عندما يتغير النص فعليًا
+- **⚡ مؤقت الموجة منخفض الاستهلاك**: تم تغييره من 16ms إلى 33ms (30fps)، مما يقلل استخدام CPU عند الخمول
+
+## WinIslands 1.2.8 (مستقر)
+
+جزيرة ديناميكية حديثة ومتعددة الوظائف لنظام Windows.
+
+### ما الجديد
+
+- **⚡ تحسين الأداء والذاكرة**: إصلاح 8 تسربات في معالجات الأحداث — جميع الاشتراكات الآن تُلغى بشكل صحيح في `Dispose()`
+- **⚡ تحسين سلسلة UpdateVisibility**: إضافة قاموس ذاكرة مؤقتة، يتم إطلاق `PropertyChanged` فقط عندما تتغير القيمة فعليًا (~25 إشعارًا غير ضروري أقل لكل استدعاء)
+- **⚡ تحسين الرسوم المتحركة الزنبركية**: `SpringEase` / `SoftSpringEase` يستخدم مثيلات مخزنة، مما يتجنب تخصيص الكائنات لكل استدعاء
+- **⚡ تخزين خصائص الفرشاة**: فرش البطاقات والكلمات لم تعد تخصص `SolidColorBrush` جديد لكل إطار — مثيلات مجمدة مخزنة
+- **⚡ تخزين عينة لون الغلاف**: يتخطى استدعاءات `RenderTargetBitmap.Render()` المتكررة عند التوسيع/الطي عندما لا يتغير الغلاف
+- **⚡ تخزين عداد أداء GPU**: `PerformanceCounterCategory("GPU Engine")` لم يعد يُعاد إنشاؤه في كل استدعاء — مخزن كحقل
+- **⚡ إزالة تكرار نص الساعة**: يحدّث `ClockText` / `DateText` فقط عندما يتغير النص فعليًا
+- **⚡ مؤقت الموجة منخفض الاستهلاك**: تم تغييره من 16ms إلى 33ms (30fps)، مما يقلل استخدام CPU عند الخمول
+
+## WinIslands 1.2.7 (Stable)
+
+جزيرة ديناميكية حديثة ومتعددة الوظائف لنظام Windows.
+
+### الجديد
+
+- **🐛 إصلاح تسرب الذاكرة والمقابض**: إصلاح تسرب CancellationTokenSource في `IslandApiServer`، `Stop()` يستدعي `Close()` مما يمنع إعادة التشغيل، حالة سباق `ContainsKey` + المفهرس
+- **🐛 إصلاح حالات السباق في Island API**: طلبات PATCH تفقد مرساة الوقت `ProgressAnchorUtc` مما يسبب انجراف التقدم؛ رسائل WebSocket المجزأة لا يتم إعادة تجميعها بشكل صحيح
+- **🐛 إصلاح ارتداد كلمات الكاريوكي**: كل 200ms كان التقدم يقفز للبداية — الآن يستخدم استيفاء الخط الزمني لتقدم كل حرف، لا مزيد من القفز
+- **🐛 إصلاح اهتزاز GC في الكاريوكي**: تخصيص SolidColorBrush جديد في كل إطار يسبب ضغط GC — الآن يعيد استخدام مثيلات Brush
+- **🐛 إصلاح تسرب موارد مزود Cider**: `Dispose()` يلغي فقط لكن لا يتخلص من CTS
+- **🐛 إصلاح إخلاء ذاكرة الكلمات المؤقتة**: الذاكرة المؤقتة تفرغ بالكامل عند تجاوز 8 عناصر — الآن فقط تخلط العنصر الأقدم
+- **🐛 إصلاح عنوان المستودع في المحقق**: `DMP-Pig/WinIslands` المشفر يجرب الآن `JudeKwong` / `DMP-Pig` بالترتيب
+- **🐛 إصلاح تسرب مقبض مزود الوسائط بعنوان النافذة**: كائنات العملية من `Process.GetProcesses()` لم يتم التخلص منها أبداً
+- **🐛 إصلاح حذف عرض المكونات**: `RebuildCompactItems` كان يحذف مكونات Disk / InputMethod / QuickToggles
+- **🐛 إصلاح بقايا الغلاف الكامل عند التوسيع**: نافذة يتيمة لا تزال موجودة أثناء التوسيع
+- **🐛 إصلاح حالة سباق حركة الحجم المضغوط**: `AnimateCompactSize` لا يوقف الحركات القديمة مما يسبب سباق
+- **🐛 إصلاح اقتطاع حركة تلميح السحب**: `ShowDragHint` يعيد تعيين الروابط في منتصف الحركة مما يسبب الاقتطاع
+- **🐛 إصلاح تسرب أحداث نافذة الإعدادات**: اشتراك `Localization.LanguageChanged` المجهول لم يتم إلغاء الاشتراك به أبداً
+- **⚡ الأداء**: حركة الكاريوكي `NeedsAnimation` تأخذ الآن في الاعتبار مضاعف السرعة، مما يمنع إعادة الرسم غير الضرورية
 
 ## WinIslands 1.2.6（正式版 / Stable）
 
@@ -2676,6 +3114,78 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 ## Русский
 
+## WinIslands 1.3.1 (Stable)
+
+Современный многофункциональный виджет Dynamic Island для Windows.
+
+### Что нового
+
+- **🩹 Исправлено: островок не появлялся после запуска (критично)**: в XAML окна версии 1.3.0 был указан недопустимый `RenderOptions.EdgeMode="Uninitialized"` (в перечислении есть только `Unspecified` и `Aliased`), из-за чего XAML не разбирался и окно островка вообще не создавалось — процесс работал в фоне (трей и Island API в норме), но на экране ничего не было, а повторный запуск exe ничего не давал. Теперь используется допустимое `Unspecified`
+
+- **🔍 Исправлено: ошибки запуска терялись в журнале**: запись журнала буферизуется (сброс каждые 20 строк или 2 секунды), поэтому критичные ошибки запуска оставались в буфере и терялись вместе с процессом. Теперь ERROR / WARN и первая строка каждого файла журнала записываются сразу
+
+- **🖱️ Исправлено: «повторный запуск exe не возвращал островок»**: явный запрос показа теперь также сбрасывает состояние скрытия из-за полноэкранного режима / блокировки, поэтому островок можно вернуть даже при развёрнутом окне на переднем плане
+
+- **🔇 Исправлено исключение привязки в индикаторе громкости / яркости**: `VolumeTempPercent` доступно только для чтения, но привязывалось двусторонне по умолчанию, вызывая исключение при каждом показе; теперь привязка односторонняя
+
+## WinIslands 1.3.0 (Stable)
+
+Современный многофункциональный Dynamic Island для Windows.
+
+### Что нового
+
+- **🚀 Полный переход на 120FPS**: Все анимации обновлены с 60FPS до 120FPS — раскрытие/сворачивание, подсветка караоке, пружинные анимации рендерятся с частотой обновления экрана
+- **🎵 Перестроен рендеринг текстов караоке**: Замена фиксированного таймера 16ms на `CompositionTarget.Rendering`, интерполяция, независимая от частоты кадров
+- **⚙️ Устранено давление GC пружинной анимации**: `SpringEase` / `SoftSpringEase` используют предвычисленные кэши
+- **🖼️ Высококачественное масштабирование**: Добавлен `RenderOptions.BitmapScalingMode="HighQuality"`
+- **📊 Оптимизированы таймеры волны и текстов**: Волна 33ms→8ms, тексты 16ms→8ms
+- **🌐 Исправлен раздел «Быстрый обзор» сайта**: Увеличена ширина компактного острова с контролем переполнения
+
+## WinIslands 1.2.9 (Stable)
+
+Современный многофункциональный Dynamic Island для Windows.
+
+### Что нового
+
+- **🐛 Исправлено нажатие на рабочий стол, вызывавшее автоскрытие**: Обнаружение полноэкранного режима теперь исключает окна рабочего стола Windows (Progman/WorkerW). Нажатие на рабочий стол больше не вызывает ложное автоскрытие
+- **🐛 Исправлено обрезание краёв при повторном показе после автоскрытия**: При переходе острова из скрытого в видимое состояние теперь сначала вызываются ApplyAppearance() + ApplySize() для восстановления правильных размеров окна, радиуса скругления и масштаба шрифта, затем повторное позиционирование с приоритетом Loaded — больше никаких обрезанных краёв
+
+## WinIslands 1.2.8 (Stable)
+
+Современный многофункциональный Dynamic Island для Windows.
+
+### Что нового
+
+- **⚡ Оптимизация производительности и памяти**: Исправлено 8 утечек обработчиков событий — все подписки теперь корректно отписываются в `Dispose()`
+- **⚡ Оптимизация каскада UpdateVisibility**: Добавлен словарь кэша, `PropertyChanged` срабатывает только при фактическом изменении значения (~на 25 меньше ненужных уведомлений за вызов)
+- **⚡ Оптимизация пружинной анимации**: `SpringEase` / `SoftSpringEase` используют кэшированные экземпляры, избегая выделения объектов при каждом вызове
+- **⚡ Кэширование свойств кистей**: Кисти карточек и текстов больше не выделяют новые `SolidColorBrush` на каждый кадр — кэшированные замороженные экземпляры
+- **⚡ Кэш выборки цвета обложки**: Пропускает избыточные вызовы `RenderTargetBitmap.Render()` при раскрытии/сворачивании, когда обложка не изменилась
+- **⚡ Кэш счётчика производительности GPU**: `PerformanceCounterCategory("GPU Engine")` больше не создаётся заново при каждом вызове — кэширован как поле
+- **⚡ Дедупликация текста часов**: `ClockText` / `DateText` обновляются только при фактическом изменении строки
+- **⚡ Таймер волны с низким энергопотреблением**: Изменён с 16ms на 33ms (30fps), действительно снижая использование CPU в простое
+
+## WinIslands 1.2.7 (Stable)
+
+Современный многофункциональный Dynamic Island для Windows.
+
+### Что нового
+
+- **🐛 Исправлены утечки памяти и дескрипторов**: Исправлена утечка CancellationTokenSource в `IslandApiServer`, `Stop()` вызывал `Close()` препятствуя перезапуску, состояние гонки `ContainsKey` + индексатор
+- **🐛 Исправлены состояния гонки в Island API**: PATCH-запросы теряли привязку времени `ProgressAnchorUtc` вызывая дрейф прогресса; фрагментированные WebSocket-сообщения не собирались корректно
+- **🐛 Исправлена регрессия караоке-текста**: Каждые 200мс прогресс прыгал в начало — теперь используется интерполяция временной шкалы для посимвольного прогресса, больше нет прыжков
+- **🐛 Исправлен джитер GC в караоке**: Покадровое выделение нового SolidColorBrush вызывало давление GC — теперь переиспользуются экземпляры Brush
+- **🐛 Исправлена утечка ресурсов провайдера Cider**: `Dispose()` только отменял, но не освобождал CTS
+- **🐛 Исправлена очистка кэша текстов**: Кэш полностью очищался при превышении 8 элементов — теперь вытесняется только самый старый элемент
+- **🐛 Исправлен URL репозитория в обновляторе**: Захардкоженный `DMP-Pig/WinIslands` теперь пробует `JudeKwong` / `DMP-Pig` по порядку
+- **🐛 Исправлена утечка дескрипторов провайдера медиа по заголовку окна**: Объекты процессов из `Process.GetProcesses()` никогда не освобождались
+- **🐛 Исправлено пропуск отображения компонентов**: `RebuildCompactItems` пропускал компоненты Disk / InputMethod / QuickToggles
+- **🐛 Исправлен остаток обложки на весь экран при раскрытии**: Окно-сирота продолжало существовать при раскрытии
+- **🐛 Исправлено состояние гонки анимации компактного размера**: `AnimateCompactSize` не останавливал старые анимации вызывая гонку
+- **🐛 Исправлено усечение анимации подсказки перетаскивания**: `ShowDragHint` сбрасывал привязки посреди анимации вызывая усечение
+- **🐛 Исправлена утечка событий окна настроек**: Анонимная подписка `Localization.LanguageChanged` никогда не отписывалась
+- **⚡ Производительность**: Анимация караоке `NeedsAnimation` теперь учитывает множитель скорости, избегая ненужных перерисовок
+
 ## WinIslands 1.2.6（正式版 / Stable）
 
 Современный многофункциональный Dynamic Island для Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -3119,6 +3629,84 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 ---
 
 ## Português
+
+## WinIslands 1.3.1 (Estável)
+
+Um widget Dynamic Island moderno e multifuncional para Windows.
+
+### Novidades
+
+- **🩹 Corrigido: a ilha não aparecia após iniciar (crítico)**: o XAML da janela na 1.3.0 continha um `RenderOptions.EdgeMode="Uninitialized"` inválido (a enumeração define apenas `Unspecified` e `Aliased`), então o XAML da ilha não era analisado e a janela nunca era criada — o processo continuava em segundo plano (bandeja e API da ilha funcionando) sem nada na tela, e executar o .exe novamente não fazia nada. Agora usa o valor válido `Unspecified`
+
+- **🔍 Corrigido: falhas de inicialização eram perdidas no log**: as gravações são em lote (descarga a cada 20 linhas ou 2 segundos), então erros críticos de inicialização ficavam no buffer e eram perdidos com o processo. Agora ERROR / WARN e a primeira linha de cada arquivo de log são gravados imediatamente
+
+- **🖱️ Corrigido: "executar o .exe novamente não trazia a ilha de volta"**: uma solicitação explícita de exibição agora também limpa o estado de ocultação por tela cheia / tela de bloqueio, então a ilha pode ser recuperada mesmo com uma janela maximizada em primeiro plano
+
+- **🔇 Corrigida uma exceção de vinculação no indicador de volume / brilho**: `VolumeTempPercent` é somente leitura mas era vinculado em duas vias por padrão, lançando exceção a cada exibição; agora é unidirecional
+
+## WinIslands 1.3.0 (Estável)
+
+Um Dynamic Island moderno e multifuncional para Windows.
+
+### Novidades
+
+- **🚀 Animação 120FPS completa**: Todas as animações passaram de 60FPS para 120FPS — expandir/recolher, destaque de letras karaokê, animações de mola renderizam na taxa de atualização da tela
+- **🎵 Renderização de letras karaokê reconstruída**: Substituição do temporizador fixo 16ms por `CompositionTarget.Rendering`, interpolação independente da taxa de quadros
+- **⚙️ Pressão de GC da animação de mola eliminada**: `SpringEase` / `SoftSpringEase` usam caches pré-calculados
+- **🖼️ Escalonamento de bitmap de alta qualidade**: Adicionado `RenderOptions.BitmapScalingMode="HighQuality"`
+- **📊 Temporizadores de onda e letras otimizados**: Onda 33ms→8ms, letras 16ms→8ms
+- **🌐 Seção "Visão rápida" do site corrigida**: Largura da ilha compacta aumentada com controle de estouro
+
+## WinIslands 1.2.9 (Estável)
+
+Um Dynamic Island moderno e multifuncional para Windows.
+
+### Novidades
+
+- **⚡ Otimização de desempenho e memória**: Corrigidos 8 vazamentos de manipuladores de eventos — todas as assinaturas agora são canceladas corretamente em `Dispose()`
+- **⚡ Cascata UpdateVisibility otimizada**: Adicionado dicionário de cache, só dispara `PropertyChanged` quando o valor muda realmente (~25 notificações desnecessárias a menos por chamada)
+- **⚡ Otimização da animação de mola**: `SpringEase` / `SoftSpringEase` usam instâncias em cache, evitando alocação de objetos por chamada
+- **⚡ Cache de propriedades de pincel**: Pincéis de cartões e letras não alocam mais novos `SolidColorBrush` por quadro — instâncias congeladas em cache
+- **⚡ Cache de amostragem de cor da capa**: Ignora chamadas redundantes a `RenderTargetBitmap.Render()` ao expandir/contrair quando a capa não muda
+- **⚡ Contador de desempenho de GPU em cache**: `PerformanceCounterCategory("GPU Engine")` não é mais recriado a cada chamada — cacheado como campo
+- **⚡ Deduplicação de texto do relógio**: Só atualiza `ClockText` / `DateText` quando a string muda realmente
+- **⚡ Temporizador de onda de baixo consumo**: Alterado de 16ms para 33ms (30fps), reduzindo genuinamente o uso de CPU em repouso
+
+## WinIslands 1.2.8 (Estável)
+
+Um Dynamic Island moderno e multifuncional para Windows.
+
+### Novidades
+
+- **⚡ Otimização de desempenho e memória**: Corrigidos 8 vazamentos de manipuladores de eventos — todas as assinaturas agora são canceladas corretamente em `Dispose()`
+- **⚡ Cascata UpdateVisibility otimizada**: Adicionado dicionário de cache, só dispara `PropertyChanged` quando o valor muda realmente (~25 notificações desnecessárias a menos por chamada)
+- **⚡ Otimização da animação de mola**: `SpringEase` / `SoftSpringEase` usam instâncias em cache, evitando alocação de objetos por chamada
+- **⚡ Cache de propriedades de pincel**: Pincéis de cartões e letras não alocam mais novos `SolidColorBrush` por quadro — instâncias congeladas em cache
+- **⚡ Cache de amostragem de cor da capa**: Ignora chamadas redundantes a `RenderTargetBitmap.Render()` ao expandir/contrair quando a capa não muda
+- **⚡ Contador de desempenho de GPU em cache**: `PerformanceCounterCategory("GPU Engine")` não é mais recriado a cada chamada — cacheado como campo
+- **⚡ Deduplicação de texto do relógio**: Só atualiza `ClockText` / `DateText` quando a string muda realmente
+- **⚡ Temporizador de onda de baixo consumo**: Alterado de 16ms para 33ms (30fps), reduzindo genuinamente o uso de CPU em repouso
+
+## WinIslands 1.2.7 (Estável)
+
+Um Dynamic Island moderno e multifuncional para Windows.
+
+### Novidades
+
+- **🐛 Correção de vazamentos de memória e handles**: Corrigido vazamento de CancellationTokenSource no `IslandApiServer`, `Stop()` chamando `Close()` impedindo reinicialização, condição de corrida `ContainsKey` + indexador
+- **🐛 Correção de condições de corrida na Island API**: Requisições PATCH perdiam a âncora de tempo `ProgressAnchorUtc` causando deriva de progresso; mensagens WebSocket fragmentadas não eram remontadas corretamente
+- **🐛 Correção de regressão de letras karaokê**: A cada 200ms o progresso pulava para o início — agora usa interpolação de linha do tempo para progresso por caractere, sem mais pulos
+- **🐛 Correção de jitter de GC no karaokê**: Alocação de novo SolidColorBrush a cada quadro causando pressão de GC — agora reutiliza instâncias de Brush
+- **🐛 Correção de vazamento de recursos do provedor Cider**: `Dispose()` apenas cancelava mas não dispunha o CTS
+- **🐛 Correção de evicção de cache de letras**: Cache esvaziava completamente ao exceder 8 itens — agora apenas evicta o item mais antigo
+- **🐛 Correção de URL do repositório no atualizador**: `DMP-Pig/WinIslands` hardcoded agora tenta `JudeKwong` / `DMP-Pig` em ordem
+- **🐛 Correção de vazamento de handle do provedor de mídia por título de janela**: Objetos de processo de `Process.GetProcesses()` nunca eram dispostos
+- **🐛 Correção de omissão de exibição de componentes**: `RebuildCompactItems` omitia os componentes Disk / InputMethod / QuickToggles
+- **🐛 Correção de residual de capa em tela cheia ao expandir**: Janela órfã ainda existia durante a expansão
+- **🐛 Correção de condição de corrida de animação de tamanho compacto**: `AnimateCompactSize` não parava animações antigas causando corrida
+- **🐛 Correção de truncamento de animação de dica de arrasto**: `ShowDragHint` redefinia ligações no meio da animação causando truncamento
+- **🐛 Correção de vazamento de eventos da janela de configurações**: Assinatura anônima de `Localization.LanguageChanged` nunca cancelada
+- **⚡ Desempenho**: Animação de karaokê `NeedsAnimation` agora considera o multiplicador de velocidade, evitando repinturas desnecessárias
 
 ## WinIslands 1.2.6（正式版 / Stable）
 

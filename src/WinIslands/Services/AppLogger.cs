@@ -39,11 +39,14 @@ public static class AppLogger
                     var path = Path.Combine(AppPaths.LogsDir, $"app-{day}.log");
                     _writer = new StreamWriter(path, append: true, Encoding.UTF8);
                     _writer.AutoFlush = false; // 批量落盘：避免每次写日志同步刷磁盘卡顿（动画更流畅）
+                    _lastFlushUtc = DateTime.MinValue; // 新建日志首行立即落盘，保证启动记录一定存在
                 }
 
                 _writer.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}");
                 _pendingLines++;
-                if (_pendingLines >= FlushThreshold || DateTime.UtcNow - _lastFlushUtc >= FlushInterval)
+                // ERROR/WARN 立即落盘：崩溃或启动失败时缓冲内容会随进程一起丢失，导致无从排查
+                var urgent = level is "ERROR" or "WARN";
+                if (urgent || _pendingLines >= FlushThreshold || DateTime.UtcNow - _lastFlushUtc >= FlushInterval)
                 {
                     _writer.Flush();
                     _pendingLines = 0;

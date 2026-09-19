@@ -2665,7 +2665,18 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         UpdateVisibility();
     }
 
-    public void ForceShow() { _userHidden = false; UpdateVisibility(); }
+    /// <summary>
+    /// 用户显式要求显示（再次启动 exe / 托盘「显示」）。同时清掉自动隐藏门控，
+    /// 否则前台存在全屏窗口时 UpdateVisibility 仍会算出 show=false，表现为「点了没反应」。
+    /// </summary>
+    public void ForceShow()
+    {
+        _userHidden = false;
+        FullScreenHidden = false;
+        LockScreenHidden = false;
+        UpdateVisibility();
+    }
+
     public void ForceHide() { _userHidden = true; UpdateVisibility(); }
 
     /// <summary>强制重新获取当前曲目的歌词（在线歌词开关变化后调用）。</summary>

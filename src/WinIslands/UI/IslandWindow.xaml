@@ -14,7 +14,7 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         RenderOptions.BitmapScalingMode="HighQuality"
-        RenderOptions.EdgeMode="Uninitialized">
+        RenderOptions.EdgeMode="Unspecified">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -454,7 +454,7 @@
                                     <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0"
                                                Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                     <ProgressBar Width="58" Height="4" Maximum="1" VerticalAlignment="Center" Margin="0,0,6,0"
-                                                 Value="{Binding DataContext.VolumeTempPercent, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                                 Value="{Binding DataContext.VolumeTempPercent, RelativeSource={RelativeSource AncestorType=ItemsControl}, Mode=OneWay}">
                                         <ProgressBar.Template>
                                             <ControlTemplate TargetType="ProgressBar">
                                                 <Grid>
