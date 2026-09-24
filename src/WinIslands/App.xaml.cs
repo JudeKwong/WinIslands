@@ -38,6 +38,7 @@ public partial class App : Application
     private FullScreenMonitor? _fullScreenMonitor;
     private SessionSwitchEventHandler? _sessionSwitchHandler;   // 锁屏自动隐藏：SessionSwitch 订阅句柄
     private readonly DispatcherTimer _themeScheduleTimer = new() { Interval = TimeSpan.FromSeconds(30) }; // 定时明暗切换：每 30 秒检查一次
+    private readonly DispatcherTimer _stateSaveTimer = new() { Interval = TimeSpan.FromSeconds(30) }; // 周期性保存状态（崩溃恢复）
     private bool? _lastScheduledDark;   // 上次应用的定时深色状态，避免无变化时重复 Apply
     private CalendarService? _calendar;
     private RssMailService? _rssMail;
@@ -218,7 +219,7 @@ AppPaths.EnsureDirectories();
         if (_settings.Current.IslandApiEnabled) _islandApi.Start();
 
         // ── 全屏自动隐藏（视频/游戏/演示等全屏时隐藏灵动岛，退出恢复）──
-        _fullScreenMonitor = new FullScreenMonitor();
+        _fullScreenMonitor = new FullScreenMonitor { HideOnMaximize = _settings.Current.HideOnMaximizeEnabled };
         _fullScreenMonitor.FullScreenChanged += full => Dispatcher.BeginInvoke(() =>
         {
             if (_settings!.Current.FullScreenAutoHideEnabled)
@@ -424,6 +425,7 @@ AppPaths.EnsureDirectories();
             // 全屏自动隐藏：开关变化即时生效（关闭时立即恢复显示）
             if (_fullScreenMonitor is not null)
             {
+                _fullScreenMonitor.HideOnMaximize = s.HideOnMaximizeEnabled;
                 if (s.FullScreenAutoHideEnabled && !_fullScreenMonitor.IsRunning) _fullScreenMonitor.Start();
                 else if (!s.FullScreenAutoHideEnabled && _fullScreenMonitor.IsRunning)
                 {
@@ -463,6 +465,17 @@ AppPaths.EnsureDirectories();
 
         // ── 定时明暗切换：到点自动切换深/浅主题（仅 Theme=Auto 且开关开启时生效）──
         _themeScheduleTimer.Tick += (_, _) => RefreshScheduledTheme(_settings!.Current);
+        // 周期性保存播放状态与设置（崩溃恢复：每 30 秒落盘一次，崩溃时丢失最多 30 秒进度）
+        _stateSaveTimer.Tick += (_, _) =>
+        {
+            try
+            {
+                _settings?.Save();
+                _vm?.SavePlaybackState();
+            }
+            catch (Exception ex) { AppLogger.Warn($"Periodic state save failed: {ex.Message}"); }
+        };
+        _stateSaveTimer.Start();
         RefreshScheduledTheme(_settings.Current);   // 启动即应用一次
         if (_settings.Current.ThemeScheduledEnabled) _themeScheduleTimer.Start();
 
@@ -486,24 +499,53 @@ AppPaths.EnsureDirectories();
         };
         SystemEvents.SessionSwitch += _sessionSwitchHandler;
 
+        // ── 多显示器 DPI/分辨率变化动态适配：显示器插拔或分辨率/DPI 变化时重建窗口 ──
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) =>
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    AppLogger.Info("Display settings changed; recreating island windows.");
+                    RecreateWindows();
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error("Display settings change handling failed", ex);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        };
+
         // Sync registry state once at startup (in case settings were edited externally).
         if (AutoStart.IsEnabled() != _settings.Current.StartWithWindows)
             AutoStart.SetEnabled(_settings.Current.StartWithWindows);
 
-        // ── Start media pipeline ──
+        // ── Start media pipeline (critical path: needed for initial island display) ──
         _coordinator.Start();
-
-        if (_settings.Current.BluetoothNotifyEnabled) _bluetooth?.Start();
-        if (_settings.Current.CallNotifyEnabled) _callMonitor?.Start(_settings.Current.CallNotifyApps);
-        _network?.Start(); // 网络监控很轻量，始终启动；是否弹横幅由 NetworkNotifyEnabled 开关控制
         _vm.UpdateVisibility();
 
-        if (_settings.Current.StandaloneLyricsWindow)
-            ShowLyricsWindow();
+        // ── 非关键服务延迟启动：先让灵动岛窗口渲染到屏幕，再初始化后台监控服务 ──
+        // 使用 Background 优先级：确保 UI 渲染和媒体管线优先完成
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (_settings!.Current.BluetoothNotifyEnabled) _bluetooth?.Start();
+                if (_settings.Current.CallNotifyEnabled) _callMonitor?.Start(_settings.Current.CallNotifyApps);
+                _network?.Start(); // 网络监控很轻量，始终启动；是否弹横幅由 NetworkNotifyEnabled 开关控制
 
-        // 启动时自动检查新版本（可选；需联网，默认关闭）
-        if (_settings.Current.AutoUpdateCheck)
-            _ = CheckForUpdatesAsync(showWhenUpToDate: false);
+                if (_settings.Current.StandaloneLyricsWindow)
+                    ShowLyricsWindow();
+
+                // 启动时自动检查新版本（可选；需联网，默认关闭）
+                if (_settings.Current.AutoUpdateCheck)
+                    _ = CheckForUpdatesAsync(showWhenUpToDate: false);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error("Deferred service startup failed", ex);
+            }
+        }), System.Windows.Threading.DispatcherPriority.Background);
 
         // ── Diagnostics mode: report and exit. ──
         if (e.Args.Contains("--diagnose", StringComparer.OrdinalIgnoreCase))
@@ -785,6 +827,28 @@ AppPaths.EnsureDirectories();
     }
 
     // ── 崩溃自动恢复（1.2.0）──
+    /// <summary>崩溃后自动重启：如用户开启了 AutoRestartOnCrash，在崩溃前启动新实例。</summary>
+    private void TryAutoRestartOnCrash()
+    {
+        try
+        {
+            if (_settings is null || !_settings.Current.AutoRestartOnCrash) return;
+            var exePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exePath)) return;
+            AppLogger.Info($"Auto-restart enabled; launching new instance: {exePath}");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                UseShellExecute = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal,
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Auto-restart failed", ex);
+        }
+    }
+
     private void WriteCrashMarker()
     {
         try
@@ -845,6 +909,7 @@ AppPaths.EnsureDirectories();
             if (_sessionSwitchHandler is not null)
                 SystemEvents.SessionSwitch -= _sessionSwitchHandler;
             _themeScheduleTimer.Stop();
+            _stateSaveTimer.Stop();
             _miniPlayer?.Close();
             foreach (var w in _windows) w.Close();
         }

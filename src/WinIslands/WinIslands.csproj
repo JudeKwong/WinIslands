@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -18,11 +18,59 @@
     <Authors>WinIslands</Authors>
     <Product>WinIslands</Product>
     <Description>macOS-style Dynamic Island for Windows - media controls, lyrics and more.</Description>
+    <!-- 浠呬繚鐣欎腑鑻变袱绉嶈瑷€璧勬簮锛屽噺灏忎綋绉?-->
     <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <NoWarn>;WFAC010</NoWarn>
+    <NoWarn>;WFAC010;NETSDK1175</NoWarn>
     <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- ================================================================
+       Release 鍙戝竷浼樺寲閰嶇疆
+       浠呭湪 Release 閰嶇疆涓嬬敓鏁堬紝涓嶅奖鍝?Debug 寮€鍙戜綋楠?       杩欎簺灞炴€у湪 dotnet build 鏃舵槸绌烘搷浣滐紝浠呭湪 dotnet publish 鏃剁敓鏁?       ================================================================ -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+
+    <!-- [鍗曟枃浠跺彂甯僝 灏嗘墍鏈夋墭绠＄▼搴忛泦鍜?.NET 杩愯鏃舵墦鍖呬负鍗曚釜 .exe
+         閰嶅悎 self-contained true 浣跨敤锛岀敤鎴锋棤闇€棰濆瀹夎杩愯鏃?         鍒嗗彂鍙渶涓€涓枃浠讹紝浣撻獙鏈€绠€娲?-->
+    <PublishSingleFile>true</PublishSingleFile>
+
+    <!-- 鍘熺敓搴擄紙濡?WPF 鐨?native 缁勪欢锛夊祵鍏ュ崟鏂囦欢鍐呴儴
+         杩愯鏃惰В鍘嬪埌涓存椂鐩綍锛岄伩鍏嶅湪 exe 鏃佽竟娈嬬暀 .dll -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- 瀵瑰崟鏂囦欢鍐呭鍚敤 gzip 鍘嬬缉锛岃繘涓€姝ュ噺灏忔渶缁?.exe 浣撶Н -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <CompressionAlgorithm>brotli</CompressionAlgorithm>
+
+    <!-- [瑁佸壀浼樺寲] 瑁佸壀鏈娇鐢ㄧ殑妗嗘灦浠ｇ爜锛屽噺灏忎綋绉?         娉ㄦ剰: WPF 椤圭洰涓嶈兘瀹屽叏瑁佸壀锛坒ull 妯″紡浼氳繍琛屾椂宕╂簝锛?         TrimMode=partial: 浠呰鍓槑纭爣娉ㄤ负鍙鍓殑绋嬪簭闆?         WPF/WinForms 鐩稿叧浠ｇ爜瀹屾暣淇濈暀锛屽畨鍏ㄤ笖鏈夋晥 -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!-- 覆盖 SDK 对 WinForms/WPF + Trimming 的安全检查
+         TrimMode=partial 仅裁剪标注为可裁剪的程序集，WinForms/WPF 代码完整保留 -->
+    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+    <_SuppressWpfTrimError>true</_SuppressWpfTrimError>
+
+    <!-- [ReadyToRun 棰勭紪璇慮 灏?IL 棰勭紪璇戜负鍘熺敓鏈哄櫒鐮侊紝鍔犲揩鍐峰惎鍔ㄩ€熷害
+         浠ｄ环: 浣撶Н澧炲姞绾?10-15%锛屼絾鍚姩鏃堕棿鏄捐憲缂╃煭
+         瀵规闈㈠簲鐢ㄥ惎鍔ㄤ綋楠屾彁鍗囨槑鏄?-->
+    <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!-- [璋冭瘯鏀寔] Release 妯″紡绉婚櫎璋冭瘯鍩虹璁炬柦
+         涓嶇敓鎴?.pdb 绗﹀彿鏂囦欢
+         绉婚櫎璋冭瘯浠ｇ悊鍜岀鍙峰姞杞介€昏緫
+         鍑忓皬浣撶Н骞舵彁鍗囪繍琛屾椂瀹夊叏 -->
+    <DebuggerSupport>false</DebuggerSupport>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- [鏈嶅姟鍣?GC] 閫傚悎甯搁┗鍚庡彴搴旂敤锛屽噺灏?GC 鍋滈】 -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+
+    <!-- [鍒嗗眰缂栬瘧] JIT 鍦ㄨ繍琛屾椂閫愬眰浼樺寲鐑偣浠ｇ爜
+         鍐峰惎鍔ㄧ敤蹇€?JIT锛岀儹鐐规柟娉曞啀鍗囩骇涓轰紭鍖?JIT -->
+    <TieredCompilation>true</TieredCompilation>
+
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,5 +78,6 @@
   </ItemGroup>
 
 </Project>
+
 
 

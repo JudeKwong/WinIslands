@@ -20,23 +20,23 @@ using WinIslands.Services;
 namespace WinIslands.UI;
 
 /// <summary>
-/// iOS 风格灵动岛窗口。
-/// 窗口尺寸固定（400x400、透明、点击穿透），仅内部卡片（Card）形变：
-/// 紧凑 = 340x56 胶囊，展开 = 400x~384 卡片向下生长。
-/// 动画只作用于单个元素，由 WPF 合成线程 60fps 驱动，避免窗口级 Resize 卡顿。
-/// 点击穿透通过 WM_NCHITTEST 显式处理：卡片内可交互，卡片外穿透。
+/// iOS 椋庢牸鐏靛姩宀涚獥鍙ｃ€?
+/// 绐楀彛灏哄鍥哄畾锛?00x400銆侀€忔槑銆佺偣鍑荤┛閫忥級锛屼粎鍐呴儴鍗＄墖锛圕ard锛夊舰鍙橈細
+/// 绱у噾 = 340x56 鑳跺泭锛屽睍寮€ = 400x~384 鍗＄墖鍚戜笅鐢熼暱銆?
+/// 鍔ㄧ敾鍙綔鐢ㄤ簬鍗曚釜鍏冪礌锛岀敱 WPF 鍚堟垚绾跨▼ 60fps 椹卞姩锛岄伩鍏嶇獥鍙ｇ骇 Resize 鍗￠】銆?
+/// 鐐瑰嚮绌块€忛€氳繃 WM_NCHITTEST 鏄惧紡澶勭悊锛氬崱鐗囧唴鍙氦浜掞紝鍗＄墖澶栫┛閫忋€?
 /// </summary>
 public partial class IslandWindow : Window, INotifyPropertyChanged
 {
-    // 尺寸来自设置（可调），带安全钳制
-    /// <summary>字号缩放系数：整张卡片 LayoutTransform 缩放，逻辑尺寸 = 视觉尺寸 / 缩放比。</summary>
+    // 灏哄鏉ヨ嚜璁剧疆锛堝彲璋冿級锛屽甫瀹夊叏閽冲埗
+    /// <summary>瀛楀彿缂╂斁绯绘暟锛氭暣寮犲崱鐗?LayoutTransform 缂╂斁锛岄€昏緫灏哄 = 瑙嗚灏哄 / 缂╂斁姣斻€?/summary>
     private double FontScale => Math.Clamp(_settings.Current.FontScale, 0.8, 1.4);
     private double ManualCompactW => Math.Clamp(_settings.Current.CompactWidth / FontScale, 240 / FontScale, 520 / FontScale);
     private double ManualCompactH => Math.Clamp(_settings.Current.CompactHeight / FontScale, 48 / FontScale, 140 / FontScale);
     /// <summary>
-    /// 紧凑态最大视觉宽度（使用时除以 FontScale 得到逻辑上限）：
-    /// 无推送时保持 800 上限避免岛过宽；有上岛推送时放宽到所在显示器工作区宽度（留边距），
-    /// 保证长通知出现时右侧组件（媒体按钮/时钟等）不被 ClipToBounds 裁切、文字完整显示。
+    /// 绱у噾鎬佹渶澶ц瑙夊搴︼紙浣跨敤鏃堕櫎浠?FontScale 寰楀埌閫昏緫涓婇檺锛夛細
+    /// 鏃犳帹閫佹椂淇濇寔 800 涓婇檺閬垮厤宀涜繃瀹斤紱鏈変笂宀涙帹閫佹椂鏀惧鍒版墍鍦ㄦ樉绀哄櫒宸ヤ綔鍖哄搴︼紙鐣欒竟璺濓級锛?
+    /// 淇濊瘉闀块€氱煡鍑虹幇鏃跺彸渚х粍浠讹紙濯掍綋鎸夐挳/鏃堕挓绛夛級涓嶈 ClipToBounds 瑁佸垏銆佹枃瀛楀畬鏁存樉绀恒€?
     /// </summary>
     private double MaxCompactVisualWidth
     {
@@ -46,7 +46,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             try
             {
                 var workW = ScreenHelper.DpiWorkArea(_screen).Width;
-                return Math.Max(800, workW - 48); // 左右各留 24 边距，避免贴到屏幕边缘
+                return Math.Max(800, workW - 48); // 宸﹀彸鍚勭暀 24 杈硅窛锛岄伩鍏嶈创鍒板睆骞曡竟缂?
             }
             catch
             {
@@ -56,8 +56,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 实测紧凑内容宽度（岛可见时精确贴合组件）。
-    /// 岛隐藏/未布局时返回「估算与手动值取较大者」，避免启动瞬间 Card 过窄导致组件挤压、显示不完整。
+    /// 瀹炴祴绱у噾鍐呭瀹藉害锛堝矝鍙鏃剁簿纭创鍚堢粍浠讹級銆?
+    /// 宀涢殣钘?鏈竷灞€鏃惰繑鍥炪€屼及绠椾笌鎵嬪姩鍊煎彇杈冨ぇ鑰呫€嶏紝閬垮厤鍚姩鐬棿 Card 杩囩獎瀵艰嚧缁勪欢鎸ゅ帇銆佹樉绀轰笉瀹屾暣銆?
     /// </summary>
     private double MeasureCompactWidthNow()
     {
@@ -67,8 +67,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             if (!IsLoaded || !_vm.IsVisible) return fallback;
             PillRow.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
             var w = PillRow.DesiredSize.Width;
-            // 字号缩放：逻辑宽度按比例缩小，卡片渲染时再放大，最终视觉宽度不变
-            return w >= 20 ? Math.Clamp((w + 56) / FontScale, 240 / FontScale, MaxCompactVisualWidth / FontScale) : fallback; // 总留白 56（左侧 22 + 右侧 24，右侧略多）
+            // 瀛楀彿缂╂斁锛氶€昏緫瀹藉害鎸夋瘮渚嬬缉灏忥紝鍗＄墖娓叉煋鏃跺啀鏀惧ぇ锛屾渶缁堣瑙夊搴︿笉鍙?
+            return w >= 20 ? Math.Clamp((w + 56) / FontScale, 240 / FontScale, MaxCompactVisualWidth / FontScale) : fallback; // 鎬荤暀鐧?56锛堝乏渚?22 + 鍙充晶 24锛屽彸渚х暐澶氾級
         }
         catch
         {
@@ -80,24 +80,24 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _noPushWValid;
 
     /// <summary>
-    /// 推送卡片在紧凑态所需宽度：单行显示（图标 30 + 间距 8 + 标题 + 单行摘要上限 190），
-    /// 摘要过长由 TextTrimming 省略，整体宽度紧凑、不大幅撑宽灵动岛。
+    /// 鎺ㄩ€佸崱鐗囧湪绱у噾鎬佹墍闇€瀹藉害锛氬崟琛屾樉绀猴紙鍥炬爣 30 + 闂磋窛 8 + 鏍囬 + 鍗曡鎽樿涓婇檺 190锛夛紝
+    /// 鎽樿杩囬暱鐢?TextTrimming 鐪佺暐锛屾暣浣撳搴︾揣鍑戙€佷笉澶у箙鎾戝鐏靛姩宀涖€?
     /// </summary>
     private double PushCardCompactWidth()
     {
         var p = _vm.ActivePush;
         if (p is null) return 0;
-        double need = 38; // 图标 30 + 间距 8
-        need += Math.Min(TextW(p.Title, 13, 7), 240); // 标题（SemiBold），上限 240 与 XAML MaxWidth 一致
+        double need = 38; // 鍥炬爣 30 + 闂磋窛 8
+        need += Math.Min(TextW(p.Title, 13, 7), 240); // 鏍囬锛圫emiBold锛夛紝涓婇檺 240 涓?XAML MaxWidth 涓€鑷?
         if (!string.IsNullOrEmpty(p.Subtitle) || !string.IsNullOrEmpty(p.Body))
         {
             var summary = !string.IsNullOrEmpty(p.Subtitle) ? p.Subtitle : p.Body;
-            need += 8 + Math.Min(TextW(summary, 11.5, 6.2), 200); // 摘要单行上限 200，超出省略（与 XAML MaxWidth 一致）
+            need += 8 + Math.Min(TextW(summary, 11.5, 6.2), 200); // 鎽樿鍗曡涓婇檺 200锛岃秴鍑虹渷鐣ワ紙涓?XAML MaxWidth 涓€鑷达級
         }
-        return (Math.Min(need, 520) + 48) / FontScale; // +48：左右内边距(12+12) + 余量
+        return (Math.Min(need, 520) + 48) / FontScale; // +48锛氬乏鍙冲唴杈硅窛(12+12) + 浣欓噺
     }
 
-    /// <summary>估算多行文本的最宽单行宽度：中文/全角按 cjkPx，ASCII 按 asciiPx（换行符按行分离取最大值）。</summary>
+    /// <summary>浼扮畻澶氳鏂囨湰鐨勬渶瀹藉崟琛屽搴︼細涓枃/鍏ㄨ鎸?cjkPx锛孉SCII 鎸?asciiPx锛堟崲琛岀鎸夎鍒嗙鍙栨渶澶у€硷級銆?/summary>
     private static double TextW(string? s, double cjkPx, double asciiPx)
     {
         if (string.IsNullOrEmpty(s)) return 0;
@@ -113,8 +113,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
 
     /// <summary>
-    /// 紧凑宽度：有推送时取「实测（含推送卡片实际布局宽）」与「估算（无推送基准 + 推送宽）」的较大者。
-    /// 实测保证任何文本都放得下（不依赖估算精度），估算兜底布局时序（首帧未布局时实测可能偏小）。
+    /// 绱у噾瀹藉害锛氭湁鎺ㄩ€佹椂鍙栥€屽疄娴嬶紙鍚帹閫佸崱鐗囧疄闄呭竷灞€瀹斤級銆嶄笌銆屼及绠楋紙鏃犳帹閫佸熀鍑?+ 鎺ㄩ€佸锛夈€嶇殑杈冨ぇ鑰呫€?
+    /// 瀹炴祴淇濊瘉浠讳綍鏂囨湰閮芥斁寰椾笅锛堜笉渚濊禆浼扮畻绮惧害锛夛紝浼扮畻鍏滃簳甯冨眬鏃跺簭锛堥甯ф湭甯冨眬鏃跺疄娴嬪彲鑳藉亸灏忥級銆?
     /// </summary>
     private double CompactWidth
     {
@@ -133,24 +133,24 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return autoW;
         }
     }
-    private double _noPushCompactH;   // 无上岛推送时的紧凑高度（缓存）
+    private double _noPushCompactH;   // 鏃犱笂宀涙帹閫佹椂鐨勭揣鍑戦珮搴︼紙缂撳瓨锛?
     private bool _noPushHValid;
 
     /// <summary>
-    /// 紧凑高度：有上岛推送时以推送内容高度为准（无推送基准高度 与「推送卡片高度 + 上下内边距(6+6)」取较大者），
-    /// 保证副标题/正文/进度/按钮完整显示，不再被 ClipToBounds 上下裁切、文字上移。
+    /// 绱у噾楂樺害锛氭湁涓婂矝鎺ㄩ€佹椂浠ユ帹閫佸唴瀹归珮搴︿负鍑嗭紙鏃犳帹閫佸熀鍑嗛珮搴?涓庛€屾帹閫佸崱鐗囬珮搴?+ 涓婁笅鍐呰竟璺?6+6)銆嶅彇杈冨ぇ鑰咃級锛?
+    /// 淇濊瘉鍓爣棰?姝ｆ枃/杩涘害/鎸夐挳瀹屾暣鏄剧ず锛屼笉鍐嶈 ClipToBounds 涓婁笅瑁佸垏銆佹枃瀛椾笂绉汇€?
     /// </summary>
     private double CompactHeight
     {
         get
         {
-            if (!_settings.Current.CompactHeightAuto) return ManualCompactH; // 手动模式：高度恒定
+            if (!_settings.Current.CompactHeightAuto) return ManualCompactH; // 鎵嬪姩妯″紡锛氶珮搴︽亽瀹?
             if (_vm.HasActivePush)
             {
-                var pushVisualH = _vm.PushCompactHeight;                          // 推送卡片内容高度（视觉 DIP）
+                var pushVisualH = _vm.PushCompactHeight;                          // 鎺ㄩ€佸崱鐗囧唴瀹归珮搴︼紙瑙嗚 DIP锛?
                 var baseVisualH = _noPushHValid ? _noPushCompactH * FontScale
                                                 : Math.Clamp(_vm.EstimatedCompactHeight, 48, 224);
-                var visual = Math.Clamp(Math.Max(baseVisualH, pushVisualH + 12), 48, 236); // +12 = ContentGrid 上下 Margin 6+6
+                var visual = Math.Clamp(Math.Max(baseVisualH, pushVisualH + 12), 48, 236); // +12 = ContentGrid 涓婁笅 Margin 6+6
                 return visual / FontScale;
             }
             _noPushCompactH = _vm.EstimatedCompactHeight / FontScale;
@@ -175,16 +175,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly System.Windows.Forms.Screen _screen;
     private readonly DispatcherTimer _collapseTimer;
     private readonly DispatcherTimer _compactRestoreTimer;
-    private readonly EventHandler _onThemeChanged;      // 具名处理器：窗口关闭时可退订，防泄漏
+    private readonly EventHandler _onThemeChanged;      // 鍏峰悕澶勭悊鍣細绐楀彛鍏抽棴鏃跺彲閫€璁紝闃叉硠婕?
     private readonly EventHandler<AppSettings> _onSettingsChanged;
     private NotifyCollectionChangedEventHandler? _historyChangedHandler;
-    private bool _waveRendering;                  // 波纹渲染中（已挂接合成帧事件）
-    private DispatcherTimer? _waveTimer;                  // 低功耗模式：波纹定时器（~120fps）
-    private double _lastWaveTime;                 // 上一帧时间（秒），用于帧率无关平滑
+    private bool _waveRendering;                  // 娉㈢汗娓叉煋涓紙宸叉寕鎺ュ悎鎴愬抚浜嬩欢锛?
+    private DispatcherTimer? _waveTimer;                  // 浣庡姛鑰楁ā寮忥細娉㈢汗瀹氭椂鍣紙~120fps锛?
+    private double _lastWaveTime;                 // 涓婁竴甯ф椂闂达紙绉掞級锛岀敤浜庡抚鐜囨棤鍏冲钩婊?
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
     private readonly List<ScaleTransform> _waveBarsCompact = new();
-    // 备选波纹样式（频谱/环形/粒子）
+    // 澶囬€夋尝绾规牱寮忥紙棰戣氨/鐜舰/绮掑瓙锛?
     private readonly List<ScaleTransform> _waveSpectrumExpanded = new();
     private readonly List<ScaleTransform> _waveSpectrumCompact = new();
     private ScaleTransform? _waveRingScaleExpanded;
@@ -192,8 +192,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly List<TranslateTransform> _waveParticleTransformsExpanded = new();
     private readonly List<TranslateTransform> _waveParticleTransformsCompact = new();
     private Storyboard? _currentStoryboard;
-    private Storyboard? _glassAnimSb;               // 玻璃分层不透明度动画（可随时重开/停止）
-    /// <summary>展开态玻璃叠加目标不透明度：从基础 88% 叠加到 ≈97%（随用户 Opacity 缩放）。</summary>
+    private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
+    /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
     private double GlassTargetOpacity
     {
         get
@@ -205,11 +205,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>展开内容交错过渡区块（自上而下）：上岛推送 / Hero / 封面标题 / 进度 / 控制 / 歌词快捷 / 歌词 / 快捷操作。
-    /// 1.2.1：展开时依次淡入上移、收起时反向淡出下移，仿 iOS 灵动岛错峰进出。</summary>
+    /// <summary>灞曞紑鍐呭浜ら敊杩囨浮鍖哄潡锛堣嚜涓婅€屼笅锛夛細涓婂矝鎺ㄩ€?/ Hero / 灏侀潰鏍囬 / 杩涘害 / 鎺у埗 / 姝岃瘝蹇嵎 / 姝岃瘝 / 蹇嵎鎿嶄綔銆?
+    /// 1.2.1锛氬睍寮€鏃朵緷娆℃贰鍏ヤ笂绉汇€佹敹璧锋椂鍙嶅悜娣″嚭涓嬬Щ锛屼豢 iOS 鐏靛姩宀涢敊宄拌繘鍑恒€?/summary>
     private (FrameworkElement El, TranslateTransform Tr)[] _cascadeBlocks = Array.Empty<(FrameworkElement, TranslateTransform)>();
 
-    /// <summary>为展开内容各区块挂接位移变换（供交错过渡动画使用）。</summary>
+    /// <summary>涓哄睍寮€鍐呭鍚勫尯鍧楁寕鎺ヤ綅绉诲彉鎹紙渚涗氦閿欒繃娓″姩鐢讳娇鐢級銆?/summary>
     private static (FrameworkElement, TranslateTransform)[] BuildCascadeBlocks(params FrameworkElement?[] els)
     {
         var list = new List<(FrameworkElement, TranslateTransform)>(els.Length);
@@ -227,7 +227,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         return list.ToArray();
     }
 
-    /// <summary>ReduceMotion / 兜底：直接设置所有交错区块的透明度与位移，跳过动画。</summary>
+    /// <summary>ReduceMotion / 鍏滃簳锛氱洿鎺ヨ缃墍鏈変氦閿欏尯鍧楃殑閫忔槑搴︿笌浣嶇Щ锛岃烦杩囧姩鐢汇€?/summary>
     private void ApplyCascadeState(double opacity, double y)
     {
         foreach (var (el, tr) in _cascadeBlocks)
@@ -236,24 +236,24 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             tr.Y = y;
         }
     }
-    private Storyboard? _positionStoryboard;   // 位置动画独占：连续重定位先停旧动画
+    private Storyboard? _positionStoryboard;   // 浣嶇疆鍔ㄧ敾鐙崰锛氳繛缁噸瀹氫綅鍏堝仠鏃у姩鐢?
     private HwndSource? _hwndSource;
-    private CoverFullScreenWindow? _coverFullWindow;   // #2 封面沉浸：全屏封面预览窗口
+    private CoverFullScreenWindow? _coverFullWindow;   // #2 灏侀潰娌夋蹈锛氬叏灞忓皝闈㈤瑙堢獥鍙?
 
-    // ── #8 动态主题：封面取色背景缓慢呼吸（60fps 合成帧驱动，仅在展开+取色开启时运行）──
-    private System.Windows.Media.Color? _tintCoverColor;   // 已采样的封面主色（变化时重建 brush）
-    private LinearGradientBrush? _tintBrush;               // 封面取色渐变（缓存，避免每帧重建 GC）
+    // 鈹€鈹€ #8 鍔ㄦ€佷富棰橈細灏侀潰鍙栬壊鑳屾櫙缂撴參鍛煎惛锛?0fps 鍚堟垚甯ч┍鍔紝浠呭湪灞曞紑+鍙栬壊寮€鍚椂杩愯锛夆攢鈹€
+    private System.Windows.Media.Color? _tintCoverColor;   // 宸查噰鏍风殑灏侀潰涓昏壊锛堝彉鍖栨椂閲嶅缓 brush锛?
+    private LinearGradientBrush? _tintBrush;               // 灏侀潰鍙栬壊娓愬彉锛堢紦瀛橈紝閬垮厤姣忓抚閲嶅缓 GC锛?
     private GradientStop? _tintStop0;
     private GradientStop? _tintStop1;
     private DateTime _tintPhaseUtc;
-    // 封面取色缓存：避免展开/收起时重复采样同一封面
+    // 灏侀潰鍙栬壊缂撳瓨锛氶伩鍏嶅睍寮€/鏀惰捣鏃堕噸澶嶉噰鏍峰悓涓€灏侀潰
     private ImageSource? _lastSampledArtwork;
-    private System.Windows.Media.Color? _lastSampledColor;                        // 呼吸相位起点
+    private System.Windows.Media.Color? _lastSampledColor;                        // 鍛煎惛鐩镐綅璧风偣
     private bool _tintRenderingSubscribed;
-    // 缓存上岛推送画刷（避免每次属性访问都 new SolidColorBrush）
+    // 缂撳瓨涓婂矝鎺ㄩ€佺敾鍒凤紙閬垮厤姣忔灞炴€ц闂兘 new SolidColorBrush锛?
     private Brush? _cachedPushBg, _cachedPushBorder, _cachedPushFg, _cachedPushSecondary;
     private bool _pushDarkCache;
-    // 缓存歌词画刷（避免每次访问都 new SolidColorBrush）
+    // 缂撳瓨姝岃瘝鐢诲埛锛堥伩鍏嶆瘡娆¤闂兘 new SolidColorBrush锛?
     private Brush? _cachedExpLyricBase, _cachedExpLyricHL, _cachedCmpLyricBase, _cachedCmpLyricHL;
     private string? _cachedLyricBaseHex, _cachedLyricHLHex;
     private bool _lyricBrushDark;
@@ -272,11 +272,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         DataContext = vm;
         InitializeComponent();
 
-        // 展开内容交错过渡区块（功能 2）：为各区块挂载位移变换，供展开/收起错峰动画使用
+        // 灞曞紑鍐呭浜ら敊杩囨浮鍖哄潡锛堝姛鑳?2锛夛細涓哄悇鍖哄潡鎸傝浇浣嶇Щ鍙樻崲锛屼緵灞曞紑/鏀惰捣閿欏嘲鍔ㄧ敾浣跨敤
         _cascadeBlocks = BuildCascadeBlocks(ExpandedPushCard, HeroCard, ArtTitleGrid, ProgressGrid,
             ControlsGrid, LyricQuickOpsPanel, LyricsScroll, QuickActionsPanel);
 
-        // 收起延迟（鼠标移出展开态 700ms 后收起）
+        // 鏀惰捣寤惰繜锛堥紶鏍囩Щ鍑哄睍寮€鎬?700ms 鍚庢敹璧凤級
         _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
         _collapseTimer.Tick += (_, _) =>
         {
@@ -284,7 +284,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _vm.IsExpanded = false;
         };
 
-        // 收起动画可能被快速切换打断导致 Card 尺寸残留：动画结束后兜底恢复精确紧凑尺寸
+        // 鏀惰捣鍔ㄧ敾鍙兘琚揩閫熷垏鎹㈡墦鏂鑷?Card 灏哄娈嬬暀锛氬姩鐢荤粨鏉熷悗鍏滃簳鎭㈠绮剧‘绱у噾灏哄
         _compactRestoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
         _compactRestoreTimer.Tick += (_, _) =>
         {
@@ -302,7 +302,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _lyricsScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) }; // 120fps
         _lyricsScrollTimer.Tick += (_, _) => SmoothScrollStep();
 
-        // 声音波纹：挂接合成帧事件，按显示器刷新率驱动，空闲时摘除不占 CPU
+        // 澹伴煶娉㈢汗锛氭寕鎺ュ悎鎴愬抚浜嬩欢锛屾寜鏄剧ず鍣ㄥ埛鏂扮巼椹卞姩锛岀┖闂叉椂鎽橀櫎涓嶅崰 CPU
         if (WaveBar1 is not null)
         {
             _waveBarsExpanded.AddRange(new[] { WaveBar1, WaveBar2, WaveBar3, WaveBar4, WaveBar5, WaveBar6, WaveBar7 });
@@ -310,13 +310,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         InitWaveVisualStyles();
 
-        // 悬停不展开；移出时若已展开则延迟收起
+        // 鎮仠涓嶅睍寮€锛涚Щ鍑烘椂鑻ュ凡灞曞紑鍒欏欢杩熸敹璧?
         Card.MouseLeave += (_, _) =>
         {
             if (_vm.IsExpanded) _collapseTimer.Start();
         };
 
-        // 双击检测：单击延迟 280ms 后切换展开/收起；窗口内第二次单击则执行快捷动作
+        // 鍙屽嚮妫€娴嬶細鍗曞嚮寤惰繜 280ms 鍚庡垏鎹㈠睍寮€/鏀惰捣锛涚獥鍙ｅ唴绗簩娆″崟鍑诲垯鎵ц蹇嵎鍔ㄤ綔
         _clickDebounce.Tick += (_, _) =>
         {
             _clickDebounce.Stop();
@@ -324,7 +324,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _pendingClick = false;
             if (_toggleDoneOnDown)
             {
-                // #7 点击抢先：MouseDown 已立即切换，这里只是等待双击窗口，不再重复切换
+                // #7 鐐瑰嚮鎶㈠厛锛歁ouseDown 宸茬珛鍗冲垏鎹紝杩欓噷鍙槸绛夊緟鍙屽嚮绐楀彛锛屼笉鍐嶉噸澶嶅垏鎹?
                 _toggleDoneOnDown = false;
                 return;
             }
@@ -332,13 +332,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _vm.IsExpanded = !_vm.IsExpanded;
         };
 
-        // 点击展开/收起；解锁状态下支持鼠标拖动
+        // 鐐瑰嚮灞曞紑/鏀惰捣锛涜В閿佺姸鎬佷笅鏀寔榧犳爣鎷栧姩
         Card.PreviewMouseLeftButtonDown += OnCardMouseLeftButtonDown;
         Card.PreviewMouseMove += OnCardMouseMove;
         Card.PreviewMouseLeftButtonUp += OnCardMouseLeftButtonUp;
-        Card.PreviewMouseUp += OnCardMiddleMouseUp;   // 中键快捷操作
+        Card.PreviewMouseUp += OnCardMiddleMouseUp;   // 涓敭蹇嵎鎿嶄綔
 
-        // 进度条拖拽 seek
+        // 杩涘害鏉℃嫋鎷?seek
         ProgressSlider.AddHandler(Thumb.DragStartedEvent, new DragStartedEventHandler((_, _) => _vm.BeginSeek()));
         ProgressSlider.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler(async (_, _) => await _vm.EndSeekAsync(ProgressSlider.Value)));
 
@@ -360,11 +360,101 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RefreshNotificationHistoryProps();
 
         Loaded += OnLoaded;
-        DpiChanged += (_, _) => Reposition();
-        Closed += OnWindowClosed; // 关闭时退订外部事件源，避免 RecreateWindows 重建后事件泄漏
+        // 瑙︽懜灞忎氦浜掞細婊戝姩鍒囨瓕銆佺偣鍑诲睍寮€/鏀惰捣
+        TouchDown += OnTouchDown;
+        TouchUp += OnTouchUp;
+        ManipulationStarted += OnManipulationStarted;
+        ManipulationCompleted += OnManipulationCompleted;
+        ManipulationDelta += OnManipulationDelta;
+        // 瑙︽懜婊氬姩锛氬睍寮€鍚庡彲鐢ㄦ墜鎸囨粴鍔ㄦ瓕璇?
+        PreviewTouchDown += (_, _) => { /* 纭繚瑙︽懜浜嬩欢涓嶈瀛愬厓绱犲悶鎺?*/ };
+        DpiChanged += (_, _) =>
+        {
+            Reposition();
+            ApplySize(); // DPI 鍙樺寲鏃堕噸鏂拌绠楀崱鐗囧昂瀵革紙澶氭樉绀哄櫒涓嶅悓缂╂斁姣斿満鏅級
+            ApplyAppearance(); // 鍒锋柊澶栬纭繚瀛椾綋娓叉煋姝ｇ‘
+        };
+        Closed += OnWindowClosed; // 鍏抽棴鏃堕€€璁㈠閮ㄤ簨浠舵簮锛岄伩鍏?RecreateWindows 閲嶅缓鍚庝簨浠舵硠婕?
     }
 
-    /// <summary>窗口关闭：退订外部事件并停止本窗口定时器 / 渲染循环，防止内存与 CPU 泄漏。</summary>
+    /// <summary>绐楀彛鍏抽棴锛氶€€璁㈠閮ㄤ簨浠跺苟鍋滄鏈獥鍙ｅ畾鏃跺櫒 / 娓叉煋寰幆锛岄槻姝㈠唴瀛樹笌 CPU 娉勬紡銆?/summary>
+    // 鈹€鈹€ 瑙︽懜灞忎氦浜?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    private DateTime _touchStartTime;
+    private Point _touchStartPoint;
+    private bool _touchManipulating;
+
+    private void OnTouchDown(object sender, TouchEventArgs e)
+    {
+        try
+        {
+            var tp = e.GetTouchPoint(this);
+            _touchStartTime = DateTime.Now;
+            _touchStartPoint = tp.Position;
+            _touchManipulating = false;
+            // 鍚敤鎿嶄綔锛氬厑璁告粦鍔ㄦ墜鍔?
+            if (_vm.IsExpanded)
+            {
+                // 灞曞紑鐘舵€佷笅鍏佽瑙︽懜婊氬姩
+                e.Handled = false;
+            }
+        }
+        catch { }
+    }
+
+    private void OnTouchUp(object sender, TouchEventArgs e)
+    {
+        try
+        {
+            if (_touchManipulating) return; // 婊戝姩鎵嬪娍宸插鐞嗭紝涓嶅啀瑙﹀彂鐐瑰嚮
+            var tp = e.GetTouchPoint(this);
+            var delta = tp.Position - _touchStartPoint;
+            var duration = DateTime.Now - _touchStartTime;
+            // 鐭椂闂淬€佸皬浣嶇Щ = 鐐瑰嚮锛堝睍寮€/鏀惰捣锛?
+            if (duration < TimeSpan.FromMilliseconds(300) && Math.Abs(delta.X) < 20 && Math.Abs(delta.Y) < 20)
+            {
+                _vm.IsExpanded = !_vm.IsExpanded;
+            }
+        }
+        catch { }
+    }
+
+    private void OnManipulationStarted(object sender, ManipulationStartedEventArgs e)
+    {
+        _touchManipulating = true;
+    }
+
+    private void OnManipulationDelta(object sender, ManipulationDeltaEventArgs e)
+    {
+        // 灞曞紑鐘舵€佷笅鍏佽瑙︽懜鍨傜洿婊氬姩姝岃瘝
+        if (_vm.IsExpanded)
+        {
+            e.Handled = false; // 璁╁唴閮?ScrollViewer 澶勭悊
+        }
+    }
+
+    private void OnManipulationCompleted(object sender, ManipulationCompletedEventArgs e)
+    {
+        try
+        {
+            // 姘村钩婊戝姩鎵嬪娍锛氬乏婊?= 涓嬩竴棣栵紝鍙虫粦 = 涓婁竴棣?
+            var totalX = e.TotalManipulation.Translation.X;
+            var totalY = e.TotalManipulation.Translation.Y;
+            if (Math.Abs(totalX) > Math.Abs(totalY) && Math.Abs(totalX) > 50)
+            {
+                if (totalX < 0)
+                    _vm.NextCommand.Execute(null);
+                else
+                    _vm.PreviousCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
+        catch { }
+        finally
+        {
+            _touchManipulating = false;
+        }
+    }
+
     private void OnWindowClosed(object? sender, EventArgs e)
     {
         _glassAnimSb?.Stop();
@@ -381,8 +471,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _lyricsScrollTimer.Stop();
             CancelPendingClick();
             StopWaveRender();
-            SubscribeTintRendering(false); // 显式退订封面取色合成帧，防窗口销毁后事件泄漏
-            // 关闭可能存在的全屏封面预览窗口，避免孤儿窗口
+            SubscribeTintRendering(false); // 鏄惧紡閫€璁㈠皝闈㈠彇鑹插悎鎴愬抚锛岄槻绐楀彛閿€姣佸悗浜嬩欢娉勬紡
+            // 鍏抽棴鍙兘瀛樺湪鐨勫叏灞忓皝闈㈤瑙堢獥鍙ｏ紝閬垮厤瀛ゅ効绐楀彛
             if (_coverFullWindow is { } cfw)
             {
                 try { cfw.Close(); } catch { /* ignore */ }
@@ -499,8 +589,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public string NotificationHistoryClearText => Localization.Get("Notifications_HistoryClear");
 
 
-    // ── 上岛推送卡片主题（#17：第三方可指定 dark / light，auto 跟随应用明暗）──
-    /// <summary>推送卡片是否按深色渲染（auto 跟随应用主题）。</summary>
+    // 鈹€鈹€ 涓婂矝鎺ㄩ€佸崱鐗囦富棰橈紙#17锛氱涓夋柟鍙寚瀹?dark / light锛宎uto 璺熼殢搴旂敤鏄庢殫锛夆攢鈹€
+    /// <summary>鎺ㄩ€佸崱鐗囨槸鍚︽寜娣辫壊娓叉煋锛坅uto 璺熼殢搴旂敤涓婚锛夈€?/summary>
     private bool PushDark() => _vm.ActivePushTheme?.Trim().ToLowerInvariant() switch
     {
         "dark" => true,
@@ -558,7 +648,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>上岛推送主题变化时刷新推送卡片画刷。</summary>
+    /// <summary>涓婂矝鎺ㄩ€佷富棰樺彉鍖栨椂鍒锋柊鎺ㄩ€佸崱鐗囩敾鍒枫€?/summary>
     private void RaisePushThemeProps()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PushCardBackground)));
@@ -567,44 +657,44 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PushCardSecondary)));
     }
 
-    // ── 展开卡片分区块开关（来自设置，绑定到展开内容）──
-    // 歌曲相关区域仅在“有媒体播放”时显示；只有上岛推送时展开态以上岛内容为主，避免空歌曲区
+    // 鈹€鈹€ 灞曞紑鍗＄墖鍒嗗尯鍧楀紑鍏筹紙鏉ヨ嚜璁剧疆锛岀粦瀹氬埌灞曞紑鍐呭锛夆攢鈹€
+    // 姝屾洸鐩稿叧鍖哄煙浠呭湪鈥滄湁濯掍綋鎾斁鈥濇椂鏄剧ず锛涘彧鏈変笂宀涙帹閫佹椂灞曞紑鎬佷互涓婂矝鍐呭涓轰富锛岄伩鍏嶇┖姝屾洸鍖?
     public bool ExpandedShowArtTitle => _vm.HasMedia && _settings.Current.ExpandedShowArtTitle
-        && _settings.Current.ExpandedCardStyle != "Hero"; // Hero 大卡片模板下隐藏经典小封面区
-    /// <summary>媒体大卡片模板（Hero）：大封面背景 + 歌名/歌手/专辑叠加。</summary>
+        && _settings.Current.ExpandedCardStyle != "Hero"; // Hero 澶у崱鐗囨ā鏉夸笅闅愯棌缁忓吀灏忓皝闈㈠尯
+    /// <summary>濯掍綋澶у崱鐗囨ā鏉匡紙Hero锛夛細澶у皝闈㈣儗鏅?+ 姝屽悕/姝屾墜/涓撹緫鍙犲姞銆?/summary>
     public bool ExpandedHeroCard => _vm.HasMedia && _settings.Current.ExpandedCardStyle == "Hero";
 
     public bool ExpandedShowProgress => _vm.HasMedia && _settings.Current.ExpandedShowProgress;
     public bool ExpandedShowControls => _vm.HasMedia && _settings.Current.ExpandedShowControls;
     public bool ExpandedShowLyrics => _vm.HasMedia && _settings.Current.ExpandedShowLyrics;
 
-    /// <summary>多媒体来源选择器可见性（#3：有媒体且多个会话并存时显示）。</summary>
+    /// <summary>澶氬獟浣撴潵婧愰€夋嫨鍣ㄥ彲瑙佹€э紙#3锛氭湁濯掍綋涓斿涓細璇濆苟瀛樻椂鏄剧ず锛夈€?/summary>
     public bool MediaSessionPickerVisible => _vm.HasMedia && _vm.HasMultipleSessions;
-    /// <summary>歌词来源一键切换按钮可见性（设置中开启「歌词来源切换」后显示，便于快速换源）。</summary>
+    /// <summary>姝岃瘝鏉ユ簮涓€閿垏鎹㈡寜閽彲瑙佹€э紙璁剧疆涓紑鍚€屾瓕璇嶆潵婧愬垏鎹€嶅悗鏄剧ず锛屼究浜庡揩閫熸崲婧愶級銆?/summary>
     public bool LyricSourcePickVisible => _settings.Current.LyricsSourcePick;
 
-    // ── 单行模式：紧凑态所有组件一行显示 ──
+    // 鈹€鈹€ 鍗曡妯″紡锛氱揣鍑戞€佹墍鏈夌粍浠朵竴琛屾樉绀?鈹€鈹€
     public bool SingleLineMode => _settings.Current.SingleLineMode;
-    /// <summary>跑马灯开关（歌名/歌词超宽时横向滚动）。</summary>
+    /// <summary>璺戦┈鐏紑鍏筹紙姝屽悕/姝岃瘝瓒呭鏃舵í鍚戞粴鍔級銆?/summary>
     public bool MarqueeEnabled => _settings.Current.MarqueeTextEnabled;
-    // 声音波纹：播放中 + 开启波纹设置 + 岛可见才显示（空闲时停止计时器）
+    // 澹伴煶娉㈢汗锛氭挱鏀句腑 + 寮€鍚尝绾硅缃?+ 宀涘彲瑙佹墠鏄剧ず锛堢┖闂叉椂鍋滄璁℃椂鍣級
     public bool HasWave => _vm.IsVisible && _vm.HasMedia && _vm.IsPlaying && _settings.Current.WaveVisualizerEnabled;
 
-    // 上岛推送内容：单行模式下只显示图标+标题（隐藏正文/进度/按钮）
+    // 涓婂矝鎺ㄩ€佸唴瀹癸細鍗曡妯″紡涓嬪彧鏄剧ず鍥炬爣+鏍囬锛堥殣钘忔鏂?杩涘害/鎸夐挳锛?
     public bool PushShowBody => _vm.ActivePushHasBody && !SingleLineMode;
     public bool PushShowProgress => _vm.ActivePushHasProgress && !SingleLineMode;
     public bool PushShowButtons => _vm.ActivePushHasButtons && !SingleLineMode;
     public bool PushShowInput => _vm.HasPushInput && !SingleLineMode;
 
-    // ── 点击展开 / 解锁拖动 / 右键菜单 ─────────────────────────
+    // 鈹€鈹€ 鐐瑰嚮灞曞紑 / 瑙ｉ攣鎷栧姩 / 鍙抽敭鑿滃崟 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private Point _downPoint;
     private bool _mouseDownOnCard;
     private bool _draggedCard;
     private readonly DispatcherTimer _clickDebounce = new() { Interval = TimeSpan.FromMilliseconds(280) };
     private bool _pendingClick;
-    private bool _toggleDoneOnDown;   // #7 点击抢先：MouseDown 已切换，双击窗口到期后不再重复切换
-    private bool _isExpandedBeforeToggle; // #7 修复：拖动开始时还原按下时已切换的展开状态
+    private bool _toggleDoneOnDown;   // #7 鐐瑰嚮鎶㈠厛锛歁ouseDown 宸插垏鎹紝鍙屽嚮绐楀彛鍒版湡鍚庝笉鍐嶉噸澶嶅垏鎹?
+    private bool _isExpandedBeforeToggle; // #7 淇锛氭嫋鍔ㄥ紑濮嬫椂杩樺師鎸変笅鏃跺凡鍒囨崲鐨勫睍寮€鐘舵€?
     private Point _lastClickUp;
 
     private void OnCardMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -613,8 +703,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _draggedCard = false;
         _downPoint = e.GetPosition(this);
 
-        // #7 点击抢先（A方案）：按下立即切换展开/收起，不等 280ms 双击窗口，手感跟手。
-        // 交互元素（按钮/滑块，按钮自己处理点击）、上岛推送整卡回跳、封面沉浸大图各自处理，不在此切换。
+        // #7 鐐瑰嚮鎶㈠厛锛圓鏂规锛夛細鎸変笅绔嬪嵆鍒囨崲灞曞紑/鏀惰捣锛屼笉绛?280ms 鍙屽嚮绐楀彛锛屾墜鎰熻窡鎵嬨€?
+        // 浜や簰鍏冪礌锛堟寜閽?婊戝潡锛屾寜閽嚜宸卞鐞嗙偣鍑伙級銆佷笂宀涙帹閫佹暣鍗″洖璺炽€佸皝闈㈡矇娴稿ぇ鍥惧悇鑷鐞嗭紝涓嶅湪姝ゅ垏鎹€?
         if (!IsInteractiveElement(e.OriginalSource) && !IsWithinPushCard(e.OriginalSource) && !IsCoverElement(e.OriginalSource))
         {
             _toggleDoneOnDown = true;
@@ -627,13 +717,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void OnCardMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (!_mouseDownOnCard || e.LeftButton != MouseButtonState.Pressed) return;
-        if (_fileDragArmed) return; // 文件中转站组件：拖动由组件自己的拖出逻辑处理
-        if (_settings.Current.IsLocked) return; // 上锁不可拖动
+        if (_fileDragArmed) return; // 鏂囦欢涓浆绔欑粍浠讹細鎷栧姩鐢辩粍浠惰嚜宸辩殑鎷栧嚭閫昏緫澶勭悊
+        if (_settings.Current.IsLocked) return; // 涓婇攣涓嶅彲鎷栧姩
 
         var pos = e.GetPosition(this);
         if (Math.Abs(pos.X - _downPoint.X) > 4 || Math.Abs(pos.Y - _downPoint.Y) > 4)
         {
-            // #7 修复：解锁拖动时按下已立即切换展开，这里还原，避免「想拖动却展开」
+            // #7 淇锛氳В閿佹嫋鍔ㄦ椂鎸変笅宸茬珛鍗冲垏鎹㈠睍寮€锛岃繖閲岃繕鍘燂紝閬垮厤銆屾兂鎷栧姩鍗村睍寮€銆?
             if (_toggleDoneOnDown)
             {
                 _toggleDoneOnDown = false;
@@ -660,10 +750,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (!_mouseDownOnCard) return;
         _mouseDownOnCard = false;
 
-        // 点击按钮/滑块不触发展开切换（按钮自己处理点击）
+        // 鐐瑰嚮鎸夐挳/婊戝潡涓嶈Е鍙戝睍寮€鍒囨崲锛堟寜閽嚜宸卞鐞嗙偣鍑伙級
         if (IsInteractiveElement(e.OriginalSource)) return;
 
-        // #2 封面沉浸：点击展开态的大封面/大卡（BigArt/HeroCard）打开全屏封面预览
+        // #2 灏侀潰娌夋蹈锛氱偣鍑诲睍寮€鎬佺殑澶у皝闈?澶у崱锛圔igArt/HeroCard锛夋墦寮€鍏ㄥ睆灏侀潰棰勮
         if (IsCoverElement(e.OriginalSource))
         {
             CancelPendingClick();
@@ -672,7 +762,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        // 上岛推送整卡点击回跳：点在推送卡片上且配置了 click 时，执行回跳而不展开
+        // 涓婂矝鎺ㄩ€佹暣鍗＄偣鍑诲洖璺筹細鐐瑰湪鎺ㄩ€佸崱鐗囦笂涓旈厤缃簡 click 鏃讹紝鎵ц鍥炶烦鑰屼笉灞曞紑
         if (_vm.ActivePushHasClick && IsWithinPushCard(e.OriginalSource))
         {
             CancelPendingClick();
@@ -682,7 +772,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
 
         var pos = e.GetPosition(this);
-        // 双击：与上一次单击距离相近且在窗口期内 → 执行快捷动作
+        // 鍙屽嚮锛氫笌涓婁竴娆″崟鍑昏窛绂荤浉杩戜笖鍦ㄧ獥鍙ｆ湡鍐?鈫?鎵ц蹇嵎鍔ㄤ綔
         if (_pendingClick && _clickDebounce.IsEnabled &&
             Math.Abs(pos.X - _lastClickUp.X) < 24 && Math.Abs(pos.Y - _lastClickUp.Y) < 24)
         {
@@ -692,7 +782,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        // 单击：挂起，等待双击窗口超时后再切换展开/收起
+        // 鍗曞嚮锛氭寕璧凤紝绛夊緟鍙屽嚮绐楀彛瓒呮椂鍚庡啀鍒囨崲灞曞紑/鏀惰捣
         _pendingClick = true;
         _lastClickUp = pos;
         _clickDebounce.Stop();
@@ -700,7 +790,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         e.Handled = true;
     }
 
-    /// <summary>中键单击：执行设置-通用中配置的中键快捷动作（默认播放/暂停）。</summary>
+    /// <summary>涓敭鍗曞嚮锛氭墽琛岃缃?閫氱敤涓厤缃殑涓敭蹇嵎鍔ㄤ綔锛堥粯璁ゆ挱鏀?鏆傚仠锛夈€?/summary>
     private void OnCardMiddleMouseUp(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Middle) return;
@@ -716,13 +806,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _toggleDoneOnDown = false;
     }
 
-    /// <summary>双击快捷动作（在设置-通用中配置）：播放/暂停、展开/收起、显示桌面、隐藏/显示、切歌、打开设置或无动作。</summary>
+    /// <summary>鍙屽嚮蹇嵎鍔ㄤ綔锛堝湪璁剧疆-閫氱敤涓厤缃級锛氭挱鏀?鏆傚仠銆佸睍寮€/鏀惰捣銆佹樉绀烘闈€侀殣钘?鏄剧ず銆佸垏姝屻€佹墦寮€璁剧疆鎴栨棤鍔ㄤ綔銆?/summary>
     private void ExecuteDoubleClickAction() => ExecuteQuickAction(_settings.Current.DoubleClickAction);
 
-    /// <summary>中键快捷动作（在设置-通用中配置，与双击动作同值域）。</summary>
+    /// <summary>涓敭蹇嵎鍔ㄤ綔锛堝湪璁剧疆-閫氱敤涓厤缃紝涓庡弻鍑诲姩浣滃悓鍊煎煙锛夈€?/summary>
     private void ExecuteMiddleClickAction() => ExecuteQuickAction(_settings.Current.MiddleClickAction);
 
-    /// <summary>按动作名执行快捷操作；未知动作回退为播放/暂停。</summary>
+    /// <summary>鎸夊姩浣滃悕鎵ц蹇嵎鎿嶄綔锛涙湭鐭ュ姩浣滃洖閫€涓烘挱鏀?鏆傚仠銆?/summary>
     private void ExecuteQuickAction(string action)
     {
         switch (action)
@@ -755,7 +845,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>判断点击源是否位于封面沉浸元素（展开大封面 BigArt / 媒体大卡 HeroCard）上。</summary>
+    /// <summary>鍒ゆ柇鐐瑰嚮婧愭槸鍚︿綅浜庡皝闈㈡矇娴稿厓绱狅紙灞曞紑澶у皝闈?BigArt / 濯掍綋澶у崱 HeroCard锛変笂銆?/summary>
     private static bool IsCoverElement(object source)
     {
         var d = source as DependencyObject;
@@ -770,7 +860,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         return false;
     }
 
-    /// <summary>#2 封面沉浸：打开全屏封面预览（同屏最大化，点击/Esc/右键关闭）。</summary>
+    /// <summary>#2 灏侀潰娌夋蹈锛氭墦寮€鍏ㄥ睆灏侀潰棰勮锛堝悓灞忔渶澶у寲锛岀偣鍑?Esc/鍙抽敭鍏抽棴锛夈€?/summary>
     private void OpenCoverFullScreen()
     {
         try
@@ -791,7 +881,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>判断点击源是否位于上岛推送卡片内部。</summary>
+    /// <summary>鍒ゆ柇鐐瑰嚮婧愭槸鍚︿綅浜庝笂宀涙帹閫佸崱鐗囧唴閮ㄣ€?/summary>
     private bool IsWithinPushCard(object source)
     {
         var d = source as DependencyObject;
@@ -813,12 +903,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             if (d is System.Windows.Controls.Primitives.ButtonBase or Slider
                 or System.Windows.Controls.Primitives.Thumb or System.Windows.Controls.Primitives.RepeatButton
-                or System.Windows.Controls.TextBox)   // 上岛输入框：点击输入不触发展开/收起
+                or System.Windows.Controls.TextBox)   // 涓婂矝杈撳叆妗嗭細鐐瑰嚮杈撳叆涓嶈Е鍙戝睍寮€/鏀惰捣
                 return true;
-            // 文件中转站组件：整个组件视为交互元素（点击不展开、拖动交给拖出逻辑）
+            // 鏂囦欢涓浆绔欑粍浠讹細鏁翠釜缁勪欢瑙嗕负浜や簰鍏冪礌锛堢偣鍑讳笉灞曞紑銆佹嫋鍔ㄤ氦缁欐嫋鍑洪€昏緫锛?
             if (d is FrameworkElement { Tag: string tag } && tag == "FileTransfer") return true;
-            // Run/Inline 等 ContentElement 不是 Visual，VisualTreeHelper.GetParent 会抛异常，
-            // 需沿逻辑树向上（歌词 Run → TextBlock），到达 UIElement 后继续沿视觉树。
+            // Run/Inline 绛?ContentElement 涓嶆槸 Visual锛孷isualTreeHelper.GetParent 浼氭姏寮傚父锛?
+            // 闇€娌块€昏緫鏍戝悜涓婏紙姝岃瘝 Run 鈫?TextBlock锛夛紝鍒拌揪 UIElement 鍚庣户缁部瑙嗚鏍戙€?
             d = d is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
                 ? VisualTreeHelper.GetParent(d)
                 : LogicalTreeHelper.GetParent(d);
@@ -836,21 +926,21 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         MenuOnlineLyrics.IsChecked = _settings.Current.OnlineLyricsEnabled;
     }
 
-    /// <summary>点击番茄钟组件：暂停/继续。</summary>
+    /// <summary>鐐瑰嚮鐣寗閽熺粍浠讹細鏆傚仠/缁х画銆?/summary>
     private void TimerItem_Click(object sender, RoutedEventArgs e)
     {
         _vm.ToggleTimerPause();
         e.Handled = true;
     }
 
-    /// <summary>点击输入法组件：切换中/英输入法。</summary>
+    /// <summary>鐐瑰嚮杈撳叆娉曠粍浠讹細鍒囨崲涓?鑻辫緭鍏ユ硶銆?/summary>
     private void InputMethodItem_Click(object sender, RoutedEventArgs e)
     {
         _vm.ToggleInputMethod();
         e.Handled = true;
     }
 
-    /// <summary>点击快捷开关（Button.Tag: wifi / bluetooth / night / mute）。</summary>
+    /// <summary>鐐瑰嚮蹇嵎寮€鍏筹紙Button.Tag: wifi / bluetooth / night / mute锛夈€?/summary>
     private void QuickToggle_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is string which)
@@ -858,28 +948,28 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         e.Handled = true;
     }
 
-    /// <summary>歌词翻译开关：显示 / 隐藏翻译行。</summary>
+    /// <summary>姝岃瘝缈昏瘧寮€鍏筹細鏄剧ず / 闅愯棌缈昏瘧琛屻€?/summary>
     private void LyricTranslate_Click(object sender, RoutedEventArgs e)
     {
         _vm.ToggleLyricTranslation();
         e.Handled = true;
     }
 
-    /// <summary>歌词来源一键切换（多歌词源）：点击循环 Auto → 本地 → AMLL → Cider → 在线，并立即重载歌词。</summary>
+    /// <summary>姝岃瘝鏉ユ簮涓€閿垏鎹紙澶氭瓕璇嶆簮锛夛細鐐瑰嚮寰幆 Auto 鈫?鏈湴 鈫?AMLL 鈫?Cider 鈫?鍦ㄧ嚎锛屽苟绔嬪嵆閲嶈浇姝岃瘝銆?/summary>
     private void LyricSourceSwitch_Click(object sender, RoutedEventArgs e)
     {
         _vm.CycleLyricsSource();
         e.Handled = true;
     }
 
-    /// <summary>复制当前歌词句到剪贴板。</summary>
+    /// <summary>澶嶅埗褰撳墠姝岃瘝鍙ュ埌鍓创鏉裤€?/summary>
     private void CopyCurrentLyric_Click(object sender, RoutedEventArgs e)
     {
         _vm.CopyCurrentLyric();
         e.Handled = true;
     }
 
-    // #4 歌词时间微调：本曲歌词提前 / 延后 0.5 秒（立即生效并保存）
+    // #4 姝岃瘝鏃堕棿寰皟锛氭湰鏇叉瓕璇嶆彁鍓?/ 寤跺悗 0.5 绉掞紙绔嬪嵆鐢熸晥骞朵繚瀛橈級
     private void LyricOffsetDown_Click(object sender, RoutedEventArgs e)
     {
         _vm.AdjustLyricTime(-0.5);
@@ -893,20 +983,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
 
-    /// <summary>多播放器切换（#3）：点击循环切换到下一个可用媒体来源。</summary>
+    /// <summary>澶氭挱鏀惧櫒鍒囨崲锛?3锛夛細鐐瑰嚮寰幆鍒囨崲鍒颁笅涓€涓彲鐢ㄥ獟浣撴潵婧愩€?/summary>
     private void MediaSessionCycle_Click(object sender, RoutedEventArgs e)
     {
         _vm.CycleMediaSession();
         e.Handled = true;
     }
 
-    /// <summary>快捷操作按钮点击：按 Tag（操作键）执行对应系统动作。</summary>
+    /// <summary>蹇嵎鎿嶄綔鎸夐挳鐐瑰嚮锛氭寜 Tag锛堟搷浣滈敭锛夋墽琛屽搴旂郴缁熷姩浣溿€?/summary>
     private void QuickAction_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is string key) _vm.ExecuteQuickAction(key);
     }
 
-    /// <summary>上岛推送按钮点击：执行动作（打开 URL / 启动程序）后关闭当前推送。</summary>
+    /// <summary>涓婂矝鎺ㄩ€佹寜閽偣鍑伙細鎵ц鍔ㄤ綔锛堟墦寮€ URL / 鍚姩绋嬪簭锛夊悗鍏抽棴褰撳墠鎺ㄩ€併€?/summary>
     private void PushButton_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is IslandPushButton button)
@@ -916,10 +1006,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         e.Handled = true;
     }
 
-    /// <summary>上岛输入框提交：把用户输入按推送方配置的动作执行（默认 notify 回传）。</summary>
+    /// <summary>涓婂矝杈撳叆妗嗘彁浜わ細鎶婄敤鎴疯緭鍏ユ寜鎺ㄩ€佹柟閰嶇疆鐨勫姩浣滄墽琛岋紙榛樿 notify 鍥炰紶锛夈€?/summary>
     private void PushInputSubmit_Click(object sender, RoutedEventArgs e)
     {
-        // 提交输入执行推送动作（默认 notify 回传），随后关闭当前推送卡片
+        // 鎻愪氦杈撳叆鎵ц鎺ㄩ€佸姩浣滐紙榛樿 notify 鍥炰紶锛夛紝闅忓悗鍏抽棴褰撳墠鎺ㄩ€佸崱鐗?
         _vm.SubmitPushInput();
         _vm.DismissActivePush();
         e.Handled = true;
@@ -934,7 +1024,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void MenuCenterAlign_Click(object sender, RoutedEventArgs e)
     {
-        // 上下不变，左右居中；居中后的位置持久化（拖动过再居中对齐同样生效）
+        // 涓婁笅涓嶅彉锛屽乏鍙冲眳涓紱灞呬腑鍚庣殑浣嶇疆鎸佷箙鍖栵紙鎷栧姩杩囧啀灞呬腑瀵归綈鍚屾牱鐢熸晥锛?
         var work = ScreenHelper.DpiWorkArea(_screen);
         var cardPos = Card.TransformToAncestor(this).Transform(new Point(0, 0));
         var cardCenterInWindow = cardPos.X + Card.ActualWidth / 2;
@@ -955,7 +1045,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // 点击穿透：卡片外返回 HTTRANSPARENT
+        // 鐐瑰嚮绌块€忥細鍗＄墖澶栬繑鍥?HTTRANSPARENT
         var hwnd = new WindowInteropHelper(this).Handle;
         _hwndSource = HwndSource.FromHwnd(hwnd);
         _hwndSource?.AddHook(WndProc);
@@ -968,7 +1058,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         else Hide();
     }
 
-    /// <summary>刷新玻璃分层底色为当前主题底色（冻结缓存，避免每帧重建）。</summary>
+    /// <summary>鍒锋柊鐜荤拑鍒嗗眰搴曡壊涓哄綋鍓嶄富棰樺簳鑹诧紙鍐荤粨缂撳瓨锛岄伩鍏嶆瘡甯ч噸寤猴級銆?/summary>
     private void ApplyGlassLayer()
     {
         if (GlassLayer is null) return;
@@ -977,8 +1067,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         GlassLayer.Background = b;
     }
 
-    /// <summary>智能透明度分层：展开时玻璃层平滑升不透明度（卡片更实），收起回落（更通透）；
-    /// 封面取色生效时玻璃归零，避免双重叠加。动画时长跟随当前动效皮肤，连贯不生硬。</summary>
+    /// <summary>鏅鸿兘閫忔槑搴﹀垎灞傦細灞曞紑鏃剁幓鐠冨眰骞虫粦鍗囦笉閫忔槑搴︼紙鍗＄墖鏇村疄锛夛紝鏀惰捣鍥炶惤锛堟洿閫氶€忥級锛?
+    /// 灏侀潰鍙栬壊鐢熸晥鏃剁幓鐠冨綊闆讹紝閬垮厤鍙岄噸鍙犲姞銆傚姩鐢绘椂闀胯窡闅忓綋鍓嶅姩鏁堢毊鑲わ紝杩炶疮涓嶇敓纭€?/summary>
     private void AnimateGlass(bool expanded)
     {
         if (GlassLayer is null) return;
@@ -995,14 +1085,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var dur = (int)Math.Clamp(styleMs * 0.72, 200, 900);
         var sb = new Storyboard();
         AddAnim(sb, GlassLayer, UIElement.OpacityProperty, target, dur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _glassAnimSb = sb;
         sb.Begin();
     }
 
-    /// <summary>主题切换平滑过渡（1.2.1）：明暗/主题色变化时，卡片背景与边框做 EaseOut 颜色插值，
-    /// 避免深浅色切换闪变。封面取色生效时背景由取色渐变接管（已有呼吸动画），跳过背景只动画边框；
-    /// ReduceMotion / 未加载时直接切新主题。时长跟随当前动效皮肤，与其他动画节奏一致。</summary>
+    /// <summary>涓婚鍒囨崲骞虫粦杩囨浮锛?.2.1锛夛細鏄庢殫/涓婚鑹插彉鍖栨椂锛屽崱鐗囪儗鏅笌杈规鍋?EaseOut 棰滆壊鎻掑€硷紝
+    /// 閬垮厤娣辨祬鑹插垏鎹㈤棯鍙樸€傚皝闈㈠彇鑹茬敓鏁堟椂鑳屾櫙鐢卞彇鑹叉笎鍙樻帴绠★紙宸叉湁鍛煎惛鍔ㄧ敾锛夛紝璺宠繃鑳屾櫙鍙姩鐢昏竟妗嗭紱
+    /// ReduceMotion / 鏈姞杞芥椂鐩存帴鍒囨柊涓婚銆傛椂闀胯窡闅忓綋鍓嶅姩鏁堢毊鑲わ紝涓庡叾浠栧姩鐢昏妭濂忎竴鑷淬€?/summary>
     private void AnimateThemeColors(System.Windows.Media.Color? prevBg, System.Windows.Media.Color? prevBd)
     {
         try
@@ -1023,14 +1113,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         catch
         {
-            // 插值动画异常时直接应用新主题，绝不影响主流程
+            // 鎻掑€煎姩鐢诲紓甯告椂鐩存帴搴旂敤鏂颁富棰橈紝缁濅笉褰卞搷涓绘祦绋?
             if (!(_settings.Current.CoverTintBackground && _vm.IsExpanded && _vm.Artwork != null))
                 Card.Background = _theme.CardBackground;
             Card.BorderBrush = _theme.CardBorder;
         }
     }
 
-    /// <summary>把旧颜色安装到临时 brush 上并播放到新颜色的插值动画（HoldEnd 保色，对象由动画持有）。</summary>
+    /// <summary>鎶婃棫棰滆壊瀹夎鍒颁复鏃?brush 涓婂苟鎾斁鍒版柊棰滆壊鐨勬彃鍊煎姩鐢伙紙HoldEnd 淇濊壊锛屽璞＄敱鍔ㄧ敾鎸佹湁锛夈€?/summary>
     private void AnimateSolidBrush(DependencyObject target, DependencyProperty prop, System.Windows.Media.Color from, System.Windows.Media.Color to, TimeSpan dur, IEasingFunction ease)
     {
         var brush = new SolidColorBrush(from);
@@ -1041,7 +1131,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void ApplyTheme()
     {
-        // 主题切换平滑过渡（1.2.1）：先记录当前卡片背景/边框颜色，供插值动画使用
+        // 涓婚鍒囨崲骞虫粦杩囨浮锛?.2.1锛夛細鍏堣褰曞綋鍓嶅崱鐗囪儗鏅?杈规棰滆壊锛屼緵鎻掑€煎姩鐢讳娇鐢?
         var prevBg = (Card.Background as SolidColorBrush)?.Color;
         var prevBd = (Card.BorderBrush as SolidColorBrush)?.Color;
         ApplyMenuTheme();
@@ -1057,13 +1147,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RaisePushThemeProps();
         ApplyAppearance();
         RefreshWave();
-        ApplyCoverTint(forceRebuild: true); // 主题变化时强制重建取色渐变（基色随新主题）
-        AnimateThemeColors(prevBg, prevBd); // 背景/边框颜色插值过渡，深浅色切换不闪变
+        ApplyCoverTint(forceRebuild: true); // 涓婚鍙樺寲鏃跺己鍒堕噸寤哄彇鑹叉笎鍙橈紙鍩鸿壊闅忔柊涓婚锛?
+        AnimateThemeColors(prevBg, prevBd); // 鑳屾櫙/杈规棰滆壊鎻掑€艰繃娓★紝娣辨祬鑹插垏鎹笉闂彉
         ApplyGlassLayer();
-        AnimateGlass(_vm.IsExpanded); // 主题/明暗切换后玻璃底色与不透明度同步刷新
+        AnimateGlass(_vm.IsExpanded); // 涓婚/鏄庢殫鍒囨崲鍚庣幓鐠冨簳鑹蹭笌涓嶉€忔槑搴﹀悓姝ュ埛鏂?
     }
 
-    /// <summary>展开卡片分区块的可见性随设置即时刷新。</summary>
+    /// <summary>灞曞紑鍗＄墖鍒嗗尯鍧楃殑鍙鎬ч殢璁剧疆鍗虫椂鍒锋柊銆?/summary>
     private void ApplyExpandedSectionVisibility()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ExpandedShowArtTitle)));
@@ -1090,11 +1180,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RefreshNotificationHistoryProps();
     }
 
-    /// <summary>按设置调整窗口与卡片尺寸（紧凑/展开）。仅当窗口尺寸真正变化时才重定位，
-    /// 避免上锁/其它设置变更把用户拖动后的位置弹回默认。</summary>
+    /// <summary>鎸夎缃皟鏁寸獥鍙ｄ笌鍗＄墖灏哄锛堢揣鍑?灞曞紑锛夈€備粎褰撶獥鍙ｅ昂瀵哥湡姝ｅ彉鍖栨椂鎵嶉噸瀹氫綅锛?
+    /// 閬垮厤涓婇攣/鍏跺畠璁剧疆鍙樻洿鎶婄敤鎴锋嫋鍔ㄥ悗鐨勪綅缃脊鍥為粯璁ゃ€?/summary>
     /// <summary>
-    /// 确保透明窗口尺寸足够容纳当前卡片（含紧凑态自动宽度），
-    /// 否则卡片超出窗口边界会被裁剪。紧凑卡片视觉宽度 = CompactWidth × FontScale。
+    /// 纭繚閫忔槑绐楀彛灏哄瓒冲瀹圭撼褰撳墠鍗＄墖锛堝惈绱у噾鎬佽嚜鍔ㄥ搴︼級锛?
+    /// 鍚﹀垯鍗＄墖瓒呭嚭绐楀彛杈圭晫浼氳瑁佸壀銆傜揣鍑戝崱鐗囪瑙夊搴?= CompactWidth 脳 FontScale銆?
     /// </summary>
     private void EnsureWindowSizeFits()
     {
@@ -1113,23 +1203,23 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     public void ApplySize()
     {
-        // 窗口固定为能容纳最大推送卡片/展开内容的大小：推送时只需动画 Card 形变，避免窗口级 Resize 卡顿
+        // 绐楀彛鍥哄畾涓鸿兘瀹圭撼鏈€澶ф帹閫佸崱鐗?灞曞紑鍐呭鐨勫ぇ灏忥細鎺ㄩ€佹椂鍙渶鍔ㄧ敾 Card 褰㈠彉锛岄伩鍏嶇獥鍙ｇ骇 Resize 鍗￠】
         EnsureWindowSizeFits();
         if (!_vm.IsExpanded)
         {
             Card.Width = CompactWidth;
             Card.Height = CompactHeight;
         }
-        // 自动调节尺寸时：胶囊行左侧额外留白（左侧横向距离更大），手动模式保持对称
+        // 鑷姩璋冭妭灏哄鏃讹細鑳跺泭琛屽乏渚ч澶栫暀鐧斤紙宸︿晶妯悜璺濈鏇村ぇ锛夛紝鎵嬪姩妯″紡淇濇寔瀵圭О
         PillRow.Margin = _settings.Current.CompactWidthAuto
             ? new Thickness(8, 0, 0, 0)
             : new Thickness(0);
-        // 60fps 优化：紧凑行固定为紧凑内容宽度，展开/收起动画期间不随 Card 宽度变化逐帧重排
+        // 60fps 浼樺寲锛氱揣鍑戣鍥哄畾涓虹揣鍑戝唴瀹瑰搴︼紝灞曞紑/鏀惰捣鍔ㄧ敾鏈熼棿涓嶉殢 Card 瀹藉害鍙樺寲閫愬抚閲嶆帓
         PillRow.Width = Math.Max(80, CompactWidth - 20);
     }
 
-    /// <summary>应用外观参数：圆角 / 字体 / 字号缩放。字号缩放作用于整张卡片（LayoutTransform），
-    /// 逻辑尺寸同步除以缩放比，最终视觉尺寸与设置一致、不溢出不裁剪。</summary>
+    /// <summary>搴旂敤澶栬鍙傛暟锛氬渾瑙?/ 瀛椾綋 / 瀛楀彿缂╂斁銆傚瓧鍙风缉鏀句綔鐢ㄤ簬鏁村紶鍗＄墖锛圠ayoutTransform锛夛紝
+    /// 閫昏緫灏哄鍚屾闄や互缂╂斁姣旓紝鏈€缁堣瑙夊昂瀵镐笌璁剧疆涓€鑷淬€佷笉婧㈠嚭涓嶈鍓€?/summary>
     /// <summary>Rebuilds the LyricLineText style from user settings (font sizes, spacing, colors).
     /// WPF cannot bind DoubleAnimation.To, so the current-line grow/shrink storyboard is built in code.</summary>
     private void UpdateLyricLineStyle()
@@ -1155,18 +1245,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             style.Setters.Add(new Setter(TextBlock.OpacityProperty, 0.28));
 
             var inSb = new Storyboard();
-            var grow = new DoubleAnimation { To = currentSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            var grow = new DoubleAnimation { To = currentSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 } };
             Storyboard.SetTargetProperty(grow, new PropertyPath(TextBlock.FontSizeProperty));
             inSb.Children.Add(grow);
-            var fadeIn = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            var fadeIn = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 } };
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(TextBlock.OpacityProperty));
             inSb.Children.Add(fadeIn);
 
             var outSb = new Storyboard();
-            var shrink = new DoubleAnimation { To = baseSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } };
+            var shrink = new DoubleAnimation { To = baseSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 16, Stiffness = 160, Mass = 1 } };
             Storyboard.SetTargetProperty(shrink, new PropertyPath(TextBlock.FontSizeProperty));
             outSb.Children.Add(shrink);
-            var fadeOut = new DoubleAnimation { To = 0.28, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } };
+            var fadeOut = new DoubleAnimation { To = 0.28, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 16, Stiffness = 160, Mass = 1 } };
             Storyboard.SetTargetProperty(fadeOut, new PropertyPath(TextBlock.OpacityProperty));
             outSb.Children.Add(fadeOut);
 
@@ -1209,38 +1299,38 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void ApplyAppearance()
     {
-        try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 非法字体名忽略 */ }
+        try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 闈炴硶瀛椾綋鍚嶅拷鐣?*/ }
         var rounded = new CornerRadius(Math.Clamp(_settings.Current.CornerRadius, 16, 40));
         Card.CornerRadius = rounded;
-        // 玻璃分层与卡片同步圆角，避免展开时矩形四角露出（深浅色方框的根因）
+        // 鐜荤拑鍒嗗眰涓庡崱鐗囧悓姝ュ渾瑙掞紝閬垮厤灞曞紑鏃剁煩褰㈠洓瑙掗湶鍑猴紙娣辨祬鑹叉柟妗嗙殑鏍瑰洜锛?
         if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
-        // 字体缩放 = 1 时清空 LayoutTransform（走普通布局路径，动画期间布局更轻、更快）；
-        // 只有用户设置缩放时才使用 ScaleTransform，避免无谓的变换开销。
+        // 瀛椾綋缂╂斁 = 1 鏃舵竻绌?LayoutTransform锛堣蛋鏅€氬竷灞€璺緞锛屽姩鐢绘湡闂村竷灞€鏇磋交銆佹洿蹇級锛?
+        // 鍙湁鐢ㄦ埛璁剧疆缂╂斁鏃舵墠浣跨敤 ScaleTransform锛岄伩鍏嶆棤璋撶殑鍙樻崲寮€閿€銆?
         Card.LayoutTransform = Math.Abs(FontScale - 1.0) < 0.001 ? null : new ScaleTransform(FontScale, FontScale);
         UpdateLyricLineStyle();
         ApplySize();
     }
 
-    /// <summary>推送到达/更新/过期时：Card 尺寸用弹簧动画平滑过渡到新大小（丝滑不生硬）。</summary>
+    /// <summary>鎺ㄩ€佸埌杈?鏇存柊/杩囨湡鏃讹細Card 灏哄鐢ㄥ脊绨у姩鐢诲钩婊戣繃娓″埌鏂板ぇ灏忥紙涓濇粦涓嶇敓纭級銆?/summary>
     private void AnimateCompactSize()
     {
         if (!IsLoaded) return;
         if (_vm.IsExpanded) { ApplySize(); return; }
-        EnsureWindowSizeFits(); // 先扩宽窗口，避免卡片动画期间超出窗口被裁剪
+        EnsureWindowSizeFits(); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
         var dur = (int)Math.Clamp(360 * (styleMs / 680.0), 220, 460) * lm;
-        // 停止前一个动画（AnimateCard 或 AnimateCompactSize），避免两个 Storyboard 同时写 Card 尺寸
+        // 鍋滄鍓嶄竴涓姩鐢伙紙AnimateCard 鎴?AnimateCompactSize锛夛紝閬垮厤涓や釜 Storyboard 鍚屾椂鍐?Card 灏哄
         _currentStoryboard?.Stop();
         var sb = new Storyboard();
         AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
-        _currentStoryboard = sb; // 更新引用：防止 AnimateCard 完成回调覆盖新尺寸
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
         sb.Begin();
     }
 
-    /// <summary>第三方应用上岛：推送卡片淡入 + 轻微缩放的丝滑动画。</summary>
+    /// <summary>绗笁鏂瑰簲鐢ㄤ笂宀涳細鎺ㄩ€佸崱鐗囨贰鍏?+ 杞诲井缂╂斁鐨勪笣婊戝姩鐢汇€?/summary>
     private void PlayPushCardAnimation()
     {
         if (!IsLoaded || CompactPushCard is null || !_vm.HasActivePush) return;
@@ -1254,10 +1344,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, CompactPushCard, UIElement.OpacityProperty, 1, (int)(220 * lm), smooth);
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleXProperty, 1, scaleDur, styleEase);
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleYProperty, 1, scaleDur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
-    /// <summary>右键菜单主题色（圆角液态玻璃）。</summary>
+    /// <summary>鍙抽敭鑿滃崟涓婚鑹诧紙鍦嗚娑叉€佺幓鐠冿級銆?/summary>
     private void ApplyMenuTheme()
     {
         void Add(string key, Brush b) { b.Freeze(); Resources[key] = b; }
@@ -1281,7 +1371,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Add("MenuTextBrush", text);
         Add("MenuHoverBrush", hover);
 
-        // 直接设置菜单背景/前景，保证即使资源查找失败也不会出现白底
+        // 鐩存帴璁剧疆鑿滃崟鑳屾櫙/鍓嶆櫙锛屼繚璇佸嵆浣胯祫婧愭煡鎵惧け璐ヤ篃涓嶄細鍑虹幇鐧藉簳
         if (IslandMenu is not null)
         {
             IslandMenu.Background = bg;
@@ -1306,31 +1396,31 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             case nameof(IslandViewModel.IsVisible):
                 if (_vm.IsVisible) ShowIsland(instant: false);
                 else HideIsland();
-                ApplySize(); // 岛显示/隐藏时重新测量自动尺寸
-                RefreshWave(); // 若启动时已有媒体在播放，确保波纹定时器在岛显示后启动
+                ApplySize(); // 宀涙樉绀?闅愯棌鏃堕噸鏂版祴閲忚嚜鍔ㄥ昂瀵?
+                RefreshWave(); // 鑻ュ惎鍔ㄦ椂宸叉湁濯掍綋鍦ㄦ挱鏀撅紝纭繚娉㈢汗瀹氭椂鍣ㄥ湪宀涙樉绀哄悗鍚姩
                 break;
             case nameof(IslandViewModel.IsExpanded):
                 AnimateSize();
-                ApplyCoverTint(); // 展开/收起时同步封面取色呼吸（#8 动态主题）
+                ApplyCoverTint(); // 灞曞紑/鏀惰捣鏃跺悓姝ュ皝闈㈠彇鑹插懠鍚革紙#8 鍔ㄦ€佷富棰橈級
                 if (_vm.IsExpanded && _vm.LyricIndex >= 0)
                     Dispatcher.BeginInvoke(() => ScrollLyricsTo(_vm.LyricIndex), DispatcherPriority.Loaded);
-                if (!_vm.IsExpanded) _compactRestoreTimer.Start(); // 收起后兜底恢复精确尺寸，避免多次切换后上下间距异常
+                if (!_vm.IsExpanded) _compactRestoreTimer.Start(); // 鏀惰捣鍚庡厹搴曟仮澶嶇簿纭昂瀵革紝閬垮厤澶氭鍒囨崲鍚庝笂涓嬮棿璺濆紓甯?
                 break;
             case nameof(IslandViewModel.LyricIndex):
                 if (_vm.LyricIndex >= 0) QueueLyricsScroll(_vm.LyricIndex);
                 break;
             case nameof(IslandViewModel.CompactItems):
-                // 组件列表变化（如音量指示出现/消失、临时状态胶囊增删）时平滑调整尺寸
+                // 缁勪欢鍒楄〃鍙樺寲锛堝闊抽噺鎸囩ず鍑虹幇/娑堝け銆佷复鏃剁姸鎬佽兌鍥婂鍒狅級鏃跺钩婊戣皟鏁村昂瀵?
                 if (!_vm.IsExpanded && _vm.IsVisible) AnimateCompactSize();
                 break;
             case nameof(IslandViewModel.CurrentLyricText):
-                // 当前歌词行变化时，若处于紧凑态则平滑调整宽度，避免长歌词被裁切/遮挡
+                // 褰撳墠姝岃瘝琛屽彉鍖栨椂锛岃嫢澶勪簬绱у噾鎬佸垯骞虫粦璋冩暣瀹藉害锛岄伩鍏嶉暱姝岃瘝琚鍒?閬尅
                 if (!_vm.IsExpanded && _vm.IsVisible) AnimateCompactSize();
                 break;
             case nameof(IslandViewModel.HasActivePush):
-                ApplySize();           // 确保窗口足够大（首次）
-                AnimateCompactSize();  // 尺寸变化：弹簧动画，丝滑
-                PlayPushCardAnimation(); // 上岛卡片：淡入 + 缩放动画
+                ApplySize();           // 纭繚绐楀彛瓒冲澶э紙棣栨锛?
+                AnimateCompactSize();  // 灏哄鍙樺寲锛氬脊绨у姩鐢伙紝涓濇粦
+                PlayPushCardAnimation(); // 涓婂矝鍗＄墖锛氭贰鍏?+ 缂╂斁鍔ㄧ敾
                 ApplyExpandedSectionVisibility();
                 RaisePushThemeProps();
                 break;
@@ -1346,23 +1436,23 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 break;
             case nameof(IslandViewModel.Artwork):
                 ApplyCoverTint();
-                PlayCoverTransition(); // 切歌：封面交叉淡入 + 轻微缩放
+                PlayCoverTransition(); // 鍒囨瓕锛氬皝闈氦鍙夋贰鍏?+ 杞诲井缂╂斁
                 break;
         }
     }
 
-    /// <summary>切歌时封面过渡：紧凑封面 / 展开大封面 / Hero 背景统一做「淡入 + 轻微缩放」，
-    /// 与 CoverTint 背景呼吸互补，换曲衔接丝滑不生硬。</summary>
+    /// <summary>鍒囨瓕鏃跺皝闈㈣繃娓★細绱у噾灏侀潰 / 灞曞紑澶у皝闈?/ Hero 鑳屾櫙缁熶竴鍋氥€屾贰鍏?+ 杞诲井缂╂斁銆嶏紝
+    /// 涓?CoverTint 鑳屾櫙鍛煎惛浜掕ˉ锛屾崲鏇茶鎺ヤ笣婊戜笉鐢熺‖銆?/summary>
     private void PlayCoverTransition()
     {
         if (!IsLoaded) return;
-        if (_settings.Current.ReduceMotion) return; // 减少动态效果：跳过过渡
+        if (_settings.Current.ReduceMotion) return; // 鍑忓皯鍔ㄦ€佹晥鏋滐細璺宠繃杩囨浮
         var smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
         var (_, styleMs) = GetSizeAnimationStyle(expand: true);
         var dur = (int)Math.Clamp(styleMs * 0.42, 180, 420);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
 
-        // 展开态大封面：淡入 + 从 1.06 缩放回 1
+        // 灞曞紑鎬佸ぇ灏侀潰锛氭贰鍏?+ 浠?1.06 缂╂斁鍥?1
         if (BigArt is not null)
         {
             BigArt.BeginAnimation(UIElement.OpacityProperty, null);
@@ -1383,7 +1473,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Timeline.SetDesiredFrameRate(sbS, 120);
             sbS.Begin();
         }
-        // 展开 Hero 大封面背景：淡入
+        // 灞曞紑 Hero 澶у皝闈㈣儗鏅細娣″叆
         if (HeroCard is not null)
         {
             HeroCard.BeginAnimation(UIElement.OpacityProperty, null);
@@ -1393,7 +1483,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Timeline.SetDesiredFrameRate(sbH, 120);
             sbH.Begin();
         }
-        // 紧凑行歌曲封面（数据模板内，用 Tag 定位后淡入）
+        // 绱у噾琛屾瓕鏇插皝闈紙鏁版嵁妯℃澘鍐咃紝鐢?Tag 瀹氫綅鍚庢贰鍏ワ級
         foreach (var b in FindVisualChildren<System.Windows.Controls.Border>(PillRow))
         {
             if (!ReferenceEquals(b.Tag, "SongCover")) continue;
@@ -1406,7 +1496,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>从可视树上收集指定类型子元素（浅层遍历，仅用于切歌时的封面定位）。</summary>
+    /// <summary>浠庡彲瑙嗘爲涓婃敹闆嗘寚瀹氱被鍨嬪瓙鍏冪礌锛堟祬灞傞亶鍘嗭紝浠呯敤浜庡垏姝屾椂鐨勫皝闈㈠畾浣嶏級銆?/summary>
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
     {
         var count = VisualTreeHelper.GetChildrenCount(root);
@@ -1418,14 +1508,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    // ── 声音波纹 / 封面取色 ─────────────────────────────────────
+    // 鈹€鈹€ 澹伴煶娉㈢汗 / 灏侀潰鍙栬壊 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private void RefreshWave()
     {
         var on = HasWave;
         ApplyWaveStyleVisibility();
         var lowPower = _settings.Current.LowPowerMode;
-        // 三态：关闭 / 普通（CompositionTarget.Rendering 跟随显示器）/ 低功耗定时器（~120fps）
+        // 涓夋€侊細鍏抽棴 / 鏅€氾紙CompositionTarget.Rendering 璺熼殢鏄剧ず鍣級/ 浣庡姛鑰楀畾鏃跺櫒锛垀120fps锛?
         var wantTimer = on && lowPower;
         var wantComposition = on && !lowPower;
         var isTimer = _waveTimer is not null;
@@ -1436,7 +1526,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             if (wantTimer)
             {
                 _waveRendering = true;
-                _waveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) };     // CompositionTarget.Rendering（跟随显示器刷新率）
+                _waveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) };     // CompositionTarget.Rendering锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
                 _waveTimer.Tick += (_, _) => OnWaveFrame(null, EventArgs.Empty);
                 _waveTimer.Start();
             }
@@ -1459,7 +1549,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasWave)));
     }
-    /// <summary>停止波纹渲染（摘除合成帧事件 + 停止降帧定时器）。</summary>
+    /// <summary>鍋滄娉㈢汗娓叉煋锛堟憳闄ゅ悎鎴愬抚浜嬩欢 + 鍋滄闄嶅抚瀹氭椂鍣級銆?/summary>
     private void StopWaveRender()
     {
         _waveRendering = false;
@@ -1470,7 +1560,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         CompositionTarget.Rendering -= OnWaveFrame;
     }
-    /// <summary>合成帧回调：按帧间隔指数平滑，随真实音频电平起伏，动画连贯不卡顿。</summary>
+    /// <summary>鍚堟垚甯у洖璋冿細鎸夊抚闂撮殧鎸囨暟骞虫粦锛岄殢鐪熷疄闊抽鐢靛钩璧蜂紡锛屽姩鐢昏繛璐笉鍗￠】銆?/summary>
     private void OnWaveFrame(object? sender, EventArgs e)
     {
         try
@@ -1486,9 +1576,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
             var level = Math.Clamp(_vm.WaveLevel, 0, 1);
             var height = Math.Clamp(_settings.Current.WaveHeight, 0.25, 2.0);
-            var alpha = 1.0 - Math.Exp(-dt * 22.0); // 帧率无关的指数平滑
-            // 1.2.1 性能优化：只更新当前可见的波纹集合（展开=大波纹、紧凑=小波纹），
-            // 隐藏面板每帧的 ScaleTransform 更新全部省掉，降低媒体播放时的 CPU 占用
+            var alpha = 1.0 - Math.Exp(-dt * 22.0); // 甯х巼鏃犲叧鐨勬寚鏁板钩婊?
+            // 1.2.1 鎬ц兘浼樺寲锛氬彧鏇存柊褰撳墠鍙鐨勬尝绾归泦鍚堬紙灞曞紑=澶ф尝绾广€佺揣鍑?灏忔尝绾癸級锛?
+            // 闅愯棌闈㈡澘姣忓抚鐨?ScaleTransform 鏇存柊鍏ㄩ儴鐪佹帀锛岄檷浣庡獟浣撴挱鏀炬椂鐨?CPU 鍗犵敤
             var expanded = _vm.IsExpanded;
             switch (_settings.Current.WaveStyle)
             {
@@ -1508,7 +1598,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         catch
         {
-            // 渲染异常绝不影响主流程
+            // 娓叉煋寮傚父缁濅笉褰卞搷涓绘祦绋?
         }
     }
 
@@ -1535,7 +1625,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             sc.ScaleY += (target - sc.ScaleY) * alpha;
         }
     }
-    /// <summary>按当前波纹样式切换可见面板（柱状/频谱/环形/粒子）。</summary>
+    /// <summary>鎸夊綋鍓嶆尝绾规牱寮忓垏鎹㈠彲瑙侀潰鏉匡紙鏌辩姸/棰戣氨/鐜舰/绮掑瓙锛夈€?/summary>
     private void ApplyWaveStyleVisibility()
     {
         var style = _settings.Current.WaveStyle ?? "Bars";
@@ -1553,7 +1643,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (WaveParticlesHostExpanded is not null) WaveParticlesHostExpanded.Visibility = part;
     }
 
-    /// <summary>构建频谱/环形/粒子三种备选波纹（启动时一次性创建，颜色随主题绑定）。</summary>
+    /// <summary>鏋勫缓棰戣氨/鐜舰/绮掑瓙涓夌澶囬€夋尝绾癸紙鍚姩鏃朵竴娆℃€у垱寤猴紝棰滆壊闅忎富棰樼粦瀹氾級銆?/summary>
     private void InitWaveVisualStyles()
     {
         try
@@ -1568,11 +1658,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         catch
         {
-            // 备选样式构建失败时仅保留默认柱状，不影响主流程
+            // 澶囬€夋牱寮忔瀯寤哄け璐ユ椂浠呬繚鐣欓粯璁ゆ煴鐘讹紝涓嶅奖鍝嶄富娴佺▼
         }
     }
 
-    /// <summary>频谱条：窄条下对齐，右高左低频段分布，随节奏起伏。</summary>
+    /// <summary>棰戣氨鏉★細绐勬潯涓嬪榻愶紝鍙抽珮宸︿綆棰戞鍒嗗竷锛岄殢鑺傚璧蜂紡銆?/summary>
     private void BuildSpectrumBars(Grid? host, List<ScaleTransform> list, int count, double barW, double gap)
     {
         if (host is null) return;
@@ -1598,7 +1688,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>环形波纹：圆点中心，随节奏缩放。</summary>
+    /// <summary>鐜舰娉㈢汗锛氬渾鐐逛腑蹇冿紝闅忚妭濂忕缉鏀俱€?/summary>
     private ScaleTransform? BuildRing(Grid? host, double diameter)
     {
         if (host is null) return null;
@@ -1618,7 +1708,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         return sc;
     }
 
-    /// <summary>粒子波纹：散布小圆点，随节奏上下脉冲。</summary>
+    /// <summary>绮掑瓙娉㈢汗锛氭暎甯冨皬鍦嗙偣锛岄殢鑺傚涓婁笅鑴夊啿銆?/summary>
     private void BuildParticles(Grid? host, List<TranslateTransform> list, int count)
     {
         if (host is null) return;
@@ -1670,8 +1760,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>展开背景随专辑封面取色：1x1 采样主色 + 主题底色线性渐变；展开后以 60fps 缓慢呼吸。
-    /// 渐变 brush / GradientStop 缓存复用，渲染帧只更新首 stop 的 Alpha，避免每帧重建对象导致 GC 抖动。</summary>
+    /// <summary>灞曞紑鑳屾櫙闅忎笓杈戝皝闈㈠彇鑹诧細1x1 閲囨牱涓昏壊 + 涓婚搴曡壊绾挎€ф笎鍙橈紱灞曞紑鍚庝互 60fps 缂撴參鍛煎惛銆?
+    /// 娓愬彉 brush / GradientStop 缂撳瓨澶嶇敤锛屾覆鏌撳抚鍙洿鏂伴 stop 鐨?Alpha锛岄伩鍏嶆瘡甯ч噸寤哄璞″鑷?GC 鎶栧姩銆?/summary>
     private void ApplyCoverTint(bool forceRebuild = false)
     {
         try
@@ -1683,7 +1773,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 SubscribeTintRendering(false);
                 return;
             }
-            // 缓存封面取色结果：同封面不重复采样（避免展开/收起时重新 RenderTargetBitmap）
+            // 缂撳瓨灏侀潰鍙栬壊缁撴灉锛氬悓灏侀潰涓嶉噸澶嶉噰鏍凤紙閬垮厤灞曞紑/鏀惰捣鏃堕噸鏂?RenderTargetBitmap锛?
             if (!ReferenceEquals(src, _lastSampledArtwork))
             {
                 _lastSampledColor = SampleCoverColor(src);
@@ -1697,8 +1787,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            // 封面主色变化（换曲）时重建渐变；同曲只复用并更新 Alpha（呼吸）
-            if (_tintBrush is null || _tintCoverColor != color || forceRebuild) // 主题切换时强制重建（基色随新主题）
+            // 灏侀潰涓昏壊鍙樺寲锛堟崲鏇诧級鏃堕噸寤烘笎鍙橈紱鍚屾洸鍙鐢ㄥ苟鏇存柊 Alpha锛堝懠鍚革級
+            if (_tintBrush is null || _tintCoverColor != color || forceRebuild) // 涓婚鍒囨崲鏃跺己鍒堕噸寤猴紙鍩鸿壊闅忔柊涓婚锛?
             {
                 _tintCoverColor = color;
                 var baseColor = (_theme.CardBackground as SolidColorBrush)?.Color
@@ -1714,7 +1804,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 _tintBrush.GradientStops.Add(_tintStop1);
             }
             Card.Background = _tintBrush;
-            // 封面取色生效时玻璃层归零，避免叠加
+            // 灏侀潰鍙栬壊鐢熸晥鏃剁幓鐠冨眰褰掗浂锛岄伩鍏嶅彔鍔?
             _glassAnimSb?.Stop();
             _glassAnimSb = null;
             if (GlassLayer is not null) GlassLayer.Opacity = 0;
@@ -1728,7 +1818,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>订阅 / 取消合成帧驱动（空闲时不占 CPU）。</summary>
+    /// <summary>璁㈤槄 / 鍙栨秷鍚堟垚甯ч┍鍔紙绌洪棽鏃朵笉鍗?CPU锛夈€?/summary>
     private void SubscribeTintRendering(bool subscribe)
     {
         if (subscribe == _tintRenderingSubscribed) return;
@@ -1737,7 +1827,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _tintRenderingSubscribed = subscribe;
     }
 
-    /// <summary>每帧：取色层 Alpha 在 0.85~0.97 之间缓慢呼吸（约 18s 一个周期），丝滑不跳变。</summary>
+    /// <summary>姣忓抚锛氬彇鑹插眰 Alpha 鍦?0.85~0.97 涔嬮棿缂撴參鍛煎惛锛堢害 18s 涓€涓懆鏈燂級锛屼笣婊戜笉璺冲彉銆?/summary>
     private void OnTintFrame(object? sender, EventArgs e)
     {
         if (!_vm.IsExpanded || !_settings.Current.CoverTintBackground || _vm.Artwork is null || _tintStop0 is null)
@@ -1748,13 +1838,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var c = _tintCoverColor;
         if (c is null) { SubscribeTintRendering(false); return; }
         var t = (DateTime.UtcNow - _tintPhaseUtc).TotalSeconds;
-        var alpha = 0.85 + 0.06 * (0.5 + 0.5 * Math.Sin(t * 0.35)); // 0.85..0.97 慢周期
+        var alpha = 0.85 + 0.06 * (0.5 + 0.5 * Math.Sin(t * 0.35)); // 0.85..0.97 鎱㈠懆鏈?
         var a = (byte)Math.Round(alpha * 255);
         if (_tintStop0.Color.A != a)
             _tintStop0.Color = System.Windows.Media.Color.FromArgb(a, c.Value.R, c.Value.G, c.Value.B);
     }
 
-    /// <summary>恢复 Card 背景为绑定的主题色（移除封面取色）。</summary>
+    /// <summary>鎭㈠ Card 鑳屾櫙涓虹粦瀹氱殑涓婚鑹诧紙绉婚櫎灏侀潰鍙栬壊锛夈€?/summary>
     private void ClearCoverTint()
     {
         try
@@ -1768,12 +1858,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             Card.Background = _theme.CardBackground;
         }
-        // 无封面取色时重新启用玻璃分层（展开态更实、紧凑态通透）
+        // 鏃犲皝闈㈠彇鑹叉椂閲嶆柊鍚敤鐜荤拑鍒嗗眰锛堝睍寮€鎬佹洿瀹炪€佺揣鍑戞€侀€氶€忥級
         if (GlassLayer is not null && (_vm.IsExpanded || !_settings.Current.CoverTintBackground))
             AnimateGlass(_vm.IsExpanded);
     }
 
-    /// <summary>把封面渲染到 1x1 位图采样主色（RGBA）。</summary>
+    /// <summary>鎶婂皝闈㈡覆鏌撳埌 1x1 浣嶅浘閲囨牱涓昏壊锛圧GBA锛夈€?/summary>
     private static System.Windows.Media.Color? SampleCoverColor(ImageSource src)
     {
         try
@@ -1783,7 +1873,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             rtb.Render(img);
             var px = new byte[4];
             rtb.CopyPixels(px, 4, 0);
-            if (px[3] < 40) return null; // 透明/未加载完成，放弃取色
+            if (px[3] < 40) return null; // 閫忔槑/鏈姞杞藉畬鎴愶紝鏀惧純鍙栬壊
             return System.Windows.Media.Color.FromArgb(255, px[2], px[1], px[0]);
         }
         catch
@@ -1792,7 +1882,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    // ── 点击穿透 ──────────────────────────────────────────────
+    // 鈹€鈹€ 鐐瑰嚮绌块€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -1816,19 +1906,19 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                local.Y <= pos.Y + Card.ActualHeight;
     }
 
-    // ── 显示 / 隐藏 ────────────────────────────────────────────
+    // 鈹€鈹€ 鏄剧ず / 闅愯棌 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private void ShowIsland(bool instant)
     {
         if (!IsLoaded) return;
         if (!IsVisible)
         {
-            // 先恢复外观与尺寸，避免隐藏期间被压缩导致重新显示时两侧被裁切
+            // 鍏堟仮澶嶅瑙備笌灏哄锛岄伩鍏嶉殣钘忔湡闂磋鍘嬬缉瀵艰嚧閲嶆柊鏄剧ず鏃朵袱渚ц瑁佸垏
             ApplyAppearance();
             ApplySize();
             Reposition();
             Show();
-            // 显示后以 Loaded 优先级再定位一次，确保窗口刚 Show 时尺寸已生效
+            // 鏄剧ず鍚庝互 Loaded 浼樺厛绾у啀瀹氫綅涓€娆★紝纭繚绐楀彛鍒?Show 鏃跺昂瀵稿凡鐢熸晥
             Dispatcher.BeginInvoke(Reposition, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
@@ -1846,16 +1936,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (!IsVisible) return;
         var sb = new Storyboard();
-        // 非线性淡出：先快后慢（EaseIn），消失过程不匀速、不生硬
+        // 闈炵嚎鎬ф贰鍑猴細鍏堝揩鍚庢參锛圗aseIn锛夛紝娑堝け杩囩▼涓嶅寑閫熴€佷笉鐢熺‖
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(210))
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
+            EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 },
         };
         Storyboard.SetTarget(fade, this);
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
         sb.Completed += (_, _) => { if (!_vm.IsVisible) Hide(); };
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
@@ -1864,16 +1954,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var sb = new Storyboard();
         var fade = new DoubleAnimation(Opacity, to, TimeSpan.FromMilliseconds(ms))
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 },
         };
         Storyboard.SetTarget(fade, this);
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
-    // ── iOS 风格形变动画 ──────────────────────────────────────
+    // 鈹€鈹€ iOS 椋庢牸褰㈠彉鍔ㄧ敾 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private void AnimateSize()
     {
@@ -1884,25 +1974,25 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void Expand()
     {
-        // 胶囊行保持可见（动画淡出），展开内容覆盖全卡片（动画淡入），两者重叠交叉过渡，
-        // 避免 Card 深色背景透过内容间隙产生"黑掉"现象
-        AnimateGlass(true); // 智能透明度：展开态更实
+        // 鑳跺泭琛屼繚鎸佸彲瑙侊紙鍔ㄧ敾娣″嚭锛夛紝灞曞紑鍐呭瑕嗙洊鍏ㄥ崱鐗囷紙鍔ㄧ敾娣″叆锛夛紝涓よ€呴噸鍙犱氦鍙夎繃娓★紝
+        // 閬垮厤 Card 娣辫壊鑳屾櫙閫忚繃鍐呭闂撮殭浜х敓"榛戞帀"鐜拌薄
+        AnimateGlass(true); // 鏅鸿兘閫忔槑搴︼細灞曞紑鎬佹洿瀹?
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         ContentGrid.RowDefinitions[1].Height = GridLength.Auto;
         ContentGrid.VerticalAlignment = VerticalAlignment.Center;
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
         ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
 
-        // 先测量展开内容自然高度（ScrollViewer 内容总高），得到卡片目标高度
+        // 鍏堟祴閲忓睍寮€鍐呭鑷劧楂樺害锛圫crollViewer 鍐呭鎬婚珮锛夛紝寰楀埌鍗＄墖鐩爣楂樺害
         ExpandedContent.Opacity = 0;
         ExpandedContent.Visibility = Visibility.Visible;
-        // 60fps 优化：展开内容固定目标宽度，展开动画期间不随卡片宽度逐帧重排（内容只布局一次）
+        // 60fps 浼樺寲锛氬睍寮€鍐呭鍥哄畾鐩爣瀹藉害锛屽睍寮€鍔ㄧ敾鏈熼棿涓嶉殢鍗＄墖瀹藉害閫愬抚閲嶆帓锛堝唴瀹瑰彧甯冨眬涓€娆★級
         ExpandedContent.Width = Math.Max(120, ExpandedWidth - 20);
         ExpandedContent.Measure(new System.Windows.Size(ExpandedContent.Width, double.PositiveInfinity));
         var contentH = ExpandedContent.DesiredSize.Height;
         var targetHeight = Math.Clamp(contentH + 24, 200, MaxExpandedHeight);
 
-        // 重新显示胶囊行：动画期间淡出，与展开内容交叉过渡
+        // 閲嶆柊鏄剧ず鑳跺泭琛岋細鍔ㄧ敾鏈熼棿娣″嚭锛屼笌灞曞紑鍐呭浜ゅ弶杩囨浮
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
         PillRow.Visibility = Visibility.Visible;
         PillRow.Opacity = 1;
@@ -1912,22 +2002,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void Collapse()
     {
-        // 先恢复胶囊行（紧凑行占满并垂直居中），再缩回紧凑尺寸
-        AnimateGlass(false); // 智能透明度：紧凑态更通透
+        // 鍏堟仮澶嶈兌鍥婅锛堢揣鍑戣鍗犳弧骞跺瀭鐩村眳涓級锛屽啀缂╁洖绱у噾灏哄
+        AnimateGlass(false); // 鏅鸿兘閫忔槑搴︼細绱у噾鎬佹洿閫氶€?
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
-        ContentGrid.RowDefinitions[1].Height = GridLength.Auto; // 展开行恢复自适应
-        // 保持垂直居中：收回后组件上下对称（此前设为 Top 会导致贴顶、下方留白，展开收回后距离不同）
+        ContentGrid.RowDefinitions[1].Height = GridLength.Auto; // 灞曞紑琛屾仮澶嶈嚜閫傚簲
+        // 淇濇寔鍨傜洿灞呬腑锛氭敹鍥炲悗缁勪欢涓婁笅瀵圭О锛堟鍓嶈涓?Top 浼氬鑷磋创椤躲€佷笅鏂圭暀鐧斤紝灞曞紑鏀跺洖鍚庤窛绂讳笉鍚岋級
         ContentGrid.VerticalAlignment = VerticalAlignment.Center;
 
-        // 清除展开动画的残留（HoldEnd 会把 PillRow.Opacity 锁在 0，直接设本地值无效）
+        // 娓呴櫎灞曞紑鍔ㄧ敾鐨勬畫鐣欙紙HoldEnd 浼氭妸 PillRow.Opacity 閿佸湪 0锛岀洿鎺ヨ鏈湴鍊兼棤鏁堬級
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
         ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
         PillRow.Visibility = Visibility.Visible;
         PillRow.Opacity = 1;
-        // 展开内容保持可见以播放「自下而上」的交错淡出动画，动画结束后由 AnimateCard 回调隐藏
+        // 灞曞紑鍐呭淇濇寔鍙浠ユ挱鏀俱€岃嚜涓嬭€屼笂銆嶇殑浜ら敊娣″嚭鍔ㄧ敾锛屽姩鐢荤粨鏉熷悗鐢?AnimateCard 鍥炶皟闅愯棌
         ExpandedContent.Visibility = Visibility.Visible;
         ExpandedContent.Opacity = 1;
-        // 60fps 优化：收起动画期间展开内容固定宽度，不随卡片宽度逐帧重排
+        // 60fps 浼樺寲锛氭敹璧峰姩鐢绘湡闂村睍寮€鍐呭鍥哄畾瀹藉害锛屼笉闅忓崱鐗囧搴﹂€愬抚閲嶆帓
         ExpandedContent.Width = Math.Max(120, CompactWidth - 20);
 
         AnimateCard(CompactWidth, CompactHeight, expand: false,
@@ -1935,15 +2025,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 动画：卡片尺寸用 iOS 阻尼弹簧（先快后慢、轻微过冲回弹）；
-    /// 展开内容按区块自上而下交错淡入上移、收起时反向交错淡出下移（1.2.1），整体节奏非线性、不生硬。
+    /// 鍔ㄧ敾锛氬崱鐗囧昂瀵哥敤 iOS 闃诲凹寮圭哀锛堝厛蹇悗鎱€佽交寰繃鍐插洖寮癸級锛?
+    /// 灞曞紑鍐呭鎸夊尯鍧楄嚜涓婅€屼笅浜ら敊娣″叆涓婄Щ銆佹敹璧锋椂鍙嶅悜浜ら敊娣″嚭涓嬬Щ锛?.2.1锛夛紝鏁翠綋鑺傚闈炵嚎鎬с€佷笉鐢熺‖銆?
     /// </summary>
     private void AnimateCard(double width, double height, bool expand, Action? onCompleted = null)
     {
         _currentStoryboard?.Stop();
         _currentStoryboard = null;
 
-        // 减少动态效果：关闭弹簧/交错动画，直接瞬时切换（无障碍 / 省电）
+        // 鍑忓皯鍔ㄦ€佹晥鏋滐細鍏抽棴寮圭哀/浜ら敊鍔ㄧ敾锛岀洿鎺ョ灛鏃跺垏鎹紙鏃犻殰纰?/ 鐪佺數锛?
         if (_settings.Current.ReduceMotion)
         {
             Card.Width = width;
@@ -1960,31 +2050,31 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
 
         var sb = new Storyboard();
-        // 动效皮肤（33）：Spring= iOS 弹簧（默认）/ Soft=柔和 / Elastic=弹性 / Fade=简洁渐隐
+        // 鍔ㄦ晥鐨偆锛?3锛夛細Spring= iOS 寮圭哀锛堥粯璁わ級/ Soft=鏌斿拰 / Elastic=寮规€?/ Fade=绠€娲佹笎闅?
         var (styleEase, styleSizeMs) = GetSizeAnimationStyle(expand);
         var smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 低功耗模式（37）：动画时间缩短，更快进入空闲
+        var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 浣庡姛鑰楁ā寮忥紙37锛夛細鍔ㄧ敾鏃堕棿缂╃煭锛屾洿蹇繘鍏ョ┖闂?
 
-        // 卡片尺寸：动效皮肤曲线（展开/收起时长由皮肤决定）
+        // 鍗＄墖灏哄锛氬姩鏁堢毊鑲ゆ洸绾匡紙灞曞紑/鏀惰捣鏃堕暱鐢辩毊鑲ゅ喅瀹氾級
         AddAnim(sb, Card, FrameworkElement.WidthProperty, width, (int)(styleSizeMs * lm), styleEase);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, height, (int)(styleSizeMs * lm), styleEase);
 
-        // 展开内容交错过渡（1.2.1 功能 2）：
-        //  展开 —— 区块自上而下依次淡入 + 轻微上移（每区块延迟 70ms，错峰出现）
-        //  收起 —— 区块自下而上反向依次淡出 + 轻微下移，容器最后整体淡出
+        // 灞曞紑鍐呭浜ら敊杩囨浮锛?.2.1 鍔熻兘 2锛夛細
+        //  灞曞紑 鈥斺€?鍖哄潡鑷笂鑰屼笅渚濇娣″叆 + 杞诲井涓婄Щ锛堟瘡鍖哄潡寤惰繜 70ms锛岄敊宄板嚭鐜帮級
+        //  鏀惰捣 鈥斺€?鍖哄潡鑷笅鑰屼笂鍙嶅悜渚濇娣″嚭 + 杞诲井涓嬬Щ锛屽鍣ㄦ渶鍚庢暣浣撴贰鍑?
         var blocks = _cascadeBlocks;
         if (expand)
         {
             for (int i = 0; i < blocks.Length; i++)
             {
                 var (el, tr) = blocks[i];
-                el.Opacity = 0;   // 重置入场起点，保证每次展开都从空白开始错峰出现
+                el.Opacity = 0;   // 閲嶇疆鍏ュ満璧风偣锛屼繚璇佹瘡娆″睍寮€閮戒粠绌虹櫧寮€濮嬮敊宄板嚭鐜?
                 tr.Y = 12;
                 var delay = TimeSpan.FromMilliseconds((90 + i * 70) * lm);
                 AddAnim(sb, el, UIElement.OpacityProperty, 1, (int)(340 * lm), smooth, delay);
                 AddAnim(sb, tr, TranslateTransform.YProperty, 0, (int)(420 * lm), smooth, delay);
             }
-            // 容器淡入，覆盖整个交错过程（内容出现时整体更柔和）
+            // 瀹瑰櫒娣″叆锛岃鐩栨暣涓氦閿欒繃绋嬶紙鍐呭鍑虹幇鏃舵暣浣撴洿鏌斿拰锛?
             AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(460 * lm), smooth, TimeSpan.FromMilliseconds(90 * lm));
         }
         else
@@ -1992,45 +2082,45 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             for (int i = 0; i < blocks.Length; i++)
             {
                 var (el, tr) = blocks[i];
-                // 收起：先收尾部区块，再收顶部区块（与展开顺序相反）
+                // 鏀惰捣锛氬厛鏀跺熬閮ㄥ尯鍧楋紝鍐嶆敹椤堕儴鍖哄潡锛堜笌灞曞紑椤哄簭鐩稿弽锛?
                 var delay = TimeSpan.FromMilliseconds((blocks.Length - 1 - i) * 55 * lm);
                 AddAnim(sb, el, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth, delay);
                 AddAnim(sb, tr, TranslateTransform.YProperty, 14, (int)(220 * lm), smooth, delay);
             }
-            // 容器在区块基本淡出后再整体淡出，避免内容残留
+            // 瀹瑰櫒鍦ㄥ尯鍧楀熀鏈贰鍑哄悗鍐嶆暣浣撴贰鍑猴紝閬垮厤鍐呭娈嬬暀
             AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(240 * lm), smooth,
                 TimeSpan.FromMilliseconds((blocks.Length * 55 + 150) * lm));
-            // 胶囊行：已由 Collapse 恢复为完全不透明，作为淡出过程中的底层承接内容
+            // 鑳跺泭琛岋細宸茬敱 Collapse 鎭㈠涓哄畬鍏ㄤ笉閫忔槑锛屼綔涓烘贰鍑鸿繃绋嬩腑鐨勫簳灞傛壙鎺ュ唴瀹?
             PillRow.Opacity = 1;
         }
 
-        // 胶囊行：展开后淡出（由大图区接管）；收起时立即恢复完全不透明，
-        // 避免缩回瞬间胶囊内容还在淡入而出现"空内容"
+        // 鑳跺泭琛岋細灞曞紑鍚庢贰鍑猴紙鐢卞ぇ鍥惧尯鎺ョ锛夛紱鏀惰捣鏃剁珛鍗虫仮澶嶅畬鍏ㄤ笉閫忔槑锛?
+        // 閬垮厤缂╁洖鐬棿鑳跺泭鍐呭杩樺湪娣″叆鑰屽嚭鐜?绌哄唴瀹?
         if (expand)
             AddAnim(sb, PillRow, UIElement.OpacityProperty, 0, (int)(300 * lm), smooth, TimeSpan.FromMilliseconds(80));
 
         sb.Completed += (_, _) =>
         {
-            // 防旧动画完成回调覆盖新动画状态（快速连续展开/收起时尺寸错乱）
+            // 闃叉棫鍔ㄧ敾瀹屾垚鍥炶皟瑕嗙洊鏂板姩鐢荤姸鎬侊紙蹇€熻繛缁睍寮€/鏀惰捣鏃跺昂瀵搁敊涔憋級
             if (!ReferenceEquals(_currentStoryboard, sb)) return;
             try
             {
                 _currentStoryboard = null;
-                // 关键：清除动画对 Card 尺寸的 HoldEnd 锁定，否则之后设置本地尺寸（含自动重算）不生效，
-                // 多次展开/收起后组件上下间距会残留异常
+                // 鍏抽敭锛氭竻闄ゅ姩鐢诲 Card 灏哄鐨?HoldEnd 閿佸畾锛屽惁鍒欎箣鍚庤缃湰鍦板昂瀵革紙鍚嚜鍔ㄩ噸绠楋級涓嶇敓鏁堬紝
+                // 澶氭灞曞紑/鏀惰捣鍚庣粍浠朵笂涓嬮棿璺濅細娈嬬暀寮傚父
                 Card.BeginAnimation(FrameworkElement.WidthProperty, null);
                 Card.BeginAnimation(FrameworkElement.HeightProperty, null);
-                // 必须写回最终尺寸：清除动画后若只依赖本地值，Card 会回退到紧凑时设置的
-                // 本地尺寸（Width/Height），展开态瞬间缩回紧凑大小导致内容被裁剪而黑屏
+                // 蹇呴』鍐欏洖鏈€缁堝昂瀵革細娓呴櫎鍔ㄧ敾鍚庤嫢鍙緷璧栨湰鍦板€硷紝Card 浼氬洖閫€鍒扮揣鍑戞椂璁剧疆鐨?
+                // 鏈湴灏哄锛圵idth/Height锛夛紝灞曞紑鎬佺灛闂寸缉鍥炵揣鍑戝ぇ灏忓鑷村唴瀹硅瑁佸壀鑰岄粦灞?
                 Card.Width = width;
                 Card.Height = height;
-                // 动画结束后整理可见性：展开态折叠胶囊行并固定展开内容不透明，收起态恢复胶囊行
+                // 鍔ㄧ敾缁撴潫鍚庢暣鐞嗗彲瑙佹€э細灞曞紑鎬佹姌鍙犺兌鍥婅骞跺浐瀹氬睍寮€鍐呭涓嶉€忔槑锛屾敹璧锋€佹仮澶嶈兌鍥婅
                 if (_vm.IsExpanded)
                 {
                     PillRow.Visibility = Visibility.Collapsed;
                     PillRow.Opacity = 0;
                     ExpandedContent.Opacity = 1;
-                    ExpandedContent.Width = double.NaN; // 恢复自适应布局
+                    ExpandedContent.Width = double.NaN; // 鎭㈠鑷€傚簲甯冨眬
                 }
                 else
                 {
@@ -2038,7 +2128,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                     PillRow.Opacity = 1;
                     ExpandedContent.Visibility = Visibility.Collapsed;
                     ExpandedContent.Opacity = 0;
-                    ExpandedContent.Width = double.NaN; // 恢复自适应布局
+                    ExpandedContent.Width = double.NaN; // 鎭㈠鑷€傚簲甯冨眬
                 }
                 onCompleted?.Invoke();
             }
@@ -2048,20 +2138,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             }
         };
         _currentStoryboard = sb;
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps（跟随显示器刷新率）
+        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
     /// <summary>
-    /// 动效皮肤（33）：返回 (尺寸缓动, 基准时长毫秒) 元组。
-    /// Spring = iOS 阻尼弹簧（默认，轻微过冲回弹）；Soft = 柔和弹簧（回弹更少更软）；
-    /// Elastic = 弹性回弹（明显弹跳）；Fade = 简洁渐隐（无回弹，最克制）。
+    /// 鍔ㄦ晥鐨偆锛?3锛夛細杩斿洖 (灏哄缂撳姩, 鍩哄噯鏃堕暱姣) 鍏冪粍銆?
+    /// Spring = iOS 闃诲凹寮圭哀锛堥粯璁わ紝杞诲井杩囧啿鍥炲脊锛夛紱Soft = 鏌斿拰寮圭哀锛堝洖寮规洿灏戞洿杞級锛?
+    /// Elastic = 寮规€у洖寮癸紙鏄庢樉寮硅烦锛夛紱Fade = 绠€娲佹笎闅愶紙鏃犲洖寮癸紝鏈€鍏嬪埗锛夈€?
     /// </summary>
     private (IEasingFunction Easing, int SizeMs) GetSizeAnimationStyle(bool expand)
     {
-        // 1.2.0：动画时长可由用户微调（300~1400ms，默认 700ms）。
-        // 各风格保留相对差异：Spring 全时长 / Soft 略慢 / Elastic 略快 / Fade 最短；
-        // 收起时长约为展开的 0.86 倍，让回收更快一点更利落。
+        // 1.2.0锛氬姩鐢绘椂闀垮彲鐢辩敤鎴峰井璋冿紙300~1400ms锛岄粯璁?700ms锛夈€?
+        // 鍚勯鏍间繚鐣欑浉瀵瑰樊寮傦細Spring 鍏ㄦ椂闀?/ Soft 鐣ユ參 / Elastic 鐣ュ揩 / Fade 鏈€鐭紱
+        // 鏀惰捣鏃堕暱绾︿负灞曞紑鐨?0.86 鍊嶏紝璁╁洖鏀舵洿蹇竴鐐规洿鍒╄惤銆?
         var baseMs = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400);
         static int Ms(double v) => (int)Math.Round(v);
         switch (_settings.Current.AnimationStyle)
@@ -2075,10 +2165,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                     Springiness = 6,
                     EasingMode = EasingMode.EaseOut,
                 }, expand ? Ms(baseMs * 0.97) : Ms(baseMs * 0.84));
+            case "Smooth":
+                return (new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 }, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.88));
             case "Fade":
                 return (new CubicEase { EasingMode = EasingMode.EaseOut }, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.64));
             default: // Spring
-                return (new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 }, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1：阻尼略降、刚度略升 -> 回弹更有弹性
+                return (new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 }, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1锛氶樆灏肩暐闄嶃€佸垰搴︾暐鍗?-> 鍥炲脊鏇存湁寮规€?
         }
     }
     private void AddAnim(Storyboard sb, DependencyObject target, DependencyProperty prop, double to, int ms, IEasingFunction easing, TimeSpan? beginTime = null)
@@ -2090,10 +2182,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         };
         Storyboard.SetTarget(anim, target);
         Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
+        System.Windows.Media.Animation.Timeline.SetDesiredFrameRate(anim, 120); // 120 FPS 鐩爣甯х巼
         sb.Children.Add(anim);
     }
 
-    // ── 定位 ──────────────────────────────────────────────────
+    // 鈹€鈹€ 瀹氫綅 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     public void Reposition()
     {
@@ -2101,7 +2194,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var s = _settings.Current;
         if (s.IslandManualLeft is double ml && s.IslandManualTop is double mt)
         {
-            // 手动定位：只在窗口比工作区小时做越界保护，避免贴边/居中后自动弹回
+            // 鎵嬪姩瀹氫綅锛氬彧鍦ㄧ獥鍙ｆ瘮宸ヤ綔鍖哄皬鏃跺仛瓒婄晫淇濇姢锛岄伩鍏嶈创杈?灞呬腑鍚庤嚜鍔ㄥ脊鍥?
             var work = ScreenHelper.DpiWorkArea(_screen);
             var w = Math.Max(1.0, ActualWidth);
             var h = Math.Max(1.0, ActualHeight);
@@ -2119,7 +2212,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ApplyCardAlignment();
     }
 
-    // ── 拖文件上岛 ──────────────────────────────────────────
+    // 鈹€鈹€ 鎷栨枃浠朵笂宀?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     private bool _dragHintOn;
 
     private void Card_DragOver(object sender, System.Windows.DragEventArgs e)
@@ -2146,30 +2239,30 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ShowDragHint(false);
         if (!e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)) return;
         if (e.Data.GetData(System.Windows.DataFormats.FileDrop) is not string[] { Length: > 0 } files) return;
-        // 文件中转站：拖入的文件进入组件，可再拖出到其他应用 / 资源管理器（仅存路径引用）
+        // 鏂囦欢涓浆绔欙細鎷栧叆鐨勬枃浠惰繘鍏ョ粍浠讹紝鍙啀鎷栧嚭鍒板叾浠栧簲鐢?/ 璧勬簮绠＄悊鍣紙浠呭瓨璺緞寮曠敤锛?
         _vm.AddFilesToTransfer(files);
         e.Handled = true;
     }
 
-    /// <summary>拖入文件时用强调色高亮卡片边框（轻微淡入淡出）。</summary>
+    /// <summary>鎷栧叆鏂囦欢鏃剁敤寮鸿皟鑹查珮浜崱鐗囪竟妗嗭紙杞诲井娣″叆娣″嚭锛夈€?/summary>
     private void ShowDragHint(bool on)
     {
         if (_dragHintOn == on) return;
         _dragHintOn = on;
         try
         {
-            // 主题画笔已 Freeze，无法直接 BeginAnimation；这里新建未冻结画笔做颜色渐变
+            // 涓婚鐢荤瑪宸?Freeze锛屾棤娉曠洿鎺?BeginAnimation锛涜繖閲屾柊寤烘湭鍐荤粨鐢荤瑪鍋氶鑹叉笎鍙?
             var accent = (_theme.AccentBorderBrush as SolidColorBrush)?.Color ?? System.Windows.Media.Color.FromArgb(160, 108, 92, 231);
             var card = (_theme.CardBorder as SolidColorBrush)?.Color ?? System.Windows.Media.Color.FromArgb(60, 255, 255, 255);
             var brush = new SolidColorBrush(on ? card : accent);
             var anim = new ColorAnimation(on ? accent : card, TimeSpan.FromMilliseconds(200));
             if (!on)
             {
-                // 还原主题绑定必须等颜色动画播完再执行：SetBinding 会立刻替换 BorderBrush 的本地值，
-                // 若在此处直接调用会把刚起步的 200ms 过渡动画截断，边框颜色会瞬间跳变。
+                // 杩樺師涓婚缁戝畾蹇呴』绛夐鑹插姩鐢绘挱瀹屽啀鎵ц锛歋etBinding 浼氱珛鍒绘浛鎹?BorderBrush 鐨勬湰鍦板€硷紝
+                // 鑻ュ湪姝ゅ鐩存帴璋冪敤浼氭妸鍒氳捣姝ョ殑 200ms 杩囨浮鍔ㄧ敾鎴柇锛岃竟妗嗛鑹蹭細鐬棿璺冲彉銆?
                 anim.Completed += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (!_dragHintOn) // 期间又被拖入（on=true）则不恢复，交由下一次动画处理
+                    if (!_dragHintOn) // 鏈熼棿鍙堣鎷栧叆锛坥n=true锛夊垯涓嶆仮澶嶏紝浜ょ敱涓嬩竴娆″姩鐢诲鐞?
                         Card.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(CardBorder))
                         {
                             RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Window), 1),
@@ -2179,10 +2272,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             brush.BeginAnimation(SolidColorBrush.ColorProperty, anim);
             Card.BorderBrush = brush;
         }
-        catch { /* 动画失败忽略 */ }
+        catch { /* 鍔ㄧ敾澶辫触蹇界暐 */ }
     }
 
-    // ── 文件中转站：把中转文件拖出到其他应用 / 资源管理器 ──
+    // 鈹€鈹€ 鏂囦欢涓浆绔欙細鎶婁腑杞枃浠舵嫋鍑哄埌鍏朵粬搴旂敤 / 璧勬簮绠＄悊鍣?鈹€鈹€
     private bool _fileDragArmed;
     private Point _fileDownPoint;
 
@@ -2204,12 +2297,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (paths.Length == 0) return;
         try
         {
-            // 用真实路径发起系统拖放（复制语义），源文件不会被移动或删除
+            // 鐢ㄧ湡瀹炶矾寰勫彂璧风郴缁熸嫋鏀撅紙澶嶅埗璇箟锛夛紝婧愭枃浠朵笉浼氳绉诲姩鎴栧垹闄?
             var data = new System.Windows.DataObject(System.Windows.DataFormats.FileDrop, paths);
             System.Windows.DragDrop.DoDragDrop(sender is DependencyObject d ? d : Card, data,
                 System.Windows.DragDropEffects.Copy | System.Windows.DragDropEffects.Move);
         }
-        catch { /* 用户取消拖放等 */ }
+        catch { /* 鐢ㄦ埛鍙栨秷鎷栨斁绛?*/ }
         e.Handled = true;
     }
 
@@ -2219,16 +2312,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         e.Handled = true;
     }
 
-    /// <summary>点击文件中转组件上的「×」：清空中转站。</summary>
+    /// <summary>鐐瑰嚮鏂囦欢涓浆缁勪欢涓婄殑銆屆椼€嶏細娓呯┖涓浆绔欍€?/summary>
     private void FileTransferClear_Click(object sender, RoutedEventArgs e)
     {
         _vm.ClearFileTransfer();
         e.Handled = true;
     }
 
-    // ── 拖动定位：吸附 + 持久化 ─────────────────────────────
+    // 鈹€鈹€ 鎷栧姩瀹氫綅锛氬惛闄?+ 鎸佷箙鍖?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-    /// <summary>拖动松手后：自动吸附屏幕边缘/居中，并把位置写入设置（上锁/重启后保持）。</summary>
+    /// <summary>鎷栧姩鏉炬墜鍚庯細鑷姩鍚搁檮灞忓箷杈圭紭/灞呬腑锛屽苟鎶婁綅缃啓鍏ヨ缃紙涓婇攣/閲嶅惎鍚庝繚鎸侊級銆?/summary>
     private void SnapAndPersistPosition()
     {
         if (!IsLoaded) return;
@@ -2242,12 +2335,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         if (s.EdgeSnapEnabled)
         {
-            const double snap = 56; // 吸附阈值（DIP）
+            const double snap = 56; // 鍚搁檮闃堝€硷紙DIP锛?
             left = SnapTo(left, new[] { work.Left, work.Left + (work.Width - w) / 2, work.Right - w }, snap);
             top = SnapTo(top, new[] { work.Top, work.Bottom - h }, snap);
         }
 
-        // 越界保护：窗口比工作区小时才夹紧，避免多显示器负坐标失效
+        // 瓒婄晫淇濇姢锛氱獥鍙ｆ瘮宸ヤ綔鍖哄皬鏃舵墠澶圭揣锛岄伩鍏嶅鏄剧ず鍣ㄨ礋鍧愭爣澶辨晥
         if (w < work.Width) left = Math.Clamp(left, work.Left, work.Right - w);
         if (h < work.Height) top = Math.Clamp(top, work.Top, work.Bottom - h);
 
@@ -2268,7 +2361,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         return value;
     }
 
-    /// <summary>窗口移动用非线性缓动动画（不瞬移，丝滑过渡）。</summary>
+    /// <summary>绐楀彛绉诲姩鐢ㄩ潪绾挎€х紦鍔ㄥ姩鐢伙紙涓嶇灛绉伙紝涓濇粦杩囨浮锛夈€?/summary>
     private void AnimatePosition(double left, double top)
     {
         if (!IsLoaded) return;
@@ -2279,7 +2372,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Top = top;
             return;
         }
-        _positionStoryboard?.Stop(); // 连续重定位先停旧动画，避免并发抖动
+        _positionStoryboard?.Stop(); // 杩炵画閲嶅畾浣嶅厛鍋滄棫鍔ㄧ敾锛岄伩鍏嶅苟鍙戞姈鍔?
         var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
         var sb = new Storyboard();
         AddAnim(sb, this, Window.LeftProperty, left, 320, easing);
@@ -2290,14 +2383,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         sb.Begin();
     }
 
-    // ── 歌词自动滚动 ──────────────────────────────────────────
+    // 鈹€鈹€ 姝岃瘝鑷姩婊氬姩 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private bool _lyricsScrollQueued;
     private readonly DispatcherTimer _lyricsScrollTimer;
     private double _lyricsScrollTarget;
-    private double _lyricsScrollFrom;      // 本次滚动起点偏移（时间基准缓动用）
-    private DateTime _lyricsScrollStartUtc; // 本次滚动起始墙钟
-    private const double LyricsScrollMs = 420; // 单次滚动时长（毫秒），60fps / 120Hz 下均一致
+    private double _lyricsScrollFrom;      // 鏈婊氬姩璧风偣鍋忕Щ锛堟椂闂村熀鍑嗙紦鍔ㄧ敤锛?
+    private DateTime _lyricsScrollStartUtc; // 鏈婊氬姩璧峰澧欓挓
+    private const double LyricsScrollMs = 420; // 鍗曟婊氬姩鏃堕暱锛堟绉掞級锛?0fps / 120Hz 涓嬪潎涓€鑷?
 
     private void QueueLyricsScroll(int index)
     {
@@ -2307,7 +2400,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Dispatcher.BeginInvoke(() =>
         {
             _lyricsScrollQueued = false;
-            // 执行时取最新索引：快速切句时排队中的旧索引会被最新句覆盖，滚动始终跟随当前句
+            // 鎵ц鏃跺彇鏈€鏂扮储寮曪細蹇€熷垏鍙ユ椂鎺掗槦涓殑鏃х储寮曚細琚渶鏂板彞瑕嗙洊锛屾粴鍔ㄥ缁堣窡闅忓綋鍓嶅彞
             var current = _vm.LyricIndex >= 0 ? _vm.LyricIndex : index;
             ScrollLyricsTo(current);
         }, DispatcherPriority.Loaded);
@@ -2316,18 +2409,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ScrollLyricsTo(int index)
     {
         if (LyricsList.Items.Count == 0) return;
-        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { _lyricsScrollTimer.Stop(); return; } // 仅在展开且可见时滚动，避免空转
+        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { _lyricsScrollTimer.Stop(); return; } // 浠呭湪灞曞紑涓斿彲瑙佹椂婊氬姩锛岄伩鍏嶇┖杞?
         index = Math.Clamp(index, 0, LyricsList.Items.Count - 1);
         var container = LyricsList.ItemContainerGenerator.ContainerFromIndex(index) as FrameworkElement;
         if (container is null) return;
 
         var viewer = LyricsScroll;
         var relY = container.TransformToAncestor(viewer).Transform(new Point(0, 0)).Y;
-        // 视口相对坐标 + 当前偏移 = 内容坐标；再减去半个视口/加上半个行高使当前句居中
+        // 瑙嗗彛鐩稿鍧愭爣 + 褰撳墠鍋忕Щ = 鍐呭鍧愭爣锛涘啀鍑忓幓鍗婁釜瑙嗗彛/鍔犱笂鍗婁釜琛岄珮浣垮綋鍓嶅彞灞呬腑
         var target = viewer.VerticalOffset + relY - viewer.ViewportHeight / 2 + container.ActualHeight / 2;
         target = Math.Max(0, target);
 
-        // 目标与当前十分接近：直接落位，不再启动画（避免高频切句时抖动）
+        // 鐩爣涓庡綋鍓嶅崄鍒嗘帴杩戯細鐩存帴钀戒綅锛屼笉鍐嶅惎鍔ㄧ敾锛堥伩鍏嶉珮棰戝垏鍙ユ椂鎶栧姩锛?
         if (Math.Abs(target - viewer.VerticalOffset) < 0.5)
         {
             _lyricsScrollTimer.Stop();
@@ -2340,8 +2433,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 平滑滚动：时间基准三次缓出（与帧率无关，60fps / 120Hz 显示器表现一致、丝滑连贯）。
-    /// 快速连续切句时以最近一次目标重新起算，不会“一动一停”。
+    /// 骞虫粦婊氬姩锛氭椂闂村熀鍑嗕笁娆＄紦鍑猴紙涓庡抚鐜囨棤鍏筹紝60fps / 120Hz 鏄剧ず鍣ㄨ〃鐜颁竴鑷淬€佷笣婊戣繛璐級銆?
+    /// 蹇€熻繛缁垏鍙ユ椂浠ユ渶杩戜竴娆＄洰鏍囬噸鏂拌捣绠楋紝涓嶄細鈥滀竴鍔ㄤ竴鍋溾€濄€?
     /// </summary>
     private void SmoothScrollStep()
     {
@@ -2353,13 +2446,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var viewer = LyricsScroll;
         var elapsed = (DateTime.UtcNow - _lyricsScrollStartUtc).TotalMilliseconds;
         var t = Math.Clamp(elapsed / LyricsScrollMs, 0, 1);
-        var eased = 1 - Math.Pow(1 - t, 3); // 三次缓出：先快后慢、收尾柔和
+        var eased = 1 - Math.Pow(1 - t, 3); // 涓夋缂撳嚭锛氬厛蹇悗鎱€佹敹灏炬煍鍜?
         var offset = _lyricsScrollFrom + (_lyricsScrollTarget - _lyricsScrollFrom) * eased;
         viewer.ScrollToVerticalOffset(offset);
         if (t >= 1)
         {
-            viewer.ScrollToVerticalOffset(_lyricsScrollTarget); // 精确落位，消除累计误差
+            viewer.ScrollToVerticalOffset(_lyricsScrollTarget); // 绮剧‘钀戒綅锛屾秷闄ょ疮璁¤宸?
             _lyricsScrollTimer.Stop();
         }
     }
 }
+
+

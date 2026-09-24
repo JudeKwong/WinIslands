@@ -92,7 +92,9 @@ public sealed class AppSettings
     public double Opacity { get; set; } = 0.92;
     public bool EdgeSnapEnabled { get; set; } = true;        // 拖动松手自动吸附屏幕边缘/居中
     public bool FullScreenAutoHideEnabled { get; set; } = true;   // 全屏（视频/游戏/演示）时自动隐藏灵动岛
+    public bool HideOnMaximizeEnabled { get; set; } = true;   // 最大化窗口时也隐藏灵动岛（关闭后仅真正全屏才隐藏）
     public bool LockScreenAutoHideEnabled { get; set; } = true;   // 锁屏（Win+L/远程桌面断开）时自动隐藏灵动岛，解锁后恢复
+    public bool AutoRestartOnCrash { get; set; } = false;   // 崩溃后自动重启（默认关闭，用户可开启）
     public double? IslandManualLeft { get; set; }            // 手动拖动后的窗口 Left（DIP）；null=跟随默认定位
     public double? IslandManualTop { get; set; }             // 手动拖动后的窗口 Top（DIP）；null=跟随默认定位
 
@@ -230,6 +232,8 @@ public sealed class AppSettings
     // ── #10 通知历史（展开卡片底部列表，可点击重新弹出）──
     public bool NotificationHistoryEnabled { get; set; } = true; // 记录通知历史
     public int NotificationHistoryMax { get; set; } = 20;        // 通知历史条数上限（1~100）
+    public int NotificationQueueMax { get; set; } = 8;   // 通知队列最大深度：超过时自动丢弃最低优先级的旧通知
+    public bool NotificationDebounce { get; set; } = true; // 通知去抖：同类型通知 2 秒内只显示最新一条
 
     // ── 上岛 API（其他软件推送信息到灵动岛）──
     public bool IslandApiEnabled { get; set; } = true;           // 启用本地上岛 API

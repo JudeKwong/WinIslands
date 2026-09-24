@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -75,6 +75,11 @@ public sealed class GlobalHotkeyService : IDisposable
     public event Action? LauncherPressed;
     /// <summary>打开 / 收起剪贴板历史面板。</summary>
     public event Action? ClipboardPanelPressed;
+    /// <summary>音量增大。</summary>
+    /// <summary>音量减小。</summary>
+    /// <summary>静音切换。</summary>
+    /// <summary>打开设置窗口。</summary>
+    /// <summary>勿扰模式切换。</summary>
 
     /// <summary>启用或禁用全部快捷键。</summary>
     public void SetEnabled(bool enabled)
