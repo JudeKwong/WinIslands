@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -78,7 +78,43 @@ public sealed class ScreenCaptureMonitor : IDisposable
     {
         "obs64", "obs32", "obs", "bandicam", "bandicam64", "fraps", "camtasia",
         "camtasiastudio", "action", "xsplit.core", "xsplit", "streamlabs", "streamlabsdesktop",
-        "dxtory", "duality", "gamebar", "loilo", "lghub", "gifcam", "screenrecorder",
+        "dxtory", "duality", "loilo", "gifcam", "screenrecorder",
+    };
+    /// <summary>
+    /// 已知录制软件需要同时满足的窗口标题关键词（进程名 → 标题必须包含的关键词之一）。
+    /// 仅进程在运行不足以判定为「录制中」，还需窗口标题佐证。
+    /// </summary>
+    private static readonly Dictionary<string, string[]> RecordingTitleKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["obs64"] = new[] { "recording", "录制", "●" },
+        ["obs32"] = new[] { "recording", "录制", "●" },
+        ["obs"]   = new[] { "recording", "录制", "●" },
+        ["bandicam"] = new[] { "recording", "录制" },
+        ["bandicam64"] = new[] { "recording", "录制" },
+        ["fraps"] = new[] { "recording", "录制" },
+        ["camtasia"] = new[] { "recording", "录制" },
+        ["camtasiastudio"] = new[] { "recording", "录制" },
+        ["action"] = new[] { "recording", "录制", "mirillis" },
+        ["xsplit.core"] = new[] { "recording", "录制" },
+        ["xsplit"] = new[] { "recording", "录制" },
+        ["streamlabs"] = new[] { "recording", "录制" },
+        ["streamlabsdesktop"] = new[] { "recording", "录制" },
+        ["dxtory"] = new[] { "recording", "录制" },
+        ["duality"] = new[] { "recording", "录制" },
+        ["loilo"] = new[] { "recording", "录制" },
+        ["gifcam"] = new[] { "recording", "录制" },
+        ["screenrecorder"] = new[] { "recording", "录制" },
+    };
+
+    /// <summary>
+    /// 窗口标题中表示「正在录制」的精确模式（不依赖进程名）。
+    /// 要求关键词足够特异，避免误匹配普通窗口标题。
+    /// </summary>
+    private static readonly string[] RecordingTitlePatterns =
+    {
+        "正在录制", "录制中", "● rec", "rec ●", "recording ●",
+        "[recording]", "(recording)", "— recording",
+        "is recording", "录屏中",
     };
 
     public ScreenCaptureMonitor()
@@ -205,7 +241,6 @@ public sealed class ScreenCaptureMonitor : IDisposable
         "xsplit.core" or "xsplit" => "XSplit",
         "streamlabs" or "streamlabsdesktop" => "Streamlabs",
         "dxtory" => "Dxtory",
-        "gamebar" => "Xbox Game Bar",
         _ => proc,
     };
 
@@ -228,6 +263,45 @@ public sealed class ScreenCaptureMonitor : IDisposable
         catch { return (string.Empty, string.Empty); }
     }
 
+    /// <summary>获取进程主窗口标题（安全，不抛异常）。</summary>
+    private static string GetProcessWindowTitle(Process p)
+    {
+        try
+        {
+            // 优先用 MainWindowTitle
+            var title = p.MainWindowTitle ?? string.Empty;
+            if (!string.IsNullOrEmpty(title)) return title;
+
+            // 如果主窗口标题为空，尝试枚举该进程的所有窗口
+            var pid = (uint)p.Id;
+            var foundTitle = string.Empty;
+            User32.EnumWindows((hWnd, lParam) =>
+            {
+                try
+                {
+                    uint windowPid = 0;
+                    User32.GetWindowThreadProcessId(hWnd, out windowPid);
+                    if (windowPid != pid) return true;
+
+                    var len = User32.GetWindowTextLength(hWnd);
+                    if (len <= 0) return true;
+
+                    var sb = new System.Text.StringBuilder(len + 1);
+                    User32.GetWindowText(hWnd, sb, sb.Capacity);
+                    if (sb.Length > 0)
+                    {
+                        foundTitle = sb.ToString();
+                        return false; // 找到第一个有标题的窗口，停止枚举
+                    }
+                }
+                catch { }
+                return true; // 继续枚举
+            }, IntPtr.Zero);
+
+            return foundTitle;
+        }
+        catch { return string.Empty; }
+    }
     public void Dispose()
     {
         Stop();
@@ -244,5 +318,9 @@ public sealed class ScreenCaptureMonitor : IDisposable
         public static extern int GetWindowTextLength(IntPtr hWnd);
         [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+        [DllImport("user32.dll")]
+        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
     }
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 }
