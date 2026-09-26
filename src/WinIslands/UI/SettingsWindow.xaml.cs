@@ -42,6 +42,9 @@ public partial class SettingsWindow : Window
 
     /// <summary>具名语言切换处理器：Closed 时退订，避免静态事件反复持有已关闭的设置窗口。</summary>
     private readonly EventHandler _onLanguageChanged;
+    private Action? _todoChanged;
+    private Action? _scheduleChanged;
+    private Action? _pomodoroTick;
 
     public SettingsWindow(SettingsViewModel vm, SettingsService service, CiderMediaProvider? cider,
         TodoService? todo = null,
@@ -76,18 +79,21 @@ public partial class SettingsWindow : Window
         if (_todo is not null)
         {
             TodoList.ItemsSource = _todo.Items;
-            _todo.Changed += () => TodoList.ItemsSource = _todo.Items;
+            _todoChanged = () => TodoList.ItemsSource = _todo.Items;
+            _todo.Changed += _todoChanged;
         }
         if (_schedule is not null)
         {
             ScheduleList.ItemsSource = _schedule.Items;
             ScheduleTimeInput.ToolTip = Localization.Get("Schedule_TimeHint");
-            _schedule.Changed += () => ScheduleList.ItemsSource = _schedule.Items;
+            _scheduleChanged = () => ScheduleList.ItemsSource = _schedule.Items;
+            _schedule.Changed += _scheduleChanged;
         }
         if (_pomodoro is not null)
         {
             TxtPomodoroClock.Text = _pomodoro.ClockText;
-            _pomodoro.Tick += () => TxtPomodoroClock.Text = _pomodoro.ClockText;
+            _pomodoroTick = () => TxtPomodoroClock.Text = _pomodoro.ClockText;
+            _pomodoro.Tick += _pomodoroTick;
         }
 
         // 即时生效：轮询检测 Working 变化并立即应用（无保存按钮）
@@ -106,6 +112,9 @@ public partial class SettingsWindow : Window
         Closed += (_, _) =>
         {
             try { _vm.Save(); } catch { }
+            try { if (_todo is not null && _todoChanged is not null) _todo.Changed -= _todoChanged; } catch { }
+            try { if (_schedule is not null && _scheduleChanged is not null) _schedule.Changed -= _scheduleChanged; } catch { }
+            try { if (_pomodoro is not null && _pomodoroTick is not null) _pomodoro.Tick -= _pomodoroTick; } catch { }
             try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
             try { _saveDebounce.Stop(); } catch { }

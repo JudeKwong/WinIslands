@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.1（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 设置窗口完整释放**：TODO、日程和番茄钟事件改为具名处理器，窗口关闭时全部退订，避免每次打开设置都保留整棵窗口视觉树
+- **🔒 长期运行稳定性**：设置窗口关闭后不再被长期服务持有，内存增长更稳定
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.1 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Complete Settings Window Cleanup**: Todo, schedule, and pomodoro handlers are now named and unsubscribed on close, preventing the visual tree from being retained
+- **🔒 Long-running Stability**: Closed settings windows are no longer held by long-lived services
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.0（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -719,6 +744,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.1（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 设置窗口完整释放**：TODO、日程和番茄钟事件改为具名处理器，窗口关闭时全部退订，避免每次打开设置都保留整棵窗口视觉树
+- **🔒 长期运行稳定性**：设置窗口关闭后不再被长期服务持有，内存增长更稳定
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.1 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Complete Settings Window Cleanup**: Todo, schedule, and pomodoro handlers are now named and unsubscribed on close, preventing the visual tree from being retained
+- **🔒 Long-running Stability**: Closed settings windows are no longer held by long-lived services
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.0（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
