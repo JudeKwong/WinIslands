@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.7.4（正式版 / Stable）
+### 更新内容
+
+- **紧凑尺寸复用**：一次状态切换只测量一次紧凑尺寸，减少同步布局和动画启动抖动
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.3（正式版 / Stable）
 ### 更新内容
 
@@ -62,6 +70,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.4 (Stable)
+### What's New
+
+- **紧凑尺寸复用**: Measures compact dimensions once per state transition to reduce synchronous layout and startup jitter
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

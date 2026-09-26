@@ -1225,12 +1225,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// 纭繚閫忔槑绐楀彛灏哄瓒冲瀹圭撼褰撳墠鍗＄墖锛堝惈绱у噾鎬佽嚜鍔ㄥ搴︼級锛?
     /// 鍚﹀垯鍗＄墖瓒呭嚭绐楀彛杈圭晫浼氳瑁佸壀銆傜揣鍑戝崱鐗囪瑙夊搴?= CompactWidth 脳 FontScale銆?
     /// </summary>
-    private void EnsureWindowSizeFits()
+    private void EnsureWindowSizeFits(double? knownCompactWidth = null)
     {
         if (!IsLoaded) return;
         var settingExpanded = Math.Clamp(_settings.Current.ExpandedWidth, 300, 620);
         var settingMaxH = Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 620);
-        var w = Math.Max(settingExpanded, Math.Max(CompactWidth * FontScale + 8, 640)) + 24;
+        var compactWidth = knownCompactWidth ?? CompactWidth;
+        var w = Math.Max(settingExpanded, Math.Max(compactWidth * FontScale + 8, 640)) + 24;
         var h = Math.Max(settingMaxH, 220) + 24;
         if (Math.Abs(Width - w) > 0.5 || Math.Abs(Height - h) > 0.5)
         {
@@ -1243,18 +1244,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public void ApplySize()
     {
         // 绐楀彛鍥哄畾涓鸿兘瀹圭撼鏈€澶ф帹閫佸崱鐗?灞曞紑鍐呭鐨勫ぇ灏忥細鎺ㄩ€佹椂鍙渶鍔ㄧ敾 Card 褰㈠彉锛岄伩鍏嶇獥鍙ｇ骇 Resize 鍗￠】
-        EnsureWindowSizeFits();
+        var targetCompactWidth = CompactWidth;
+        var targetCompactHeight = CompactHeight;
+        EnsureWindowSizeFits(targetCompactWidth);
         if (!_vm.IsExpanded)
         {
-            Card.Width = CompactWidth;
-            Card.Height = CompactHeight;
+            Card.Width = targetCompactWidth;
+            Card.Height = targetCompactHeight;
         }
         // 鑷姩璋冭妭灏哄鏃讹細鑳跺泭琛屽乏渚ч澶栫暀鐧斤紙宸︿晶妯悜璺濈鏇村ぇ锛夛紝鎵嬪姩妯″紡淇濇寔瀵圭О
         PillRow.Margin = _settings.Current.CompactWidthAuto
             ? new Thickness(8, 0, 0, 0)
             : new Thickness(0);
         // 60fps 浼樺寲锛氱揣鍑戣鍥哄畾涓虹揣鍑戝唴瀹瑰搴︼紝灞曞紑/鏀惰捣鍔ㄧ敾鏈熼棿涓嶉殢 Card 瀹藉害鍙樺寲閫愬抚閲嶆帓
-        UpdateCompactContentWidth();
+        UpdateCompactContentWidth(targetCompactWidth);
     }
 
     /// <summary>搴旂敤澶栬鍙傛暟锛氬渾瑙?/ 瀛椾綋 / 瀛楀彿缂╂斁銆傚瓧鍙风缉鏀句綔鐢ㄤ簬鏁村紶鍗＄墖锛圠ayoutTransform锛夛紝
@@ -1339,11 +1342,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         => _vm.ClearNotificationHistory();
 
     /// <summary>按真实布局边距更新紧凑内容宽度，避免右侧文字和媒体按钮被裁切。</summary>
-    private void UpdateCompactContentWidth()
+    private void UpdateCompactContentWidth(double? knownCompactWidth = null)
     {
         var horizontalChrome = ContentGrid.Margin.Left + ContentGrid.Margin.Right
             + PillRow.Margin.Left + PillRow.Margin.Right;
-        PillRow.Width = Math.Max(80, CompactWidth - horizontalChrome);
+        PillRow.Width = Math.Max(80, (knownCompactWidth ?? CompactWidth) - horizontalChrome);
     }
 
     private void ApplyAppearance()
@@ -1365,10 +1368,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (!IsLoaded) return;
         if (_vm.IsExpanded) { ApplySize(); return; }
-        EnsureWindowSizeFits(); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
-        UpdateCompactContentWidth();
         var targetWidth = CompactWidth;
         var targetHeight = CompactHeight;
+        EnsureWindowSizeFits(targetWidth); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
+        UpdateCompactContentWidth(targetWidth);
         if (_currentStoryboard is null
             && Math.Abs(Card.ActualWidth - targetWidth) < 0.5
             && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
