@@ -1399,7 +1399,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
         sb.Completed += (_, _) =>
         {
-            if (ReferenceEquals(_currentStoryboard, sb)) _currentStoryboard = null;
+            if (!ReferenceEquals(_currentStoryboard, sb)) return;
+            _currentStoryboard = null;
+            Card.BeginAnimation(FrameworkElement.WidthProperty, null);
+            Card.BeginAnimation(FrameworkElement.HeightProperty, null);
+            Card.Width = targetWidth;
+            Card.Height = targetHeight;
         };
         sb.Begin();
     }
