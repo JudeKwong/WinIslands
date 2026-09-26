@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -47,6 +47,8 @@ public sealed class ScreenCaptureMonitor : IDisposable
     private IntPtr _hook;
     private readonly LowLevelKeyboardProc _hookProc;
     private readonly DispatcherTimer? _timer;
+    private readonly HashSet<string> _recordingProcessCache = new(StringComparer.OrdinalIgnoreCase);
+    private int _processScanTick;
     private bool _started;
 
     /// <summary>是否已启动（用于设置联动时判断是否需要 Start/Stop）。</summary>
@@ -128,6 +130,8 @@ public sealed class ScreenCaptureMonitor : IDisposable
     public void Start()
     {
         _started = true;
+        _recordingProcessCache.Clear();
+        _processScanTick = 0;
         InstallHook();
         _timer?.Start();
         CheckRecording(); // 立即采样一次，避免启动时状态未知
@@ -136,6 +140,8 @@ public sealed class ScreenCaptureMonitor : IDisposable
     public void Stop()
     {
         _started = false;
+        _recordingProcessCache.Clear();
+        _processScanTick = 0;
         UninstallHook();
         _timer?.Stop();
     }
@@ -192,26 +198,36 @@ public sealed class ScreenCaptureMonitor : IDisposable
         }
         try
         {
-            // 前台窗口标题含「录制/recording」也算（如 OBS 的「正在录制」窗口标题）
-            var fg = ForegroundWindowInfo();
-            foreach (var p in Process.GetProcesses())
+            _processScanTick++;
+            if (ShouldRefreshProcessCache(_processScanTick))
             {
-                try
+                _recordingProcessCache.Clear();
+                foreach (var process in Process.GetProcesses())
                 {
-                    if (RecordingProcesses.Contains(p.ProcessName))
+                    using (process)
                     {
-                        SetRecording(true, DisplayName(p.ProcessName));
-                        return;
+                        try
+                        {
+                            if (RecordingProcesses.Contains(process.ProcessName)) _recordingProcessCache.Add(process.ProcessName);
+                        }
+                        catch { }
                     }
                 }
-                catch { /* 进程已退出 */ }
             }
+
+            if (_recordingProcessCache.Count > 0)
+            {
+                SetRecording(true, DisplayName(_recordingProcessCache.First()));
+                return;
+            }
+
+            var fg = ForegroundWindowInfo();
             if (fg.Title.Length > 0)
             {
-                var t = fg.Title;
-                if (t.IndexOf("recording", StringComparison.OrdinalIgnoreCase) >= 0
-                    || t.IndexOf("正在录制", StringComparison.Ordinal) >= 0
-                    || t.IndexOf("录制中", StringComparison.Ordinal) >= 0)
+                var title = fg.Title;
+                if (title.IndexOf("recording", StringComparison.OrdinalIgnoreCase) >= 0
+                    || title.IndexOf("正在录制", StringComparison.Ordinal) >= 0
+                    || title.IndexOf("录制中", StringComparison.Ordinal) >= 0)
                 {
                     SetRecording(true, fg.Proc);
                     return;
@@ -221,6 +237,8 @@ public sealed class ScreenCaptureMonitor : IDisposable
         }
         catch { SetRecording(false, string.Empty); }
     }
+
+    internal static bool ShouldRefreshProcessCache(int tick) => tick == 1 || tick % 4 == 0;
 
     private void SetRecording(bool recording, string app)
     {

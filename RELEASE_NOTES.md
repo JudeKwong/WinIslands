@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.5（正式版 / Stable）
+### 更新内容
+
+- **🎥 录屏检测优化**：缓存录制进程列表，每 12 秒刷新一次，标题检测仍保持 3 秒响应
+- **🧹 句柄释放修复**：录制进程枚举使用后立即释放 Process 对象
+- **✅ 回归测试**：209 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.5 (Stable)
+### What's New
+
+- **🎥 Recording Detection Optimization**: Cache recording processes and refresh every 12 seconds while keeping title checks responsive
+- **🧹 Process Handle Cleanup**: Dispose Process objects immediately after recording-process enumeration
+- **✅ Regression Testing**: All 209 unit tests passed
+
+---
 ## WinIslands 1.6.4（正式版 / Stable）
 ### 更新内容
 
