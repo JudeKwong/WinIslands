@@ -1369,12 +1369,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
+        var fromWidth = ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth);
+        var fromHeight = ResolveAnimationFrom(Card.ActualHeight, Card.Height, targetHeight);
         var dur = (int)Math.Clamp(360 * (styleMs / 680.0), 220, 460) * lm;
         // 鍋滄鍓嶄竴涓姩鐢伙紙AnimateCard 鎴?AnimateCompactSize锛夛紝閬垮厤涓や釜 Storyboard 鍚屾椂鍐?Card 灏哄
         _currentStoryboard?.Stop();
         var sb = new Storyboard();
-        AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase);
-        AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase);
+        AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase, from: fromWidth);
+        AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase, from: fromHeight);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
         sb.Begin();
@@ -2080,6 +2082,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void AnimateCard(double width, double height, bool expand, Action? onCompleted = null)
     {
+        var fromWidth = ResolveAnimationFrom(Card.ActualWidth, Card.Width, width);
+        var fromHeight = ResolveAnimationFrom(Card.ActualHeight, Card.Height, height);
         _currentStoryboard?.Stop();
         _currentStoryboard = null;
 
@@ -2106,8 +2110,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 浣庡姛鑰楁ā寮忥紙37锛夛細鍔ㄧ敾鏃堕棿缂╃煭锛屾洿蹇繘鍏ョ┖闂?
 
         // 鍗＄墖灏哄锛氬姩鏁堢毊鑲ゆ洸绾匡紙灞曞紑/鏀惰捣鏃堕暱鐢辩毊鑲ゅ喅瀹氾級
-        AddAnim(sb, Card, FrameworkElement.WidthProperty, width, (int)(styleSizeMs * lm), styleEase);
-        AddAnim(sb, Card, FrameworkElement.HeightProperty, height, (int)(styleSizeMs * lm), styleEase);
+        AddAnim(sb, Card, FrameworkElement.WidthProperty, width, (int)(styleSizeMs * lm), styleEase, from: fromWidth);
+        AddAnim(sb, Card, FrameworkElement.HeightProperty, height, (int)(styleSizeMs * lm), styleEase, from: fromHeight);
 
         // 灞曞紑鍐呭浜ら敊杩囨浮锛?.2.1 鍔熻兘 2锛夛細
         //  灞曞紑 鈥斺€?鍖哄潡鑷笂鑰屼笅渚濇娣″叆 + 杞诲井涓婄Щ锛堟瘡鍖哄潡寤惰繜 70ms锛岄敊宄板嚭鐜帮級
@@ -2218,7 +2222,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 return (CachedSpringEase, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1锛氶樆灏肩暐闄嶃€佸垰搴︾暐鍗?-> 鍥炲脊鏇存湁寮规€?
         }
     }
-    private void AddAnim(Storyboard sb, DependencyObject target, DependencyProperty prop, double to, int ms, IEasingFunction easing, TimeSpan? beginTime = null)
+    internal static double ResolveAnimationFrom(double actual, double current, double fallback)
+        => double.IsFinite(actual) && actual > 0.5 ? actual : double.IsFinite(current) && current > 0.5 ? current : fallback;
+
+    private void AddAnim(Storyboard sb, DependencyObject target, DependencyProperty prop, double to, int ms, IEasingFunction easing, TimeSpan? beginTime = null, double? from = null)
     {
         var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms))
         {
@@ -2228,6 +2235,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Storyboard.SetTarget(anim, target);
         Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
         AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode); // 120 FPS 鐩爣甯х巼
+        if (from is double value && double.IsFinite(value)) anim.From = value;
         sb.Children.Add(anim);
     }
 
