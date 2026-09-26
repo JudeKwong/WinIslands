@@ -63,6 +63,7 @@ public class KaraokeTextBlock : TextBlock
     private double _currentFraction;   // 当前已点亮比例（0..1，整行均分模式平滑推进）
     private double _targetFraction;    // 目标比例（0..1，来自 HighlightFraction）
     private string _lastText = string.Empty;
+    private int _lastLitChars = -1;
     // 整行均分模式：缓存 3 个 Run（同一句内只更新 Foreground，仅重绘、不触发布局，换句才重建）
     private Run? _litRun;
     private Run? _blendRun;
@@ -377,6 +378,7 @@ public class KaraokeTextBlock : TextBlock
         if (_litRun is null || !string.Equals(_lastText, text, StringComparison.Ordinal))
         {
             _lastText = text;
+            _lastLitChars = -1;
             _litBrush = new SolidColorBrush(hl);
             _blendBrush = new SolidColorBrush(bs);
             _restBrush = new SolidColorBrush(bs);
@@ -389,13 +391,16 @@ public class KaraokeTextBlock : TextBlock
             Inlines.Add(_restRun);
         }
 
-        _litRun.Text = litChars > 0 ? text.Substring(0, litChars) : string.Empty;
+        if (_lastLitChars != litChars)
+        {
+            _lastLitChars = litChars;
+            _litRun.Text = litChars > 0 ? text.Substring(0, litChars) : string.Empty;
+            _blendRun.Text = litChars < len ? text[litChars].ToString() : string.Empty;
+            _restRun.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
+        }
+
         _litBrush!.Color = hl;
-
-        _blendRun!.Text = litChars < len ? text[litChars].ToString() : string.Empty;
         _blendBrush!.Color = litChars < len ? Lerp(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
-
-        _restRun!.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
         _restBrush!.Color = bs;
     }
 
