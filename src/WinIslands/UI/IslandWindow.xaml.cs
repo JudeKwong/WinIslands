@@ -1408,6 +1408,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        if (_settings.Current.ReduceMotion)
+        {
+            _currentStoryboard?.Stop();
+            _currentStoryboard = null;
+            _compactAnimationValid = false;
+            Card.Width = targetWidth;
+            Card.Height = targetHeight;
+            return;
+        }
+
+        BeginAnimationSurface();
+
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
         var fromWidth = ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth);

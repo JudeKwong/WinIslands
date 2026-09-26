@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 2.0.0（正式版 / Stable）
+### 更新内容
+
+- **2.0 动效收束**：紧凑尺寸动画补齐亚像素过渡，并让减少动态效果模式跳过尺寸动画
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.9.9（正式版 / Stable）
 ### 更新内容
 
@@ -270,6 +278,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.0 (Stable)
+### What's New
+
+- **2.0 动效收束**: Adds subpixel transitions to compact-size animations and skips them entirely in reduced-motion mode
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
