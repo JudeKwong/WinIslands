@@ -44,6 +44,144 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **✅ Regression Testing**: All 199 unit tests passed
 
 ---
+## WinIslands 1.5.9（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。
+
+### 更新内容
+
+- **🖼 封面下载保护**：单张远程封面限制为 10 MB，使用流式下载，降低异常图片造成的内存峰值
+- **♻ 封面缓存热度**：命中缓存时更新使用顺序，减少常用封面被过早淘汰
+
+---
+
+## WinIslands 1.5.9 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🖼 Artwork Download Protection**: Streaming downloads with a 10 MB cap per image
+- **♻ Artwork Cache Recency**: Cache hits refresh recency to avoid premature eviction
+
+---
+
+## WinIslands 1.5.8（正式版 / Stable）
+### 更新内容
+
+- **🎵 声纹性能**：Bars、Spectrum、Ring、Particles 改用预算相位表，每帧只计算一次基准角度
+
+---
+
+## WinIslands 1.5.8 (Stable)
+### What's New
+
+- **🎵 Waveform Performance**: Precomputed phase tables and one base angle calculation per frame
+
+---
+
+## WinIslands 1.5.7（正式版 / Stable）
+### 更新内容
+
+- **🖼 图片缓存稳定性**：上岛图片按 URI 缓存，封面缓存使用原子替换并避免重复写盘
+
+---
+
+## WinIslands 1.5.7 (Stable)
+### What's New
+
+- **🖼 Artwork Cache Stability**: Push-image URI cache and atomic artwork cache writes
+
+---
+
+## WinIslands 1.5.6（正式版 / Stable）
+### 更新内容
+
+- **⚡ 媒体绑定优化**：重复媒体快照不再触发播放状态、音量、时长和可见性的重复通知
+
+---
+
+## WinIslands 1.5.6 (Stable)
+### What's New
+
+- **⚡ Media Binding Optimization**: Change-driven notifications for status, volume, duration and visibility
+
+---
+
+## WinIslands 1.5.5（正式版 / Stable）
+### 更新内容
+
+- **🧊 动画连续性**：快速展开、收起和尺寸调整时从当前实际尺寸继续动画，避免跳回基础尺寸
+
+---
+
+## WinIslands 1.5.5 (Stable)
+### What's New
+
+- **🧊 Animation Continuity**: New size animations continue from the current visual size
+
+---
+
+## WinIslands 1.5.4（正式版 / Stable）
+### 更新内容
+
+- **🎵 声纹无锁发布**：UI 读取声纹强度时不再等待采集锁
+- **🧠 自适应内存回收**：同时检查私有内存与工作集，空闲时每 3 分钟评估一次
+
+---
+
+## WinIslands 1.5.4 (Stable)
+### What's New
+
+- **🎵 Lock-free Wave Level**: UI reads waveform intensity without waiting on the capture lock
+- **🧠 Adaptive Memory Recovery**: Private memory and working set are evaluated together every three minutes
+
+---
+
+## WinIslands 1.5.3（正式版 / Stable）
+### 更新内容
+
+- **⚡ 媒体快照去重**：曲目、状态、音量、时长和控制能力基本不变时不再重复发布
+
+---
+
+## WinIslands 1.5.3 (Stable)
+### What's New
+
+- **⚡ Media Snapshot Deduplication**: Suppress redundant snapshots when media state is effectively unchanged
+
+---
+
+## WinIslands 1.5.2（正式版 / Stable）
+### 更新内容
+
+- **🚀 剪贴板预检**：使用系统序列号判断内容是否变化，未变化时不访问 OLE 剪贴板
+- **🎞 歌词单调时钟**：逐字高亮和滚动歌词不再受系统时间调整影响
+
+---
+
+## WinIslands 1.5.2 (Stable)
+### What's New
+
+- **🚀 Clipboard Precheck**: Windows sequence numbers avoid OLE clipboard access when content is unchanged
+- **🎞 Monotonic Lyrics Clock**: Karaoke and scrolling lyrics are unaffected by system time changes
+
+---
+
+## WinIslands 1.5.1（正式版 / Stable）
+### 更新内容
+
+- **🧹 剪贴板日志节流**：相同访问错误 5 分钟内只记录一次
+- **🎞 歌词滚动优化**：五次缓动并跳过亚像素重复刷新，滚动更连贯
+
+---
+
+## WinIslands 1.5.1 (Stable)
+### What's New
+
+- **🧹 Clipboard Log Throttling**: Repeated clipboard access errors are logged at most once every five minutes
+- **🎞 Smoother Lyric Scrolling**: Quintic easing and sub-pixel refresh suppression
+
+---
 ## WinIslands 1.5.0（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 
