@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,6 +27,9 @@ public sealed class ClipboardHistoryService : IDisposable
     private string _last = string.Empty;
     private bool _enabled;    // 是否记录剪贴板历史
     private bool _polling;     // 独立轮询开关（复制提示不需要历史记录也能检测复制）
+    private string _lastPollError = string.Empty;
+    private DateTime _lastPollErrorLogUtc = DateTime.MinValue;
+    private static readonly TimeSpan PollErrorLogInterval = TimeSpan.FromMinutes(5);
 
     public ClipboardHistoryService()
     {
@@ -138,8 +141,13 @@ public sealed class ClipboardHistoryService : IDisposable
         if (!_enabled && !_polling) return;
         try
         {
-            if (!System.Windows.Clipboard.ContainsText()) return;
+            if (!System.Windows.Clipboard.ContainsText())
+            {
+                ResetPollError();
+                return;
+            }
             var text = System.Windows.Clipboard.GetText();
+            ResetPollError();
             if (string.IsNullOrWhiteSpace(text) || text.Length > 20000) return;
             if (text == _last) return;
             _last = text;
@@ -160,8 +168,31 @@ public sealed class ClipboardHistoryService : IDisposable
         }
         catch (Exception ex)
         {
-            AppLogger.Debug($"Clipboard poll: {ex.Message}");
+            ReportPollError(ex);
         }
+    }
+
+    private void ResetPollError()
+    {
+        _lastPollError = string.Empty;
+        _lastPollErrorLogUtc = DateTime.MinValue;
+    }
+
+    private void ReportPollError(Exception ex)
+    {
+        var detail = string.IsNullOrWhiteSpace(ex.Message) ? ex.GetType().Name : $"{ex.GetType().Name}: {ex.Message}";
+        var now = DateTime.UtcNow;
+        if (!ShouldLogPollError(_lastPollError, _lastPollErrorLogUtc, now, detail, PollErrorLogInterval)) return;
+        _lastPollError = detail;
+        _lastPollErrorLogUtc = now;
+        AppLogger.Debug($"Clipboard poll unavailable: {detail}");
+    }
+
+    internal static bool ShouldLogPollError(string lastError, DateTime lastLoggedUtc, DateTime nowUtc, string currentError, TimeSpan interval)
+    {
+        if (!string.Equals(lastError, currentError, StringComparison.Ordinal)) return true;
+        if (lastLoggedUtc == DateTime.MinValue) return true;
+        return nowUtc - lastLoggedUtc >= interval;
     }
 
     private void Load()

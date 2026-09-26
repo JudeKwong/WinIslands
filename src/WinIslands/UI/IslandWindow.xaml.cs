@@ -2434,10 +2434,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _lyricsScrollQueued;
     private bool _lyricsScrollRendering;
     private double _lyricsScrollTarget;
-    private double _lyricsScrollFrom;      // 鏈婊氬姩璧风偣鍋忕Щ锛堟椂闂村熀鍑嗙紦鍔ㄧ敤锛?
-    private DateTime _lyricsScrollStartUtc; // 鏈婊氬姩璧峰澧欓挓
-    private const double LyricsScrollMs = 420; // 鍗曟婊氬姩鏃堕暱锛堟绉掞級锛?0fps / 120Hz 涓嬪潎涓€鑷?
-
+    private double _lyricsScrollFrom;
+    private double _lyricsScrollLastOffset;
+    private readonly System.Diagnostics.Stopwatch _lyricsScrollClock = System.Diagnostics.Stopwatch.StartNew();
+    private long _lyricsScrollStartTicks;
+    private const double LyricsScrollMs = 520;
     private void QueueLyricsScroll(int index)
     {
         if (!IsLoaded || !IsVisible || !_vm.IsExpanded) return;
@@ -2474,7 +2475,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         _lyricsScrollTarget = target;
         _lyricsScrollFrom = viewer.VerticalOffset;
-        _lyricsScrollStartUtc = DateTime.UtcNow;
+        _lyricsScrollStartTicks = _lyricsScrollClock.ElapsedTicks;
+        _lyricsScrollLastOffset = viewer.VerticalOffset;
         StartLyricsScroll();
     }
 
@@ -2506,14 +2508,19 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
         var viewer = LyricsScroll;
-        var elapsed = (DateTime.UtcNow - _lyricsScrollStartUtc).TotalMilliseconds;
+        var elapsed = (_lyricsScrollClock.ElapsedTicks - _lyricsScrollStartTicks) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
         var t = Math.Clamp(elapsed / LyricsScrollMs, 0, 1);
-        var eased = 1 - Math.Pow(1 - t, 3); // 涓夋缂撳嚭锛氬厛蹇悗鎱€佹敹灏炬煍鍜?
+        // Quintic ease-in-out keeps the first movement gentle while avoiding a hard stop.
+        var eased = t * t * t * (t * (t * 6 - 15) + 10);
         var offset = _lyricsScrollFrom + (_lyricsScrollTarget - _lyricsScrollFrom) * eased;
-        viewer.ScrollToVerticalOffset(offset);
+        if (Math.Abs(offset - _lyricsScrollLastOffset) >= 0.05)
+        {
+            viewer.ScrollToVerticalOffset(offset);
+            _lyricsScrollLastOffset = offset;
+        }
         if (t >= 1)
         {
-            viewer.ScrollToVerticalOffset(_lyricsScrollTarget); // 绮剧‘钀戒綅锛屾秷闄ょ疮璁¤宸?
+            viewer.ScrollToVerticalOffset(_lyricsScrollTarget);
             StopLyricsScroll();
         }
     }
