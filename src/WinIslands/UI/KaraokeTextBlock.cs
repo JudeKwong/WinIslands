@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -76,6 +76,7 @@ public class KaraokeTextBlock : TextBlock
     private IReadOnlyList<TtmlWord> _renderedWords = Array.Empty<TtmlWord>();
     private readonly List<Run> _wordRuns = new();
     private bool _hasWords;
+    private double _nextKaraokeFrameTime;
     private double _posBase;            // 最近一次来自 ViewModel 的位置（秒）
     private long _posBaseTicks;          // 该位置对应的单调时钟刻度
 
@@ -244,6 +245,7 @@ public class KaraokeTextBlock : TextBlock
         if (_renderingSubscribed || !IsVisible) return;
         _renderingSubscribed = true;
         _lastTickTime = _tickClock.Elapsed.TotalSeconds;
+        _nextKaraokeFrameTime = _lastTickTime;
         CompositionTarget.Rendering += OnRenderingFrame;
     }
 
@@ -267,6 +269,9 @@ public class KaraokeTextBlock : TextBlock
                 // 按真实时间插值（不乘速度倍率）：ViewModel 每 200ms 用真实播放位置校正一次，
                 // 若在此处乘倍率会产生「先超前、再被拉回」的每 200ms 回跳，看起来卡顿。
                 // 「高亮更快」改为在 RenderWords 内缩放每个字的进度（见 speedScale），效果相同但不回跳。
+                var now = _tickClock.Elapsed.TotalSeconds;
+                var fps = AnimationFrameRate.Current(lowPowerMode: false);
+                if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
                 var pos = _posBase + (_tickClock.ElapsedTicks - _posBaseTicks) / (double)Stopwatch.Frequency;
                 RenderWords(pos);
                 // 该行已全部点亮/尚未开始：静态即可，停止动画（避免列表里多行同时空转）

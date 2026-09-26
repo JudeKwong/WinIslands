@@ -12,6 +12,15 @@
 
 ## 简体中文
 
+## WinIslands 1.7.2（正式版 / Stable）
+### 更新内容
+
+- **🎤 歌词帧门控**：逐字卡拉OK限制在 60/120 FPS 帧预算内，降低高刷屏的无效重绘
+- **⚡ 隐藏状态优化**：窗口隐藏时主动停止歌词渲染订阅，重新显示后自动恢复
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.1（正式版 / Stable）
 ### 更新内容
 
@@ -45,6 +54,15 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.2 (Stable)
+### What's New
+
+- **🎤 Karaoke Frame Gating**: Word-level karaoke rendering follows the 60/120 FPS budget to reduce redundant redraws
+- **⚡ Hidden-state Optimization**: Stops lyric render subscriptions when hidden and resumes automatically when visible
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
