@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -1174,7 +1174,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
 
     // ����ڷ�˳��WidgetOrder �е��±���������У�
-    public double WidgetTimeFontSize => HasMedia ? 14 : 16; // ����ʱ���ֺ����У������ͻأ
+    public double WidgetTimeFontSize => HasMedia ? 12.5 : 14; // ����ʱ���ֺ����У������ͻأ
 
     // ϵͳ״̬/��������ı�
     private string _dateText = string.Empty;
@@ -1550,28 +1550,28 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 switch (item.Kind)
                 {
                     case "Time": w += 48; break;
-                    case "Weather": w += Math.Min(MeasureText(WeatherText, 12, 6.5) + 8, 140); break;
-                    case "Date": w += Math.Min(MeasureText(DateText, 13, 7) + 8, 100); break;
-                    case "Cpu": w += MeasureText(CpuText, 11, 6) + 16; break;
-                    case "Ram": w += MeasureText(RamText, 11, 6) + 16; break;
-                    case "Gpu": w += MeasureText(GpuText, 11, 6) + 16; break;
-                    case "Mic": w += MeasureText(MicText, 11, 6) + 16; break;
-                    case "Cam": w += MeasureText(CamText, 11, 6) + 16; break;
-                    case "Net": w += MeasureText(NetText, 11, 6) + 16; break;
-                    case "Battery": w += MeasureText(BatteryText, 11, 6) + 16; break;
-                    case "Holiday": w += Math.Min(MeasureText(HolidayText, 12, 6.5) + 8, 120); break;
-                    case "Meeting": w += Math.Min(MeasureText(MeetingText, 11, 6) + 16, 160); break;
-                    case "ScreenCap": w += MeasureText(ScreenshotStatusText, 11, 6) + 16; break;
-                    case "Recording": w += Math.Min(MeasureText(RecordingText, 11, 6) + 16, 180); break;
-                    case "VolumeTemp": w += 10 + 6 + 58 + 6 + MeasureText(VolumeTempText, 11, 6) + 24; break;
-                    case "Usage": w += Math.Min(MeasureText(UsageMergeText, 11, 6) + 16, 200); break;
-                    case "FileCopy": w += Math.Min(MeasureText(FileCopyText, 11, 6) + 16, 220); break;
-                    case "Download": w += Math.Min(MeasureText(DownloadText, 11, 6) + 16, 220); break;
+                    case "Weather": w += Math.Min(MeasureText(WeatherText, 11.5, 6.5) + 8, 140); break;
+                    case "Date": w += Math.Min(MeasureText(DateText, 12.5, 7) + 8, 100); break;
+                    case "Cpu": w += MeasureText(CpuText, 10.5, 6) + 16; break;
+                    case "Ram": w += MeasureText(RamText, 10.5, 6) + 16; break;
+                    case "Gpu": w += MeasureText(GpuText, 10.5, 6) + 16; break;
+                    case "Mic": w += MeasureText(MicText, 10.5, 6) + 16; break;
+                    case "Cam": w += MeasureText(CamText, 10.5, 6) + 16; break;
+                    case "Net": w += MeasureText(NetText, 10.5, 6) + 16; break;
+                    case "Battery": w += MeasureText(BatteryText, 10.5, 6) + 16; break;
+                    case "Holiday": w += Math.Min(MeasureText(HolidayText, 11.5, 6.5) + 8, 120); break;
+                    case "Meeting": w += Math.Min(MeasureText(MeetingText, 10.5, 6) + 16, 160); break;
+                    case "ScreenCap": w += MeasureText(ScreenshotStatusText, 10.5, 6) + 16; break;
+                    case "Recording": w += Math.Min(MeasureText(RecordingText, 10.5, 6) + 16, 180); break;
+                    case "VolumeTemp": w += 10 + 6 + 58 + 6 + MeasureText(VolumeTempText, 10.5, 6) + 24; break;
+                    case "Usage": w += Math.Min(MeasureText(UsageMergeText, 10.5, 6) + 16, 200); break;
+                    case "FileCopy": w += Math.Min(MeasureText(FileCopyText, 10.5, 6) + 16, 220); break;
+                    case "Download": w += Math.Min(MeasureText(DownloadText, 10.5, 6) + 16, 220); break;
                     case "Song":
                         w += 40 + 6
-                            + Math.Min(MeasureText(Title, 13, 7), 140)
-                            + 6 + Math.Min(MeasureText(Artist, 11, 6), 100);
-                        if (HasLyrics) w += 8 + Math.Min(MeasureText(CurrentLyricText, 12, 6.5), 300);
+                            + Math.Min(MeasureText(Title, 12.5, 7), 140)
+                            + 6 + Math.Min(MeasureText(Artist, 10.5, 6), 100);
+                        if (HasLyrics) w += 8 + Math.Min(MeasureText(CurrentLyricText, 11.5, 6.5), 300);
                         break;
                 }
                 w += 8; // ������ұ߾ࣨģ�� Margin 0,0,8,0 ���ң������ﰴ���߼���

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -250,6 +250,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private ImageSource? _lastSampledArtwork;
     private System.Windows.Media.Color? _lastSampledColor;                        // 鍛煎惛鐩镐綅璧风偣
     private bool _tintRenderingSubscribed;
+    private static readonly CubicEase CachedCubicEaseOut = CreateCubicEase(EasingMode.EaseOut);
+    private static readonly CubicEase CachedCubicEaseIn = CreateCubicEase(EasingMode.EaseIn);
+
+    private static CubicEase CreateCubicEase(EasingMode mode)
+    {
+        var ease = new CubicEase { EasingMode = mode };
+        ease.Freeze();
+        return ease;
+    }
     // 缂撳瓨涓婂矝鎺ㄩ€佺敾鍒凤紙閬垮厤姣忔灞炴€ц闂兘 new SolidColorBrush锛?
     private Brush? _cachedPushBg, _cachedPushBorder, _cachedPushFg, _cachedPushSecondary;
     private bool _pushDarkCache;
@@ -1215,7 +1224,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             ? new Thickness(8, 0, 0, 0)
             : new Thickness(0);
         // 60fps 浼樺寲锛氱揣鍑戣鍥哄畾涓虹揣鍑戝唴瀹瑰搴︼紝灞曞紑/鏀惰捣鍔ㄧ敾鏈熼棿涓嶉殢 Card 瀹藉害鍙樺寲閫愬抚閲嶆帓
-        PillRow.Width = Math.Max(80, CompactWidth - 20);
+        UpdateCompactContentWidth();
     }
 
     /// <summary>搴旂敤澶栬鍙傛暟锛氬渾瑙?/ 瀛椾綋 / 瀛楀彿缂╂斁銆傚瓧鍙风缉鏀句綔鐢ㄤ簬鏁村紶鍗＄墖锛圠ayoutTransform锛夛紝
@@ -1297,6 +1306,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ClearNotificationHistory_Click(object sender, RoutedEventArgs e)
         => _vm.ClearNotificationHistory();
 
+    /// <summary>按真实布局边距更新紧凑内容宽度，避免右侧文字和媒体按钮被裁切。</summary>
+    private void UpdateCompactContentWidth()
+    {
+        var horizontalChrome = ContentGrid.Margin.Left + ContentGrid.Margin.Right
+            + PillRow.Margin.Left + PillRow.Margin.Right;
+        PillRow.Width = Math.Max(80, CompactWidth - horizontalChrome);
+    }
+
     private void ApplyAppearance()
     {
         try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 闈炴硶瀛椾綋鍚嶅拷鐣?*/ }
@@ -1317,6 +1334,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (!IsLoaded) return;
         if (_vm.IsExpanded) { ApplySize(); return; }
         EnsureWindowSizeFits(); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
+        UpdateCompactContentWidth();
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
         var dur = (int)Math.Clamp(360 * (styleMs / 680.0), 220, 460) * lm;
@@ -1338,7 +1356,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         CompactPushScale.ScaleX = CompactPushScale.ScaleY = 0.94;
         var sb = new Storyboard();
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: true);
-        var smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var smooth = CachedCubicEaseOut;
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
         var scaleDur = (int)(Math.Min(340, styleMs) * lm);
         AddAnim(sb, CompactPushCard, UIElement.OpacityProperty, 1, (int)(220 * lm), smooth);
@@ -1447,7 +1465,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (!IsLoaded) return;
         if (_settings.Current.ReduceMotion) return; // 鍑忓皯鍔ㄦ€佹晥鏋滐細璺宠繃杩囨浮
-        var smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var smooth = CachedCubicEaseOut;
         var (_, styleMs) = GetSizeAnimationStyle(expand: true);
         var dur = (int)Math.Clamp(styleMs * 0.42, 180, 420);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
@@ -2052,7 +2070,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var sb = new Storyboard();
         // 鍔ㄦ晥鐨偆锛?3锛夛細Spring= iOS 寮圭哀锛堥粯璁わ級/ Soft=鏌斿拰 / Elastic=寮规€?/ Fade=绠€娲佹笎闅?
         var (styleEase, styleSizeMs) = GetSizeAnimationStyle(expand);
-        var smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var smooth = CachedCubicEaseOut;
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 浣庡姛鑰楁ā寮忥紙37锛夛細鍔ㄧ敾鏃堕棿缂╃煭锛屾洿蹇繘鍏ョ┖闂?
 
         // 鍗＄墖灏哄锛氬姩鏁堢毊鑲ゆ洸绾匡紙灞曞紑/鏀惰捣鏃堕暱鐢辩毊鑲ゅ喅瀹氾級
@@ -2168,7 +2186,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             case "Smooth":
                 return (new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 }, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.88));
             case "Fade":
-                return (new CubicEase { EasingMode = EasingMode.EaseOut }, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.64));
+                return (CachedCubicEaseOut, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.64));
             default: // Spring
                 return (new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 }, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1锛氶樆灏肩暐闄嶃€佸垰搴︾暐鍗?-> 鍥炲脊鏇存湁寮规€?
         }
@@ -2373,7 +2391,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
         _positionStoryboard?.Stop(); // 杩炵画閲嶅畾浣嶅厛鍋滄棫鍔ㄧ敾锛岄伩鍏嶅苟鍙戞姈鍔?
-        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var easing = CachedCubicEaseOut;
         var sb = new Storyboard();
         AddAnim(sb, this, Window.LeftProperty, left, 320, easing);
         AddAnim(sb, this, Window.TopProperty, top, 320, easing);

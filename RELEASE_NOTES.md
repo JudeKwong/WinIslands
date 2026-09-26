@@ -12,6 +12,37 @@
 
 ## 简体中文
 
+## WinIslands 1.3.4（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 桌面端内存优化**：切换到工作站并发 GC，并关闭 RetainVM，减少长期托盘运行时的内存保留
+- **🛡️ 修复设置窗口无法打开**：自动清理配置中的 NaN / Infinity 坐标，设置窗口与持久化共用安全 JSON 序列化，避免非法浮点值导致异常
+- **📐 修复紧凑态裁切**：按真实卡片、内容区和胶囊行的边距计算宽度，右侧文字和媒体按钮不再被裁切
+- **🔤 紧凑态字号优化**：缩小歌名、歌手、歌词、时间和状态文字比例，提高紧凑态可读性
+- **🎞️ 动画分配优化**：复用冻结的 CubicEase 动画曲线，减少高频动画中的临时对象分配，保持 120 FPS 目标
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.4 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Desktop Memory Optimization**: Switched to workstation concurrent GC and disabled RetainVM to reduce long-running memory retention
+- **🛡️ Fixed Settings Window Startup**: NaN / Infinity coordinates are normalized and the settings window now shares the safe JSON serialization options
+- **📐 Fixed Compact Clipping**: Width is calculated from the real card, content, and pill-row margins, preventing text and media buttons from being clipped
+- **🔤 Compact Typography**: Reduced title, artist, lyric, time, and status font sizes for a better compact layout
+- **🎞️ Animation Allocation Optimization**: Cached frozen CubicEase instances to reduce allocations during frequent animations while retaining the 120 FPS target
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.1（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -528,6 +559,37 @@
 
 ## 繁體中文
 
+## WinIslands 1.3.4（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 桌面端内存优化**：切换到工作站并发 GC，并关闭 RetainVM，减少长期托盘运行时的内存保留
+- **🛡️ 修复设置窗口无法打开**：自动清理配置中的 NaN / Infinity 坐标，设置窗口与持久化共用安全 JSON 序列化，避免非法浮点值导致异常
+- **📐 修复紧凑态裁切**：按真实卡片、内容区和胶囊行的边距计算宽度，右侧文字和媒体按钮不再被裁切
+- **🔤 紧凑态字号优化**：缩小歌名、歌手、歌词、时间和状态文字比例，提高紧凑态可读性
+- **🎞️ 动画分配优化**：复用冻结的 CubicEase 动画曲线，减少高频动画中的临时对象分配，保持 120 FPS 目标
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.4 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Desktop Memory Optimization**: Switched to workstation concurrent GC and disabled RetainVM to reduce long-running memory retention
+- **🛡️ Fixed Settings Window Startup**: NaN / Infinity coordinates are normalized and the settings window now shares the safe JSON serialization options
+- **📐 Fixed Compact Clipping**: Width is calculated from the real card, content, and pill-row margins, preventing text and media buttons from being clipped
+- **🔤 Compact Typography**: Reduced title, artist, lyric, time, and status font sizes for a better compact layout
+- **🎞️ Animation Allocation Optimization**: Cached frozen CubicEase instances to reduce allocations during frequent animations while retaining the 120 FPS target
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.1（正式版 / Stable）
 
 一款現代化、多功能的 Windows 動感島組件。A modern, multi-functional Dynamic Island widget for Windows.

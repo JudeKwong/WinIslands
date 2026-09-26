@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using System.IO;
@@ -352,9 +352,22 @@ public sealed class AppSettings
 
     public string ActiveProfile { get; set; } = "Default";   // 当前配置档案名
 
+    /// <summary>清除非法或非有限浮点值，避免 NaN / Infinity 写入 JSON 后导致设置窗口崩溃。</summary>
+    public void NormalizeNonFiniteValues()
+    {
+        IslandManualLeft = NormalizeCoordinate(IslandManualLeft);
+        IslandManualTop = NormalizeCoordinate(IslandManualTop);
+        MiniPlayerLeft = NormalizeCoordinate(MiniPlayerLeft);
+        MiniPlayerTop = NormalizeCoordinate(MiniPlayerTop);
+    }
+
+    private static double? NormalizeCoordinate(double? value)
+        => value is double d && double.IsFinite(d) ? d : null;
+
     public AppSettings Clone()
     {
         var c = (AppSettings)MemberwiseClone();
+        c.NormalizeNonFiniteValues();
         c.DnDAllowlist = new List<string>(DnDAllowlist);
         c.UsageMergeItems = new List<string>(UsageMergeItems);
         c.QuickActions = new List<string>(QuickActions);
@@ -377,7 +390,11 @@ public sealed class SettingsService
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
+
+    /// <summary>设置窗口快照与持久化共用同一套安全序列化选项。</summary>
+    public static string Serialize(AppSettings settings) => JsonSerializer.Serialize(settings, JsonOptions);
 
     private readonly object _gate = new();
     private AppSettings _settings;
@@ -404,6 +421,7 @@ public sealed class SettingsService
                 {
                     // 兼容旧配置：补齐新增字段
                     loaded.Components ??= new ComponentFlags();
+                    loaded.NormalizeNonFiniteValues();
                     return loaded;
                 }
             }
@@ -423,6 +441,7 @@ public sealed class SettingsService
             try
             {
                 AppPaths.EnsureDirectories();
+                _settings.NormalizeNonFiniteValues();
                 var json = JsonSerializer.Serialize(_settings, JsonOptions);
                 var tmp = AppPaths.SettingsFile + ".tmp";
                 File.WriteAllText(tmp, json);
@@ -457,7 +476,7 @@ public sealed class SettingsService
     }
 
     /// <summary>Export current settings as JSON text.</summary>
-    public string Export() => JsonSerializer.Serialize(_settings, JsonOptions);
+    public string Export() => Serialize(_settings);
 
     /// <summary>Import settings from JSON text. Returns false if invalid.</summary>
     public bool TryImport(string json)

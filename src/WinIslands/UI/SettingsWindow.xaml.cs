@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -90,7 +90,7 @@ public partial class SettingsWindow : Window
         }
 
         // 即时生效：轮询检测 Working 变化并立即应用（无保存按钮）
-        _lastAppliedJson = JsonSerializer.Serialize(_vm.Working);
+        _lastAppliedJson = SettingsService.Serialize(_vm.Working);
         _autoApply = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _autoApply.Tick += (_, _) => AutoApply();
         _autoApply.Start();
@@ -234,7 +234,7 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var j = JsonSerializer.Serialize(_vm.Working);
+            var j = SettingsService.Serialize(_vm.Working);
             if (j != _lastAppliedJson)
             {
                 _lastAppliedJson = j;
