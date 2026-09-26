@@ -205,6 +205,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _cardLayoutRoundingBeforeAnimation = true;
     private bool _cardSnapsBeforeAnimation = true;
     private Storyboard? _currentStoryboard;
+    private Storyboard? _pushCardStoryboard;
     private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
     /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
     private double GlassTargetOpacity
@@ -1424,6 +1425,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleXProperty, 1, scaleDur, styleEase);
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleYProperty, 1, scaleDur, styleEase);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        _pushCardStoryboard = sb;
+        sb.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_pushCardStoryboard, sb)) return;
+            _pushCardStoryboard = null;
+            CompactPushCard.BeginAnimation(UIElement.OpacityProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            CompactPushCard.Opacity = 1;
+            CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
+        };
         sb.Begin();
     }
     /// <summary>鍙抽敭鑿滃崟涓婚鑹诧紙鍦嗚娑叉€佺幓鐠冿級銆?/summary>
