@@ -76,6 +76,8 @@ public class KaraokeTextBlock : TextBlock
     private IReadOnlyList<TtmlWord> _words = Array.Empty<TtmlWord>();
     private IReadOnlyList<TtmlWord> _renderedWords = Array.Empty<TtmlWord>();
     private readonly List<Run> _wordRuns = new();
+    private double[] _wordStarts = Array.Empty<double>();
+    private double[] _wordDenoms = Array.Empty<double>();
     private bool _hasWords;
     private double _nextKaraokeFrameTime;
     private double _posBase;            // 最近一次来自 ViewModel 的位置（秒）
@@ -184,6 +186,16 @@ public class KaraokeTextBlock : TextBlock
             _words = words!;
             _renderedWords = Array.Empty<TtmlWord>(); // 强制重建 Run
             _wordRuns.Clear();
+            _wordStarts = new double[_words.Count];
+            _wordDenoms = new double[_words.Count];
+            for (var i = 0; i < _words.Count; i++)
+            {
+                var w = _words[i];
+                var duration = Math.Max(w.DurationSec, 0.001);
+                var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
+                _wordStarts[i] = w.BeginSec - lead;
+                _wordDenoms[i] = duration + lead;
+            }
         }
 
         if (_hasWords)
@@ -325,7 +337,6 @@ public class KaraokeTextBlock : TextBlock
         // 字间交叉过渡：后续字在其开始前约 45ms 提前起笔，前一字在结束后同样微延收笔，
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
         // 句首第一个字不提前，保证换句时第一个字保持未点亮。
-        const double leadSeconds = 0.045;
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
         var speedScale = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
         var deltaA = hl.A - bs.A;
@@ -334,10 +345,7 @@ public class KaraokeTextBlock : TextBlock
         var deltaB = hl.B - bs.B;
         for (var i = 0; i < _wordRuns.Count && i < _words.Count; i++)
         {
-            var w = _words[i];
-            var dur = Math.Max(w.DurationSec, 0.001);
-            var lead = i > 0 ? Math.Min(leadSeconds, dur * 0.5) : 0.0;
-            var raw = (pos - (w.BeginSec - lead)) / (dur + lead) * speedScale;
+            var raw = (pos - _wordStarts[i]) / _wordDenoms[i] * speedScale;
             var frac = SmoothStep(raw); // ease-in-out：起笔/收笔有加减速，匀速的机械感消失
             var c = System.Windows.Media.Color.FromArgb(
                 (byte)(bs.A + deltaA * frac),

@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.9.0（正式版 / Stable）
+### 更新内容
+
+- **歌词时间窗预计算**：预计算逐字歌词的开始窗口与归一化时长，减少每帧重复时间运算
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.8.9（正式版 / Stable）
 ### 更新内容
 
@@ -190,6 +198,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.9.0 (Stable)
+### What's New
+
+- **歌词时间窗预计算**: Precomputes karaoke word start windows and normalized durations to reduce per-frame timing math
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
