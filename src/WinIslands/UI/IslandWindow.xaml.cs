@@ -1130,6 +1130,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, GlassLayer, UIElement.OpacityProperty, target, dur, styleEase);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _glassAnimSb = sb;
+        sb.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_glassAnimSb, sb)) return;
+            _glassAnimSb = null;
+            GlassLayer.BeginAnimation(UIElement.OpacityProperty, null);
+            GlassLayer.Opacity = target;
+        };
         sb.Begin();
     }
 
