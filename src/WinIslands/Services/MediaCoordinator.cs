@@ -114,6 +114,8 @@ public sealed class MediaCoordinator : IDisposable
             // Attach volume info.
             snapshot = await AttachVolumeAsync(snapshot);
 
+            var previous = Current;
+            if (previous is not null && IsRedundant(previous, snapshot)) return;
             Current = snapshot;
             Publish(snapshot);
         }
@@ -126,6 +128,23 @@ public sealed class MediaCoordinator : IDisposable
             _tickLock.Release();
             ScheduleNextTick();
         }
+    }
+
+    internal static bool IsRedundant(MediaSnapshot previous, MediaSnapshot next)
+    {
+        const double positionTolerance = 0.25;
+        const double durationTolerance = 0.5;
+        return previous.Source == next.Source
+            && previous.Status == next.Status
+            && previous.Track == next.Track
+            && previous.CanPlayPause == next.CanPlayPause
+            && previous.CanNext == next.CanNext
+            && previous.CanPrevious == next.CanPrevious
+            && previous.CanSeek == next.CanSeek
+            && previous.HasVolumeControl == next.HasVolumeControl
+            && Nullable.Equals(previous.Volume, next.Volume)
+            && Math.Abs(previous.DurationSeconds - next.DurationSeconds) < durationTolerance
+            && Math.Abs(previous.PositionSeconds - next.PositionSeconds) < positionTolerance;
     }
 
     private void ScheduleNextTick()
