@@ -4,6 +4,13 @@ namespace WinIslands.Tests;
 
 public sealed class ClipboardPollingTests
 {
+    [Theory]
+    [InlineData(10u, 11u, true)]
+    [InlineData(10u, 10u, false)]
+    [InlineData(10u, 0u, true)]
+    public void ShouldReadClipboard_DetectsSequenceChanges(uint last, uint current, bool expected)
+        => Assert.Equal(expected, ClipboardHistoryService.ShouldReadClipboard(last, current));
+
     [Fact]
     public void ShouldLogPollError_LogsWhenErrorChanges()
         => Assert.True(ClipboardHistoryService.ShouldLogPollError(

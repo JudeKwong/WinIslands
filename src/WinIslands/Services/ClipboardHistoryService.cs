@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
@@ -25,6 +26,7 @@ public sealed class ClipboardHistoryService : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly List<ClipboardEntry> _entries = new();
     private string _last = string.Empty;
+    private uint _lastClipboardSequence = uint.MaxValue;
     private bool _enabled;    // 是否记录剪贴板历史
     private bool _polling;     // 独立轮询开关（复制提示不需要历史记录也能检测复制）
     private string _lastPollError = string.Empty;
@@ -90,6 +92,7 @@ public sealed class ClipboardHistoryService : IDisposable
             var text = System.Windows.Clipboard.ContainsText() ? (System.Windows.Clipboard.GetText() ?? string.Empty) : string.Empty;
             var baseline = ComputeBaseline(_last, text);
             if (baseline is not null) _last = baseline;
+            _lastClipboardSequence = GetClipboardSequenceNumber();
         }
         catch
         {
@@ -126,6 +129,7 @@ public sealed class ClipboardHistoryService : IDisposable
         {
             System.Windows.Clipboard.SetText(text ?? string.Empty);
             _last = text ?? string.Empty;
+            _lastClipboardSequence = GetClipboardSequenceNumber();
         }
         catch (Exception ex) { AppLogger.Warn($"Clipboard set failed: {ex.Message}"); }
     }
@@ -139,6 +143,9 @@ public sealed class ClipboardHistoryService : IDisposable
     private void Poll()
     {
         if (!_enabled && !_polling) return;
+        var currentSequence = GetClipboardSequenceNumber();
+        if (!ShouldReadClipboard(_lastClipboardSequence, currentSequence)) return;
+        if (currentSequence != 0) _lastClipboardSequence = currentSequence;
         try
         {
             if (!System.Windows.Clipboard.ContainsText())
@@ -171,6 +178,9 @@ public sealed class ClipboardHistoryService : IDisposable
             ReportPollError(ex);
         }
     }
+
+    internal static bool ShouldReadClipboard(uint lastSequence, uint currentSequence)
+        => currentSequence == 0 || currentSequence != lastSequence;
 
     private void ResetPollError()
     {
@@ -221,4 +231,7 @@ public sealed class ClipboardHistoryService : IDisposable
     }
 
     public void Dispose() => _timer.Stop();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
 }
