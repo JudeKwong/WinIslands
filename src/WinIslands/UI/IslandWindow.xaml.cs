@@ -209,6 +209,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _compactAnimationValid;
     private double _compactAnimationWidth;
     private double _compactAnimationHeight;
+    private Storyboard? _coverTransitionStoryboard;
     private Storyboard? _pushCardStoryboard;
     private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
     /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
@@ -1567,6 +1568,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var (_, styleMs) = GetSizeAnimationStyle(expand: true);
         var dur = (int)Math.Clamp(styleMs * 0.42, 180, 420);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
+        _coverTransitionStoryboard?.Stop();
         var sb = new Storyboard();
 
         if (BigArt is not null)
@@ -1598,6 +1600,21 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
 
         if (sb.Children.Count == 0) return;
+        sb.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_coverTransitionStoryboard, sb)) return;
+            _coverTransitionStoryboard = null;
+            if (BigArt is not null) { BigArt.BeginAnimation(UIElement.OpacityProperty, null); BigArt.Opacity = 1; }
+            if (BigArtScale is not null) { BigArtScale.BeginAnimation(ScaleTransform.ScaleXProperty, null); BigArtScale.BeginAnimation(ScaleTransform.ScaleYProperty, null); BigArtScale.ScaleX = BigArtScale.ScaleY = 1; }
+            if (HeroCard is not null) { HeroCard.BeginAnimation(UIElement.OpacityProperty, null); HeroCard.Opacity = 1; }
+            foreach (var b in FindVisualChildren<System.Windows.Controls.Border>(PillRow))
+            {
+                if (!ReferenceEquals(b.Tag, "SongCover")) continue;
+                b.BeginAnimation(UIElement.OpacityProperty, null);
+                b.Opacity = 1;
+            }
+        };
+        _coverTransitionStoryboard = sb;
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
         sb.Begin();
     }

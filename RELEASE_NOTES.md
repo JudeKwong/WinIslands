@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.9.8（正式版 / Stable）
+### 更新内容
+
+- **封面动画清理**：切歌封面动画完成后清理透明度与缩放时钟并提交最终值
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.9.7（正式版 / Stable）
 ### 更新内容
 
@@ -254,6 +262,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.9.8 (Stable)
+### What's New
+
+- **封面动画清理**: Finalizes cover-transition opacity and scale clocks and commits the final visual state
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
