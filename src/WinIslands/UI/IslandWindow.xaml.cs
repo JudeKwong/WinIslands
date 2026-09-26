@@ -401,6 +401,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RefreshNotificationHistoryProps();
 
         Loaded += OnLoaded;
+        IsVisibleChanged += (_, _) => RefreshWave();
         // 瑙︽懜灞忎氦浜掞細婊戝姩鍒囨瓕銆佺偣鍑诲睍寮€/鏀惰捣
         TouchDown += OnTouchDown;
         TouchUp += OnTouchUp;
@@ -721,7 +722,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// <summary>璺戦┈鐏紑鍏筹紙姝屽悕/姝岃瘝瓒呭鏃舵í鍚戞粴鍔級銆?/summary>
     public bool MarqueeEnabled => _settings.Current.MarqueeTextEnabled;
     // 澹伴煶娉㈢汗锛氭挱鏀句腑 + 寮€鍚尝绾硅缃?+ 宀涘彲瑙佹墠鏄剧ず锛堢┖闂叉椂鍋滄璁℃椂鍣級
-    public bool HasWave => _vm.IsVisible && _vm.HasMedia && _vm.IsPlaying && _settings.Current.WaveVisualizerEnabled;
+    public bool HasWave => IsVisible && _vm.IsVisible && WindowState != WindowState.Minimized && _vm.HasMedia && _vm.IsPlaying && _settings.Current.WaveVisualizerEnabled;
 
     // 涓婂矝鎺ㄩ€佸唴瀹癸細鍗曡妯″紡涓嬪彧鏄剧ず鍥炬爣+鏍囬锛堥殣钘忔鏂?杩涘害/鎸夐挳锛?
     public bool PushShowBody => _vm.ActivePushHasBody && !SingleLineMode;
