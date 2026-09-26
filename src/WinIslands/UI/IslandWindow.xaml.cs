@@ -185,7 +185,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _nextWaveFrameTime;
     private string _cachedWaveStyle = "Bars";
     private string? _appliedWaveStyle;
-    private double _cachedWaveHeight = 1.0;                 // 当前波形样式/高度快照
+    private double _cachedWaveHeight = 1.0;
+    private int _cachedWaveFps = 120;                 // 当前波形帧率目标
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
     private readonly List<ScaleTransform> _waveBarsCompact = new();
@@ -1579,6 +1580,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cachedWaveHeight = Math.Clamp(_settings.Current.WaveHeight, 0.25, 2.0);
         ApplyWaveStyleVisibility();
         var lowPower = _settings.Current.LowPowerMode;
+        _cachedWaveFps = AnimationFrameRate.Current(lowPower);
         // 涓夋€侊細鍏抽棴 / 鏅€氾紙CompositionTarget.Rendering 璺熼殢鏄剧ず鍣級/ 浣庡姛鑰楀畾鏃跺櫒锛垀120fps锛?
         var wantTimer = on && lowPower;
         var wantComposition = on && !lowPower;
@@ -1638,8 +1640,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var now = _waveClock.Elapsed.TotalSeconds;
             if (!_settings.Current.LowPowerMode)
             {
-                var fps = AnimationFrameRate.Current(lowPowerMode: false);
-                if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, fps)) return;
+                if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, _cachedWaveFps)) return;
             }
 
             var dt = Math.Min(0.05, Math.Max(0.001, now - _lastWaveTime));
