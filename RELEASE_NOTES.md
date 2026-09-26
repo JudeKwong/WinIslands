@@ -12,6 +12,38 @@
 
 ## 简体中文
 
+## WinIslands 1.6.0（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🚀 剪贴板轮询优化**：使用系统序列号预检，内容未变化时不再访问 OLE 剪贴板，异常日志改为 5 分钟节流
+- **🎞 歌词动画稳定性**：滚动与逐字高亮改用单调时钟，滚动使用五次缓动并跳过亚像素刷新
+- **⚡ 媒体状态优化**：重复媒体快照不再发布，播放状态、音量、时长和可见性按实际变化通知
+- **🧊 动画中断连续性**：快速展开、收起或调整尺寸时，新动画从当前实际尺寸继续
+- **🎵 声纹性能**：声纹强度无锁发布，Bars、Spectrum、Ring、Particles 使用预算相位表
+- **🧠 内存回收**：同时检查私有内存和工作集，空闲时每 3 分钟评估一次
+- **🖼 图片缓存**：上岛图片复用，封面原子写入、缓存热度更新，远程封面限制为 10 MB 并流式下载
+- **✅ 回归测试**：199 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.0 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🚀 Clipboard Polling**: Sequence-number precheck avoids OLE clipboard access when unchanged; repeated errors are throttled
+- **🎞 Stable Lyric Animation**: Monotonic clocks, quintic scrolling and sub-pixel refresh suppression
+- **⚡ Media State Optimization**: Redundant snapshots are suppressed and UI notifications are change-driven
+- **🧊 Interruption Continuity**: Expand, collapse and resize animations continue from the current visual size
+- **🎵 Waveform Performance**: Lock-free level publishing and precomputed phase tables for all waveform styles
+- **🧠 Memory Recovery**: Private memory and working set are evaluated together every three minutes while idle
+- **🖼 Artwork Caching**: Push-image reuse, atomic cache writes, recency updates, streaming downloads and a 10 MB cap
+- **✅ Regression Testing**: All 199 unit tests passed
+
+---
 ## WinIslands 1.5.0（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 
