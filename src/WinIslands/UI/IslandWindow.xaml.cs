@@ -1514,56 +1514,45 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void PlayCoverTransition()
     {
         if (!IsLoaded) return;
-        if (_settings.Current.ReduceMotion) return; // 鍑忓皯鍔ㄦ€佹晥鏋滐細璺宠繃杩囨浮
+        if (_settings.Current.ReduceMotion) return;
         var smooth = CachedCubicEaseOut;
         var (_, styleMs) = GetSizeAnimationStyle(expand: true);
         var dur = (int)Math.Clamp(styleMs * 0.42, 180, 420);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
+        var sb = new Storyboard();
 
-        // 灞曞紑鎬佸ぇ灏侀潰锛氭贰鍏?+ 浠?1.06 缂╂斁鍥?1
         if (BigArt is not null)
         {
             BigArt.BeginAnimation(UIElement.OpacityProperty, null);
             BigArt.Opacity = 0.35;
-            var sbA = new Storyboard();
-            AddAnim(sbA, BigArt, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            AnimationFrameRate.Apply(sbA, _settings.Current.LowPowerMode);
-            sbA.Begin();
+            AddAnim(sb, BigArt, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
         }
         if (BigArtScale is not null)
         {
             BigArtScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
             BigArtScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             BigArtScale.ScaleX = BigArtScale.ScaleY = 1.06;
-            var sbS = new Storyboard();
-            AddAnim(sbS, BigArtScale, ScaleTransform.ScaleXProperty, 1, (int)(dur * lm), smooth);
-            AddAnim(sbS, BigArtScale, ScaleTransform.ScaleYProperty, 1, (int)(dur * lm), smooth);
-            AnimationFrameRate.Apply(sbS, _settings.Current.LowPowerMode);
-            sbS.Begin();
+            AddAnim(sb, BigArtScale, ScaleTransform.ScaleXProperty, 1, (int)(dur * lm), smooth);
+            AddAnim(sb, BigArtScale, ScaleTransform.ScaleYProperty, 1, (int)(dur * lm), smooth);
         }
-        // 灞曞紑 Hero 澶у皝闈㈣儗鏅細娣″叆
         if (HeroCard is not null)
         {
             HeroCard.BeginAnimation(UIElement.OpacityProperty, null);
             HeroCard.Opacity = 0.35;
-            var sbH = new Storyboard();
-            AddAnim(sbH, HeroCard, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            AnimationFrameRate.Apply(sbH, _settings.Current.LowPowerMode);
-            sbH.Begin();
+            AddAnim(sb, HeroCard, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
         }
-        // 绱у噾琛屾瓕鏇插皝闈紙鏁版嵁妯℃澘鍐咃紝鐢?Tag 瀹氫綅鍚庢贰鍏ワ級
         foreach (var b in FindVisualChildren<System.Windows.Controls.Border>(PillRow))
         {
             if (!ReferenceEquals(b.Tag, "SongCover")) continue;
             b.BeginAnimation(UIElement.OpacityProperty, null);
             b.Opacity = 0.35;
-            var sbC = new Storyboard();
-            AddAnim(sbC, b, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            AnimationFrameRate.Apply(sbC, _settings.Current.LowPowerMode);
-            sbC.Begin();
+            AddAnim(sb, b, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
         }
-    }
 
+        if (sb.Children.Count == 0) return;
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
+        sb.Begin();
+    }
     /// <summary>浠庡彲瑙嗘爲涓婃敹闆嗘寚瀹氱被鍨嬪瓙鍏冪礌锛堟祬灞傞亶鍘嗭紝浠呯敤浜庡垏姝屾椂鐨勫皝闈㈠畾浣嶏級銆?/summary>
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
     {
