@@ -401,7 +401,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RefreshNotificationHistoryProps();
 
         Loaded += OnLoaded;
-        IsVisibleChanged += (_, _) => RefreshWave();
+        IsVisibleChanged += (_, _) => { RefreshWave(); ApplyCoverTint(); };
         // 瑙︽懜灞忎氦浜掞細婊戝姩鍒囨瓕銆佺偣鍑诲睍寮€/鏀惰捣
         TouchDown += OnTouchDown;
         TouchUp += OnTouchUp;
@@ -1877,7 +1877,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         try
         {
             var src = _vm.Artwork;
-            if (src is null || !_settings.Current.CoverTintBackground || !_vm.IsExpanded)
+            if (src is null || !_settings.Current.CoverTintBackground || !IsVisible || !_vm.IsExpanded)
             {
                 ClearCoverTint();
                 SubscribeTintRendering(false);

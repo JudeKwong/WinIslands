@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.9.3（正式版 / Stable）
+### 更新内容
+
+- **取色动画可见性**：封面取色呼吸动画跟随窗口可见性，隐藏时停止 10Hz 定时器
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.9.2（正式版 / Stable）
 ### 更新内容
 
@@ -214,6 +222,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.9.3 (Stable)
+### What's New
+
+- **取色动画可见性**: Binds cover-tint breathing to window visibility and stops the 10 Hz timer while hidden
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
