@@ -328,6 +328,10 @@ public class KaraokeTextBlock : TextBlock
         const double leadSeconds = 0.045;
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
         var speedScale = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
+        var deltaA = hl.A - bs.A;
+        var deltaR = hl.R - bs.R;
+        var deltaG = hl.G - bs.G;
+        var deltaB = hl.B - bs.B;
         for (var i = 0; i < _wordRuns.Count && i < _words.Count; i++)
         {
             var w = _words[i];
@@ -335,7 +339,11 @@ public class KaraokeTextBlock : TextBlock
             var lead = i > 0 ? Math.Min(leadSeconds, dur * 0.5) : 0.0;
             var raw = (pos - (w.BeginSec - lead)) / (dur + lead) * speedScale;
             var frac = SmoothStep(raw); // ease-in-out：起笔/收笔有加减速，匀速的机械感消失
-            var c = Lerp(bs, hl, frac);
+            var c = System.Windows.Media.Color.FromArgb(
+                (byte)(bs.A + deltaA * frac),
+                (byte)(bs.R + deltaR * frac),
+                (byte)(bs.G + deltaG * frac),
+                (byte)(bs.B + deltaB * frac));
             // 只在颜色字节值真正变化时才新建画刷（高帧率下多数帧的色差不足 1 字节），
             // 避免每帧分配 SolidColorBrush 造成 GC 抖动而掉帧。
             if (_wordRuns[i].Foreground is not SolidColorBrush brush)
