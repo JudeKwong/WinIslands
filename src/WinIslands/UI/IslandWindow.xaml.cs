@@ -205,6 +205,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _cardLayoutRoundingBeforeAnimation = true;
     private bool _cardSnapsBeforeAnimation = true;
     private Storyboard? _currentStoryboard;
+    private bool _compactAnimationValid;
+    private double _compactAnimationWidth;
+    private double _compactAnimationHeight;
     private Storyboard? _pushCardStoryboard;
     private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
     /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
@@ -1390,6 +1393,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var targetHeight = CompactHeight;
         EnsureWindowSizeFits(targetWidth); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
         UpdateCompactContentWidth(targetWidth);
+        if (_currentStoryboard is not null && _compactAnimationValid
+            && Math.Abs(targetWidth - _compactAnimationWidth) < 0.5
+            && Math.Abs(targetHeight - _compactAnimationHeight) < 0.5)
+            return;
+
         if (_currentStoryboard is null
             && Math.Abs(Card.ActualWidth - targetWidth) < 0.5
             && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
@@ -1410,11 +1418,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase, from: fromWidth);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase, from: fromHeight);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        _compactAnimationValid = true;
+        _compactAnimationWidth = targetWidth;
+        _compactAnimationHeight = targetHeight;
         _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
         sb.Completed += (_, _) =>
         {
             if (!ReferenceEquals(_currentStoryboard, sb)) return;
             _currentStoryboard = null;
+            _compactAnimationValid = false;
             Card.BeginAnimation(FrameworkElement.WidthProperty, null);
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
             Card.Width = targetWidth;
@@ -2178,6 +2190,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var fromHeight = ResolveAnimationFrom(Card.ActualHeight, Card.Height, height);
         _currentStoryboard?.Stop();
         _currentStoryboard = null;
+        _compactAnimationValid = false;
 
         // 鍑忓皯鍔ㄦ€佹晥鏋滐細鍏抽棴寮圭哀/浜ら敊鍔ㄧ敾锛岀洿鎺ョ灛鏃跺垏鎹紙鏃犻殰纰?/ 鐪佺數锛?
         if (_settings.Current.ReduceMotion)
