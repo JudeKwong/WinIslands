@@ -205,6 +205,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _cardLayoutRoundingBeforeAnimation = true;
     private bool _cardSnapsBeforeAnimation = true;
     private Storyboard? _currentStoryboard;
+    private bool _visibilityRefreshQueued;
     private bool _compactAnimationValid;
     private double _compactAnimationWidth;
     private double _compactAnimationHeight;
@@ -404,7 +405,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         RefreshNotificationHistoryProps();
 
         Loaded += OnLoaded;
-        IsVisibleChanged += (_, _) => { RefreshWave(); ApplyCoverTint(); };
+        IsVisibleChanged += (_, _) => ScheduleVisibilityRefresh();
         // 瑙︽懜灞忎氦浜掞細婊戝姩鍒囨瓕銆佺偣鍑诲睍寮€/鏀惰捣
         TouchDown += OnTouchDown;
         TouchUp += OnTouchUp;
@@ -1615,6 +1616,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     // 鈹€鈹€ 澹伴煶娉㈢汗 / 灏侀潰鍙栬壊 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
+    private void ScheduleVisibilityRefresh()
+    {
+        if (_visibilityRefreshQueued) return;
+        _visibilityRefreshQueued = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _visibilityRefreshQueued = false;
+            RefreshWave();
+            ApplyCoverTint();
+        }, System.Windows.Threading.DispatcherPriority.Render);
+    }
     private void RefreshWave()
     {
         var on = HasWave;
