@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.Windows;
@@ -350,12 +350,17 @@ AppPaths.EnsureDirectories();
         {
             if (_vm is not null) _vm.IsExpanded = !_vm.IsExpanded; // 展开/收起
         };
-        // 快速启动器：Ctrl+Space 弹出/收起（快捷键本身由 GlobalHotkeyService 注册）
-        _launcher = new QuickLauncherWindow(_theme);
-        _hotkeys.LauncherPressed += () => Dispatcher.BeginInvoke(() => _launcher?.Toggle());
-        // 剪贴板历史面板（Ctrl+Alt+V）
-        _clipboardPanel = new ClipboardPanelWindow(_theme, _clipboard);
-        _hotkeys.ClipboardPanelPressed += () => Dispatcher.BeginInvoke(() => _clipboardPanel?.Toggle());
+        // 快速启动器与剪贴板面板按需创建，避免未使用窗口占用启动内存。
+        _hotkeys.LauncherPressed += () => Dispatcher.BeginInvoke(() =>
+        {
+            _launcher ??= new QuickLauncherWindow(_theme);
+            _launcher.Toggle();
+        });
+        _hotkeys.ClipboardPanelPressed += () => Dispatcher.BeginInvoke(() =>
+        {
+            _clipboardPanel ??= new ClipboardPanelWindow(_theme, _clipboard);
+            _clipboardPanel.Toggle();
+        });
         _hotkeys.SetEnabled(_settings.Current.GlobalHotkeysEnabled);
 
         // ── Settings changed → re-apply live ──

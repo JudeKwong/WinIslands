@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.2（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🚀 懒加载快捷窗口**：快速启动器和剪贴板面板改为首次使用时才创建，不再占用启动阶段内存
+- **⚡ 启动路径瘦身**：未使用的高级窗口不会预加载开始菜单列表或创建额外视觉树
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.2 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🚀 Lazy-loaded Utility Windows**: Quick Launcher and Clipboard Panel are created only on first use
+- **⚡ Leaner Startup**: Unused advanced windows no longer preload Start Menu lists or create extra visual trees
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.1（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -744,6 +769,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.2（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🚀 懒加载快捷窗口**：快速启动器和剪贴板面板改为首次使用时才创建，不再占用启动阶段内存
+- **⚡ 启动路径瘦身**：未使用的高级窗口不会预加载开始菜单列表或创建额外视觉树
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.2 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🚀 Lazy-loaded Utility Windows**: Quick Launcher and Clipboard Panel are created only on first use
+- **⚡ Leaner Startup**: Unused advanced windows no longer preload Start Menu lists or create extra visual trees
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.1（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
