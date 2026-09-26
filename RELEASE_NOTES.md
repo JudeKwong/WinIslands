@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 **🌐 选择语言 / Select Language**
 
@@ -12,12 +12,30 @@
 
 ## 简体中文
 
+## WinIslands 1.6.9（正式版 / Stable）
+### 更新内容
+
+- **✨ 亚像素动画**：展开/收起期间使用亚像素尺寸过渡，减少高刷屏圆整抖动
+- **🧩 清晰度恢复**：动画结束后恢复布局像素对齐，文字与边缘保持锐利
+- **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
 ## WinIslands 1.6.8（正式版 / Stable）
 ### 更新内容
 
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.9 (Stable)
+### What's New
+
+- **✨ Subpixel Motion**: Expand/collapse uses fractional sizing to avoid rounding stutter on high-refresh displays
+- **🧩 Restored Clarity**: Pixel alignment is restored after the motion so text and edges stay crisp
+- **✅ Regression Testing**: All 212 unit tests passed
 
 ---
 

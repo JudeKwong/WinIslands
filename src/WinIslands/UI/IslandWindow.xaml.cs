@@ -196,6 +196,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private static readonly double[] WaveCos09 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 0.9)).ToArray();
     private static readonly double[] WaveSin13 = Enumerable.Range(0, 32).Select(i => Math.Sin(i * 1.3)).ToArray();
     private static readonly double[] WaveCos13 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 1.3)).ToArray();
+    private bool _animationSurfaceActive;
+    private bool _cardLayoutRoundingBeforeAnimation = true;
+    private bool _cardSnapsBeforeAnimation = true;
     private Storyboard? _currentStoryboard;
     private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
     /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
@@ -488,6 +491,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnWindowClosed(object? sender, EventArgs e)
     {
+        EndAnimationSurface();
         _glassAnimSb?.Stop();
         try
         {
@@ -2093,6 +2097,26 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// 鍔ㄧ敾锛氬崱鐗囧昂瀵哥敤 iOS 闃诲凹寮圭哀锛堝厛蹇悗鎱€佽交寰繃鍐插洖寮癸級锛?
     /// 灞曞紑鍐呭鎸夊尯鍧楄嚜涓婅€屼笅浜ら敊娣″叆涓婄Щ銆佹敹璧锋椂鍙嶅悜浜ら敊娣″嚭涓嬬Щ锛?.2.1锛夛紝鏁翠綋鑺傚闈炵嚎鎬с€佷笉鐢熺‖銆?
     /// </summary>
+    private void BeginAnimationSurface()
+    {
+        if (_animationSurfaceActive) return;
+        _animationSurfaceActive = true;
+        _cardLayoutRoundingBeforeAnimation = Card.UseLayoutRounding;
+        _cardSnapsBeforeAnimation = Card.SnapsToDevicePixels;
+        // Width/Height are fractional during a spring transition. Disable pixel snapping
+        // only for the duration of the motion so the card advances by subpixels instead of
+        // rounding every frame, then restore crisp text/edge alignment on completion.
+        Card.UseLayoutRounding = false;
+        Card.SnapsToDevicePixels = false;
+    }
+
+    private void EndAnimationSurface()
+    {
+        if (!_animationSurfaceActive) return;
+        _animationSurfaceActive = false;
+        Card.UseLayoutRounding = _cardLayoutRoundingBeforeAnimation;
+        Card.SnapsToDevicePixels = _cardSnapsBeforeAnimation;
+    }
     private void AnimateCard(double width, double height, bool expand, Action? onCompleted = null)
     {
         var fromWidth = ResolveAnimationFrom(Card.ActualWidth, Card.Width, width);
@@ -2103,6 +2127,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 鍑忓皯鍔ㄦ€佹晥鏋滐細鍏抽棴寮圭哀/浜ら敊鍔ㄧ敾锛岀洿鎺ョ灛鏃跺垏鎹紙鏃犻殰纰?/ 鐪佺數锛?
         if (_settings.Current.ReduceMotion)
         {
+            EndAnimationSurface();
             Card.Width = width;
             Card.Height = height;
             PillRow.Visibility = expand ? Visibility.Collapsed : Visibility.Visible;
@@ -2115,6 +2140,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             onCompleted?.Invoke();
             return;
         }
+
+        BeginAnimationSurface();
 
         var sb = new Storyboard();
         // 鍔ㄦ晥鐨偆锛?3锛夛細Spring= iOS 寮圭哀锛堥粯璁わ級/ Soft=鏌斿拰 / Elastic=寮规€?/ Fade=绠€娲佹笎闅?
@@ -2202,6 +2229,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             catch (Exception ex)
             {
                 AppLogger.Error("Card animation completed failed", ex);
+            }
+            finally
+            {
+                EndAnimationSurface();
             }
         };
         _currentStoryboard = sb;
