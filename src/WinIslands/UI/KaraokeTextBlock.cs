@@ -79,6 +79,7 @@ public class KaraokeTextBlock : TextBlock
     private double[] _wordStarts = Array.Empty<double>();
     private double[] _wordDenoms = Array.Empty<double>();
     private bool _hasWords;
+    private double _karaokeSpeedScale = 1.0;
     private double _nextKaraokeFrameTime;
     private double _posBase;            // 最近一次来自 ViewModel 的位置（秒）
     private long _posBaseTicks;          // 该位置对应的单调时钟刻度
@@ -179,6 +180,7 @@ public class KaraokeTextBlock : TextBlock
 
     private void RefreshTarget()
     {
+        _karaokeSpeedScale = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
         var words = (IReadOnlyList<TtmlWord>?)GetValue(WordsProperty);
         _hasWords = words is { Count: > 0 };
         if (_hasWords && !ReferenceEquals(words, _words))
@@ -338,7 +340,7 @@ public class KaraokeTextBlock : TextBlock
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
         // 句首第一个字不提前，保证换句时第一个字保持未点亮。
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
-        var speedScale = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
+        var speedScale = _karaokeSpeedScale;
         var deltaA = hl.A - bs.A;
         var deltaR = hl.R - bs.R;
         var deltaG = hl.G - bs.G;
@@ -424,7 +426,7 @@ public class KaraokeTextBlock : TextBlock
     /// <summary>播放位置是否落在本句某个字的起止区间内（该行是否处于正在点亮的状态）。</summary>
     private bool NeedsAnimation(double pos)
     {
-        var speed = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
+        var speed = _karaokeSpeedScale;
         foreach (var w in _words)
         {
             if (pos < w.BeginSec) continue;                    // 尚未开始：静态即可

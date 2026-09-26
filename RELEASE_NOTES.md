@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.9.1（正式版 / Stable）
+### 更新内容
+
+- **卡拉OK速度缓存**：缓存卡拉OK速度倍率，避免每帧重复属性读取和范围限制
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.9.0（正式版 / Stable）
 ### 更新内容
 
@@ -198,6 +206,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.9.1 (Stable)
+### What's New
+
+- **卡拉OK速度缓存**: Caches the karaoke speed multiplier to avoid repeated property reads and clamping every frame
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
