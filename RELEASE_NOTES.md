@@ -12,6 +12,15 @@
 
 ## 简体中文
 
+## WinIslands 1.7.1（正式版 / Stable）
+### 更新内容
+
+- **🧹 动画分配优化**：缓存并复用动画属性路径，减少展开/收起时的短期对象分配
+- **⚡ GC 抖动下降**：连续切换组件与动画状态时更稳定，降低后台回收造成的瞬时掉帧
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.0（正式版 / Stable）
 ### 更新内容
 
@@ -36,6 +45,15 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.1 (Stable)
+### What's New
+
+- **🧹 Animation Allocation**: Reuses property paths for expand/collapse animations to cut short-lived allocations
+- **⚡ Lower GC Jitter**: Repeated state changes are more stable with fewer collection-induced frame drops
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

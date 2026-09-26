@@ -265,6 +265,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private static readonly SpringEase CachedSpringEase = FreezeEase(new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 });
     private static readonly SoftSpringEase CachedSoftEase = FreezeEase(new SoftSpringEase { Damping = 15, Stiffness = 220, Mass = 1 });
     private static readonly SoftSpringEase CachedSoftEaseSmooth = FreezeEase(new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 });
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<DependencyProperty, PropertyPath> AnimationPathCache = new();
     private static readonly ElasticEase CachedElasticEase = FreezeEase(new ElasticEase { Oscillations = 1, Springiness = 6, EasingMode = EasingMode.EaseOut });
 
     private static T FreezeEase<T>(T ease) where T : Freezable
@@ -2277,6 +2278,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     internal static double ResolveAnimationFrom(double actual, double current, double fallback)
         => double.IsFinite(actual) && actual > 0.5 ? actual : double.IsFinite(current) && current > 0.5 ? current : fallback;
 
+    private static PropertyPath GetAnimationPath(DependencyProperty property)
+        => AnimationPathCache.GetOrAdd(property, static p => new PropertyPath(p));
+
     private void AddAnim(Storyboard sb, DependencyObject target, DependencyProperty prop, double to, int ms, IEasingFunction easing, TimeSpan? beginTime = null, double? from = null)
     {
         var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms))
@@ -2285,7 +2289,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             BeginTime = beginTime ?? TimeSpan.Zero,
         };
         Storyboard.SetTarget(anim, target);
-        Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
+        Storyboard.SetTargetProperty(anim, GetAnimationPath(prop));
         AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode); // 120 FPS 鐩爣甯х巼
         if (from is double value && double.IsFinite(value)) anim.From = value;
         sb.Children.Add(anim);
