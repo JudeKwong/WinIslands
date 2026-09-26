@@ -21,6 +21,7 @@ public sealed class MediaCoordinator : IDisposable
     private System.Threading.Timer? _timer;
     private int _tick;
     private int _started;
+    private int _disposed;
     private int _eventRefreshQueued;
     private MediaSnapshot? _current;
     private double? _lastSystemVolume;
@@ -322,6 +323,7 @@ public sealed class MediaCoordinator : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _smtc.SessionsChanged -= OnSmtcSessionsChanged;
         _smtc.SnapshotReady -= OnSmtcSnapshotReady;

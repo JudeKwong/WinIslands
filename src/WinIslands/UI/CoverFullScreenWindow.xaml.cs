@@ -33,6 +33,7 @@ public partial class CoverFullScreenWindow : Window
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             };
+            AnimationFrameRate.Apply(inAnim, lowPowerMode: false);
             BeginAnimation(OpacityProperty, inAnim);
         };
     }
@@ -64,6 +65,7 @@ public partial class CoverFullScreenWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
         };
         outAnim.Completed += (_, _) => Close();
+        AnimationFrameRate.Apply(outAnim, lowPowerMode: false);
         BeginAnimation(OpacityProperty, outAnim);
     }
 }

@@ -16,6 +16,7 @@ public static class AppLogger
     private static StreamWriter? _writer;
     private static int _pendingLines;              // 未落盘行数（批量 flush，减少 UI 线程同步磁盘写）
     private static DateTime _lastFlushUtc = DateTime.UtcNow;
+    private static bool _shutdown;
     private const int FlushThreshold = 20;         // 每 20 行强制落盘
     private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(2); // 或每 2 秒落盘
 
@@ -47,6 +48,7 @@ public static class AppLogger
     {
         lock (Gate)
         {
+            _shutdown = true;
             try { _writer?.Flush(); }
             catch { }
             finally
@@ -64,6 +66,7 @@ public static class AppLogger
         {
             lock (Gate)
             {
+                if (_shutdown) return;
                 // 启动时清理旧日志（线程安全：在锁内只执行一次）
                 EnsureStartupCleanup();
 

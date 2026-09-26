@@ -1153,6 +1153,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var brush = new SolidColorBrush(from);
         target.SetValue(prop, brush);
         var anim = new ColorAnimation(to, dur) { EasingFunction = ease };
+        AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode);
         brush.BeginAnimation(SolidColorBrush.ColorProperty, anim);
     }
 
@@ -1292,6 +1293,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 Binding = new System.Windows.Data.Binding(nameof(LyricLineViewModel.IsCurrent)) { Mode = BindingMode.OneWay },
                 Value = true,
             };
+            AnimationFrameRate.Apply(inSb, _settings.Current.LowPowerMode);
+            AnimationFrameRate.Apply(outSb, _settings.Current.LowPowerMode);
             trigger.EnterActions.Add(new BeginStoryboard { Storyboard = inSb });
             trigger.ExitActions.Add(new BeginStoryboard { Storyboard = outSb });
             trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -2298,6 +2301,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var card = (_theme.CardBorder as SolidColorBrush)?.Color ?? System.Windows.Media.Color.FromArgb(60, 255, 255, 255);
             var brush = new SolidColorBrush(on ? card : accent);
             var anim = new ColorAnimation(on ? accent : card, TimeSpan.FromMilliseconds(200));
+            AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode);
             if (!on)
             {
                 // 杩樺師涓婚缁戝畾蹇呴』绛夐鑹插姩鐢绘挱瀹屽啀鎵ц锛歋etBinding 浼氱珛鍒绘浛鎹?BorderBrush 鐨勬湰鍦板€硷紝

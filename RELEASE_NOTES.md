@@ -12,6 +12,32 @@
 
 ## 简体中文
 
+## WinIslands 1.5.0（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎞 全量动画帧率覆盖**：封面全屏、歌词重点动画、主题色和拖动提示统一接入自适应 60/120 FPS
+- **🔚 日志关闭边界**：日志关闭后拒绝后台迟到写入，避免退出阶段重新打开日志文件
+- **🧩 最终生命周期巡检**：媒体协调器释放过程进一步幂等化
+- **⚡ 性能与稳定性收尾**：保留低内存、事件驱动媒体刷新、歌词画刷复用和音频缓冲池化优化
+- **✅ 回归测试**：179 项单元测试全部通过
+
+---
+
+## WinIslands 1.5.0 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎞 Complete Animation Frame-rate Coverage**: Adaptive 60/120 FPS across cover preview, lyric emphasis, tint and drag-hint animations
+- **🔚 Log Shutdown Boundary**: Rejects late background writes after shutdown to prevent reopening the log file
+- **🧩 Final Lifecycle Audit**: Idempotent MediaCoordinator disposal and cleaner shutdown behavior
+- **⚡ Performance and Stability Wrap-up**: Retains low-memory, event-driven media refresh, lyric brush reuse and pooled audio buffers
+- **✅ Regression Testing**: All 179 unit tests passed
+
+---
 ## WinIslands 1.4.9（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 
