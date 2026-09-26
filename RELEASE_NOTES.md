@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.7.9（正式版 / Stable）
+### 更新内容
+
+- **波形可见性缓存**：波形样式未变化时不重复设置多项 Visibility，减少布局失效
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.8（正式版 / Stable）
 ### 更新内容
 
@@ -102,6 +110,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.9 (Stable)
+### What's New
+
+- **波形可见性缓存**: Skips repeated visibility updates when the wave style is unchanged to reduce layout invalidation
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

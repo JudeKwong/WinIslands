@@ -184,6 +184,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _lastWaveTime;
     private double _nextWaveFrameTime;
     private string _cachedWaveStyle = "Bars";
+    private string? _appliedWaveStyle;
     private double _cachedWaveHeight = 1.0;                 // 当前波形样式/高度快照
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
@@ -1700,6 +1701,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ApplyWaveStyleVisibility()
     {
         var style = _cachedWaveStyle;
+        if (string.Equals(_appliedWaveStyle, style, StringComparison.Ordinal)) return;
+        _appliedWaveStyle = style;
         var bars = style == "Bars" ? Visibility.Visible : Visibility.Collapsed;
         var spec = style == "Spectrum" ? Visibility.Visible : Visibility.Collapsed;
         var ring = style == "Ring" ? Visibility.Visible : Visibility.Collapsed;
