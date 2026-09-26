@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.6（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 ConserveMemory 低内存模式**：发布运行时启用 `System.GC.ConserveMemory=7`，私有内存复测从约 184 MB 再降到约 167 MB
+- **⚡ 工作集进一步下降**：自动回收后工作集约 27 MB
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.6 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 ConserveMemory Low-memory Mode**: Enabled `System.GC.ConserveMemory=7`; measured private memory dropped from about 184 MB to 167 MB
+- **⚡ Lower Working Set**: Post-trim working set measured around 27 MB
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -844,6 +869,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.6（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 ConserveMemory 低内存模式**：发布运行时启用 `System.GC.ConserveMemory=7`，私有内存复测从约 184 MB 再降到约 167 MB
+- **⚡ 工作集进一步下降**：自动回收后工作集约 27 MB
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.6 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 ConserveMemory Low-memory Mode**: Enabled `System.GC.ConserveMemory=7`; measured private memory dropped from about 184 MB to 167 MB
+- **⚡ Lower Working Set**: Post-trim working set measured around 27 MB
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

@@ -12,9 +12,9 @@
     <RootNamespace>WinIslands</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\winislands.ico</ApplicationIcon>
-    <Version>1.4.5</Version>
-    <AssemblyVersion>1.4.5.0</AssemblyVersion>
-    <FileVersion>1.4.5.0</FileVersion>
+    <Version>1.4.6</Version>
+    <AssemblyVersion>1.4.6.0</AssemblyVersion>
+    <FileVersion>1.4.6.0</FileVersion>
     <Authors>WinIslands</Authors>
     <Product>WinIslands</Product>
     <Description>macOS-style Dynamic Island for Windows - media controls, lyrics and more.</Description>
@@ -75,6 +75,10 @@
     <TieredCompilation>true</TieredCompilation>
 
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\winislands.ico" />
