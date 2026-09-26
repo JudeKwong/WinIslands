@@ -12,6 +12,33 @@
 
 ## 简体中文
 
+## WinIslands 1.3.5（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 自动工作集回收**：仅在无媒体播放、未展开且内存偏高时执行低频回收；实测工作集由约 359 MB 降至 41 MB
+- **⚡ 播放安全**：播放中、展开中不会触发回收，不影响歌词、动画和媒体控制
+- **🎞️ 动画曲线缓存扩展**：缓存 Spring、SoftSpring、Elastic、Cubic 动画曲线，减少展开/收起动画的临时分配
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.5 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Automatic Working Set Reclamation**: Performs low-frequency reclamation only when no media is playing, the island is collapsed, and memory is high; working set dropped from about 359 MB to 41 MB in testing
+- **⚡ Playback Safety**: Reclamation never runs while media is playing or the island is expanded, so lyrics, animations, and media controls are unaffected
+- **🎞️ Expanded Animation Easing Cache**: Cached Spring, SoftSpring, Elastic, and Cubic easing instances to reduce temporary allocations during expand/collapse animations
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.4（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -559,6 +586,33 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.3.5（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 自动工作集回收**：仅在无媒体播放、未展开且内存偏高时执行低频回收；实测工作集由约 359 MB 降至 41 MB
+- **⚡ 播放安全**：播放中、展开中不会触发回收，不影响歌词、动画和媒体控制
+- **🎞️ 动画曲线缓存扩展**：缓存 Spring、SoftSpring、Elastic、Cubic 动画曲线，减少展开/收起动画的临时分配
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.5 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Automatic Working Set Reclamation**: Performs low-frequency reclamation only when no media is playing, the island is collapsed, and memory is high; working set dropped from about 359 MB to 41 MB in testing
+- **⚡ Playback Safety**: Reclamation never runs while media is playing or the island is expanded, so lyrics, animations, and media controls are unaffected
+- **🎞️ Expanded Animation Easing Cache**: Cached Spring, SoftSpring, Elastic, and Cubic easing instances to reduce temporary allocations during expand/collapse animations
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.4（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

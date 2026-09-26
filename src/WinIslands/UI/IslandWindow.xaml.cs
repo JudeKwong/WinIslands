@@ -175,6 +175,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly System.Windows.Forms.Screen _screen;
     private readonly DispatcherTimer _collapseTimer;
     private readonly DispatcherTimer _compactRestoreTimer;
+    private readonly DispatcherTimer _memoryTrimTimer;
     private readonly EventHandler _onThemeChanged;      // 鍏峰悕澶勭悊鍣細绐楀彛鍏抽棴鏃跺彲閫€璁紝闃叉硠婕?
     private readonly EventHandler<AppSettings> _onSettingsChanged;
     private NotifyCollectionChangedEventHandler? _historyChangedHandler;
@@ -252,6 +253,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _tintRenderingSubscribed;
     private static readonly CubicEase CachedCubicEaseOut = CreateCubicEase(EasingMode.EaseOut);
     private static readonly CubicEase CachedCubicEaseIn = CreateCubicEase(EasingMode.EaseIn);
+    private static readonly SpringEase CachedSpringEase = FreezeEase(new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 });
+    private static readonly SoftSpringEase CachedSoftEase = FreezeEase(new SoftSpringEase { Damping = 15, Stiffness = 220, Mass = 1 });
+    private static readonly SoftSpringEase CachedSoftEaseSmooth = FreezeEase(new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 });
+    private static readonly ElasticEase CachedElasticEase = FreezeEase(new ElasticEase { Oscillations = 1, Springiness = 6, EasingMode = EasingMode.EaseOut });
+
+    private static T FreezeEase<T>(T ease) where T : Freezable
+    {
+        ease.Freeze();
+        return ease;
+    }
 
     private static CubicEase CreateCubicEase(EasingMode mode)
     {
@@ -298,6 +309,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _compactRestoreTimer.Tick += (_, _) =>
         {
             _compactRestoreTimer.Stop();
+            _memoryTrimTimer.Stop();
             if (IsLoaded && !_vm.IsExpanded)
             {
                 Card.BeginAnimation(FrameworkElement.WidthProperty, null);
@@ -307,6 +319,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 ContentGrid.RowDefinitions[1].Height = GridLength.Auto;
             }
         };
+
+        _memoryTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _memoryTrimTimer.Tick += (_, _) =>
+        {
+            if (!_vm.IsPlaying && !_vm.IsExpanded) MemoryOptimizer.RequestTrim();
+        };
+        _memoryTrimTimer.Start();
 
         _lyricsScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) }; // 120fps
         _lyricsScrollTimer.Tick += (_, _) => SmoothScrollStep();
@@ -477,6 +496,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Localization.LanguageChanged -= OnLanguageChanged;
             _collapseTimer.Stop();
             _compactRestoreTimer.Stop();
+            _memoryTrimTimer.Stop();
             _lyricsScrollTimer.Stop();
             CancelPendingClick();
             StopWaveRender();
@@ -2175,20 +2195,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         switch (_settings.Current.AnimationStyle)
         {
             case "Soft":
-                return (new SoftSpringEase { Damping = 15, Stiffness = 220, Mass = 1 }, expand ? Ms(baseMs * 1.08) : Ms(baseMs * 0.94));
+                return (CachedSoftEase, expand ? Ms(baseMs * 1.08) : Ms(baseMs * 0.94));
             case "Elastic":
-                return (new ElasticEase
-                {
-                    Oscillations = 1,
-                    Springiness = 6,
-                    EasingMode = EasingMode.EaseOut,
-                }, expand ? Ms(baseMs * 0.97) : Ms(baseMs * 0.84));
+                return (CachedElasticEase, expand ? Ms(baseMs * 0.97) : Ms(baseMs * 0.84));
             case "Smooth":
-                return (new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 }, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.88));
+                return (CachedSoftEaseSmooth, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.88));
             case "Fade":
                 return (CachedCubicEaseOut, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.64));
             default: // Spring
-                return (new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 }, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1锛氶樆灏肩暐闄嶃€佸垰搴︾暐鍗?-> 鍥炲脊鏇存湁寮规€?
+                return (CachedSpringEase, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1锛氶樆灏肩暐闄嶃€佸垰搴︾暐鍗?-> 鍥炲脊鏇存湁寮规€?
         }
     }
     private void AddAnim(Storyboard sb, DependencyObject target, DependencyProperty prop, double to, int ms, IEasingFunction easing, TimeSpan? beginTime = null)
