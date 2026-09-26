@@ -1678,11 +1678,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var n = bars.Count;
         var sinBase = Math.Sin(t * 6.0);
         var cosBase = Math.Cos(t * 6.0);
+        var isPlaying = _vm.IsPlaying;
         for (var i = 0; i < n; i++)
         {
             var sc = bars[i];
             double target;
-            if (_vm.IsPlaying)
+            if (isPlaying)
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveSin09, WaveCos09);
                 if (bias > 0)
@@ -1823,11 +1824,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var n = parts.Count;
         var sinBase = Math.Sin(t * 6.0);
         var cosBase = Math.Cos(t * 6.0);
+        var isPlaying = _vm.IsPlaying;
         for (var i = 0; i < n; i++)
         {
             var tr = parts[i];
             double target = 0;
-            if (_vm.IsPlaying)
+            if (isPlaying)
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveSin13, WaveCos13);
                 target = -wave * level * maxY;

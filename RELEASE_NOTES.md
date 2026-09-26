@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.8.0（正式版 / Stable）
+### 更新内容
+
+- **波形循环精简**：波形柱和粒子循环复用播放状态，减少每帧重复属性访问
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.9（正式版 / Stable）
 ### 更新内容
 
@@ -110,6 +118,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.8.0 (Stable)
+### What's New
+
+- **波形循环精简**: Reuses playback state inside wave-bar and particle loops to reduce repeated per-frame property access
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
