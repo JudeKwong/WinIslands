@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.3（正式版 / Stable）
+### 更新内容
+
+- **🔵 蓝牙空闲轮询优化**：DeviceWatcher 正常时兜底轮询由 8 秒调整为 30 秒，设备变化仍即时响应
+- **⚡ 后台占用下降**：无蓝牙状态变化时减少定时枚举与异步任务
+- **✅ 回归测试**：199 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.3 (Stable)
+### What's New
+
+- **🔵 Bluetooth Idle Polling**: Fallback polling increased from 8 to 30 seconds while DeviceWatcher is healthy
+- **⚡ Lower Background Usage**: Fewer device enumerations and async tasks while Bluetooth state is stable
+- **✅ Regression Testing**: All 199 unit tests passed
+
+---
 ## WinIslands 1.6.2（正式版 / Stable）
 ### 更新内容
 

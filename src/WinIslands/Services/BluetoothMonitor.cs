@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -40,6 +40,7 @@ public sealed class BluetoothMonitor : IDisposable
             _connected.Clear();
         }
 
+        var watcherStarted = false;
         try
         {
             var selector = Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelector();
@@ -53,6 +54,7 @@ public sealed class BluetoothMonitor : IDisposable
                 AppLogger.Info("Bluetooth watcher: enumeration completed (baseline ready).");
             };
             _watcher.Start();
+            watcherStarted = true;
         }
         catch (Exception ex)
         {
@@ -60,7 +62,7 @@ public sealed class BluetoothMonitor : IDisposable
         }
 
         _timer?.Dispose();
-        _timer = new System.Threading.Timer(_ => Poll(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(8));
+        _timer = new System.Threading.Timer(_ => Poll(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(watcherStarted ? 30 : 8));
         AppLogger.Info("Bluetooth monitor started (watcher + poll).");
     }
 
