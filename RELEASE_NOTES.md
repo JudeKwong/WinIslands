@@ -12,6 +12,33 @@
 
 ## 简体中文
 
+## WinIslands 1.4.0（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **⚡ 设置即时应用 + 延迟保存**：设置修改立即生效，磁盘写入合并为 800ms 延迟，拖动滑杆时不再反复同步保存
+- **🧹 生命周期持续加固**：设置窗口关闭时最终保存、退订并释放 ViewModel，减少长期运行内存增长
+- **🎞️ 动画与渲染稳定性**：保留刷新率同步歌词滚动、封面解码限制和动画曲线缓存
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.0 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **⚡ Instant Apply + Debounced Persistence**: Settings still apply immediately, while disk writes are coalesced with an 800 ms debounce
+- **🧹 Continued Lifecycle Hardening**: Settings save, unsubscribe, and dispose their view model on close to reduce long-running memory growth
+- **🎞️ Animation and Rendering Stability**: Keeps refresh-synchronized lyrics scrolling, artwork decode limits, and cached animation easing
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.9（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -692,6 +719,33 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.0（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **⚡ 设置即时应用 + 延迟保存**：设置修改立即生效，磁盘写入合并为 800ms 延迟，拖动滑杆时不再反复同步保存
+- **🧹 生命周期持续加固**：设置窗口关闭时最终保存、退订并释放 ViewModel，减少长期运行内存增长
+- **🎞️ 动画与渲染稳定性**：保留刷新率同步歌词滚动、封面解码限制和动画曲线缓存
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.0 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **⚡ Instant Apply + Debounced Persistence**: Settings still apply immediately, while disk writes are coalesced with an 800 ms debounce
+- **🧹 Continued Lifecycle Hardening**: Settings save, unsubscribe, and dispose their view model on close to reduce long-running memory growth
+- **🎞️ Animation and Rendering Stability**: Keeps refresh-synchronized lyrics scrolling, artwork decode limits, and cached animation easing
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.9（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

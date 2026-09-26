@@ -455,12 +455,12 @@ public sealed class SettingsService
     }
 
     /// <summary>Replace settings with <paramref name="next"/> (e.g. from the settings UI), save and notify.</summary>
-    public void Apply(AppSettings next)
+    public void Apply(AppSettings next, bool persist = true)
     {
         lock (_gate)
         {
             _settings = next;
-            Save();
+            if (persist) Save();
         }
         Changed?.Invoke(this, _settings);
     }

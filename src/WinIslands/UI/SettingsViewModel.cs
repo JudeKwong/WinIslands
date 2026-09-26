@@ -535,7 +535,7 @@ public sealed class SettingsViewModel : ObservableObject
         Working.WidgetOrder = string.Join(",", _components.Select(x => x.Key));
     }
 
-    public void Save()
+    public void Save(bool persist = true)
     {
         // 位置/偏移/显示器变化时清除手动拖动位置，让默认定位规则重新生效
         var prev = _service.Current;
@@ -548,7 +548,7 @@ public sealed class SettingsViewModel : ObservableObject
             Working.IslandManualLeft = null;
             Working.IslandManualTop = null;
         }
-        _service.Apply(Working);
+        _service.Apply(Working, persist);
         Localization.CurrentLanguage = Working.Language;
     }
 }

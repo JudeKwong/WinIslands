@@ -29,6 +29,7 @@ public partial class SettingsWindow : Window
     private readonly SettingsService _service;
     private readonly CiderMediaProvider? _cider;
     private readonly DispatcherTimer _autoApply;
+    private readonly DispatcherTimer _saveDebounce;
     private readonly TodoService? _todo;
     private readonly ScheduleService? _schedule;
     private readonly ClipboardHistoryService? _clipboard;
@@ -92,6 +93,8 @@ public partial class SettingsWindow : Window
         // 即时生效：轮询检测 Working 变化并立即应用（无保存按钮）
         _lastAppliedJson = SettingsService.Serialize(_vm.Working);
         _autoApply = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _saveDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+        _saveDebounce.Tick += (_, _) => { _saveDebounce.Stop(); _service.Save(); };
         _autoApply.Tick += (_, _) => AutoApply();
         _autoApply.Start();
 
@@ -105,6 +108,7 @@ public partial class SettingsWindow : Window
             try { _vm.Save(); } catch { }
             try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
+            try { _saveDebounce.Stop(); } catch { }
             try { Localization.LanguageChanged -= _onLanguageChanged; } catch { }
         };
 
@@ -239,7 +243,9 @@ public partial class SettingsWindow : Window
             if (j != _lastAppliedJson)
             {
                 _lastAppliedJson = j;
-                _vm.Save();
+                _vm.Save(persist: false);
+                _saveDebounce.Stop();
+                _saveDebounce.Start();
             }
         }
         catch { /* ignore */ }
