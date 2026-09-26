@@ -151,9 +151,9 @@ public sealed class ThemeService
 
         if (dark)
         {
-            if (!tintResolved) TintColor = Color.FromRgb(0x16, 0x16, 0x22);
-            TextPrimary = new SolidColorBrush(Color.FromArgb(235, 245, 245, 250));
-            TextSecondary = new SolidColorBrush(Color.FromArgb(170, 245, 245, 250));
+            if (!tintResolved) TintColor = Color.FromRgb(0x2C, 0x2C, 0x2E);
+            TextPrimary = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF7));
+            TextSecondary = new SolidColorBrush(Color.FromArgb(180, 0xD1, 0xD1, 0xD6));
             CardBorder = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
             ButtonHoverBrush = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255));
             SliderTrackBrush = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255));

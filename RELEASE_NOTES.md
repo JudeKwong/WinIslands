@@ -12,6 +12,33 @@
 
 ## 简体中文
 
+## WinIslands 1.3.7（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎞️ 歌词滚动刷新率同步**：改为 `CompositionTarget.Rendering`，跟随显示器刷新率，移除 8ms 定时器
+- **🎨 深色灵动岛柔和化**：默认深色底调整为石墨灰 `#2C2C2E`，使用柔和白色文字，降低刺眼感
+- **⚡ 动画开销降低**：滚动期间减少定时器唤醒、布局抖动和临时分配
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.7 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎞️ Refresh-synchronized Lyrics Scrolling**: Uses `CompositionTarget.Rendering` and removes the 8 ms timer
+- **🎨 Softer Dark Island Surface**: Default dark background changed to graphite `#2C2C2E` with softer white text
+- **⚡ Lower Animation Overhead**: Reduced timer wakeups, layout churn, and temporary allocations while scrolling
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.6（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -613,6 +640,33 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.3.7（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎞️ 歌词滚动刷新率同步**：改为 `CompositionTarget.Rendering`，跟随显示器刷新率，移除 8ms 定时器
+- **🎨 深色灵动岛柔和化**：默认深色底调整为石墨灰 `#2C2C2E`，使用柔和白色文字，降低刺眼感
+- **⚡ 动画开销降低**：滚动期间减少定时器唤醒、布局抖动和临时分配
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.7 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎞️ Refresh-synchronized Lyrics Scrolling**: Uses `CompositionTarget.Rendering` and removes the 8 ms timer
+- **🎨 Softer Dark Island Surface**: Default dark background changed to graphite `#2C2C2E` with softer white text
+- **⚡ Lower Animation Overhead**: Reduced timer wakeups, layout churn, and temporary allocations while scrolling
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.6（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

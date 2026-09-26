@@ -327,8 +327,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         };
         _memoryTrimTimer.Start();
 
-        _lyricsScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) }; // 120fps
-        _lyricsScrollTimer.Tick += (_, _) => SmoothScrollStep();
 
         // 澹伴煶娉㈢汗锛氭寕鎺ュ悎鎴愬抚浜嬩欢锛屾寜鏄剧ず鍣ㄥ埛鏂扮巼椹卞姩锛岀┖闂叉椂鎽橀櫎涓嶅崰 CPU
         if (WaveBar1 is not null)
@@ -497,7 +495,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _collapseTimer.Stop();
             _compactRestoreTimer.Stop();
             _memoryTrimTimer.Stop();
-            _lyricsScrollTimer.Stop();
+            StopLyricsScroll();
             CancelPendingClick();
             StopWaveRender();
             SubscribeTintRendering(false); // 鏄惧紡閫€璁㈠皝闈㈠彇鑹插悎鎴愬抚锛岄槻绐楀彛閿€姣佸悗浜嬩欢娉勬紡
@@ -2419,7 +2417,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // 鈹€鈹€ 姝岃瘝鑷姩婊氬姩 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private bool _lyricsScrollQueued;
-    private readonly DispatcherTimer _lyricsScrollTimer;
+    private bool _lyricsScrollRendering;
     private double _lyricsScrollTarget;
     private double _lyricsScrollFrom;      // 鏈婊氬姩璧风偣鍋忕Щ锛堟椂闂村熀鍑嗙紦鍔ㄧ敤锛?
     private DateTime _lyricsScrollStartUtc; // 鏈婊氬姩璧峰澧欓挓
@@ -2442,7 +2440,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ScrollLyricsTo(int index)
     {
         if (LyricsList.Items.Count == 0) return;
-        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { _lyricsScrollTimer.Stop(); return; } // 浠呭湪灞曞紑涓斿彲瑙佹椂婊氬姩锛岄伩鍏嶇┖杞?
+        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { StopLyricsScroll(); return; } // 浠呭湪灞曞紑涓斿彲瑙佹椂婊氬姩锛岄伩鍏嶇┖杞?
         index = Math.Clamp(index, 0, LyricsList.Items.Count - 1);
         var container = LyricsList.ItemContainerGenerator.ContainerFromIndex(index) as FrameworkElement;
         if (container is null) return;
@@ -2456,24 +2454,40 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 鐩爣涓庡綋鍓嶅崄鍒嗘帴杩戯細鐩存帴钀戒綅锛屼笉鍐嶅惎鍔ㄧ敾锛堥伩鍏嶉珮棰戝垏鍙ユ椂鎶栧姩锛?
         if (Math.Abs(target - viewer.VerticalOffset) < 0.5)
         {
-            _lyricsScrollTimer.Stop();
+            StopLyricsScroll();
             return;
         }
         _lyricsScrollTarget = target;
         _lyricsScrollFrom = viewer.VerticalOffset;
         _lyricsScrollStartUtc = DateTime.UtcNow;
-        if (!_lyricsScrollTimer.IsEnabled) _lyricsScrollTimer.Start();
+        StartLyricsScroll();
     }
 
     /// <summary>
     /// 骞虫粦婊氬姩锛氭椂闂村熀鍑嗕笁娆＄紦鍑猴紙涓庡抚鐜囨棤鍏筹紝60fps / 120Hz 鏄剧ず鍣ㄨ〃鐜颁竴鑷淬€佷笣婊戣繛璐級銆?
     /// 蹇€熻繛缁垏鍙ユ椂浠ユ渶杩戜竴娆＄洰鏍囬噸鏂拌捣绠楋紝涓嶄細鈥滀竴鍔ㄤ竴鍋溾€濄€?
     /// </summary>
+    /// <summary>歌词滚动改为合成帧事件驱动，与显示器刷新率同步。</summary>
+    private void StartLyricsScroll()
+    {
+        if (_lyricsScrollRendering) return;
+        _lyricsScrollRendering = true;
+        System.Windows.Media.CompositionTarget.Rendering += OnLyricsScrollRendering;
+    }
+
+    private void StopLyricsScroll()
+    {
+        if (!_lyricsScrollRendering) return;
+        _lyricsScrollRendering = false;
+        System.Windows.Media.CompositionTarget.Rendering -= OnLyricsScrollRendering;
+    }
+
+    private void OnLyricsScrollRendering(object? sender, EventArgs e) => SmoothScrollStep();
     private void SmoothScrollStep()
     {
         if (!_vm.IsExpanded || !IsVisible || !IsLoaded || LyricsList.Items.Count == 0)
         {
-            _lyricsScrollTimer.Stop();
+            StopLyricsScroll();
             return;
         }
         var viewer = LyricsScroll;
@@ -2485,7 +2499,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (t >= 1)
         {
             viewer.ScrollToVerticalOffset(_lyricsScrollTarget); // 绮剧‘钀戒綅锛屾秷闄ょ疮璁¤宸?
-            _lyricsScrollTimer.Stop();
+            StopLyricsScroll();
         }
     }
 }
