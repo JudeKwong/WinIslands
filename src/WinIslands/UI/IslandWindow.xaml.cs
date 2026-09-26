@@ -1395,6 +1395,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase, from: fromHeight);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
+        sb.Completed += (_, _) =>
+        {
+            if (ReferenceEquals(_currentStoryboard, sb)) _currentStoryboard = null;
+        };
         sb.Begin();
     }
 
