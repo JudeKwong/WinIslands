@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.8.9（正式版 / Stable）
+### 更新内容
+
+- **歌词画刷去重**：均分歌词模式仅在颜色变化时更新画刷，减少无效重绘
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.8.8（正式版 / Stable）
 ### 更新内容
 
@@ -182,6 +190,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.8.9 (Stable)
+### What's New
+
+- **歌词画刷去重**: Updates fallback lyric brushes only when colors change to avoid redundant redraws
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

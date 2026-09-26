@@ -407,9 +407,10 @@ public class KaraokeTextBlock : TextBlock
             _restRun.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
         }
 
-        _litBrush!.Color = hl;
-        _blendBrush!.Color = litChars < len ? Lerp(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
-        _restBrush!.Color = bs;
+        if (!ColorEqual(_litBrush!.Color, hl)) _litBrush.Color = hl;
+        var blendColor = litChars < len ? Lerp(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
+        if (!ColorEqual(_blendBrush!.Color, blendColor)) _blendBrush.Color = blendColor;
+        if (!ColorEqual(_restBrush!.Color, bs)) _restBrush.Color = bs;
     }
 
     /// <summary>播放位置是否落在本句某个字的起止区间内（该行是否处于正在点亮的状态）。</summary>
