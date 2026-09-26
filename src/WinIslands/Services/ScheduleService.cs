@@ -28,8 +28,6 @@ public sealed class ScheduleService : IDisposable
         Load();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
         _timer.Tick += (_, _) => Check();
-        _timer.Start();
-        Check();
     }
 
     /// <summary>按需启停后台轮询：仅当日程组件显示或需要到点提醒时运行，避免空闲空转。</summary>

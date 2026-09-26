@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.8（正式版 / Stable）
+### 更新内容
+
+- **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
+- **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
+- **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.8 (Stable)
+### What's New
+
+- **⏱ Lazy Optional Services**: Schedule and calendar timers start only after their features are enabled
+- **⚡ Lower Startup Overhead**: No 20/30-second polling when schedule and calendar are unused
+- **✅ Regression Testing**: All 212 unit tests passed
+
+---
 ## WinIslands 1.6.7（正式版 / Stable）
 ### 更新内容
 

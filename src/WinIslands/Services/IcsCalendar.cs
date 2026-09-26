@@ -34,7 +34,6 @@ public sealed class CalendarService : IDisposable
     {
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _timer.Tick += (_, _) => Refresh();
-        _timer.Start();
     }
 
     /// <summary>按需启停后台轮询：总开关关闭或未配置 .ics 路径时停止 30 秒定时器，避免空转。</summary>
