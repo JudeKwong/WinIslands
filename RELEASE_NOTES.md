@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.9.7（正式版 / Stable）
+### 更新内容
+
+- **动画时间线精简**：子时间线不再重复设置帧率，并复用已测量的紧凑尺寸目标，减少动画创建开销
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.9.6（正式版 / Stable）
 ### 更新内容
 
@@ -246,6 +254,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.9.7 (Stable)
+### What's New
+
+- **动画时间线精简**: Removes duplicate per-child frame-rate setup and reuses measured compact targets to reduce animation setup work
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

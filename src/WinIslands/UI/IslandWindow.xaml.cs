@@ -1186,7 +1186,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
             brush.Color = to;
         };
-        AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode);
         brush.BeginAnimation(SolidColorBrush.ColorProperty, anim);
     }
 
@@ -1416,8 +1415,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 鍋滄鍓嶄竴涓姩鐢伙紙AnimateCard 鎴?AnimateCompactSize锛夛紝閬垮厤涓や釜 Storyboard 鍚屾椂鍐?Card 灏哄
         _currentStoryboard?.Stop();
         var sb = new Storyboard();
-        AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase, from: fromWidth);
-        AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase, from: fromHeight);
+        AddAnim(sb, Card, FrameworkElement.WidthProperty, targetWidth, (int)dur, styleEase, from: fromWidth);
+        AddAnim(sb, Card, FrameworkElement.HeightProperty, targetHeight, (int)dur, styleEase, from: fromHeight);
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _compactAnimationValid = true;
         _compactAnimationWidth = targetWidth;
@@ -2361,7 +2360,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         };
         Storyboard.SetTarget(anim, target);
         Storyboard.SetTargetProperty(anim, GetAnimationPath(prop));
-        AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode); // 120 FPS 鐩爣甯х巼
         if (from is double value && double.IsFinite(value)) anim.From = value;
         sb.Children.Add(anim);
     }
@@ -2436,7 +2434,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var card = (_theme.CardBorder as SolidColorBrush)?.Color ?? System.Windows.Media.Color.FromArgb(60, 255, 255, 255);
             var brush = new SolidColorBrush(on ? card : accent);
             var anim = new ColorAnimation(on ? accent : card, TimeSpan.FromMilliseconds(200));
-            AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode);
             if (!on)
             {
                 // 杩樺師涓婚缁戝畾蹇呴』绛夐鑹插姩鐢绘挱瀹屽啀鎵ц锛歋etBinding 浼氱珛鍒绘浛鎹?BorderBrush 鐨勬湰鍦板€硷紝
