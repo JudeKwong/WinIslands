@@ -421,6 +421,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     // ���滺�棺ͬһ·��ֻ����һ�β����ã�SMTC/Cider ÿ���ϱ�ͬһ���棬���ⷴ�� IO + �ڴ涶����
     private readonly Dictionary<string, ImageSource> _artworkCache = new(StringComparer.OrdinalIgnoreCase);
     private const int ArtworkCacheMax = 12; // ���ڷ������ޣ�������̭��ɣ���ֹ��������
+    private string _pushImageCacheKey = string.Empty;
+    private ImageSource? _pushImageCache;
     public ImageSource? Artwork { get => _artwork; private set => Set(ref _artwork, value); }
 
     // ���� Playback ����������������������������������������������������������������������������������������������
@@ -1427,12 +1429,21 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var img = ActivePush?.Image;
-            if (string.IsNullOrWhiteSpace(img)) return null;
-            if (img.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+        var img = ActivePush?.Image;
+        if (string.IsNullOrWhiteSpace(img))
+        {
+            _pushImageCacheKey = string.Empty;
+            _pushImageCache = null;
+            return null;
+        }
+        if (string.Equals(img, _pushImageCacheKey, StringComparison.Ordinal)) return _pushImageCache;
+
+        ImageSource? result = null;
+        if (img.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+        {
+            var idx = img.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
+            if (idx >= 0)
             {
-                var idx = img.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
-                if (idx < 0) return null;
                 try
                 {
                     var b64 = img.Substring(idx + 7).Trim();
@@ -1446,29 +1457,33 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                     bmp.StreamSource = ms;
                     bmp.EndInit();
                     bmp.Freeze();
-                    return bmp;
+                    result = bmp;
                 }
-                catch { return null; }
+                catch { result = null; }
             }
-            if (img.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                img.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.CacheOption = BitmapCacheOption.OnDemand;
-                    bmp.DecodePixelWidth = 512;
-                    bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-                    bmp.UriSource = new Uri(img, UriKind.Absolute);
-                    bmp.EndInit();
-                    bmp.Freeze();
-                    return bmp;
-                }
-                catch { return null; }
-            }
-            return null;
         }
+        else if (img.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                 img.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnDemand;
+                bmp.DecodePixelWidth = 512;
+                bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                bmp.UriSource = new Uri(img, UriKind.Absolute);
+                bmp.EndInit();
+                bmp.Freeze();
+                result = bmp;
+            }
+            catch { result = null; }
+        }
+
+        _pushImageCacheKey = img;
+        _pushImageCache = result;
+        return result;
+    }
     }
     public bool ActivePushHasButtons => ActivePush?.Buttons is { Count: > 0 };
     public IReadOnlyList<IslandPushButton> ActivePushButtons

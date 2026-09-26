@@ -15,6 +15,7 @@ namespace WinIslands.Services;
 public static class ArtworkCache
 {
     private static readonly HttpClient Http = CreateClient();
+    private static readonly object IoGate = new();
 
     private static HttpClient CreateClient()
     {
@@ -34,21 +35,32 @@ public static class ArtworkCache
     /// <summary>Save raw image bytes to the cache and return the file path.</summary>
     public static string SaveBytes(byte[] data, string key)
     {
+        string? tmp = null;
         try
         {
             var ext = SniffExtension(data);
             var path = Path.Combine(AppPaths.ThumbCacheDir, $"{key}{ext}");
-            File.WriteAllBytes(path, data);
+            lock (IoGate)
+            {
+                if (File.Exists(path) && new FileInfo(path).Length > 0) return path;
+                tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                File.WriteAllBytes(tmp, data);
+                File.Move(tmp, path, overwrite: true);
+                tmp = null;
+            }
             return path;
         }
         catch (Exception ex)
         {
+            if (tmp is not null)
+            {
+                try { File.Delete(tmp); } catch { }
+            }
             AppLogger.Warn($"ArtworkCache.SaveBytes failed: {ex.Message}");
             return string.Empty;
         }
     }
 
-    /// <summary>Download a remote image (Cider artwork). Returns local path or "" on failure.</summary>
     public static async Task<string> DownloadAsync(string url, string key, CancellationToken ct = default)
     {
         try
