@@ -2255,33 +2255,46 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var blocks = _cascadeBlocks;
         if (expand)
         {
-            for (int i = 0; i < blocks.Length; i++)
+            if (_settings.Current.LowPowerMode)
             {
-                var (el, tr) = blocks[i];
-                el.Opacity = 0;   // 閲嶇疆鍏ュ満璧风偣锛屼繚璇佹瘡娆″睍寮€閮戒粠绌虹櫧寮€濮嬮敊宄板嚭鐜?
-                tr.Y = 12;
-                var delay = TimeSpan.FromMilliseconds((90 + i * 70) * lm);
-                AddAnim(sb, el, UIElement.OpacityProperty, 1, (int)(340 * lm), smooth, delay);
-                AddAnim(sb, tr, TranslateTransform.YProperty, 0, (int)(420 * lm), smooth, delay);
+                ApplyCascadeState(1, 0);
+                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(260 * lm), smooth);
             }
-            // 瀹瑰櫒娣″叆锛岃鐩栨暣涓氦閿欒繃绋嬶紙鍐呭鍑虹幇鏃舵暣浣撴洿鏌斿拰锛?
-            AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(460 * lm), smooth, TimeSpan.FromMilliseconds(90 * lm));
+            else
+            {
+                for (int i = 0; i < blocks.Length; i++)
+                {
+                    var (el, tr) = blocks[i];
+                    el.Opacity = 0;
+                    tr.Y = 12;
+                    var delay = TimeSpan.FromMilliseconds((90 + i * 70) * lm);
+                    AddAnim(sb, el, UIElement.OpacityProperty, 1, (int)(340 * lm), smooth, delay);
+                    AddAnim(sb, tr, TranslateTransform.YProperty, 0, (int)(420 * lm), smooth, delay);
+                }
+                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(460 * lm), smooth, TimeSpan.FromMilliseconds(90 * lm));
+            }
         }
         else
         {
-            for (int i = 0; i < blocks.Length; i++)
+            if (_settings.Current.LowPowerMode)
             {
-                var (el, tr) = blocks[i];
-                // 鏀惰捣锛氬厛鏀跺熬閮ㄥ尯鍧楋紝鍐嶆敹椤堕儴鍖哄潡锛堜笌灞曞紑椤哄簭鐩稿弽锛?
-                var delay = TimeSpan.FromMilliseconds((blocks.Length - 1 - i) * 55 * lm);
-                AddAnim(sb, el, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth, delay);
-                AddAnim(sb, tr, TranslateTransform.YProperty, 14, (int)(220 * lm), smooth, delay);
+                ApplyCascadeState(0, 10);
+                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth);
+                PillRow.Opacity = 1;
             }
-            // 瀹瑰櫒鍦ㄥ尯鍧楀熀鏈贰鍑哄悗鍐嶆暣浣撴贰鍑猴紝閬垮厤鍐呭娈嬬暀
-            AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(240 * lm), smooth,
-                TimeSpan.FromMilliseconds((blocks.Length * 55 + 150) * lm));
-            // 鑳跺泭琛岋細宸茬敱 Collapse 鎭㈠涓哄畬鍏ㄤ笉閫忔槑锛屼綔涓烘贰鍑鸿繃绋嬩腑鐨勫簳灞傛壙鎺ュ唴瀹?
-            PillRow.Opacity = 1;
+            else
+            {
+                for (int i = 0; i < blocks.Length; i++)
+                {
+                    var (el, tr) = blocks[i];
+                    var delay = TimeSpan.FromMilliseconds((blocks.Length - 1 - i) * 55 * lm);
+                    AddAnim(sb, el, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth, delay);
+                    AddAnim(sb, tr, TranslateTransform.YProperty, 14, (int)(220 * lm), smooth, delay);
+                }
+                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(240 * lm), smooth,
+                    TimeSpan.FromMilliseconds((blocks.Length * 55 + 150) * lm));
+                PillRow.Opacity = 1;
+            }
         }
 
         // 鑳跺泭琛岋細灞曞紑鍚庢贰鍑猴紙鐢卞ぇ鍥惧尯鎺ョ锛夛紱鏀惰捣鏃剁珛鍗虫仮澶嶅畬鍏ㄤ笉閫忔槑锛?
