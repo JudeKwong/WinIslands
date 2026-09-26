@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.7.7（正式版 / Stable）
+### 更新内容
+
+- **跑马灯去重**：文本和可视宽度未变化时不再重复测量或重启滚动动画
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.7.6（正式版 / Stable）
 ### 更新内容
 
@@ -86,6 +94,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.7 (Stable)
+### What's New
+
+- **跑马灯去重**: Skips remeasure and marquee restarts when text and viewport width are unchanged
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

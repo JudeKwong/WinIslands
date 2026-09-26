@@ -35,6 +35,15 @@ public static class Marquee
     // 文本属性监听（TextBlock.Text / KaraokeTextBlock.KaraokeText）
     private static readonly DependencyPropertyDescriptor TextDescriptor =
         DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+    private sealed class MarqueeState
+    {
+        public string Text = string.Empty;
+        public double ViewWidth;
+        public bool Running;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, MarqueeState> States = new();
+
     private static readonly DependencyPropertyDescriptor KaraokeTextDescriptor =
         DependencyPropertyDescriptor.FromProperty(KaraokeTextBlock.KaraokeTextProperty, typeof(KaraokeTextBlock));
 
@@ -91,9 +100,12 @@ public static class Marquee
             if (!fe.IsLoaded || !fe.IsVisible) { StopMarquee(fe); return; }
             if (fe is not TextBlock tb) { StopMarquee(fe); return; }
 
+            var state = States.GetValue(fe, static _ => new MarqueeState());
             var text = tb is KaraokeTextBlock kt ? (kt.KaraokeText ?? string.Empty) : (tb.Text ?? string.Empty);
             var viewW = tb.ActualWidth;
             if (viewW <= 1 || text.Length == 0) { StopMarquee(fe); return; }
+            if (state.Running && !GetPause(fe) && string.Equals(state.Text, text, StringComparison.Ordinal) && Math.Abs(state.ViewWidth - viewW) < 0.5)
+                return;
 
             var textW = MeasureTextWidth(tb, text);
             if (textW <= viewW + 2) { StopMarquee(fe); return; } // 不超宽则不滚动
@@ -118,6 +130,9 @@ public static class Marquee
                 RepeatBehavior = RepeatBehavior.Forever,
             };
             AnimationFrameRate.Apply(anim, lowPowerMode: false);
+            state.Text = text;
+            state.ViewWidth = viewW;
+            state.Running = true;
             tt.BeginAnimation(TranslateTransform.XProperty, anim);
         }
         catch
@@ -128,6 +143,7 @@ public static class Marquee
 
     private static void StopMarquee(FrameworkElement fe)
     {
+        if (States.TryGetValue(fe, out var state)) state.Running = false;
         if (fe.RenderTransform is TranslateTransform tt)
             tt.BeginAnimation(TranslateTransform.XProperty, null);
     }
