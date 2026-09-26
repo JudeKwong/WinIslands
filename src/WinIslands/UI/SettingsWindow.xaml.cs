@@ -103,6 +103,7 @@ public partial class SettingsWindow : Window
         Closed += (_, _) =>
         {
             try { _vm.Save(); } catch { }
+            try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
             try { Localization.LanguageChanged -= _onLanguageChanged; } catch { }
         };

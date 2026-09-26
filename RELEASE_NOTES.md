@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.3.9（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 修复设置窗口订阅泄漏**：设置窗口关闭时退订静态语言事件并释放 SettingsViewModel，避免反复打开设置后长期累积内存
+- **🔒 窗口生命周期加固**：关闭设置窗口时统一保存、退订和释放资源
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.9 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Fixed Settings Window Subscription Leak**: The settings view model now unsubscribes from static language events and is disposed on close
+- **🔒 Hardened Window Lifecycle**: Save, unsubscribe, and release resources consistently when the settings window closes
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.8（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -667,6 +692,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.3.9（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 修复设置窗口订阅泄漏**：设置窗口关闭时退订静态语言事件并释放 SettingsViewModel，避免反复打开设置后长期累积内存
+- **🔒 窗口生命周期加固**：关闭设置窗口时统一保存、退订和释放资源
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.9 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Fixed Settings Window Subscription Leak**: The settings view model now unsubscribes from static language events and is disposed on close
+- **🔒 Hardened Window Lifecycle**: Save, unsubscribe, and release resources consistently when the settings window closes
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.8（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

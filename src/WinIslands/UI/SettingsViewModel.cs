@@ -1,4 +1,4 @@
-﻿using WinIslands.Services;
+using WinIslands.Services;
 
 namespace WinIslands.UI;
 
@@ -174,6 +174,7 @@ public sealed class QuickActionRow : ObservableObject
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService _service;
+    private readonly EventHandler _onLanguageChanged;
 
     public SettingsViewModel(SettingsService service, MediaAppRegistry? registry = null)
     {
@@ -247,18 +248,24 @@ public sealed class SettingsViewModel : ObservableObject
         _mediaAppRows = BuildMediaApps(Working.MediaApps, registry);
         _ruleRows = (Working.Rules ?? new List<AppRule>()).Select(r => new RuleRow(r)).ToList();
         RebuildQuickActionRows();
-        Localization.LanguageChanged += (_, _) =>
+        _onLanguageChanged = (_, _) =>
         {
             foreach (var r in Components) r.RefreshName();
             foreach (var o in OrderItems) o.RefreshName();
             foreach (var q in _quickActionRows) q.RefreshName();
         };
+        Localization.LanguageChanged += _onLanguageChanged;
 
         PresetColors = new[]
         {
             "#6C5CE7", "#5B8DEF", "#00B894", "#E17055", "#E84393", "#FDCB6E",
             "#00CEC9", "#A29BFE", "#FD79A8", "#55EFC4", "#74B9FF", "#DFE6E9",
         };
+    }
+
+    public void Dispose()
+    {
+        Localization.LanguageChanged -= _onLanguageChanged;
     }
 
     public AppSettings Working { get; }
