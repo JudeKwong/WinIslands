@@ -1176,6 +1176,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var brush = new SolidColorBrush(from);
         target.SetValue(prop, brush);
         var anim = new ColorAnimation(to, dur) { EasingFunction = ease };
+        anim.Completed += (_, _) =>
+        {
+            brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
+            brush.Color = to;
+        };
         AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode);
         brush.BeginAnimation(SolidColorBrush.ColorProperty, anim);
     }
