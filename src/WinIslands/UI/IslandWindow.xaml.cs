@@ -255,6 +255,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private ImageSource? _lastSampledArtwork;
     private System.Windows.Media.Color? _lastSampledColor;                        // 鍛煎惛鐩镐綅璧风偣
     private bool _tintRenderingSubscribed;
+    private DispatcherTimer? _tintTimer;
     private static readonly CubicEase CachedCubicEaseOut = CreateCubicEase(EasingMode.EaseOut);
     private static readonly CubicEase CachedCubicEaseIn = CreateCubicEase(EasingMode.EaseIn);
     private static readonly SpringEase CachedSpringEase = FreezeEase(new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 });
@@ -1882,12 +1883,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void SubscribeTintRendering(bool subscribe)
     {
         if (subscribe == _tintRenderingSubscribed) return;
-        if (subscribe) CompositionTarget.Rendering += OnTintFrame;
-        else CompositionTarget.Rendering -= OnTintFrame;
         _tintRenderingSubscribed = subscribe;
+        if (_tintTimer is null)
+        {
+            _tintTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _tintTimer.Tick += OnTintFrame;
+        }
+        if (subscribe) _tintTimer.Start();
+        else _tintTimer.Stop();
     }
 
-    /// <summary>姣忓抚锛氬彇鑹插眰 Alpha 鍦?0.85~0.97 涔嬮棿缂撴參鍛煎惛锛堢害 18s 涓€涓懆鏈燂級锛屼笣婊戜笉璺冲彉銆?/summary>
     private void OnTintFrame(object? sender, EventArgs e)
     {
         if (!_vm.IsExpanded || !_settings.Current.CoverTintBackground || _vm.Artwork is null || _tintStop0 is null)

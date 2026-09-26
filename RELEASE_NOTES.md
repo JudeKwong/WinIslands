@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.7（正式版 / Stable）
+### 更新内容
+
+- **🌈 封面取色性能**：18 秒呼吸动画由每帧合成回调改为 10Hz 定时刷新
+- **⚡ 无效写入减少**：仅在透明度字节变化时更新渐变颜色
+- **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.7 (Stable)
+### What's New
+
+- **🌈 Cover Tint Performance**: Slow breathing animation now updates at 10 Hz instead of every composition frame
+- **⚡ Fewer Invalid Writes**: Gradient color changes only when the alpha byte actually changes
+- **✅ Regression Testing**: All 212 unit tests passed
+
+---
 ## WinIslands 1.6.6（正式版 / Stable）
 ### 更新内容
 
