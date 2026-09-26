@@ -12,6 +12,7 @@
         ResizeMode="NoResize"
         Width="400" Height="400"
         UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
         SnapsToDevicePixels="True"
         RenderOptions.BitmapScalingMode="HighQuality"
         RenderOptions.EdgeMode="Unspecified">
@@ -112,7 +113,7 @@
                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                     <DataTrigger.EnterActions>
                         <BeginStoryboard>
-                            <Storyboard>
+                            <Storyboard Timeline.DesiredFrameRate="120">
                                 <DoubleAnimation Storyboard.TargetProperty="FontSize" To="20" Duration="0:0:0.2">
                                     <DoubleAnimation.EasingFunction>
                                         <CubicEase EasingMode="EaseOut"/>
@@ -128,7 +129,7 @@
                     </DataTrigger.EnterActions>
                     <DataTrigger.ExitActions>
                         <BeginStoryboard>
-                            <Storyboard>
+                            <Storyboard Timeline.DesiredFrameRate="120">
                                 <DoubleAnimation Storyboard.TargetProperty="FontSize" To="13" Duration="0:0:0.2">
                                     <DoubleAnimation.EasingFunction>
                                         <CubicEase EasingMode="EaseOut"/>
@@ -471,7 +472,7 @@
                                 <DataTemplate.Triggers>
                                     <EventTrigger RoutedEvent="FrameworkElement.Loaded">
                                         <BeginStoryboard>
-                                            <Storyboard>
+                                            <Storyboard Timeline.DesiredFrameRate="120">
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.22">
                                                     <DoubleAnimation.EasingFunction>
                                                         <CubicEase EasingMode="EaseOut"/>
@@ -488,7 +489,7 @@
                                     <DataTrigger Binding="{Binding DataContext.VolumeTempFading, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
                                         <DataTrigger.EnterActions>
                                             <BeginStoryboard>
-                                                <Storyboard>
+                                                <Storyboard Timeline.DesiredFrameRate="120">
                                                     <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.26">
                                                         <DoubleAnimation.EasingFunction>
                                                             <CubicEase EasingMode="EaseIn"/>

@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.4（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎞️ 全局 120 FPS 动画**：为剩余 4 个 XAML Storyboard 补齐 `Timeline.DesiredFrameRate=120`
+- **⚡ 文本排版优化**：主窗口启用 `TextOptions.TextFormattingMode=Display`，降低文本布局开销
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.4 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎞️ Global 120 FPS Animation Coverage**: Added `Timeline.DesiredFrameRate=120` to the remaining four XAML storyboards
+- **⚡ Text Layout Optimization**: Enabled `TextOptions.TextFormattingMode=Display` on the main window
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.3（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -794,6 +819,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.4（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎞️ 全局 120 FPS 动画**：为剩余 4 个 XAML Storyboard 补齐 `Timeline.DesiredFrameRate=120`
+- **⚡ 文本排版优化**：主窗口启用 `TextOptions.TextFormattingMode=Display`，降低文本布局开销
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.4 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎞️ Global 120 FPS Animation Coverage**: Added `Timeline.DesiredFrameRate=120` to the remaining four XAML storyboards
+- **⚡ Text Layout Optimization**: Enabled `TextOptions.TextFormattingMode=Display` on the main window
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.3（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
