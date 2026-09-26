@@ -2057,7 +2057,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Storyboard.SetTarget(fade, this);
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
-        sb.Completed += (_, _) => { if (!_vm.IsVisible) Hide(); };
+        sb.Completed += (_, _) =>
+        {
+            BeginAnimation(OpacityProperty, null);
+            Opacity = 0;
+            if (!_vm.IsVisible) Hide();
+        };
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
@@ -2072,6 +2077,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Storyboard.SetTarget(fade, this);
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
+        sb.Completed += (_, _) =>
+        {
+            BeginAnimation(OpacityProperty, null);
+            Opacity = to;
+        };
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
