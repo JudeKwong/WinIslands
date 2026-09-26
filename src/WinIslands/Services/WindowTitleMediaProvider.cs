@@ -19,72 +19,93 @@ public sealed class WindowTitleMediaProvider
         "listen1", "yesplaymusic",
     };
 
+    private readonly object _cacheGate = new();
+    private List<Process> _cachedPlayers = new();
+    private DateTime _cacheExpiresUtc = DateTime.MinValue;
+
     public MediaSnapshot? GetSnapshot()
     {
-        Process[] procs;
-        try { procs = Process.GetProcesses(); }
-        catch (Exception ex) { AppLogger.Warn($"WindowTitle enumerate failed: {ex.Message}"); return null; }
-
-        try
+        var players = GetCachedPlayers();
+        foreach (var proc in players)
         {
-            foreach (var proc in procs)
+            try
             {
-                // Process 对象持有进程句柄：每 5 秒扫描一次且数量可达数百，
-                // 必须逐个 Dispose，否则长期运行会累积句柄导致不稳定。
-                try
+                string procName;
+                try { procName = proc.ProcessName; }
+                catch { continue; }
+
+                IntPtr hwnd;
+                try { hwnd = proc.MainWindowHandle; }
+                catch { continue; }
+                if (hwnd == IntPtr.Zero) continue;
+
+                string title;
+                try { title = proc.MainWindowTitle; }
+                catch { continue; }
+                if (string.IsNullOrWhiteSpace(title) || title.Length > 120) continue;
+
+                var (artist, track) = ParseTitle(title);
+                if (track.Length == 0) continue;
+
+                var trackInfo = new TrackInfo(track, artist, string.Empty, string.Empty,
+                    FriendlyName(procName), procName, string.Empty, string.Empty, TimeSpan.Zero);
+                return new MediaSnapshot
                 {
-                    string procName;
-                    try { procName = proc.ProcessName; }
-                    catch { continue; }
-
-                    if (!IsKnownPlayer(procName)) continue;
-
-                    IntPtr hwnd;
-                    try { hwnd = proc.MainWindowHandle; }
-                    catch { continue; }
-                    if (hwnd == IntPtr.Zero) continue;
-
-                    string title;
-                    try { title = proc.MainWindowTitle; }
-                    catch { continue; }
-
-                    if (string.IsNullOrWhiteSpace(title) || title.Length > 120) continue;
-
-                    var (artist, track) = ParseTitle(title);
-                    if (track.Length == 0) continue;
-
-                    var trackInfo = new TrackInfo(track, artist, string.Empty, string.Empty,
-                        FriendlyName(procName), procName, string.Empty, string.Empty, TimeSpan.Zero);
-                    return new MediaSnapshot
-                    {
-                        Track = trackInfo,
-                        Source = MediaSourceKind.WindowTitle,
-                        Status = PlaybackStatus.Playing,
-                        CanPlayPause = false,
-                        CanNext = false,
-                        CanPrevious = false,
-                        CanSeek = false,
-                        HasVolumeControl = false,
-                        HasLyrics = false,
-                    };
-                }
-                finally
-                {
-                    proc.Dispose();
-                }
+                    Track = trackInfo,
+                    Source = MediaSourceKind.WindowTitle,
+                    Status = PlaybackStatus.Playing,
+                    CanPlayPause = false,
+                    CanNext = false,
+                    CanPrevious = false,
+                    CanSeek = false,
+                    HasVolumeControl = false,
+                    HasLyrics = false,
+                };
             }
+            catch { }
         }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"WindowTitle scan failed: {ex.Message}");
-        }
-        finally
-        {
-            foreach (var p in procs) { try { p.Dispose(); } catch { /* ignore */ } }
-        }
-
         return null;
     }
+
+    private List<Process> GetCachedPlayers()
+    {
+        lock (_cacheGate)
+        {
+            if (DateTime.UtcNow < _cacheExpiresUtc) return _cachedPlayers.ToList();
+
+            var refreshed = new List<Process>();
+            try
+            {
+                foreach (var process in Process.GetProcesses())
+                {
+                    try
+                    {
+                        if (IsKnownPlayer(process.ProcessName) && process.MainWindowHandle != IntPtr.Zero)
+                            refreshed.Add(process);
+                        else
+                            process.Dispose();
+                    }
+                    catch
+                    {
+                        try { process.Dispose(); } catch { }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn($"WindowTitle enumerate failed: {ex.Message}");
+            }
+
+            foreach (var old in _cachedPlayers) { try { old.Dispose(); } catch { } }
+            _cachedPlayers = refreshed;
+            _cacheExpiresUtc = DateTime.UtcNow + ResolveCacheDuration(refreshed.Count);
+            return _cachedPlayers.ToList();
+        }
+    }
+
+    internal static TimeSpan ResolveCacheDuration(int playerCount)
+        => TimeSpan.FromSeconds(playerCount > 0 ? 15 : 2);
+
 
     private static bool IsKnownPlayer(string processName)
     {

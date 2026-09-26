@@ -16,4 +16,11 @@ public class WindowTitleParsingTests
         Assert.Equal(artist, a);
         Assert.Equal(title, t);
     }
+
+    [Theory]
+    [InlineData(0, 2)]
+    [InlineData(1, 15)]
+    [InlineData(3, 15)]
+    public void ResolveCacheDuration_UsesAdaptiveIntervals(int players, int seconds)
+        => Assert.Equal(TimeSpan.FromSeconds(seconds), WindowTitleMediaProvider.ResolveCacheDuration(players));
 }

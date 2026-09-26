@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.6（正式版 / Stable）
+### 更新内容
+
+- **🎵 窗口媒体兜底优化**：缓存已知播放器 Process 列表，有播放器时每 15 秒刷新，无播放器时每 2 秒检测启动
+- **🧹 重复释放修复**：移除进程列表的重复 Dispose，并保持句柄及时释放
+- **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.6 (Stable)
+### What's New
+
+- **🎵 Window-title Media Fallback Optimization**: Cache known player processes with adaptive 2/15-second refresh intervals
+- **🧹 Duplicate Disposal Fix**: Remove duplicate Process disposal while retaining timely handle cleanup
+- **✅ Regression Testing**: All 212 unit tests passed
+
+---
 ## WinIslands 1.6.5（正式版 / Stable）
 ### 更新内容
 
