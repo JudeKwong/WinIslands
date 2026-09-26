@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -2139,9 +2139,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     {
         // �á�����+����+ר�����жϻ��������������� TrackInfo �ṹ��ȣ�
         // ���� URL ���ֶζ�����Ӧ������������������ý��Ȳ��Ѹ�ʴ�ؿ�ͷ����
+        var previous = _snapshot;
         var trackChanged = _snapshot is null ||
             LyricsService.TrackKey(_snapshot.Track) != LyricsService.TrackKey(snapshot.Track);
         var firstTrack = _snapshot is null;
+        var durationChanged = previous is null || Math.Abs(previous.DurationSeconds - snapshot.DurationSeconds) >= 0.01;
+        var volumeChanged = previous is null || previous.HasVolumeControl != snapshot.HasVolumeControl || !Nullable.Equals(previous.Volume, snapshot.Volume);
         _snapshot = snapshot;
         if (firstTrack && !_progressTimer.IsEnabled) _progressTimer.Start(); // ��ý����ܽ��Ȳ�ֵ������ͣ��
         if (trackChanged && !firstTrack && !string.IsNullOrEmpty(snapshot.Track.Title))
@@ -2181,7 +2184,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         DurationSeconds = snapshot.DurationSeconds;
         // ��ͣʱ����һ��λ�ã�����/�˳���ɻָ���
         if (Status == PlaybackStatus.Paused && prevStatus != PlaybackStatus.Paused) SavePlaybackState();
-        OnPropertyChanged(nameof(DurationText));
+        if (durationChanged) OnPropertyChanged(nameof(DurationText));
         var hasRealPosition = snapshot.DurationSeconds > 0 || snapshot.PositionSeconds > 0;
         var reported = Math.Max(0, snapshot.PositionSeconds);
         if (snapshot.DurationSeconds > 0) reported = Math.Min(reported, snapshot.DurationSeconds); // �������ϱ�ֵ��Խ��
@@ -2263,8 +2266,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _suppressVolume = true;
         Volume = snapshot.Volume ?? 0;
         _suppressVolume = false;
-        _wave.SetPlaying(IsPlaying);
-        OnPropertyChanged(nameof(VolumeText));
+        var statusChanged = prevStatus != Status;
+        if (statusChanged) _wave.SetPlaying(IsPlaying);
+        if (volumeChanged) OnPropertyChanged(nameof(VolumeText));
 
         if (snapshot.Track.ArtworkPath.Length > 0)
             Artwork = GetArtwork(snapshot.Track.ArtworkPath);
@@ -2274,12 +2278,15 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (trackChanged)
             _ = LoadLyricsAsync(snapshot);
 
-        OnPropertyChanged(nameof(IsPlaying));
-        OnPropertyChanged(nameof(IsPaused));
-        OnPropertyChanged(nameof(PlayPauseGlyph));
+        if (statusChanged)
+        {
+            OnPropertyChanged(nameof(IsPlaying));
+            OnPropertyChanged(nameof(IsPaused));
+            OnPropertyChanged(nameof(PlayPauseGlyph));
+        }
         OnPropertyChanged(nameof(Position));
-        OnPropertyChanged(nameof(HasLyrics));
-        UpdateVisibility();
+        if (trackChanged) OnPropertyChanged(nameof(HasLyrics));
+        if (trackChanged || statusChanged || previous?.Source != snapshot.Source) UpdateVisibility();
     }
 
     /// <summary>
