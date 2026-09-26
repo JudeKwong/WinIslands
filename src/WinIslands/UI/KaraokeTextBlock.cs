@@ -87,6 +87,11 @@ public class KaraokeTextBlock : TextBlock
     public KaraokeTextBlock()
     {
         // 120fps：使用 CompositionTarget.Rendering（跟随显示器刷新率），不再用 DispatcherTimer
+        Unloaded += (_, _) => StopAnimation();
+        Loaded += (_, _) =>
+        {
+            if (_hasWords && IsPlaying && IsVisible && !_renderingSubscribed) StartAnimation();
+        };
         IsVisibleChanged += (_, _) =>
         {
             if (!IsVisible) { StopAnimation(); return; }
