@@ -46,6 +46,8 @@
     <!-- [瑁佸壀浼樺寲] 瑁佸壀鏈娇鐢ㄧ殑妗嗘灦浠ｇ爜锛屽噺灏忎綋绉?         娉ㄦ剰: WPF 椤圭洰涓嶈兘瀹屽叏瑁佸壀锛坒ull 妯″紡浼氳繍琛屾椂宕╂簝锛?         TrimMode=partial: 浠呰鍓槑纭爣娉ㄤ负鍙鍓殑绋嬪簭闆?         WPF/WinForms 鐩稿叧浠ｇ爜瀹屾暣淇濈暀锛屽畨鍏ㄤ笖鏈夋晥 -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <!-- 覆盖 SDK 对 WinForms/WPF + Trimming 的安全检查
          TrimMode=partial 仅裁剪标注为可裁剪的程序集，WinForms/WPF 代码完整保留 -->
     <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>

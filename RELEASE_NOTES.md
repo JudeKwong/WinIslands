@@ -17,6 +17,7 @@
 
 ### 更新内容
 
+- **🎚 裁剪发布 COM 兼容修复**：重新启用内置 COM，系统音量与 WASAPI 声纹采集恢复正常
 - **🎞 全量动画帧率覆盖**：封面全屏、歌词重点动画、主题色和拖动提示统一接入自适应 60/120 FPS
 - **🔚 日志关闭边界**：日志关闭后拒绝后台迟到写入，避免退出阶段重新打开日志文件
 - **🧩 最终生命周期巡检**：媒体协调器释放过程进一步幂等化
@@ -31,6 +32,7 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ### What's New
 
+- **🎚 Trimmed-build COM Fix**: Re-enabled built-in COM for system volume and WASAPI waveform capture
 - **🎞 Complete Animation Frame-rate Coverage**: Adaptive 60/120 FPS across cover preview, lyric emphasis, tint and drag-hint animations
 - **🔚 Log Shutdown Boundary**: Rejects late background writes after shutdown to prevent reopening the log file
 - **🧩 Final Lifecycle Audit**: Idempotent MediaCoordinator disposal and cleaner shutdown behavior
