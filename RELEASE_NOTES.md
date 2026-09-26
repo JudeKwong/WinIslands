@@ -12,6 +12,30 @@
 
 ## 简体中文
 
+## WinIslands 1.4.8（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **⚡ 媒体变化即时响应**：订阅 SMTC 事件，歌曲切换、播放和暂停状态立即刷新
+- **🔋 空闲轮询降频**：播放中 1 秒刷新，空闲时降为 2 秒，减少后台 CPU 唤醒
+- **🧵 媒体状态线程安全**：当前媒体快照使用原子读写，降低并发状态抖动
+- **✅ 回归测试**：179 项单元测试全部通过
+
+---
+
+## WinIslands 1.4.8 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **⚡ Immediate Media Event Response**: SMTC events refresh track, play and pause state immediately
+- **🔋 Lower Idle Polling**: 1-second refresh during playback and 2-second polling while idle
+- **🧵 Thread-safe Media State**: Atomic snapshot reads/writes reduce cross-thread state races
+- **✅ Regression Testing**: All 179 unit tests passed
+
+---
 ## WinIslands 1.4.7（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 

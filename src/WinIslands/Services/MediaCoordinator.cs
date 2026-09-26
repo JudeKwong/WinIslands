@@ -20,6 +20,8 @@ public sealed class MediaCoordinator : IDisposable
     private readonly SemaphoreSlim _tickLock = new(1, 1);
     private System.Threading.Timer? _timer;
     private int _tick;
+    private int _eventRefreshQueued;
+    private MediaSnapshot? _current;
     private double? _lastSystemVolume;
 
     public MediaCoordinator(SettingsService settings, SmtcMediaProvider smtc, CiderMediaProvider cider,
@@ -32,7 +34,11 @@ public sealed class MediaCoordinator : IDisposable
         _dispatcher = dispatcher;
     }
 
-    public MediaSnapshot? Current { get; private set; }
+    public MediaSnapshot? Current
+    {
+        get => Volatile.Read(ref _current);
+        private set => Volatile.Write(ref _current, value);
+    }
 
     /// <summary>Raised on the UI thread whenever the current snapshot changes.</summary>
     public event EventHandler<MediaSnapshot>? SnapshotChanged;
@@ -46,8 +52,9 @@ public sealed class MediaCoordinator : IDisposable
     public void Start()
     {
         _ = _smtc.StartAsync(_cts.Token);
-        _smtc.SessionsChanged += (_, _) => PublishSessions();
-        _timer = new System.Threading.Timer(_ => _ = TickAsync(), null, TimeSpan.FromMilliseconds(400), TimeSpan.FromSeconds(1));
+        _smtc.SessionsChanged += OnSmtcSessionsChanged;
+        _smtc.SnapshotReady += OnSmtcSnapshotReady;
+        _timer = new System.Threading.Timer(_ => _ = TickAsync(), null, TimeSpan.FromMilliseconds(400), Timeout.InfiniteTimeSpan);
     }
 
     private async Task TickAsync()
@@ -114,7 +121,45 @@ public sealed class MediaCoordinator : IDisposable
         finally
         {
             _tickLock.Release();
+            ScheduleNextTick();
         }
+    }
+
+    private void ScheduleNextTick()
+    {
+        if (_cts.IsCancellationRequested) return;
+        var active = Current is not null || _smtc.HasActiveSession || (_cider.IsEnabled && _cider.Client.IsConnected);
+        try { _timer?.Change(ResolvePollInterval(active), Timeout.InfiniteTimeSpan); }
+        catch (ObjectDisposedException) { }
+    }
+
+    internal static TimeSpan ResolvePollInterval(bool mediaActive)
+        => TimeSpan.FromSeconds(mediaActive ? 1 : 2);
+
+    private void OnSmtcSessionsChanged(object? sender, EventArgs e) => PublishSessions();
+
+    private void OnSmtcSnapshotReady(object? sender, MediaSnapshot snapshot) => QueueEventRefresh();
+
+    private void QueueEventRefresh()
+    {
+        if (Interlocked.Exchange(ref _eventRefreshQueued, 1) == 1) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(25, _cts.Token).ConfigureAwait(false);
+                await TickAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                AppLogger.Debug($"Media event refresh skipped: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _eventRefreshQueued, 0);
+            }
+        });
     }
 
     private async Task<MediaSnapshot> ResolveArtworkAsync(MediaSnapshot snapshot)
@@ -276,6 +321,8 @@ public sealed class MediaCoordinator : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
+        _smtc.SessionsChanged -= OnSmtcSessionsChanged;
+        _smtc.SnapshotReady -= OnSmtcSnapshotReady;
         _timer?.Dispose();
         _smtc.Dispose();
         _cider.Dispose();
