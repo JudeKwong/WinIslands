@@ -32,6 +32,7 @@ public sealed class AudioWaveService : IDisposable
     private Thread? _thread;
     private readonly object _gate = new();
     private double _level;              // 0..1 平滑后的波纹强度
+    private long _levelBits;            // 无锁发布给 UI 的 double 位快照
     private volatile bool _playing;   // 跨线程读取（UI 写，采集/模拟线程读）
     private readonly Random _rng = new();
     private volatile bool _syncEnabled = true;   // 跟随音乐节奏：true=真实音频采集，false=节拍模拟
@@ -39,7 +40,7 @@ public sealed class AudioWaveService : IDisposable
     private DateTime _lastUpdate = DateTime.UtcNow; // 相邻数据包时间（用于包络指数平滑）
 
     /// <summary>当前波纹强度（0..1），UI 每帧轮询。</summary>
-    public double Level { get { lock (_gate) return _level; } }
+    public double Level => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _levelBits));
 
     /// <summary>是否启用了真实音频采集（false = 模拟降级）。</summary>
     public bool LiveCapture { get; private set; }
@@ -156,10 +157,12 @@ public sealed class AudioWaveService : IDisposable
                     pulse *= 0.965;                                                // 指数衰减回落
                     var noise = 0.10 + 0.05 * Math.Sin(t * 13.0) + 0.035 * Math.Sin(t * 31.0);
                     _level = Math.Clamp(pulse * (0.55 + 0.45 * noise) * Volatile.Read(ref _sensitivity), 0, 1);
+                    PublishLevel(_level);
                 }
                 else
                 {
                     _level *= 0.9;
+                    PublishLevel(_level);
                     if (_level < 0.01) _level = 0;
                 }
             }
@@ -219,6 +222,7 @@ public sealed class AudioWaveService : IDisposable
                         lock (_gate)
                         {
                             _level *= 0.8;
+                            PublishLevel(_level);
                             if (_level < 0.01) _level = 0;
                         }
                         Thread.Sleep(100);
@@ -258,6 +262,7 @@ public sealed class AudioWaveService : IDisposable
                         lock (_gate)
                         {
                             _level = raw < 0.004 ? 0 : _level + (raw - _level) * alpha;
+                            PublishLevel(_level);
                         }
                     }
                     finally
@@ -339,6 +344,8 @@ public sealed class AudioWaveService : IDisposable
         var level = Math.Sqrt(Math.Clamp(maxRms * 1.25, 0, 1));
         return Math.Clamp(level * 0.88 + maxWinPeak * 0.12, 0, 1);
     }
+
+    private void PublishLevel(double value) => Interlocked.Exchange(ref _levelBits, BitConverter.DoubleToInt64Bits(value));
 
     public void Dispose() => Stop();
 
