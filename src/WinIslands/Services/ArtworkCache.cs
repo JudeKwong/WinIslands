@@ -16,6 +16,7 @@ public static class ArtworkCache
 {
     private static readonly HttpClient Http = CreateClient();
     private static readonly object IoGate = new();
+    private const int MaxArtworkBytes = 10 * 1024 * 1024;
 
     private static HttpClient CreateClient()
     {
@@ -38,6 +39,7 @@ public static class ArtworkCache
         string? tmp = null;
         try
         {
+            if (!IsArtworkSizeAllowed(data.Length)) return string.Empty;
             var ext = SniffExtension(data);
             var path = Path.Combine(AppPaths.ThumbCacheDir, $"{key}{ext}");
             lock (IoGate)
@@ -70,8 +72,25 @@ public static class ArtworkCache
 
             using var resp = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode) return string.Empty;
-            var data = await resp.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-            return SaveBytes(data, key);
+            if (resp.Content.Headers.ContentLength is long declared && !IsArtworkSizeAllowed(declared)) return string.Empty;
+
+            await using var input = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var ms = new MemoryStream();
+            var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
+            try
+            {
+                int read;
+                while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false)) > 0)
+                {
+                    if (ms.Length + read > MaxArtworkBytes) return string.Empty;
+                    await ms.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            }
+            return SaveBytes(ms.ToArray(), key);
         }
         catch (Exception ex)
         {
@@ -80,7 +99,6 @@ public static class ArtworkCache
         }
     }
 
-    /// <summary>Build an artwork path from bytes sniffed from a stream (SMTC thumbnails).</summary>
     public static async Task<string> SaveStreamAsync(Func<Stream, Task> writeTo, string key)
     {
         try
@@ -95,6 +113,8 @@ public static class ArtworkCache
             return string.Empty;
         }
     }
+
+    internal static bool IsArtworkSizeAllowed(long bytes) => bytes > 0 && bytes <= MaxArtworkBytes;
 
     private static string SniffExtension(byte[] data)
     {

@@ -11,4 +11,12 @@ public sealed class ArtworkCacheTests
         var b = ArtworkCache.CacheKey("track", "artist");
         Assert.Equal(a, b);
     }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(10L * 1024 * 1024, true)]
+    [InlineData(10L * 1024 * 1024 + 1, false)]
+    public void IsArtworkSizeAllowed_RejectsEmptyAndOversizedPayloads(long bytes, bool expected)
+        => Assert.Equal(expected, ArtworkCache.IsArtworkSizeAllowed(bytes));
 }

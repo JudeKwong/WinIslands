@@ -2834,7 +2834,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private ImageSource? GetArtwork(string path)
     {
         if (string.IsNullOrEmpty(path)) return null;
-        if (_artworkCache.TryGetValue(path, out var cached)) return cached;
+        if (_artworkCache.TryGetValue(path, out var cached))
+        {
+            _artworkCache.Remove(path);
+            _artworkCache[path] = cached;
+            return cached;
+        }
         var img = LoadImage(path);
         if (img is null) return null;
         if (_artworkCache.Count >= ArtworkCacheMax)
