@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.2（正式版 / Stable）
+### 更新内容
+
+- **🖥 全屏检测事件化**：前台窗口切换和顶层窗口位置变化立即触发检测，兜底轮询降至 2 秒
+- **⚡ 后台唤醒减少**：空闲时不再以 800ms 频率轮询全屏状态
+- **✅ 回归测试**：199 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.2 (Stable)
+### What's New
+
+- **🖥 Event-driven Fullscreen Detection**: Foreground and top-level window changes trigger immediate checks with a 2-second fallback poll
+- **⚡ Fewer Background Wakeups**: Idle polling no longer runs every 800ms
+- **✅ Regression Testing**: All 199 unit tests passed
+
+---
 ## WinIslands 1.6.1（正式版 / Stable）
 ### 更新内容
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Threading;
@@ -15,7 +15,11 @@ namespace WinIslands.Services;
 /// </summary>
 public sealed class FullScreenMonitor : IDisposable
 {
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(800) }; // 800ms 轮询：平衡响应性与 CPU 占用
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(2000) };
+    private readonly Dispatcher _dispatcher;
+    private readonly Native.WinEventDelegate _winEventProc;
+    private readonly List<IntPtr> _hooks = new();
+    private int _pollQueued;
 
     /// <summary>当前是否检测到全屏窗口。</summary>
     public bool IsFullScreen { get; private set; }
@@ -32,11 +36,14 @@ public sealed class FullScreenMonitor : IDisposable
     public FullScreenMonitor()
     {
         _timer.Tick += (_, _) => Poll();
+        _dispatcher = Dispatcher.CurrentDispatcher;
+        _winEventProc = OnWinEvent;
     }
 
     public void Start()
     {
         IsRunning = true;
+        InstallHook();
         Poll();         // 立即采样一次，避免启动时状态未知
         _timer.Start();
     }
@@ -45,6 +52,42 @@ public sealed class FullScreenMonitor : IDisposable
     {
         IsRunning = false;
         _timer.Stop();
+        UninstallHook();
+    }
+
+    private void InstallHook()
+    {
+        if (_hooks.Count > 0) return;
+        var flags = Native.WinEventOutOfContext | Native.WinEventSkipOwnProcess;
+        _hooks.Add(Native.SetWinEventHook(Native.EventSystemForeground, Native.EventSystemForeground, IntPtr.Zero, _winEventProc, 0, 0, flags));
+        _hooks.Add(Native.SetWinEventHook(Native.EventObjectLocationChange, Native.EventObjectLocationChange, IntPtr.Zero, _winEventProc, 0, 0, flags));
+        _hooks.RemoveAll(h => h == IntPtr.Zero);
+    }
+
+    private void UninstallHook()
+    {
+        foreach (var hook in _hooks) Native.UnhookWinEvent(hook);
+        _hooks.Clear();
+    }
+
+    private void OnWinEvent(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+    {
+        if (idObject != 0 || idChild != 0) return;
+        if (eventType == Native.EventObjectLocationChange && Native.GetForegroundWindow() != hwnd) return;
+        if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished) return;
+        if (Interlocked.Exchange(ref _pollQueued, 1) == 1) return;
+        try
+        {
+            _dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                Interlocked.Exchange(ref _pollQueued, 0);
+                Poll();
+            }));
+        }
+        catch
+        {
+            Interlocked.Exchange(ref _pollQueued, 0);
+        }
     }
 
     private void Poll()
@@ -55,8 +98,8 @@ public sealed class FullScreenMonitor : IDisposable
             if (full != IsFullScreen)
             {
                 IsFullScreen = full;
-                // 全屏时降频到 1500ms（减少游戏/视频时 CPU 占用），退出全屏恢复 800ms
-                _timer.Interval = full ? TimeSpan.FromMilliseconds(1500) : TimeSpan.FromMilliseconds(800);
+                // 事件钩子负责即时响应；兜底轮询在普通状态 2 秒、全屏状态 2.5 秒
+                _timer.Interval = full ? TimeSpan.FromMilliseconds(2500) : TimeSpan.FromMilliseconds(2000);
                 FullScreenChanged?.Invoke(full);
             }
         }
@@ -114,7 +157,17 @@ public sealed class FullScreenMonitor : IDisposable
 
     private static class Native
     {
+        public const uint EventSystemForeground = 0x0003;
+        public const uint EventObjectLocationChange = 0x800B;
+        public const uint WinEventOutOfContext = 0x0000;
+        public const uint WinEventSkipOwnProcess = 0x0002;
+        public delegate void WinEventDelegate(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
         public const uint MonitorDefaultToNearest = 2;
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventDelegate callback, uint processId, uint threadId, uint flags);
+        [DllImport("user32.dll")]
+        public static extern bool UnhookWinEvent(IntPtr hook);
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
