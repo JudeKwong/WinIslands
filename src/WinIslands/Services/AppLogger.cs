@@ -40,6 +40,24 @@ public static class AppLogger
     public static void Error(string message, Exception? ex = null)
         => Write("ERROR", ex is null ? message : $"{message}{Environment.NewLine}{ex}");
 
+    /// <summary>
+    /// Flushes and closes the current log file. Safe to call more than once.
+    /// </summary>
+    public static void Shutdown()
+    {
+        lock (Gate)
+        {
+            try { _writer?.Flush(); }
+            catch { }
+            finally
+            {
+                _writer?.Dispose();
+                _writer = null;
+                _pendingLines = 0;
+            }
+        }
+    }
+
     private static void Write(string level, string message)
     {
         try

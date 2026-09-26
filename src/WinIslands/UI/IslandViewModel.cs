@@ -15,6 +15,7 @@ namespace WinIslands.UI;
 /// </summary>
 public sealed class IslandViewModel : ObservableObject, IDisposable
 {
+    private int _disposed;
     private readonly MediaCoordinator _coordinator;
     private readonly SettingsService _settings;
     private readonly LyricsService _lyricsService;
@@ -2923,6 +2924,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _progressTimer.Stop();
         _widgetTimer.Stop();
         _coordinator.SnapshotChanged -= OnSnapshotChanged;

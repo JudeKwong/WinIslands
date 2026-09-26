@@ -20,6 +20,7 @@ public sealed class MediaCoordinator : IDisposable
     private readonly SemaphoreSlim _tickLock = new(1, 1);
     private System.Threading.Timer? _timer;
     private int _tick;
+    private int _started;
     private int _eventRefreshQueued;
     private MediaSnapshot? _current;
     private double? _lastSystemVolume;
@@ -51,6 +52,7 @@ public sealed class MediaCoordinator : IDisposable
 
     public void Start()
     {
+        if (Interlocked.Exchange(ref _started, 1) == 1) return;
         _ = _smtc.StartAsync(_cts.Token);
         _smtc.SessionsChanged += OnSmtcSessionsChanged;
         _smtc.SnapshotReady += OnSmtcSnapshotReady;

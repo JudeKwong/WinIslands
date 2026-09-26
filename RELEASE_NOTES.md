@@ -12,6 +12,30 @@
 
 ## 简体中文
 
+## WinIslands 1.4.9（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🛡 生命周期加固**：媒体协调器与主 ViewModel 的初始化/释放改为幂等，避免重复订阅和重复释放
+- **💾 退出日志完整落盘**：退出时统一 Flush 并关闭日志，排查异常时不会丢失尾部日志
+- **🧹 退出顺序修正**：整理资源释放顺序与缩进，降低关闭时的异常风险
+- **✅ 回归测试**：179 项单元测试全部通过
+
+---
+
+## WinIslands 1.4.9 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🛡 Hardened Lifecycle**: Idempotent MediaCoordinator and ViewModel initialization/disposal
+- **💾 Complete Exit Log Flush**: Flushes and closes the log file on shutdown
+- **🧹 Cleaner Shutdown Order**: Updated resource disposal order and formatting
+- **✅ Regression Testing**: All 179 unit tests passed
+
+---
 ## WinIslands 1.4.8（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 

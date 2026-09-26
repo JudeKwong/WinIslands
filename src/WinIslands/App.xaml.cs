@@ -906,7 +906,7 @@ AppPaths.EnsureDirectories();
             _islandApi?.Dispose();
             _screenCapture?.Dispose();
             _callMonitor?.Dispose();
-        _fullScreenMonitor?.Dispose();
+            _fullScreenMonitor?.Dispose();
             _calendar?.Dispose();
             _rssMail?.Dispose();
             _tray?.Dispose();
@@ -921,6 +921,10 @@ AppPaths.EnsureDirectories();
         catch (Exception ex)
         {
             AppLogger.Error("Error during shutdown", ex);
+        }
+        finally
+        {
+            AppLogger.Shutdown();
         }
 
         base.OnExit(e);
