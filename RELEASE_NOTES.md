@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 **🌐 选择语言 / Select Language**
 
@@ -12,6 +12,32 @@
 
 ## 简体中文
 
+## WinIslands 1.4.7（正式版 / Stable）
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **⚡ 自适应动画帧率**：根据硬件渲染层级智能使用 60/120 FPS，低功耗模式固定 60 FPS
+- **🎵 卡拉 OK 渲染降抖动**：复用歌词画刷并停止隐藏控件的后台动画，减少高频 GC
+- **🎚 音频波形采集优化**：WASAPI 数据包改用池化缓冲区，长时间播放时更稳定
+- **🖼 动画渲染优化**：整体使用 Linear 图像缩放，封面单独保留高质量采样
+- **✅ 回归测试**：177 项单元测试全部通过
+
+---
+
+## WinIslands 1.4.7 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **⚡ Adaptive Animation Frame Rate**: Uses 60/120 FPS based on render tier; low-power mode is capped at 60 FPS
+- **🎵 Lower Karaoke GC Pressure**: Reuses lyric brushes and stops hidden controls from rendering in the background
+- **🎚 Optimized Audio Wave Capture**: WASAPI packets now use pooled buffers for stable long playback
+- **🖼 Smoother Animation Rendering**: Global Linear image scaling with HighQuality reserved for artwork
+- **✅ Regression Testing**: All 177 unit tests passed
+
+---
 ## WinIslands 1.4.6（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

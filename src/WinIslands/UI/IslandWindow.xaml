@@ -14,7 +14,7 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         SnapsToDevicePixels="True"
-        RenderOptions.BitmapScalingMode="HighQuality"
+        RenderOptions.BitmapScalingMode="Linear"
         RenderOptions.EdgeMode="Unspecified">
 
     <Window.Resources>
@@ -559,7 +559,7 @@
                                     <Border Tag="SongCover" Width="40" Height="40" CornerRadius="12" Margin="0,0,10,0"
                                             Background="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#6C5CE7}">
                                         <Grid>
-                                            <Image Source="{Binding DataContext.Artwork, RelativeSource={RelativeSource AncestorType=Window}}" Stretch="UniformToFill"
+                                            <Image Source="{Binding DataContext.Artwork, RelativeSource={RelativeSource AncestorType=Window}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                                                    Visibility="{Binding DataContext.Artwork, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVis}}"/>
                                             <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="18" Foreground="White"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -957,7 +957,7 @@
                                 <ScaleTransform x:Name="BigArtScale" ScaleX="1" ScaleY="1"/>
                             </Border.RenderTransform>
                             <Grid>
-                                <Image Source="{Binding Artwork}" Stretch="UniformToFill"
+                                <Image Source="{Binding Artwork}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
                                        Visibility="{Binding Artwork, Converter={StaticResource NullToVis}}"/>
                                 <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets"
                                            FontSize="26" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"

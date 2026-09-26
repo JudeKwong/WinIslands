@@ -1112,7 +1112,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var dur = (int)Math.Clamp(styleMs * 0.72, 200, 900);
         var sb = new Storyboard();
         AddAnim(sb, GlassLayer, UIElement.OpacityProperty, target, dur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _glassAnimSb = sb;
         sb.Begin();
     }
@@ -1372,7 +1372,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var sb = new Storyboard();
         AddAnim(sb, Card, FrameworkElement.WidthProperty, CompactWidth, (int)dur, styleEase);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, CompactHeight, (int)dur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         _currentStoryboard = sb; // 鏇存柊寮曠敤锛氶槻姝?AnimateCard 瀹屾垚鍥炶皟瑕嗙洊鏂板昂瀵?
         sb.Begin();
     }
@@ -1391,7 +1391,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, CompactPushCard, UIElement.OpacityProperty, 1, (int)(220 * lm), smooth);
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleXProperty, 1, scaleDur, styleEase);
         AddAnim(sb, CompactPushScale, ScaleTransform.ScaleYProperty, 1, scaleDur, styleEase);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
     /// <summary>鍙抽敭鑿滃崟涓婚鑹诧紙鍦嗚娑叉€佺幓鐠冿級銆?/summary>
@@ -1506,7 +1506,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             BigArt.Opacity = 0.35;
             var sbA = new Storyboard();
             AddAnim(sbA, BigArt, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            Timeline.SetDesiredFrameRate(sbA, 120);
+            AnimationFrameRate.Apply(sbA, _settings.Current.LowPowerMode);
             sbA.Begin();
         }
         if (BigArtScale is not null)
@@ -1517,7 +1517,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var sbS = new Storyboard();
             AddAnim(sbS, BigArtScale, ScaleTransform.ScaleXProperty, 1, (int)(dur * lm), smooth);
             AddAnim(sbS, BigArtScale, ScaleTransform.ScaleYProperty, 1, (int)(dur * lm), smooth);
-            Timeline.SetDesiredFrameRate(sbS, 120);
+            AnimationFrameRate.Apply(sbS, _settings.Current.LowPowerMode);
             sbS.Begin();
         }
         // 灞曞紑 Hero 澶у皝闈㈣儗鏅細娣″叆
@@ -1527,7 +1527,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             HeroCard.Opacity = 0.35;
             var sbH = new Storyboard();
             AddAnim(sbH, HeroCard, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            Timeline.SetDesiredFrameRate(sbH, 120);
+            AnimationFrameRate.Apply(sbH, _settings.Current.LowPowerMode);
             sbH.Begin();
         }
         // 绱у噾琛屾瓕鏇插皝闈紙鏁版嵁妯℃澘鍐咃紝鐢?Tag 瀹氫綅鍚庢贰鍏ワ級
@@ -1538,7 +1538,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             b.Opacity = 0.35;
             var sbC = new Storyboard();
             AddAnim(sbC, b, UIElement.OpacityProperty, 1, (int)(dur * lm), smooth);
-            Timeline.SetDesiredFrameRate(sbC, 120);
+            AnimationFrameRate.Apply(sbC, _settings.Current.LowPowerMode);
             sbC.Begin();
         }
     }
@@ -1573,7 +1573,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             if (wantTimer)
             {
                 _waveRendering = true;
-                _waveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) };     // CompositionTarget.Rendering锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+                _waveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };     // CompositionTarget.Rendering锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
                 _waveTimer.Tick += (_, _) => OnWaveFrame(null, EventArgs.Empty);
                 _waveTimer.Start();
             }
@@ -1992,7 +1992,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
         sb.Completed += (_, _) => { if (!_vm.IsVisible) Hide(); };
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
@@ -2006,7 +2006,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Storyboard.SetTarget(fade, this);
         Storyboard.SetTargetProperty(fade, new PropertyPath(OpacityProperty));
         sb.Children.Add(fade);
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
@@ -2185,7 +2185,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             }
         };
         _currentStoryboard = sb;
-        Timeline.SetDesiredFrameRate(sb, 120); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps锛堣窡闅忔樉绀哄櫒鍒锋柊鐜囷級
         sb.Begin();
     }
 
@@ -2224,7 +2224,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         };
         Storyboard.SetTarget(anim, target);
         Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
-        System.Windows.Media.Animation.Timeline.SetDesiredFrameRate(anim, 120); // 120 FPS 鐩爣甯х巼
+        AnimationFrameRate.Apply(anim, _settings.Current.LowPowerMode); // 120 FPS 鐩爣甯х巼
         sb.Children.Add(anim);
     }
 
@@ -2420,7 +2420,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, this, Window.LeftProperty, left, 320, easing);
         AddAnim(sb, this, Window.TopProperty, top, 320, easing);
         sb.Completed += (_, _) => { if (ReferenceEquals(_positionStoryboard, sb)) _positionStoryboard = null; };
-        Timeline.SetDesiredFrameRate(sb, 120);
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
         _positionStoryboard = sb;
         sb.Begin();
     }

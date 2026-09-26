@@ -67,6 +67,9 @@ public class KaraokeTextBlock : TextBlock
     private Run? _litRun;
     private Run? _blendRun;
     private Run? _restRun;
+    private SolidColorBrush? _litBrush;
+    private SolidColorBrush? _blendBrush;
+    private SolidColorBrush? _restBrush;
 
     // 逐字模式状态
     private IReadOnlyList<TtmlWord> _words = Array.Empty<TtmlWord>();
@@ -238,7 +241,7 @@ public class KaraokeTextBlock : TextBlock
     /// <summary>挂接 CompositionTarget.Rendering（跟随显示器刷新率，120Hz 显示器上 120fps）。</summary>
     private void StartAnimation()
     {
-        if (_renderingSubscribed) return;
+        if (_renderingSubscribed || !IsVisible) return;
         _renderingSubscribed = true;
         _lastTickTime = _tickClock.Elapsed.TotalSeconds;
         CompositionTarget.Rendering += OnRenderingFrame;
@@ -329,8 +332,15 @@ public class KaraokeTextBlock : TextBlock
             var c = Lerp(bs, hl, frac);
             // 只在颜色字节值真正变化时才新建画刷（高帧率下多数帧的色差不足 1 字节），
             // 避免每帧分配 SolidColorBrush 造成 GC 抖动而掉帧。
-            if (_wordRuns[i].Foreground is not System.Windows.Media.SolidColorBrush prev || !ColorEqual(prev.Color, c))
-                _wordRuns[i].Foreground = Frozen(new System.Windows.Media.SolidColorBrush(c));
+            if (_wordRuns[i].Foreground is not SolidColorBrush brush)
+            {
+                brush = new SolidColorBrush(c);
+                _wordRuns[i].Foreground = brush;
+            }
+            else if (!ColorEqual(brush.Color, c))
+            {
+                brush.Color = c;
+            }
         }
     }
 
@@ -362,9 +372,12 @@ public class KaraokeTextBlock : TextBlock
         if (_litRun is null || !string.Equals(_lastText, text, StringComparison.Ordinal))
         {
             _lastText = text;
-            _litRun = new Run();
-            _blendRun = new Run();
-            _restRun = new Run();
+            _litBrush = new SolidColorBrush(hl);
+            _blendBrush = new SolidColorBrush(bs);
+            _restBrush = new SolidColorBrush(bs);
+            _litRun = new Run { Foreground = _litBrush };
+            _blendRun = new Run { Foreground = _blendBrush };
+            _restRun = new Run { Foreground = _restBrush };
             Inlines.Clear();
             Inlines.Add(_litRun);
             Inlines.Add(_blendRun);
@@ -372,15 +385,13 @@ public class KaraokeTextBlock : TextBlock
         }
 
         _litRun.Text = litChars > 0 ? text.Substring(0, litChars) : string.Empty;
-        _litRun.Foreground = Frozen(new System.Windows.Media.SolidColorBrush(hl));
+        _litBrush!.Color = hl;
 
         _blendRun!.Text = litChars < len ? text[litChars].ToString() : string.Empty;
-        _blendRun.Foreground = litChars < len
-            ? Frozen(new System.Windows.Media.SolidColorBrush(Lerp(bs, hl, Math.Clamp(blend, 0, 1))))
-            : Frozen(new System.Windows.Media.SolidColorBrush(bs));
+        _blendBrush!.Color = litChars < len ? Lerp(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
 
         _restRun!.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
-        _restRun.Foreground = Frozen(new System.Windows.Media.SolidColorBrush(bs));
+        _restBrush!.Color = bs;
     }
 
     /// <summary>播放位置是否落在本句某个字的起止区间内（该行是否处于正在点亮的状态）。</summary>

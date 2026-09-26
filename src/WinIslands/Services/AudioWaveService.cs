@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -238,22 +239,34 @@ public sealed class AudioWaveService : IDisposable
                     }
 
                     var totalBytes = (int)(frames * blockAlign);
-                    totalBytes = Math.Min(totalBytes, 1 << 20); // 防异常大包
-                    var bytes = new byte[totalBytes];
-                    Marshal.Copy(dataPtr, bytes, 0, totalBytes);
-                    cap.ReleaseBuffer(frames);
-
-                    double raw = ComputeEnvelope(bytes, fmt, channels, step, totalBytes) * Volatile.Read(ref _sensitivity);
-                    var now = DateTime.UtcNow;
-                    var dt = (now - _lastUpdate).TotalSeconds;
-                    _lastUpdate = now;
-                    if (dt <= 0 || dt > 0.25) dt = 0.02;          // 防止时间跳变
-                    // 包络跟随：起音 ~25ms 快、释放 ~140ms 慢 → 节拍起伏连贯
-                    var tau = raw >= _level ? 0.025 : 0.14;
-                    var alpha = 1.0 - Math.Exp(-dt / tau);
-                    lock (_gate)
+                    totalBytes = Math.Min(totalBytes, 1 << 20); // prevent abnormal oversized packets
+                    var bytes = ArrayPool<byte>.Shared.Rent(totalBytes);
+                    var released = false;
+                    try
                     {
-                        _level = raw < 0.004 ? 0 : _level + (raw - _level) * alpha;
+                        Marshal.Copy(dataPtr, bytes, 0, totalBytes);
+                        cap.ReleaseBuffer(frames);
+                        released = true;
+
+                        double raw = ComputeEnvelope(bytes, fmt, channels, step, totalBytes) * Volatile.Read(ref _sensitivity);
+                        var now = DateTime.UtcNow;
+                        var dt = (now - _lastUpdate).TotalSeconds;
+                        _lastUpdate = now;
+                        if (dt <= 0 || dt > 0.25) dt = 0.02;
+                        var tau = raw >= _level ? 0.025 : 0.14;
+                        var alpha = 1.0 - Math.Exp(-dt / tau);
+                        lock (_gate)
+                        {
+                            _level = raw < 0.004 ? 0 : _level + (raw - _level) * alpha;
+                        }
+                    }
+                    finally
+                    {
+                        if (!released)
+                        {
+                            try { cap.ReleaseBuffer(frames); } catch { }
+                        }
+                        ArrayPool<byte>.Shared.Return(bytes);
                     }
                 }
             }

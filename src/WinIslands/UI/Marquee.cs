@@ -117,7 +117,7 @@ public static class Marquee
                 BeginTime = TimeSpan.FromSeconds(InitialDelaySec),
                 RepeatBehavior = RepeatBehavior.Forever,
             };
-            Timeline.SetDesiredFrameRate(anim, 120);
+            AnimationFrameRate.Apply(anim, lowPowerMode: false);
             tt.BeginAnimation(TranslateTransform.XProperty, anim);
         }
         catch
