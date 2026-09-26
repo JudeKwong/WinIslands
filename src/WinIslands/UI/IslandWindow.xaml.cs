@@ -182,7 +182,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _waveRendering;                  // 娉㈢汗娓叉煋涓紙宸叉寕鎺ュ悎鎴愬抚浜嬩欢锛?
     private DispatcherTimer? _waveTimer;                  // 浣庡姛鑰楁ā寮忥細娉㈢汗瀹氭椂鍣紙~120fps锛?
     private double _lastWaveTime;
-    private double _nextWaveFrameTime;                 // 涓婁竴甯ф椂闂达紙绉掞級锛岀敤浜庡抚鐜囨棤鍏冲钩婊?
+    private double _nextWaveFrameTime;
+    private string _cachedWaveStyle = "Bars";
+    private double _cachedWaveHeight = 1.0;                 // 当前波形样式/高度快照
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
     private readonly List<ScaleTransform> _waveBarsCompact = new();
@@ -1579,6 +1581,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void RefreshWave()
     {
         var on = HasWave;
+        _cachedWaveStyle = _settings.Current.WaveStyle ?? "Bars";
+        _cachedWaveHeight = Math.Clamp(_settings.Current.WaveHeight, 0.25, 2.0);
         ApplyWaveStyleVisibility();
         var lowPower = _settings.Current.LowPowerMode;
         // 涓夋€侊細鍏抽棴 / 鏅€氾紙CompositionTarget.Rendering 璺熼殢鏄剧ず鍣級/ 浣庡姛鑰楀畾鏃跺櫒锛垀120fps锛?
@@ -1648,12 +1652,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _lastWaveTime = now;
 
             var level = Math.Clamp(_vm.WaveLevel, 0, 1);
-            var height = Math.Clamp(_settings.Current.WaveHeight, 0.25, 2.0);
+            var height = _cachedWaveHeight;
             var alpha = 1.0 - Math.Exp(-dt * 22.0); // 甯х巼鏃犲叧鐨勬寚鏁板钩婊?
             // 1.2.1 鎬ц兘浼樺寲锛氬彧鏇存柊褰撳墠鍙鐨勬尝绾归泦鍚堬紙灞曞紑=澶ф尝绾广€佺揣鍑?灏忔尝绾癸級锛?
             // 闅愯棌闈㈡澘姣忓抚鐨?ScaleTransform 鏇存柊鍏ㄩ儴鐪佹帀锛岄檷浣庡獟浣撴挱鏀炬椂鐨?CPU 鍗犵敤
             var expanded = _vm.IsExpanded;
-            switch (_settings.Current.WaveStyle)
+            switch (_cachedWaveStyle)
             {
                 case "Spectrum":
                     UpdateWaveSet(expanded ? _waveSpectrumExpanded : _waveSpectrumCompact, level, now, alpha, height, bias: 1);
@@ -1702,7 +1706,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void ApplyWaveStyleVisibility()
     {
-        var style = _settings.Current.WaveStyle ?? "Bars";
+        var style = _cachedWaveStyle;
         var bars = style == "Bars" ? Visibility.Visible : Visibility.Collapsed;
         var spec = style == "Spectrum" ? Visibility.Visible : Visibility.Collapsed;
         var ring = style == "Ring" ? Visibility.Visible : Visibility.Collapsed;
