@@ -21,6 +21,8 @@ public sealed class IncomingCallMonitor : IDisposable
     private System.Threading.Timer? _timer;
     private bool _started;
     private readonly HashSet<IntPtr> _activeCalls = new();
+    private readonly HashSet<uint> _pidCache = new();
+    private int _scanTick;
     private string[] _apps = Array.Empty<string>();
 
     /// <summary>检测到通话窗口（参数：进程名, 窗口标题, 类型）。</summary>
@@ -36,6 +38,8 @@ public sealed class IncomingCallMonitor : IDisposable
             _started = true;
             _apps = NormalizeApps(apps);
             _activeCalls.Clear();
+            _pidCache.Clear();
+            _scanTick = 0;
         }
         _timer?.Dispose();
         _timer = new System.Threading.Timer(_ => Scan(), null, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1500));
@@ -48,6 +52,8 @@ public sealed class IncomingCallMonitor : IDisposable
         {
             _started = false;
             _activeCalls.Clear();
+            _pidCache.Clear();
+            _scanTick = 0;
         }
         _timer?.Dispose();
         _timer = null;
@@ -88,6 +94,8 @@ public sealed class IncomingCallMonitor : IDisposable
         return CallKind.None;
     }
 
+    internal static bool ShouldRefreshPidCache(int scanTick) => scanTick == 1 || scanTick % 4 == 0;
+
     private void Scan()
     {
         if (Monitor.TryEnter(_gate))
@@ -100,17 +108,35 @@ public sealed class IncomingCallMonitor : IDisposable
                 if (apps.Length == 0) return;
 
                 // 先收集被监控进程的 PID 集合，避免对每个窗口都做进程名查询
-                var pids = new HashSet<uint>();
-                foreach (var app in apps)
+                _scanTick++;
+                HashSet<uint> pids;
+                if (ShouldRefreshPidCache(_scanTick))
                 {
-                    try
+                    var refreshed = new HashSet<uint>();
+                    foreach (var app in apps)
                     {
-                        foreach (var p in Process.GetProcessesByName(app))
+                        try
                         {
-                            try { pids.Add((uint)p.Id); } catch { /* 进程已退出 */ }
+                            foreach (var process in Process.GetProcessesByName(app))
+                            {
+                                using (process)
+                                {
+                                    try { refreshed.Add((uint)process.Id); } catch { }
+                                }
+                            }
                         }
+                        catch { }
                     }
-                    catch { /* 无权限等 */ }
+                    lock (_gate)
+                    {
+                        _pidCache.Clear();
+                        _pidCache.UnionWith(refreshed);
+                        pids = new HashSet<uint>(_pidCache);
+                    }
+                }
+                else
+                {
+                    lock (_gate) pids = new HashSet<uint>(_pidCache);
                 }
                 if (pids.Count == 0) return;
 

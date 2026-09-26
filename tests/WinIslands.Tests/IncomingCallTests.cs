@@ -35,6 +35,15 @@ public class IncomingCallTests
         Assert.Equal(new[] { "qq", "wechat", "weixin" }, apps.OrderBy(x => x).ToArray());
     }
 
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(4, true)]
+    [InlineData(5, false)]
+    [InlineData(8, true)]
+    public void Refreshes_Pid_Cache_On_Expected_Scans(int tick, bool expected)
+        => Assert.Equal(expected, IncomingCallMonitor.ShouldRefreshPidCache(tick));
+
     [Fact]
     public void Empty_Apps_Fall_Back_To_Defaults()
     {

@@ -12,6 +12,23 @@
 
 ## 简体中文
 
+## WinIslands 1.6.4（正式版 / Stable）
+### 更新内容
+
+- **☎ 来电监听优化**：缓存微信/QQ 等目标进程 PID，每 4 次扫描刷新一次，减少进程枚举
+- **🧹 句柄释放修复**：进程列表使用后立即释放 Process 句柄，降低长期运行资源增长
+- **✅ 回归测试**：204 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.4 (Stable)
+### What's New
+
+- **☎ Incoming-call Monitor Optimization**: Cache target IM process IDs and refresh every four scans
+- **🧹 Process Handle Cleanup**: Dispose Process objects immediately after use
+- **✅ Regression Testing**: All 204 unit tests passed
+
+---
 ## WinIslands 1.6.3（正式版 / Stable）
 ### 更新内容
 
