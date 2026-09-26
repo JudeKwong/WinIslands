@@ -24,6 +24,8 @@ public sealed class ClipboardHistoryService : IDisposable
     private const string DefaultFile = "clipboard-history.json";
     private readonly string _file;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _saveDebounce;
+    private bool _savePending;
     private readonly List<ClipboardEntry> _entries = new();
     private string _last = string.Empty;
     private uint _lastClipboardSequence = uint.MaxValue;
@@ -38,6 +40,8 @@ public sealed class ClipboardHistoryService : IDisposable
         _file = Path.Combine(AppPaths.AppDataDir, DefaultFile);
         Load();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+        _saveDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        _saveDebounce.Tick += (_, _) => FlushPendingSave();
         _timer.Tick += (_, _) => Poll();
     }
 
@@ -136,6 +140,8 @@ public sealed class ClipboardHistoryService : IDisposable
 
     public void Clear()
     {
+        _saveDebounce.Stop();
+        _savePending = false;
         lock (_entries) { _entries.Clear(); SaveCore(); }
         Changed?.Invoke();
     }
@@ -167,7 +173,7 @@ public sealed class ClipboardHistoryService : IDisposable
                     _entries.Insert(0, entry);
                     var max = Math.Clamp(MaxEntries, 3, 200);
                     while (_entries.Count > max) _entries.RemoveAt(_entries.Count - 1);
-                    SaveCore();
+                    ScheduleSave();
                 }
                 Changed?.Invoke();
             }
@@ -217,6 +223,21 @@ public sealed class ClipboardHistoryService : IDisposable
         catch (Exception ex) { AppLogger.Warn($"Clipboard history load: {ex.Message}"); }
     }
 
+    private void ScheduleSave()
+    {
+        if (!_enabled) return;
+        _savePending = true;
+        _saveDebounce.Stop();
+        _saveDebounce.Start();
+    }
+
+    private void FlushPendingSave()
+    {
+        _saveDebounce.Stop();
+        if (!_savePending) return;
+        _savePending = false;
+        SaveCore();
+    }
     private void SaveCore()
     {
         try
@@ -230,7 +251,12 @@ public sealed class ClipboardHistoryService : IDisposable
         catch (Exception ex) { AppLogger.Warn($"Clipboard history save: {ex.Message}"); }
     }
 
-    public void Dispose() => _timer.Stop();
+    public void Dispose()
+    {
+        _timer.Stop();
+        _saveDebounce.Stop();
+        FlushPendingSave();
+    }
 
     [DllImport("user32.dll")]
     private static extern uint GetClipboardSequenceNumber();

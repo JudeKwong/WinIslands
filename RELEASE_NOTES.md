@@ -12,6 +12,21 @@
 
 ## 简体中文
 
+## WinIslands 1.6.1（正式版 / Stable）
+### 更新内容
+
+- **🧹 剪贴板合并写盘**：连续复制采用 700ms 合并保存，正常退出前强制落盘，减少磁盘 I/O
+- **✅ 回归测试**：199 项单元测试全部通过
+
+---
+
+## WinIslands 1.6.1 (Stable)
+### What's New
+
+- **🧹 Debounced Clipboard Persistence**: Coalesces rapid history writes and flushes on exit
+- **✅ Regression Testing**: All 199 unit tests passed
+
+---
 ## WinIslands 1.6.0（正式版 / Stable）
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
 
