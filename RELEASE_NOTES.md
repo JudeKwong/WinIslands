@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.5（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 发布策略内存优化**：关闭 ReadyToRun，改为普通 JIT 发布；私有内存实测从约 282 MB 降至约 174 MB，单文件体积明显减小
+- **⚡ 启动路径改善**：实测启动到 SMTC 初始化约 2 秒，避免 ReadyToRun 版本在部分环境下启动偏慢的问题
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.5 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Publish Profile Memory Optimization**: Disabled ReadyToRun and switched to regular JIT publishing; private memory dropped from about 282 MB to 174 MB, and the single-file size also decreased
+- **⚡ Improved Startup Path**: Measured startup to SMTC initialization at about 2 seconds
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.4（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -819,6 +844,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.5（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧠 发布策略内存优化**：关闭 ReadyToRun，改为普通 JIT 发布；私有内存实测从约 282 MB 降至约 174 MB，单文件体积明显减小
+- **⚡ 启动路径改善**：实测启动到 SMTC 初始化约 2 秒，避免 ReadyToRun 版本在部分环境下启动偏慢的问题
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.5 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧠 Publish Profile Memory Optimization**: Disabled ReadyToRun and switched to regular JIT publishing; private memory dropped from about 282 MB to 174 MB, and the single-file size also decreased
+- **⚡ Improved Startup Path**: Measured startup to SMTC initialization at about 2 seconds
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.4（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

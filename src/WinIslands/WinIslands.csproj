@@ -12,9 +12,9 @@
     <RootNamespace>WinIslands</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\winislands.ico</ApplicationIcon>
-    <Version>1.4.4</Version>
-    <AssemblyVersion>1.4.4.0</AssemblyVersion>
-    <FileVersion>1.4.4.0</FileVersion>
+    <Version>1.4.5</Version>
+    <AssemblyVersion>1.4.5.0</AssemblyVersion>
+    <FileVersion>1.4.5.0</FileVersion>
     <Authors>WinIslands</Authors>
     <Product>WinIslands</Product>
     <Description>macOS-style Dynamic Island for Windows - media controls, lyrics and more.</Description>
@@ -54,7 +54,7 @@
     <!-- [ReadyToRun 棰勭紪璇慮 灏?IL 棰勭紪璇戜负鍘熺敓鏈哄櫒鐮侊紝鍔犲揩鍐峰惎鍔ㄩ€熷害
          浠ｄ环: 浣撶Н澧炲姞绾?10-15%锛屼絾鍚姩鏃堕棿鏄捐憲缂╃煭
          瀵规闈㈠簲鐢ㄥ惎鍔ㄤ綋楠屾彁鍗囨槑鏄?-->
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRun>false</PublishReadyToRun>
 
     <!-- [璋冭瘯鏀寔] Release 妯″紡绉婚櫎璋冭瘯鍩虹璁炬柦
          涓嶇敓鎴?.pdb 绗﹀彿鏂囦欢
