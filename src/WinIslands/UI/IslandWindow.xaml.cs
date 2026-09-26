@@ -192,6 +192,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private ScaleTransform? _waveRingScaleCompact;
     private readonly List<TranslateTransform> _waveParticleTransformsExpanded = new();
     private readonly List<TranslateTransform> _waveParticleTransformsCompact = new();
+    private static readonly double[] WaveSin09 = Enumerable.Range(0, 32).Select(i => Math.Sin(i * 0.9)).ToArray();
+    private static readonly double[] WaveCos09 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 0.9)).ToArray();
+    private static readonly double[] WaveSin13 = Enumerable.Range(0, 32).Select(i => Math.Sin(i * 1.3)).ToArray();
+    private static readonly double[] WaveCos13 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 1.3)).ToArray();
     private Storyboard? _currentStoryboard;
     private Storyboard? _glassAnimSb;               // 鐜荤拑鍒嗗眰涓嶉€忔槑搴﹀姩鐢伙紙鍙殢鏃堕噸寮€/鍋滄锛?
     /// <summary>灞曞紑鎬佺幓鐠冨彔鍔犵洰鏍囦笉閫忔槑搴︼細浠庡熀纭€ 88% 鍙犲姞鍒?鈮?7%锛堥殢鐢ㄦ埛 Opacity 缂╂斁锛夈€?/summary>
@@ -1657,14 +1661,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void UpdateWaveSet(IReadOnlyList<ScaleTransform> bars, double level, double t, double alpha, double height, double bias = 0)
     {
         var n = bars.Count;
+        var sinBase = Math.Sin(t * 6.0);
+        var cosBase = Math.Cos(t * 6.0);
         for (var i = 0; i < n; i++)
         {
             var sc = bars[i];
             double target;
             if (_vm.IsPlaying)
             {
-                var phase = t * 6.0 - i * 0.9;
-                var wave = 0.5 + 0.5 * Math.Sin(phase);
+                var wave = WaveValue(sinBase, cosBase, i, WaveSin09, WaveCos09);
                 if (bias > 0)
                     target = Math.Clamp((0.05 + (0.14 + 0.66 * level) * wave * (0.55 + 0.45 * (double)i / n)) * height, 0.05, 1.0);
                 else
@@ -1677,7 +1682,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             sc.ScaleY += (target - sc.ScaleY) * alpha;
         }
     }
-    /// <summary>鎸夊綋鍓嶆尝绾规牱寮忓垏鎹㈠彲瑙侀潰鏉匡紙鏌辩姸/棰戣氨/鐜舰/绮掑瓙锛夈€?/summary>
+
     private void ApplyWaveStyleVisibility()
     {
         var style = _settings.Current.WaveStyle ?? "Bars";
@@ -1799,21 +1804,24 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void UpdateParticlesVisual(IReadOnlyList<TranslateTransform> parts, double level, double t, double alpha, double maxY)
     {
         var n = parts.Count;
+        var sinBase = Math.Sin(t * 6.0);
+        var cosBase = Math.Cos(t * 6.0);
         for (var i = 0; i < n; i++)
         {
             var tr = parts[i];
             double target = 0;
             if (_vm.IsPlaying)
             {
-                var wave = 0.5 + 0.5 * Math.Sin(t * 6.0 - i * 1.3);
+                var wave = WaveValue(sinBase, cosBase, i, WaveSin13, WaveCos13);
                 target = -wave * level * maxY;
             }
             tr.Y += (target - tr.Y) * alpha;
         }
     }
 
-    /// <summary>灞曞紑鑳屾櫙闅忎笓杈戝皝闈㈠彇鑹诧細1x1 閲囨牱涓昏壊 + 涓婚搴曡壊绾挎€ф笎鍙橈紱灞曞紑鍚庝互 60fps 缂撴參鍛煎惛銆?
-    /// 娓愬彉 brush / GradientStop 缂撳瓨澶嶇敤锛屾覆鏌撳抚鍙洿鏂伴 stop 鐨?Alpha锛岄伩鍏嶆瘡甯ч噸寤哄璞″鑷?GC 鎶栧姩銆?/summary>
+    private static double WaveValue(double sinBase, double cosBase, int index, double[] sinOffsets, double[] cosOffsets)
+        => 0.5 + 0.5 * (sinBase * cosOffsets[index] - cosBase * sinOffsets[index]);
+
     private void ApplyCoverTint(bool forceRebuild = false)
     {
         try
