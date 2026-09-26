@@ -2510,7 +2510,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var sb = new Storyboard();
         AddAnim(sb, this, Window.LeftProperty, left, 320, easing);
         AddAnim(sb, this, Window.TopProperty, top, 320, easing);
-        sb.Completed += (_, _) => { if (ReferenceEquals(_positionStoryboard, sb)) _positionStoryboard = null; };
+        sb.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_positionStoryboard, sb)) return;
+            _positionStoryboard = null;
+            BeginAnimation(Window.LeftProperty, null);
+            BeginAnimation(Window.TopProperty, null);
+            Left = left;
+            Top = top;
+        };
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
         _positionStoryboard = sb;
         sb.Begin();

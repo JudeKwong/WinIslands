@@ -12,6 +12,14 @@
 
 ## 简体中文
 
+## WinIslands 1.8.4（正式版 / Stable）
+### 更新内容
+
+- **位置动画收尾**：位置动画完成后清除 Left/Top 的 HoldEnd 并提交最终坐标，避免拖动和重定位残留
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.8.3（正式版 / Stable）
 ### 更新内容
 
@@ -142,6 +150,14 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.8.4 (Stable)
+### What's New
+
+- **位置动画收尾**: Clears Left/Top HoldEnd after position animations and commits final coordinates to keep drag and repositioning stable
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 
