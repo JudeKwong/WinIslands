@@ -11,6 +11,10 @@ public sealed class CiderMediaProvider : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private DateTime _lastConnectAttempt;
+    private DateTime _nextProbeUtc;
+    private DateTime _processCheckUtc;
+    private bool _ciderProcessRunning;
+    private int _consecutiveFailures;
     private bool _reconnecting;
 
     public CiderClient Client { get; } = new();
@@ -34,7 +38,13 @@ public sealed class CiderMediaProvider : IDisposable
     {
         if (!IsEnabled || Client.IsConnected) return;
         if (_reconnecting) return;
-        if (DateTime.UtcNow - _lastConnectAttempt < TimeSpan.FromSeconds(5)) return;
+        var now = DateTime.UtcNow;
+        if (now < _nextProbeUtc) return;
+        if (!IsCiderProcessRunningCached(now) && _settings.Current.CiderPort <= 0)
+        {
+            ScheduleNextProbe(now, failed: true, noProcess: true);
+            return;
+        }
 
         await _connectLock.WaitAsync();
         try
@@ -48,7 +58,8 @@ public sealed class CiderMediaProvider : IDisposable
                 ? s.CiderToken
                 : CiderTokenAutoDetect.TryGetToken() ?? string.Empty;
             Client.SetToken(token);
-            await Client.ConnectAsync(s.CiderPort, _cts.Token);
+            var connected = await Client.ConnectAsync(s.CiderPort, _cts.Token);
+            ScheduleNextProbe(DateTime.UtcNow, failed: !connected, noProcess: false);
         }
         finally
         {
@@ -57,6 +68,41 @@ public sealed class CiderMediaProvider : IDisposable
         }
     }
 
+
+    /// <summary>缓存 Cider 进程检查，避免后台每秒枚举进程。</summary>
+    private bool IsCiderProcessRunningCached(DateTime now)
+    {
+        if (now - _processCheckUtc < TimeSpan.FromSeconds(30)) return _ciderProcessRunning;
+        _processCheckUtc = now;
+        try
+        {
+            var processes = System.Diagnostics.Process.GetProcessesByName("Cider");
+            _ciderProcessRunning = processes.Length > 0;
+            foreach (var process in processes) process.Dispose();
+        }
+        catch
+        {
+            _ciderProcessRunning = true; // 无法判断时保持兼容探测
+        }
+        return _ciderProcessRunning;
+    }
+
+    /// <summary>探测失败后指数退避，减少 Cider 不存在时的端口扫描和异常。</summary>
+    private void ScheduleNextProbe(DateTime now, bool failed, bool noProcess)
+    {
+        if (!failed)
+        {
+            _consecutiveFailures = 0;
+            _nextProbeUtc = now.AddSeconds(5);
+            return;
+        }
+
+        _consecutiveFailures = Math.Min(_consecutiveFailures + 1, 6);
+        var seconds = noProcess
+            ? 30
+            : Math.Min(60, 5 * (1 << Math.Min(_consecutiveFailures, 4)));
+        _nextProbeUtc = now.AddSeconds(seconds);
+    }
     public async Task<MediaSnapshot?> GetSnapshotAsync()
     {
         if (!IsEnabled || !IsEnabledByMediaApps() || !Client.IsConnected) return null;

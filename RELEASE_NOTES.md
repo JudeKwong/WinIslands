@@ -12,6 +12,33 @@
 
 ## 简体中文
 
+## WinIslands 1.3.6（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 Cider 后台探测优化**：Cider 未运行时不再每 5 秒扫描全部候选端口，新增进程门控与指数退避
+- **📉 高频异常清零**：实测异常计数从 8–32 次/2 秒降为 0 次/2 秒；程序集数量从 86 降到 80
+- **⚡ 后台分配降低**：减少无效端口探测、取消操作和空闲线程压力
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.6 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Optimized Cider Background Probing**: Full candidate-port scans are skipped when Cider is not running; process gating and exponential backoff are now used
+- **📉 High-frequency Exceptions Eliminated**: Measured exceptions dropped from 8–32 per 2 seconds to 0; loaded assemblies dropped from 86 to 80
+- **⚡ Lower Background Allocations**: Reduced unnecessary probing, cancellations, and idle thread pressure
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -586,6 +613,33 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.3.6（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🧹 Cider 后台探测优化**：Cider 未运行时不再每 5 秒扫描全部候选端口，新增进程门控与指数退避
+- **📉 高频异常清零**：实测异常计数从 8–32 次/2 秒降为 0 次/2 秒；程序集数量从 86 降到 80
+- **⚡ 后台分配降低**：减少无效端口探测、取消操作和空闲线程压力
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.6 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🧹 Optimized Cider Background Probing**: Full candidate-port scans are skipped when Cider is not running; process gating and exponential backoff are now used
+- **📉 High-frequency Exceptions Eliminated**: Measured exceptions dropped from 8–32 per 2 seconds to 0; loaded assemblies dropped from 86 to 80
+- **⚡ Lower Background Allocations**: Reduced unnecessary probing, cancellations, and idle thread pressure
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
