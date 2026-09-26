@@ -22,4 +22,28 @@ public sealed class AnimationFrameRateTests
     [InlineData(0, 0, 60, 60)]
     public void ResolveAnimationFrom_PreservesCurrentVisualPosition(double actual, double current, double fallback, double expected)
         => Assert.Equal(expected, WinIslands.UI.IslandWindow.ResolveAnimationFrom(actual, current, fallback));
-}
+
+    [Fact]
+    public void ShouldProcessFrame_FirstFrameIsImmediate()
+    {
+        var next = 1.0;
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(1.0, ref next, 120));
+        Assert.Equal(1.0 + 1.0 / 120.0, next, 6);
+    }
+
+    [Fact]
+    public void ShouldProcessFrame_RejectsFramesInsideBudget()
+    {
+        var next = 1.0;
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(1.0, ref next, 120));
+        Assert.False(AnimationFrameRate.ShouldProcessFrame(1.004, ref next, 120));
+        Assert.Equal(1.0 + 1.0 / 120.0, next, 6);
+    }
+
+    [Fact]
+    public void ShouldProcessFrame_ResynchronizesAfterStall()
+    {
+        var next = 1.0;
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(2.0, ref next, 120));
+        Assert.Equal(2.0 + 1.0 / 120.0, next, 6);
+    }}

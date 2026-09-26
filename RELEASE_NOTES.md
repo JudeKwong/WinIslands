@@ -12,6 +12,15 @@
 
 ## 简体中文
 
+## WinIslands 1.7.0（正式版 / Stable）
+### 更新内容
+
+- **🎞 高刷帧门控**：波形视觉按 60/120 FPS 帧预算推进，降低 144/165Hz 屏幕上的重复计算
+- **⚡ 帧预算稳定**：长时间休眠后自动重同步，不追赶积压帧，避免恢复时突然抖动
+- **✅ 回归测试**：215 项单元测试全部通过
+
+---
+
 ## WinIslands 1.6.9（正式版 / Stable）
 ### 更新内容
 
@@ -27,6 +36,15 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 1.7.0 (Stable)
+### What's New
+
+- **🎞 High-refresh Frame Gating**: Visualizer math follows a 60/120 FPS budget to cut redundant work on 144/165 Hz displays
+- **⚡ Stable Frame Budget**: Long stalls resynchronize instead of replaying a backlog and causing a catch-up jolt
+- **✅ Regression Testing**: All 215 unit tests passed
 
 ---
 

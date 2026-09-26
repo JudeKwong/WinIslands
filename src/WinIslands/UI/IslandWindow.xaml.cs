@@ -181,7 +181,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private NotifyCollectionChangedEventHandler? _historyChangedHandler;
     private bool _waveRendering;                  // 娉㈢汗娓叉煋涓紙宸叉寕鎺ュ悎鎴愬抚浜嬩欢锛?
     private DispatcherTimer? _waveTimer;                  // 浣庡姛鑰楁ā寮忥細娉㈢汗瀹氭椂鍣紙~120fps锛?
-    private double _lastWaveTime;                 // 涓婁竴甯ф椂闂达紙绉掞級锛岀敤浜庡抚鐜囨棤鍏冲钩婊?
+    private double _lastWaveTime;
+    private double _nextWaveFrameTime;                 // 涓婁竴甯ф椂闂达紙绉掞級锛岀敤浜庡抚鐜囨棤鍏冲钩婊?
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
     private readonly List<ScaleTransform> _waveBarsCompact = new();
@@ -1584,6 +1585,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (wantTimer != isTimer || wantComposition != isComposition)
         {
             StopWaveRender();
+            _nextWaveFrameTime = _waveClock.Elapsed.TotalSeconds;
             if (wantTimer)
             {
                 _waveRendering = true;
@@ -1632,6 +1634,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 return;
             }
             var now = _waveClock.Elapsed.TotalSeconds;
+            if (!_settings.Current.LowPowerMode)
+            {
+                var fps = AnimationFrameRate.Current(lowPowerMode: false);
+                if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, fps)) return;
+            }
+
             var dt = Math.Min(0.05, Math.Max(0.001, now - _lastWaveTime));
             _lastWaveTime = now;
 

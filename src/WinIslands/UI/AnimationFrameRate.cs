@@ -20,4 +20,22 @@ internal static class AnimationFrameRate
         => Timeline.SetDesiredFrameRate(timeline, Current(lowPowerMode));
 
     internal static int Resolve(int renderTier) => (renderTier >> 16) >= 2 ? HighRefresh : Standard;
+
+    /// <summary>
+    /// Advances a lightweight frame deadline. This prevents 144/165 Hz compositors from
+    /// running expensive visualizer math above the requested 120 FPS ceiling while avoiding
+    /// the halved-frame effect of a naive "skip one frame" throttle.
+    /// </summary>
+    public static bool ShouldProcessFrame(double nowSeconds, ref double nextFrameSeconds, int framesPerSecond)
+    {
+        var fps = Math.Clamp(framesPerSecond, 30, HighRefresh);
+        var interval = 1.0 / fps;
+        if (nowSeconds + 0.0000001 < nextFrameSeconds) return false;
+
+        // Resynchronize after sleep/suspend instead of trying to replay a large backlog.
+        nextFrameSeconds = nextFrameSeconds < nowSeconds - interval * 4
+            ? nowSeconds + interval
+            : nextFrameSeconds + interval;
+        return true;
+    }
 }
