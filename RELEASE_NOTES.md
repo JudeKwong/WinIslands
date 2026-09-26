@@ -12,6 +12,31 @@
 
 ## 简体中文
 
+## WinIslands 1.4.3（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎧 迷你播放器懒加载**：只有开启迷你播放器且正在播放媒体时才创建窗口，默认关闭时不再占用内存
+- **⚡ 启动继续瘦身**：未启用的迷你播放器和相关视觉树不再参与启动初始化
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.3 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎧 Lazy-loaded Mini Player**: The mini player window is created only when enabled and media is playing
+- **⚡ Leaner Startup**: Disabled mini-player windows and visual trees no longer participate in startup
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.2（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -769,6 +794,31 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.4.3（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🎧 迷你播放器懒加载**：只有开启迷你播放器且正在播放媒体时才创建窗口，默认关闭时不再占用内存
+- **⚡ 启动继续瘦身**：未启用的迷你播放器和相关视觉树不再参与启动初始化
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.4.3 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🎧 Lazy-loaded Mini Player**: The mini player window is created only when enabled and media is playing
+- **⚡ Leaner Startup**: Disabled mini-player windows and visual trees no longer participate in startup
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.4.2（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

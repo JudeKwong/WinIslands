@@ -296,8 +296,7 @@ AppPaths.EnsureDirectories();
         // ── Island windows (one per selected monitor) ──
         RecreateWindows();
 
-        // ── 迷你播放器（独立悬浮小窗，跟随媒体状态自动显隐）──
-        _miniPlayer = new MiniPlayerWindow(_vm, _theme, _settings);
+        // ── 迷你播放器（独立悬浮小窗，按需创建并跟随媒体状态显隐）──
         _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IslandViewModel.HasMedia)) UpdateMiniPlayerVisibility();
@@ -731,17 +730,18 @@ AppPaths.EnsureDirectories();
     /// <summary>迷你播放器显隐策略：开关开启且正在播放媒体时显示，否则隐藏并保存位置。</summary>
     private void UpdateMiniPlayerVisibility()
     {
-        if (_miniPlayer is null || _settings is null || _vm is null) return;
+        if (_settings is null || _vm is null) return;
         var s = _settings.Current;
         if (s.MiniPlayerEnabled && _vm.HasMedia)
         {
+            _miniPlayer ??= new MiniPlayerWindow(_vm, _theme, _settings);
             if (!_miniPlayer.IsVisible)
             {
                 _miniPlayer.PositionFromSettings();
                 _miniPlayer.Show();
             }
         }
-        else if (_miniPlayer.IsVisible)
+        else if (_miniPlayer?.IsVisible == true)
         {
             SaveMiniPlayerPosition();
             _miniPlayer.Hide();
