@@ -12,6 +12,33 @@
 
 ## 简体中文
 
+## WinIslands 1.3.8（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🖼️ 专辑封面解码内存优化**：封面最多按 512px 解码，缓存从 24 张降到 12 张，减少高分辨率封面长期占用
+- **🎨 壁纸取色优化**：壁纸只解码到 256px，不再加载原始尺寸
+- **🎞️ 重复动画跳过**：紧凑尺寸未变化时不再启动新 Storyboard，减少无效布局与动画
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.8 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🖼️ Artwork Decode Memory Optimization**: Artwork is decoded to at most 512px and the cache is reduced from 24 to 12 items
+- **🎨 Wallpaper Color Optimization**: Wallpapers are decoded at 256px for color extraction instead of original size
+- **🎞️ Redundant Animation Skipping**: Storyboards are skipped when compact dimensions have not changed
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.7（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -640,6 +667,33 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 ## 繁體中文
 
+## WinIslands 1.3.8（正式版 / Stable）
+
+一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
+
+### 更新内容
+
+- **🖼️ 专辑封面解码内存优化**：封面最多按 512px 解码，缓存从 24 张降到 12 张，减少高分辨率封面长期占用
+- **🎨 壁纸取色优化**：壁纸只解码到 256px，不再加载原始尺寸
+- **🎞️ 重复动画跳过**：紧凑尺寸未变化时不再启动新 Storyboard，减少无效布局与动画
+- **✅ 回归测试**：172 项单元测试全部通过
+
+---
+
+## English
+
+## WinIslands 1.3.8 (Stable)
+
+A modern, multi-functional Dynamic Island widget for Windows.
+
+### What's New
+
+- **🖼️ Artwork Decode Memory Optimization**: Artwork is decoded to at most 512px and the cache is reduced from 24 to 12 items
+- **🎨 Wallpaper Color Optimization**: Wallpapers are decoded at 256px for color extraction instead of original size
+- **🎞️ Redundant Animation Skipping**: Storyboards are skipped when compact dimensions have not changed
+- **✅ Regression Testing**: All 172 unit tests passed
+
+---
 ## WinIslands 1.3.7（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.

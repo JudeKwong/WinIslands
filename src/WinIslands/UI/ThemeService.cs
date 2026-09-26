@@ -92,7 +92,13 @@ public sealed class ThemeService
             var path = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WallPaper", "") as string;
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
             if (_wallpaperCache?.Path == path) return _wallpaperCache.Value.Color;
-            var bmp = new BitmapImage(new Uri(path));
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = 256;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            bmp.UriSource = new Uri(path);
+            bmp.EndInit();
             bmp.Freeze();
             var rt = new RenderTargetBitmap(1, 1, 96, 96, PixelFormats.Pbgra32);
             var dv = new DrawingVisual();

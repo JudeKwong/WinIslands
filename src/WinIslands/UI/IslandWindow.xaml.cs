@@ -1353,6 +1353,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (_vm.IsExpanded) { ApplySize(); return; }
         EnsureWindowSizeFits(); // 鍏堟墿瀹界獥鍙ｏ紝閬垮厤鍗＄墖鍔ㄧ敾鏈熼棿瓒呭嚭绐楀彛琚鍓?
         UpdateCompactContentWidth();
+        var targetWidth = CompactWidth;
+        var targetHeight = CompactHeight;
+        if (_currentStoryboard is null
+            && Math.Abs(Card.ActualWidth - targetWidth) < 0.5
+            && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
+        {
+            Card.Width = targetWidth;
+            Card.Height = targetHeight;
+            return;
+        }
+
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
         var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0;
         var dur = (int)Math.Clamp(360 * (styleMs / 680.0), 220, 460) * lm;

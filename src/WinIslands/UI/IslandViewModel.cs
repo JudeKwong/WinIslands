@@ -419,7 +419,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private ImageSource? _artwork;
     // ���滺�棺ͬһ·��ֻ����һ�β����ã�SMTC/Cider ÿ���ϱ�ͬһ���棬���ⷴ�� IO + �ڴ涶����
     private readonly Dictionary<string, ImageSource> _artworkCache = new(StringComparer.OrdinalIgnoreCase);
-    private const int ArtworkCacheMax = 24; // ���ڷ������ޣ�������̭��ɣ���ֹ��������
+    private const int ArtworkCacheMax = 12; // ���ڷ������ޣ�������̭��ɣ���ֹ��������
     public ImageSource? Artwork { get => _artwork; private set => Set(ref _artwork, value); }
 
     // ���� Playback ����������������������������������������������������������������������������������������������
@@ -1440,6 +1440,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                     var bmp = new BitmapImage();
                     bmp.BeginInit();
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.DecodePixelWidth = 512;
+                    bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
                     bmp.StreamSource = ms;
                     bmp.EndInit();
                     bmp.Freeze();
@@ -1450,7 +1452,18 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             if (img.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 img.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                try { return new BitmapImage(new Uri(img, UriKind.Absolute)); }
+                try
+                {
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnDemand;
+                    bmp.DecodePixelWidth = 512;
+                    bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                    bmp.UriSource = new Uri(img, UriKind.Absolute);
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    return bmp;
+                }
                 catch { return null; }
             }
             return null;
@@ -2818,6 +2831,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = 512;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
             bmp.UriSource = new Uri(path, UriKind.Absolute);
             bmp.EndInit();
             bmp.Freeze();
