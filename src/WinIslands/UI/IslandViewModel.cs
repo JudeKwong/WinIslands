@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -641,7 +641,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
     /// <summary>��ս������һ��˳�������</summary>
     /// <summary>��ս������һ��˳�������Kind=�����ʶ��Icon=��ʾͼ���ַ���֧���û����ƣ���</summary>
-    public sealed record IslandComponent(string Kind, string Icon); // "Time" | "Weather" | "Song"
+    public sealed record IslandComponent(string Kind, string Icon, string? Text = null, string? ToolTip = null, bool IsPlugin = false); // "Time" | "Weather" | "Song" | Plugin:*
     // ����������������/����/����/���/����������ֻ�ڲ���ʱ��ʾ���̶�����
     public bool ShowCover => HasMedia;
     public bool ShowTitle => HasMedia;
@@ -731,6 +731,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private string _scheduleSummary = string.Empty;
     public string ScheduleSummary { get => _scheduleSummary; private set => Set(ref _scheduleSummary, value); }
 
+    private sealed record PluginComponentEntry(string PluginId, PluginComponentSpec Component);
+    private readonly List<PluginComponentEntry> _pluginComponents = new();
+
     private IReadOnlyList<IslandComponent> _compactItems = Array.Empty<IslandComponent>();
     public IReadOnlyList<IslandComponent> CompactItems { get => _compactItems; private set => Set(ref _compactItems, value); }
 
@@ -798,7 +801,27 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         FileTransferToolTip = string.Join("\n", _fileTransferItems.Select(f => f.Path));
     }
 
-    /// <summary>�� WidgetOrder �ؽ���ս������˳�򣨲���ʱ��������Ϣ������ʱȥ�����</summary>
+    /// <summary>替换某个插件贡献的组件；空列表会清空该插件的组件。</summary>
+    public void SetPluginComponents(string pluginId, IReadOnlyList<PluginComponentSpec> components)
+    {
+        if (components is null) return;
+        _pluginComponents.RemoveAll(x => string.Equals(x.PluginId, pluginId, StringComparison.OrdinalIgnoreCase));
+        foreach (var component in components)
+            _pluginComponents.Add(new PluginComponentEntry(pluginId, component));
+        RebuildCompactItems();
+        try { UpdateVisibility(); }
+        catch (Exception ex) { AppLogger.Warn($"Plugin visibility refresh failed: {ex.Message}"); }
+    }
+
+    /// <summary>移除某个插件的全部组件。</summary>
+    public void RemovePluginComponents(string pluginId)
+    {
+        _pluginComponents.RemoveAll(x => string.Equals(x.PluginId, pluginId, StringComparison.OrdinalIgnoreCase));
+        RebuildCompactItems();
+        UpdateVisibility();
+    }
+
+    /// <summary>按 WidgetOrder 重建灵动岛组件顺序；没有播放信息时自动去掉歌曲组件。</summary>
     private void RebuildCompactItems()
     {
         // �ֲ������������ Kind ������ʾͼ�꣨�û��Զ������ȣ�����Ĭ�����Σ�
@@ -874,10 +897,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
 
         // ����δ�仯ʱ���ؽ�������ÿ�����գ�ÿ�룩���ش������������˸
-        if (_compactItems.Count == items.Count
-            && _compactItems.Select(i => i.Kind).SequenceEqual(items.Select(i => i.Kind)))
+        foreach (var entry in _pluginComponents
+            .OrderBy(x => x.Component.Order)
+            .ThenBy(x => x.PluginId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Component.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            var c = entry.Component;
+            var visible = HasMedia ? c.ShowWhenPlaying : c.ShowWhenIdle;
+            if (visible)
+                items.Add(new IslandComponent($"Plugin:{entry.PluginId}:{c.Id}", c.Icon, c.Text, c.ToolTip, true));
+        }
+
+        if (_compactItems.SequenceEqual(items))
             return;
-        CompactItems = items;
     }
 
 
@@ -2582,7 +2614,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         var alwaysVisible = _settings.Current.IslandAlwaysVisible;
         var comp = _settings.Current.Components;
         // ����ʱ�Ƿ��������������פ/�ɿ��أ���Ҫ��ʾ
-        var anyIdleComp = comp.TimeWhenIdle || comp.WeatherWhenIdle || comp.CoverWhenIdle
+        var anyIdleComp = _pluginComponents.Any(x => x.Component.ShowWhenIdle) || comp.TimeWhenIdle || comp.WeatherWhenIdle || comp.CoverWhenIdle
             || comp.TitleWhenIdle || comp.ArtistWhenIdle || comp.LyricsWhenIdle || comp.ProgressWhenIdle
             || comp.DiskWhenIdle;
         var showWidgets = !hasMedia && (_settings.Current.ShowWidgetsWhenNoMedia || alwaysVisible || anyIdleComp);

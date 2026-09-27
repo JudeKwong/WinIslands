@@ -15,8 +15,9 @@
 ## WinIslands 2.0.0（正式版 / Stable）
 ### 更新内容
 
+- **🧩 本地组件插件**：支持本地 `plugin.json` 插件进程向灵动岛贡献自定义组件，支持显隐、提示和排序
 - **2.0 动效收束**：紧凑尺寸动画补齐亚像素过渡，并让减少动态效果模式跳过尺寸动画
-- **✅ 回归测试**：215 项单元测试全部通过
+- **✅ 回归测试**：222 项单元测试全部通过
 
 ---
 
@@ -284,8 +285,9 @@
 ## WinIslands 2.0.0 (Stable)
 ### What's New
 
-- **2.0 动效收束**: Adds subpixel transitions to compact-size animations and skips them entirely in reduced-motion mode
-- **✅ Regression Testing**: All 215 unit tests passed
+- **🧩 Local Component Plugins**: Local `plugin.json` processes can contribute custom island components with visibility, tooltips and ordering
+- **2.0 Motion Finalization**: Adds subpixel transitions to compact-size animations and skips them in reduced-motion mode
+- **✅ Regression Testing**: All 222 unit tests passed
 
 ---
 

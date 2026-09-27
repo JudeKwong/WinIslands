@@ -252,6 +252,17 @@
                                            ToolTip="{Binding DataContext.WeatherDetailText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                            Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                             </DataTemplate>
+                            <DataTemplate x:Key="PluginItem">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0"
+                                            ToolTip="{Binding ToolTip}">
+                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}"
+                                               FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
+                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
+                                    <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="220"
+                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
+                                </StackPanel>
+                            </DataTemplate>
                             <DataTemplate x:Key="DiskItem">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
@@ -659,6 +670,9 @@
                                         <Style TargetType="ContentControl">
                                             <Setter Property="ContentTemplate" Value="{StaticResource SongItem}"/>
                                             <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlugin}" Value="True">
+                                                    <Setter Property="ContentTemplate" Value="{StaticResource PluginItem}"/>
+                                                </DataTrigger>
                                                 <DataTrigger Binding="{Binding Kind}" Value="Time">
                                                     <Setter Property="ContentTemplate" Value="{StaticResource TimeItem}"/>
                                                 </DataTrigger>

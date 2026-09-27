@@ -32,6 +32,7 @@ public partial class App : Application
     private GlobalHotkeyService? _hotkeys;
     private QuickLauncherWindow? _launcher;
     private ClipboardPanelWindow? _clipboardPanel;
+    private PluginService? _plugins;
     private IslandApiServer? _islandApi;
     private MediaAppRegistry? _mediaApps;
     private ScreenCaptureMonitor? _screenCapture;
@@ -196,6 +197,12 @@ AppPaths.EnsureDirectories();
                 Localization.Get("Disk_Title"),
                 string.Format(Localization.Get("Disk_Body"), gb), "\uEDA2", "warning", 6));
 
+        // ── 本地组件插件：独立进程运行，stdout 返回组件 JSON ──
+        _plugins = new PluginService();
+        _plugins.ComponentsChanged += (_, e) =>
+            Dispatcher.BeginInvoke(() => _vm?.SetPluginComponents(e.PluginId, e.Components));
+        _plugins.Start();
+
         // ── 上岛 API：第三方软件推送信息到灵动岛 ──
         _islandApi = new IslandApiServer(_settings);
         _islandApi.PushReceived += push => Dispatcher.BeginInvoke(() => _vm?.PushIsland(push));
@@ -336,6 +343,11 @@ AppPaths.EnsureDirectories();
         {
             try { new LogViewerWindow().Show(); }
             catch (Exception ex) { AppLogger.Error("Open log viewer failed", ex); }
+        };
+        _tray.PluginsRequested += (_, _) =>
+        {
+            OpenPluginFolder();
+            _plugins?.Reload();
         };
         _tray.ExitRequested += (_, _) => Shutdown();
 
@@ -647,6 +659,17 @@ AppPaths.EnsureDirectories();
         _theme.Apply(s);
     }
 
+    private static void OpenPluginFolder()
+    {
+        Directory.CreateDirectory(AppPaths.PluginsDir);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            UseShellExecute = true,
+            ArgumentList = { AppPaths.PluginsDir },
+        });
+    }
+
     private void OpenSettings()
     {
         if (_settings is null) return;
@@ -892,6 +915,7 @@ AppPaths.EnsureDirectories();
             SaveMiniPlayerPosition();
             _settings?.Save();
             _vm?.SavePlaybackState(); // 退出前保存播放位置，重启后恢复（暂停时不再跳回开头）
+            _plugins?.Dispose();
             _vm?.Dispose();
             _wave?.Dispose();
             _keyboard?.Dispose();

@@ -1,4 +1,4 @@
-﻿namespace WinIslands.UI;
+namespace WinIslands.UI;
 
 /// <summary>
 /// Lightweight in-app localization (Simplified Chinese default + English).
@@ -21,6 +21,7 @@ public static class Localization
         ["Exit"] = "退出",
         ["Tray_Dnd"] = "勿扰模式",
         ["Tray_CheckUpdates"] = "检查更新",
+        ["Tray_Plugins"] = "插件目录",
         ["Tray_Logs"] = "查看日志",
         ["Paused"] = "已暂停",
         ["NoMedia"] = "暂未检测到播放中的媒体",
@@ -516,6 +517,7 @@ public static class Localization
         ["Exit"] = "Exit",
         ["Tray_Dnd"] = "Do Not Disturb",
         ["Tray_CheckUpdates"] = "Check for Updates",
+        ["Tray_Plugins"] = "Plugin Folder",
         ["Tray_Logs"] = "View Logs",
         ["Paused"] = "Paused",
         ["NoMedia"] = "No media detected",
