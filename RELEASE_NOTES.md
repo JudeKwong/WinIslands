@@ -12,8 +12,8 @@
 
 ## 简体中文
 
-## WinIslands 2.0.1beta1（本地测试版）
-### 新增内容
+## WinIslands 2.0.1（正式版 / Stable）
+### 更新内容
 
 - **插件管理器**：启用 / 禁用、重新扫描、打开目录和权限展示
 - **插件组件扩展**：图片、进度、状态色和点击动作
@@ -288,6 +288,17 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.1 (Stable)
+### What's New
+
+- **🧩 Plugin Manager**: Enable/disable, rescan, open folders and view permissions
+- **🖼 Extended Component Protocol**: Images, progress, accent colors, multiline text and click actions
+- **⚙️ Plugin Config Injection**: Manifest config values are passed to plugin processes as environment variables
+- **🔐 Plugin Security**: Permission declarations and optional SHA-256 entry validation
+- **✅ Regression Testing**: All 222 unit tests passed
 
 ---
 

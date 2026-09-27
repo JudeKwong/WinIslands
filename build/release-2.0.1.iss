@@ -1,7 +1,7 @@
-; WinIslands - Universal Inno Setup installer for the 2.0.1beta1 stable release (x64 + ARM64)
+; WinIslands - Universal Inno Setup installer for the 2.0.1 stable release (x64 + ARM64)
 ; Installs the matching binary for the current architecture automatically.
 #define MyAppName "WinIslands"
-#define MyAppVersion "2.0.1beta1"
+#define MyAppVersion "2.0.1"
 #define MyAppPublisher "WinIslands"
 #define MyAppExeName "WinIslands.exe"
 
@@ -13,7 +13,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-OutputDir=..\..\releases\2.0.1beta1
+OutputDir=..\..\releases\2.0.1
 OutputBaseFilename=WinIslands-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
@@ -30,10 +30,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "autostart"; Description: "Start WinIslands automatically with Windows"; GroupDescription: "Startup:"
 
 [Files]
-Source: "..\..\releases\2.0.1beta1\win-x64\WinIslands-2.0.1beta1-win-x64.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsX64OS
-Source: "..\..\releases\2.0.1beta1\win-arm64\WinIslands-2.0.1beta1-win-arm64.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsARM64
-Source: "..\..\releases\2.0.1beta1\win-x64\plugins\*"; DestDir: "{app}\plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\releases\2.0.1beta1\win-x64\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\releases\2.0.1\win-x64\WinIslands-2.0.1-win-x64.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsX64OS
+Source: "..\..\releases\2.0.1\win-arm64\WinIslands-2.0.1-win-arm64.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsARM64
+Source: "..\..\releases\2.0.1\win-x64\plugins\*"; DestDir: "{app}\plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\releases\2.0.1\win-x64\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
