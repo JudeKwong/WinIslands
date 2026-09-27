@@ -20,6 +20,7 @@ public sealed class TrayIcon : IDisposable
     private readonly MenuItem _autoStartItem;
     private readonly MenuItem _dndItem;
     private readonly MenuItem _updateItem;
+    private readonly MenuItem _pluginManagerItem;
     private readonly MenuItem _pluginsItem;
     private readonly MenuItem _logsItem;
     private readonly MenuItem _settingsItem;
@@ -81,6 +82,9 @@ public sealed class TrayIcon : IDisposable
         _updateItem = new MenuItem { Header = Localization.Get("Tray_CheckUpdates") };
         _updateItem.Click += (_, _) => UpdateRequested?.Invoke(this, EventArgs.Empty);
 
+        _pluginManagerItem = new MenuItem { Header = Localization.Get("Tray_PluginManager") };
+        _pluginManagerItem.Click += (_, _) => PluginManagerRequested?.Invoke(this, EventArgs.Empty);
+
         _pluginsItem = new MenuItem { Header = Localization.Get("Tray_Plugins") };
         _pluginsItem.Click += (_, _) => PluginsRequested?.Invoke(this, EventArgs.Empty);
 
@@ -99,6 +103,7 @@ public sealed class TrayIcon : IDisposable
         _menu.Items.Add(_dndItem);
         _menu.Items.Add(new Separator());
         _menu.Items.Add(_updateItem);
+        _menu.Items.Add(_pluginManagerItem);
         _menu.Items.Add(_pluginsItem);
         _menu.Items.Add(_logsItem);
         _menu.Items.Add(new Separator());
@@ -137,6 +142,7 @@ public sealed class TrayIcon : IDisposable
     public event EventHandler? AutoStartRequested;
     public event EventHandler? DoNotDisturbRequested;
     public event EventHandler? UpdateRequested;
+    public event EventHandler? PluginManagerRequested;
     public event EventHandler? PluginsRequested;
     public event EventHandler? LogsRequested;
     public event EventHandler? ExitRequested;
@@ -176,6 +182,7 @@ public sealed class TrayIcon : IDisposable
         _autoStartItem.Header = Localization.Get("AutoStart");
         _dndItem.Header = Localization.Get("Tray_Dnd");
         _updateItem.Header = Localization.Get("Tray_CheckUpdates");
+        _pluginManagerItem.Header = Localization.Get("Tray_PluginManager");
         _pluginsItem.Header = Localization.Get("Tray_Plugins");
         _logsItem.Header = Localization.Get("Tray_Logs");
         _settingsItem.Header = Localization.Get("Settings");

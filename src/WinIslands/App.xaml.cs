@@ -33,6 +33,7 @@ public partial class App : Application
     private QuickLauncherWindow? _launcher;
     private ClipboardPanelWindow? _clipboardPanel;
     private PluginService? _plugins;
+    private PluginManagerWindow? _pluginManager;
     private IslandApiServer? _islandApi;
     private MediaAppRegistry? _mediaApps;
     private ScreenCaptureMonitor? _screenCapture;
@@ -344,6 +345,7 @@ AppPaths.EnsureDirectories();
             try { new LogViewerWindow().Show(); }
             catch (Exception ex) { AppLogger.Error("Open log viewer failed", ex); }
         };
+        _tray.PluginManagerRequested += (_, _) => OpenPluginManager();
         _tray.PluginsRequested += (_, _) =>
         {
             OpenPluginFolder();
@@ -659,6 +661,20 @@ AppPaths.EnsureDirectories();
         _theme.Apply(s);
     }
 
+    private void OpenPluginManager()
+    {
+        if (_plugins is null) return;
+        if (_pluginManager is { IsLoaded: true })
+        {
+            _pluginManager.Activate();
+            return;
+        }
+        _pluginManager = new PluginManagerWindow(_plugins, _theme);
+        _pluginManager.Closed += (_, _) => _pluginManager = null;
+        _pluginManager.Show();
+    }
+
+
     private static void OpenPluginFolder()
     {
         Directory.CreateDirectory(AppPaths.PluginsDir);
@@ -915,6 +931,7 @@ AppPaths.EnsureDirectories();
             SaveMiniPlayerPosition();
             _settings?.Save();
             _vm?.SavePlaybackState(); // 退出前保存播放位置，重启后恢复（暂停时不再跳回开头）
+            _pluginManager?.Close();
             _plugins?.Dispose();
             _vm?.Dispose();
             _wave?.Dispose();

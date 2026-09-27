@@ -990,6 +990,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>鐐瑰嚮蹇嵎寮€鍏筹紙Button.Tag: wifi / bluetooth / night / mute锛夈€?/summary>
+
+    /// <summary>插件组件点击：执行插件声明的 URL / 程序 / 命令动作。</summary>
+    private void PluginItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is IslandViewModel.IslandComponent item && item.Click is not null)
+            _vm.ExecutePushAction(item.Click);
+        e.Handled = true;
+    }
+
     private void QuickToggle_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is string which)

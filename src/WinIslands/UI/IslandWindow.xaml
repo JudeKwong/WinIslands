@@ -253,15 +253,26 @@
                                            Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                             </DataTemplate>
                             <DataTemplate x:Key="PluginItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0"
-                                            ToolTip="{Binding ToolTip}">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}"
-                                               FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="220"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
+                                <Border Background="Transparent" Cursor="Hand" MouseLeftButtonUp="PluginItem_MouseLeftButtonUp"
+                                        ToolTip="{Binding ToolTip}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <Image Source="{Binding Image}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,4,0"
+                                               Visibility="{Binding Image, Converter={StaticResource NullToVis}}"/>
+                                        <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}"
+                                                   FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                   Visibility="{Binding Image, Converter={StaticResource NullToVisInvert}}"
+                                                   Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
+                                        <Ellipse Width="5" Height="5" Fill="{Binding AccentBrush}" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                 Visibility="{Binding AccentBrush, Converter={StaticResource NullToVis}}"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
+                                                       TextWrapping="Wrap" MaxWidth="220"
+                                                       Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
+                                            <ProgressBar Value="{Binding Progress}" Maximum="1" Height="3" Width="80" HorizontalAlignment="Left"
+                                                         Margin="0,2,0,0" Visibility="{Binding Progress, Converter={StaticResource NullToVis}}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </DataTemplate>
                             <DataTemplate x:Key="DiskItem">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">

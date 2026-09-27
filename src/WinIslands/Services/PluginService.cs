@@ -37,6 +37,18 @@ public sealed class PluginManifest
     [JsonPropertyName("arguments")]
     public List<string> Arguments { get; set; } = new();
 
+    [JsonPropertyName("permissions")]
+    public List<string> Permissions { get; set; } = new();
+
+    [JsonPropertyName("config")]
+    public Dictionary<string, string> Config { get; set; } = new();
+
+    [JsonPropertyName("config_schema")]
+    public JsonElement? ConfigSchema { get; set; }
+
+    [JsonPropertyName("sha256")]
+    public string Sha256 { get; set; } = "";
+
     [JsonPropertyName("working_directory")]
     public string WorkingDirectory { get; set; } = "";
 
@@ -60,6 +72,9 @@ public sealed class PluginManifest
 
     [JsonIgnore]
     public string ManifestPath { get; set; } = "";
+
+    [JsonIgnore]
+    public string PermissionSummary => Permissions.Count == 0 ? "无额外权限" : string.Join(", ", Permissions);
 }
 
 /// <summary>
@@ -75,6 +90,21 @@ public sealed class PluginComponentSpec
 
     [JsonPropertyName("icon")]
     public string Icon { get; set; } = "\uE8D6";
+
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";
+
+    [JsonPropertyName("progress")]
+    public double? Progress { get; set; }
+
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "";
+
+    [JsonPropertyName("click_action")]
+    public string ClickAction { get; set; } = "";
+
+    [JsonPropertyName("click_value")]
+    public string ClickValue { get; set; } = "";
 
     [JsonPropertyName("tooltip")]
     public string ToolTip { get; set; } = "";
@@ -173,6 +203,28 @@ public sealed class PluginService : IDisposable
         AppLogger.Info($"Plugin scan complete: {discovered.Count} manifest(s), {runtimes.Count} enabled");
     }
 
+    /// <summary>启用或禁用插件，并立即重新扫描。</summary>
+    public bool SetEnabled(string pluginId, bool enabled)
+    {
+        var manifest = Plugins.FirstOrDefault(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (manifest is null || string.IsNullOrWhiteSpace(manifest.ManifestPath) || !File.Exists(manifest.ManifestPath))
+            return false;
+        try
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest.ManifestPath));
+            if (node is null) return false;
+            node["enabled"] = enabled;
+            File.WriteAllText(manifest.ManifestPath, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            manifest.Enabled = enabled;
+            Reload();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin enable state update failed [{pluginId}]: {ex.Message}");
+            return false;
+        }
+    }
     private List<PluginManifest> DiscoverPlugins()
     {
         var result = new List<PluginManifest>();
@@ -240,6 +292,16 @@ public sealed class PluginService : IDisposable
                 return null;
             }
 
+            if (!string.IsNullOrWhiteSpace(manifest.Sha256))
+            {
+                var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(entry)));
+                if (!string.Equals(actual, manifest.Sha256.Replace("-", ""), StringComparison.OrdinalIgnoreCase))
+                {
+                    AppLogger.Warn($"Plugin SHA-256 mismatch: {manifestPath}");
+                    return null;
+                }
+            }
+
             return manifest;
         }
         catch (Exception ex)
@@ -267,12 +329,12 @@ public sealed class PluginService : IDisposable
     private void StartRuntime(PluginRuntime runtime)
     {
         if (runtime.Manifest.RunAtStartup)
-            _ = RunAsync(runtime, _lifetime.Token);
+            _ = RunAsync(runtime, runtime.Cancellation.Token);
 
         if (runtime.Manifest.IntervalSeconds > 0)
         {
             var interval = TimeSpan.FromSeconds(runtime.Manifest.IntervalSeconds);
-            runtime.Timer = new System.Threading.Timer(_ => _ = RunAsync(runtime, _lifetime.Token), null, interval, interval);
+            runtime.Timer = new System.Threading.Timer(_ => _ = RunAsync(runtime, runtime.Cancellation.Token), null, interval, interval);
         }
     }
 
@@ -292,7 +354,7 @@ public sealed class PluginService : IDisposable
             }
             AppLogger.Info($"Plugin process started: {manifest.Id}");
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(manifest.TimeoutSeconds));
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
@@ -318,8 +380,10 @@ public sealed class PluginService : IDisposable
             var components = ParseOutput(manifest.Id, stdout, manifest.MaxOutputKb * 1024);
             AppLogger.Info($"Plugin output parsed: {components?.Count.ToString() ?? "null"}, chars={stdout.Length}");
             if (components is not null)
+            {
                 AppLogger.Debug($"Plugin components updated [{manifest.Id}]: {components.Count}");
                 ComponentsChanged?.Invoke(this, new PluginComponentsChangedEventArgs(manifest.Id, components));
+            }
         }
         catch (Exception ex)
         {
@@ -371,6 +435,12 @@ public sealed class PluginService : IDisposable
             startInfo.FileName = entry;
         }
 
+
+        foreach (var pair in manifest.Config)
+        {
+            var key = "WINISLANDS_PLUGIN_CONFIG_" + new string(pair.Key.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(key)) startInfo.Environment[key] = pair.Value ?? string.Empty;
+        }
         foreach (var argument in manifest.Arguments)
             startInfo.ArgumentList.Add(ExpandArgument(argument, manifest));
         return startInfo;
@@ -466,14 +536,17 @@ public sealed class PluginService : IDisposable
     {
         public PluginManifest Manifest { get; }
         public System.Threading.Timer? Timer { get; set; }
+        public CancellationTokenSource Cancellation { get; } = new();
         public int Running;
 
         public PluginRuntime(PluginManifest manifest) => Manifest = manifest;
 
         public void Dispose()
         {
+            Cancellation.Cancel();
             Timer?.Dispose();
             Timer = null;
+            Cancellation.Dispose();
         }
     }
 }

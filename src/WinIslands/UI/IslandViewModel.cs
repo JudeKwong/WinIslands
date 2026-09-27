@@ -641,7 +641,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
     /// <summary>��ս������һ��˳�������</summary>
     /// <summary>��ս������һ��˳�������Kind=�����ʶ��Icon=��ʾͼ���ַ���֧���û����ƣ���</summary>
-    public sealed record IslandComponent(string Kind, string Icon, string? Text = null, string? ToolTip = null, bool IsPlugin = false); // "Time" | "Weather" | "Song" | Plugin:*
+    public sealed record IslandComponent(string Kind, string Icon, string? Text = null, string? ToolTip = null, bool IsPlugin = false, ImageSource? Image = null, double? Progress = null, System.Windows.Media.Brush? AccentBrush = null, IslandPushButton? Click = null); // "Time" | "Weather" | "Song" | Plugin:*
     // ����������������/����/����/���/����������ֻ�ڲ���ʱ��ʾ���̶�����
     public bool ShowCover => HasMedia;
     public bool ShowTitle => HasMedia;
@@ -822,6 +822,43 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>按 WidgetOrder 重建灵动岛组件顺序；没有播放信息时自动去掉歌曲组件。</summary>
+    private static System.Windows.Media.Brush? ParsePluginBrush(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        try
+        {
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(value);
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            return brush;
+        }
+        catch { return null; }
+    }
+
+    private static ImageSource? ParsePluginImage(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !value.StartsWith("data:image", StringComparison.OrdinalIgnoreCase)) return null;
+        try
+        {
+            var idx = value.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) return null;
+            var bytes = Convert.FromBase64String(value[(idx + 7)..].Trim());
+            using var stream = new MemoryStream(bytes);
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.DecodePixelWidth = 96;
+            bitmap.StreamSource = stream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch { return null; }
+    }
+
+    private static IslandPushButton? ParsePluginClick(PluginComponentSpec c)
+        => string.IsNullOrWhiteSpace(c.ClickAction) ? null : new IslandPushButton { Action = c.ClickAction.Trim(), Value = c.ClickValue ?? string.Empty };
+
     private void RebuildCompactItems()
     {
         // �ֲ������������ Kind ������ʾͼ�꣨�û��Զ������ȣ�����Ĭ�����Σ�
@@ -905,7 +942,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             var c = entry.Component;
             var visible = HasMedia ? c.ShowWhenPlaying : c.ShowWhenIdle;
             if (visible)
-                items.Add(new IslandComponent($"Plugin:{entry.PluginId}:{c.Id}", c.Icon, c.Text, c.ToolTip, true));
+                items.Add(new IslandComponent($"Plugin:{entry.PluginId}:{c.Id}", c.Icon, c.Text, c.ToolTip, true, ParsePluginImage(c.Image), c.Progress, ParsePluginBrush(c.Color), ParsePluginClick(c)));
         }
 
         if (_compactItems.SequenceEqual(items))

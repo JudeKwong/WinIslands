@@ -1,0 +1,106 @@
+<Window x:Class="WinIslands.UI.PluginManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WinIslands Plugins" Width="760" Height="560"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="9" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.78"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="RootBorder" CornerRadius="20" BorderThickness="1" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="插件管理" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="本地进程插件会向灵动岛贡献组件；插件与上岛 API 相互独立。" FontSize="12"
+                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Content="关闭" Style="{StaticResource CardButton}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Click="Close_Click"/>
+            </Grid>
+            <ListBox x:Name="PluginList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0,0,0,10"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border CornerRadius="14" Padding="14" BorderThickness="1"
+                                Background="{DynamicResource ControlBgBrush}"
+                                BorderBrush="{DynamicResource ControlBorderBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
+                                        <Run Text="{Binding Id}"/>
+                                        <Run Text="  ·  v"/>
+                                        <Run Text="{Binding Version}"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,16,0"/>
+                                    <TextBlock Text="{Binding PermissionSummary}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,16,0"/>
+                                    <TextBlock Text="{Binding ManifestPath}" FontSize="10" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,16,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <CheckBox Content="启用" IsChecked="{Binding Enabled}" Tag="{Binding}"
+                                              Click="PluginEnabled_Click" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                    <Button Content="打开目录" Style="{StaticResource CardButton}" Tag="{Binding DirectoryPath}"
+                                            Click="OpenPluginFolder_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button Content="打开用户插件目录" Style="{StaticResource CardButton}" Click="OpenUserFolder_Click" Margin="0,0,8,0"/>
+                <Button Content="重新扫描" Style="{StaticResource CardButton}" Click="Reload_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
