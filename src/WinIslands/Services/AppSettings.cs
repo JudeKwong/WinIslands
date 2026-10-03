@@ -72,6 +72,13 @@ public sealed class ComponentFlags
     public bool QuickTogglesWhenIdle { get; set; } = false;  // 快捷开关（WiFi/蓝牙/夜间模式/静音）
     public bool QuickTogglesWhenPlaying { get; set; } = false;
 }
+
+/// <summary>插件组件在「组件设置」页的显隐勾选（空闲/播放两列，独立于插件输出里的 show_when_*）。</summary>
+public sealed class PluginComponentFlags
+{
+    public bool Idle { get; set; } = true;
+    public bool Playing { get; set; } = true;
+}
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
@@ -219,6 +226,8 @@ public sealed class AppSettings
     // ── 组件（灵动岛显示内容，Idle/Playing 可分别勾选）──
     public ComponentFlags Components { get; set; } = new();
     public string WidgetOrder { get; set; } = "Time,Weather"; // 组件摆放顺序（逗号分隔的键）
+    /// <summary>插件组件显隐（键=插件 ID；缺省时默认显示）。</summary>
+    public Dictionary<string, PluginComponentFlags> PluginComponents { get; set; } = new();
 
     // ── 媒体程序选择与顺序（空列表 = 全部启用，按默认优先级）──
     public List<MediaAppEntry> MediaApps { get; set; } = new();
@@ -367,6 +376,7 @@ public sealed class AppSettings
     public AppSettings Clone()
     {
         var c = (AppSettings)MemberwiseClone();
+        c.PluginComponents = new Dictionary<string, PluginComponentFlags>(PluginComponents ?? new());
         c.NormalizeNonFiniteValues();
         c.DnDAllowlist = new List<string>(DnDAllowlist);
         c.UsageMergeItems = new List<string>(UsageMergeItems);
@@ -421,6 +431,7 @@ public sealed class SettingsService
                 {
                     // 兼容旧配置：补齐新增字段
                     loaded.Components ??= new ComponentFlags();
+                    loaded.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
                     loaded.NormalizeNonFiniteValues();
                     return loaded;
                 }

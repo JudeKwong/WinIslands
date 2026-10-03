@@ -999,6 +999,39 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         e.Handled = true;
     }
 
+    // 记录每个插件组件最近一次渲染的文本，用于判断“内容是否真的变了”
+    private readonly Dictionary<string, string> _pluginFadeLastText = new();
+
+    /// <summary>
+    /// 插件组件加载（重建/内容变化）时做一次短暂的淡入过渡（C1）。
+    /// 只有当该组件的文本与上次不同时才动画，避免无变化的闪烁；新出现的组件同样淡入。
+    /// </summary>
+    private void PluginItem_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Border border) return;
+        if (border.DataContext is not IslandViewModel.IslandComponent item || !item.IsPlugin) return;
+        if (!item.Kind.StartsWith("Plugin:", StringComparison.Ordinal)) return;
+
+        // 组件 ToolTip 为空时回退为完整文本，配合超长截断
+        if (border.ToolTip is null or "")
+        {
+            try { border.ToolTip = item.Text; } catch { }
+        }
+
+        var key = item.Kind;
+        var text = item.Text ?? string.Empty;
+        if (_pluginFadeLastText.TryGetValue(key, out var old) && old == text)
+            return; // 内容未变化，跳过动画
+        _pluginFadeLastText[key] = text;
+
+        border.BeginAnimation(UIElement.OpacityProperty, null);
+        var fade = new DoubleAnimation(0.25, 1.0, TimeSpan.FromMilliseconds(160))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+        };
+        border.BeginAnimation(UIElement.OpacityProperty, fade);
+    }
+
     private void QuickToggle_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is string which)

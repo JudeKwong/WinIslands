@@ -25,16 +25,18 @@ public sealed class MediaAppRow : ObservableObject
 /// <summary>顺序条里的一个组件（含歌曲信息）。</summary>
 public sealed class OrderItem : ObservableObject
 {
-    private readonly string _nameKey;
+    private readonly string? _nameKey;
+    private readonly string _directName;
     public string Key { get; }
-    public string Name => Localization.Get(_nameKey);
-    public OrderItem(string key, string nameKey) { Key = key; _nameKey = nameKey; }
+    public string Name => string.IsNullOrEmpty(_nameKey) ? _directName : Localization.Get(_nameKey);
+    public OrderItem(string key, string nameKey, string? directName = null) { Key = key; _nameKey = nameKey; _directName = directName ?? ""; }
     public void RefreshName() => OnPropertyChanged(nameof(Name));
 }
 public sealed class ComponentRow : ObservableObject
 {
-    private readonly string _nameKey;
-    private readonly ComponentFlags _c;
+    private readonly string? _nameKey;
+    private readonly string _directName;
+    private readonly ComponentFlags? _c;
     private readonly Func<ComponentFlags, bool> _idleGet;
     private readonly Action<ComponentFlags, bool> _idleSet;
     private readonly Func<ComponentFlags, bool> _playGet;
@@ -49,18 +51,30 @@ public sealed class ComponentRow : ObservableObject
         Func<ComponentFlags, bool> playGet, Action<ComponentFlags, bool> playSet,
         Func<AppSettings> settingsGet, Action<ComponentRow>? onChanged = null)
     {
-        Key = key; _nameKey = nameKey; _c = c;
+        Key = key; _nameKey = nameKey; _directName = ""; _c = c;
         _idleGet = idleGet; _idleSet = idleSet;
         _playGet = playGet; _playSet = playSet;
         _settingsGet = settingsGet;
         _onChanged = onChanged ?? (_ => { });
     }
 
+    /// <summary>插件等非本地化名称行：名称直接显示，显隐读写与 ComponentFlags 无关。</summary>
+    public ComponentRow(string key, string directName,
+        Func<bool> idleGet, Action<bool> idleSet,
+        Func<bool> playGet, Action<bool> playSet,
+        Func<AppSettings> settingsGet, Action<ComponentRow>? onChanged = null)
+    {
+        Key = key; _nameKey = null; _directName = directName; _c = null;
+        _idleGet = _ => idleGet(); _idleSet = (_, v) => idleSet(v);
+        _playGet = _ => playGet(); _playSet = (_, v) => playSet(v);
+        _settingsGet = settingsGet;
+        _onChanged = onChanged ?? (_ => { });
+    }
 
-    public string Name => Localization.Get(_nameKey);
+    public string Name => string.IsNullOrEmpty(_nameKey) ? _directName : Localization.Get(_nameKey);
 
-    public bool Idle { get => _idleGet(_c); set { _idleSet(_c, value); OnPropertyChanged(); _onChanged(this); } }
-    public bool Playing { get => _playGet(_c); set { _playSet(_c, value); OnPropertyChanged(); _onChanged(this); } }
+    public bool Idle { get => _idleGet(_c!); set { _idleSet(_c!, value); OnPropertyChanged(); _onChanged(this); } }
+    public bool Playing { get => _playGet(_c!); set { _playSet(_c!, value); OnPropertyChanged(); _onChanged(this); } }
 
     /// <summary>该组件是否支持图标定制（有默认图标才支持）。</summary>
     public bool SupportsIcon => ComponentIcons.SupportsIcon(Key);
@@ -176,7 +190,7 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly SettingsService _service;
     private readonly EventHandler _onLanguageChanged;
 
-    public SettingsViewModel(SettingsService service, MediaAppRegistry? registry = null)
+    public SettingsViewModel(SettingsService service, MediaAppRegistry? registry = null, PluginService? plugins = null)
     {
         _service = service;
         Working = service.Current.Clone();
@@ -243,6 +257,7 @@ public sealed class SettingsViewModel : ObservableObject
             new EnumOption<string>("Fade", Localization.Get("Appearance_AnimFade")),
         };
         _components = BuildComponents(Working.Components);
+        if (plugins is not null) _components.AddRange(BuildPluginComponents(plugins));
         _orderItems = new List<OrderItem>();
         RebuildOrderItems();
         _mediaAppRows = BuildMediaApps(Working.MediaApps, registry);
@@ -384,6 +399,39 @@ public sealed class SettingsViewModel : ObservableObject
     private List<ComponentRow> _components = new();
     private List<OrderItem> _orderItems = new();
 
+    /// <summary>把已加载的插件作为「组件设置」行追加到列表末尾（名称用插件显示名，显隐写入 PluginComponents）。</summary>
+    private List<ComponentRow> BuildPluginComponents(PluginService plugins)
+    {
+        Func<AppSettings> sget = () => Working;
+        var rows = new List<ComponentRow>();
+        foreach (var p in plugins.Plugins.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var key = "Plugin:" + p.Id;
+            rows.Add(new ComponentRow(key, p.Name,
+                () => PluginFlag(sget(), p.Id, idle: true),
+                v => SetPluginFlag(sget(), p.Id, idle: true, v),
+                () => PluginFlag(sget(), p.Id, idle: false),
+                v => SetPluginFlag(sget(), p.Id, idle: false, v),
+                sget, _ => RebuildOrderItems()));
+        }
+        return rows;
+    }
+
+    private static bool PluginFlag(AppSettings s, string pluginId, bool idle)
+    {
+        var flags = s.PluginComponents;
+        if (flags is null || !flags.TryGetValue(pluginId, out var f)) return true;
+        return idle ? f.Idle : f.Playing;
+    }
+
+    private static void SetPluginFlag(AppSettings s, string pluginId, bool idle, bool value)
+    {
+        s.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
+        if (!s.PluginComponents.TryGetValue(pluginId, out var f))
+            s.PluginComponents[pluginId] = f = new PluginComponentFlags();
+        if (idle) f.Idle = value; else f.Playing = value;
+    }
+
     private List<ComponentRow> BuildComponents(ComponentFlags c)
     {
         Func<AppSettings> sget = () => Working;
@@ -446,20 +494,40 @@ public sealed class SettingsViewModel : ObservableObject
         var keys = (Working.WidgetOrder ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         foreach (var d in OrderDefs) if (!keys.Contains(d.Key)) keys.Add(d.Key);
+        // 插件组件行也参与拖动排序；未被顺序记录覆盖的插件追加到末尾
+        foreach (var r in _components)
+            if (r.Key.StartsWith("Plugin:", StringComparison.OrdinalIgnoreCase)
+                && !keys.Contains(r.Key, StringComparer.OrdinalIgnoreCase))
+                keys.Add(r.Key);
 
-        var used = new HashSet<string>();
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var result = new List<OrderItem>();
         foreach (var k in keys)
         {
             var d = Array.Find(OrderDefs, x => x.Key == k);
-            if (d.Key is null || !used.Add(d.Key)) continue;
             var row = _components.FirstOrDefault(c => c.Key == k);
+            if (d.Key is null && row is null) continue; // 未知键（插件已卸载/跳过）
+            if (!used.Add(k)) continue;
             // 无勾选行的组件（Song）始终显示；其余只有被勾选才显示
             if (row is null || row.Idle || row.Playing)
-                result.Add(new OrderItem(d.Key, d.NameKey));
+                result.Add(d.Key is not null ? new OrderItem(d.Key, d.NameKey) : new OrderItem(k, "", row!.Name));
         }
         _orderItems = result;
         OnPropertyChanged(nameof(OrderItems));
+
+        // 让插件 key 也进入持久化顺序（首次出现追加末尾），保证岛端与设置端顺序一致
+        var pluginDefs = _components
+            .Where(r => r.Key.StartsWith("Plugin:", StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.Key).ToList();
+        if (pluginDefs.Count > 0)
+        {
+            var order = (Working.WidgetOrder ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            var changed = false;
+            foreach (var k in pluginDefs)
+                if (!order.Contains(k, StringComparer.OrdinalIgnoreCase)) { order.Add(k); changed = true; }
+            if (changed) Working.WidgetOrder = string.Join(",", order);
+        }
     }
 
     private List<MediaAppRow> BuildMediaApps(List<MediaAppEntry>? saved, MediaAppRegistry? registry)

@@ -859,6 +859,41 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private static IslandPushButton? ParsePluginClick(PluginComponentSpec c)
         => string.IsNullOrWhiteSpace(c.ClickAction) ? null : new IslandPushButton { Action = c.ClickAction.Trim(), Value = c.ClickValue ?? string.Empty };
 
+    /// <summary>插件组件是否在组件设置页被勾选显示（Idle/Playing 分别判断；缺省视为显示）。</summary>
+    private bool PluginVisible(string pluginId)
+    {
+        try
+        {
+            var flags = _settings.Current.PluginComponents;
+            if (flags is not null)
+            {
+                if (flags.TryGetValue(pluginId, out var f))
+                    return HasMedia ? f.Playing : f.Idle;
+                foreach (var kv in flags)
+                    if (string.Equals(kv.Key, pluginId, StringComparison.OrdinalIgnoreCase))
+                        return HasMedia ? kv.Value.Playing : kv.Value.Idle;
+            }
+            return true;
+        }
+        catch { return true; }
+    }
+
+    /// <summary>把某个插件的全部组件（按 order 排序）追加到紧凑区列表。</summary>
+    private void AddPluginComponents(List<IslandComponent> items, string pluginId)
+    {
+        foreach (var entry in _pluginComponents
+            .Where(x => string.Equals(x.PluginId, pluginId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Component.Order)
+            .ThenBy(x => x.Component.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            var c = entry.Component;
+            var visible = HasMedia ? c.ShowWhenPlaying : c.ShowWhenIdle;
+            if (!visible) continue;
+            items.Add(new IslandComponent($"Plugin:{entry.PluginId}:{c.Id}", c.Icon, c.Text, c.ToolTip, true,
+                ParsePluginImage(c.Image), c.Progress, ParsePluginBrush(c.Color), ParsePluginClick(c)));
+        }
+    }
+
     private void RebuildCompactItems()
     {
         // �ֲ������������ Kind ������ʾͼ�꣨�û��Զ������ȣ�����Ĭ�����Σ�
@@ -872,6 +907,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             .ToList();
         foreach (var known in new[] { "Time", "Weather", "Date", "Cpu", "Ram", "Gpu", "Mic", "Cam", "Net", "Battery", "Song", "Volume", "CapsLock", "ScreenCap", "Recording", "VolumeTemp", "Usage", "FileCopy", "Download", "Clipboard", "Todo", "Timer", "Schedule", "Holiday", "Meeting", "Disk", "InputMethod", "QuickToggles", "FileTransfer" })
             if (!keys.Contains(known)) keys.Add(known);
+
+        // 插件组件以 Plugin:{插件id} 为键参与排序；未写入顺序配置的插件追加到末尾（向后兼容）
+        foreach (var pid in _pluginComponents.Select(x => x.PluginId).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var pkey = "Plugin:" + pid;
+            if (!keys.Contains(pkey, StringComparer.OrdinalIgnoreCase)) keys.Add(pkey);
+        }
 
         // ��ʹ���С��ϲ����ң��ѹ�ѡ�� Mic/Cam/Meeting/Recording �ϲ�Ϊ����״̬���ң�Ĭ�Ϲرգ�
         var mergeItems = _settings.Current.UsageMergeItems ?? new List<string>();
@@ -891,6 +933,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
         var items = new List<IslandComponent>();
         var usageInserted = false;
+        var handledPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in keys)
         {
             // �ϲ�ģʽ������ϲ�����ٵ�����ʾ����ʹ���С����ҷ��ڵ�һ������ϲ����λ��
@@ -931,22 +974,26 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             else if (key == "InputMethod" && ShowIdleInputMethod) items.Add(I("InputMethod"));
             else if (key == "QuickToggles" && ShowIdleQuickToggles) items.Add(I("QuickToggles"));
             else if (key == "FileTransfer" && HasFileTransfer) items.Add(I("FileTransfer"));
+            else if (key.StartsWith("Plugin:", StringComparison.OrdinalIgnoreCase))
+            {
+                // 插件组件：按组件设置页勾选（Idle/Playing）+ 插件输出的 show_when_* 双重控制
+                var pluginId = key["Plugin:".Length..];
+                handledPluginIds.Add(pluginId);
+                if (!PluginVisible(pluginId)) continue;
+                AddPluginComponents(items, pluginId);
+            }
         }
-
-        // ����δ�仯ʱ���ؽ�������ÿ�����գ�ÿ�룩���ش������������˸
-        foreach (var entry in _pluginComponents
-            .OrderBy(x => x.Component.Order)
-            .ThenBy(x => x.PluginId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Component.Id, StringComparer.OrdinalIgnoreCase))
+        // 兜底：万一插件 id 未出现在顺序键中（配置异常/旧配置），仍追加显示，保证插件不丢
+        foreach (var pid in _pluginComponents.Select(x => x.PluginId).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var c = entry.Component;
-            var visible = HasMedia ? c.ShowWhenPlaying : c.ShowWhenIdle;
-            if (visible)
-                items.Add(new IslandComponent($"Plugin:{entry.PluginId}:{c.Id}", c.Icon, c.Text, c.ToolTip, true, ParsePluginImage(c.Image), c.Progress, ParsePluginBrush(c.Color), ParsePluginClick(c)));
+            if (handledPluginIds.Contains(pid)) continue;
+            AddPluginComponents(items, pid);
         }
 
         if (_compactItems.SequenceEqual(items))
             return;
+        // 重建后发布紧凑区组件列表。
+        CompactItems = items;
     }
 
 
@@ -2651,7 +2698,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         var alwaysVisible = _settings.Current.IslandAlwaysVisible;
         var comp = _settings.Current.Components;
         // ����ʱ�Ƿ��������������פ/�ɿ��أ���Ҫ��ʾ
-        var anyIdleComp = _pluginComponents.Any(x => x.Component.ShowWhenIdle) || comp.TimeWhenIdle || comp.WeatherWhenIdle || comp.CoverWhenIdle
+        var anyIdleComp = _pluginComponents.Any(x => x.Component.ShowWhenIdle && PluginVisible(x.PluginId)) || comp.TimeWhenIdle || comp.WeatherWhenIdle || comp.CoverWhenIdle
             || comp.TitleWhenIdle || comp.ArtistWhenIdle || comp.LyricsWhenIdle || comp.ProgressWhenIdle
             || comp.DiskWhenIdle;
         var showWidgets = !hasMedia && (_settings.Current.ShowWidgetsWhenNoMedia || alwaysVisible || anyIdleComp);

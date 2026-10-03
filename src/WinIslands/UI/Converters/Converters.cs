@@ -20,6 +20,22 @@ public sealed class BoolToVisibilityConverter : IValueConverter
         => value is Visibility.Visible;
 }
 
+/// <summary>字符串为空 → Collapsed；非空 → Visible（用于错误提示等可选文本）。</summary>
+public sealed class EmptyStringToVisibilityConverter : IValueConverter
+{
+    public bool Invert { get; set; }
+
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        var empty = string.IsNullOrEmpty(value as string);
+        var visible = Invert ? empty : !empty;
+        return visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public sealed class NullToVisibilityConverter : IValueConverter
 {
     public bool Invert { get; set; } // true = visible when null

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -137,6 +138,17 @@ public sealed class PluginComponentsChangedEventArgs : EventArgs
     }
 }
 
+/// <summary>插件健康状态快照（供插件管理界面显示）。</summary>
+public sealed class PluginHealthSnapshot
+{
+    public string PluginId { get; init; } = "";
+    public bool IsRunning { get; init; }
+    public DateTime? LastSuccessTime { get; init; }
+    public long LastDurationMs { get; init; }
+    public int FailureCount { get; init; }
+    public string? LastError { get; init; }
+}
+
 /// <summary>
 /// 本地组件插件管理器。
 /// 搜索顺序：%APPDATA%\WinIslands\plugins，然后 exe 同级 plugins。
@@ -159,6 +171,9 @@ public sealed class PluginService : IDisposable
     private bool _disposed;
 
     public event EventHandler<PluginComponentsChangedEventArgs>? ComponentsChanged;
+
+    /// <summary>重新扫描完成后触发（插件被启用/禁用/导入/新建后，主程序可借此清理失效的岛组件）。</summary>
+    public event EventHandler? PluginsReloaded;
 
     public IReadOnlyList<PluginManifest> Plugins
     {
@@ -201,6 +216,7 @@ public sealed class PluginService : IDisposable
 
         foreach (var runtime in runtimes) StartRuntime(runtime);
         AppLogger.Info($"Plugin scan complete: {discovered.Count} manifest(s), {runtimes.Count} enabled");
+        PluginsReloaded?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>启用或禁用插件，并立即重新扫描。</summary>
@@ -225,6 +241,228 @@ public sealed class PluginService : IDisposable
             return false;
         }
     }
+
+    /// <summary>写入插件参数(config)并立即重新扫描，使环境变量与间隔等生效。</summary>
+    public bool SetConfig(string pluginId, IReadOnlyDictionary<string, string> config)
+    {
+        var manifest = Plugins.FirstOrDefault(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (manifest is null || string.IsNullOrWhiteSpace(manifest.ManifestPath) || !File.Exists(manifest.ManifestPath))
+            return false;
+        try
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest.ManifestPath));
+            if (node is null) return false;
+            var cfgNode = new System.Text.Json.Nodes.JsonObject();
+            foreach (var pair in config) cfgNode[pair.Key] = pair.Value;
+            node["config"] = cfgNode;
+            File.WriteAllText(manifest.ManifestPath, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            manifest.Config = new Dictionary<string, string>(config, StringComparer.OrdinalIgnoreCase);
+            Reload();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin config update failed [{pluginId}]: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>将插件目录打包为 zip（plugin.json 位于压缩包根目录），便于分发。</summary>
+    public bool ExportPlugin(string pluginId, string destZip)
+    {
+        var manifest = Plugins.FirstOrDefault(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (manifest is null || string.IsNullOrWhiteSpace(manifest.DirectoryPath) || !Directory.Exists(manifest.DirectoryPath))
+            return false;
+        try
+        {
+            var dir = Path.GetFullPath(manifest.DirectoryPath);
+            if (File.Exists(destZip)) File.Delete(destZip);
+            ZipFile.CreateFromDirectory(dir, destZip, CompressionLevel.Optimal, includeBaseDirectory: false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin export failed [{pluginId}]: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>从 zip 导入插件到用户插件目录；同名插件已存在 / 压缩包无有效 plugin.json / 路径越界时返回 false。</summary>
+    public bool ImportPlugin(string zipPath)
+    {
+        if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath)) return false;
+        var targetRoot = AppPaths.PluginsDir;
+        try
+        {
+            using (var archive = ZipFile.OpenRead(zipPath))
+            {
+                var manifestEntry = archive.Entries.FirstOrDefault(e => e.FullName.Equals("plugin.json", StringComparison.OrdinalIgnoreCase));
+                if (manifestEntry is null)
+                    manifestEntry = archive.Entries.FirstOrDefault(e =>
+                        e.FullName.EndsWith("/plugin.json", StringComparison.OrdinalIgnoreCase));
+                if (manifestEntry is null) return false;
+
+                PluginManifest? manifest;
+                using (var stream = manifestEntry.Open())
+                using (var reader = new StreamReader(stream, System.Text.Encoding.UTF8))
+                {
+                    manifest = JsonSerializer.Deserialize<PluginManifest>(reader.ReadToEnd(), JsonOptions);
+                }
+                if (manifest is null || string.IsNullOrWhiteSpace(manifest.Id)
+                    || !Regex.IsMatch(manifest.Id, "^[A-Za-z0-9._-]{1,80}$"))
+                    return false;
+
+                if (Plugins.Any(p => string.Equals(p.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)))
+                    return false;
+
+                Directory.CreateDirectory(targetRoot);
+                var targetDir = Path.GetFullPath(Path.Combine(targetRoot, manifest.Id));
+                if (Directory.Exists(targetDir)) return false;
+                Directory.CreateDirectory(targetDir);
+
+                var prefix = targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                // 兼容“导出时带基目录”的压缩包：压缩包内文件统一位于 manifestEntry 所在子文件夹下时，剥掉第一层
+                var baseFolder = Path.GetDirectoryName(manifestEntry.FullName.Replace('/', Path.DirectorySeparatorChar)) ?? "";
+                foreach (var entry in archive.Entries)
+                {
+                    if (entry.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
+                    var relative = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
+                    if (!string.IsNullOrEmpty(baseFolder)
+                        && relative.StartsWith(baseFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                        relative = relative[(baseFolder.Length + 1)..];
+                    var dest = Path.GetFullPath(Path.Combine(targetDir, relative));
+                    if (!dest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false; // 路径穿越防护
+
+                    var destDir = Path.GetDirectoryName(dest);
+                    if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+                    using (var src = entry.Open())
+                    using (var dst = File.Create(dest))
+                        src.CopyTo(dst);
+                }
+            }
+            Reload();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin import failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>新建最小插件模板（plugin.json + run.ps1）到用户插件目录；成功返回 true，失败返回错误信息。</summary>
+    public string? CreateTemplatePlugin(string pluginId, string name)
+    {
+        pluginId = (pluginId ?? "").Trim();
+        name = string.IsNullOrWhiteSpace(name) ? pluginId : name.Trim();
+        if (!Regex.IsMatch(pluginId, "^[A-Za-z0-9._-]{1,80}$"))
+            return "插件 ID 只能包含字母、数字、点、横线与下划线（1-80 字符）";
+        if (Plugins.Any(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase)))
+            return "同名插件已存在";
+        try
+        {
+            var targetDir = Path.GetFullPath(Path.Combine(AppPaths.PluginsDir, pluginId));
+            var rootPrefix = Path.GetFullPath(AppPaths.PluginsDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!targetDir.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+                return "非法插件 ID";
+            Directory.CreateDirectory(targetDir);
+
+            var manifest = new System.Text.Json.Nodes.JsonObject
+            {
+                ["id"] = pluginId,
+                ["name"] = name,
+                ["version"] = "1.0.0",
+                ["description"] = "A WinIslands plugin component.",
+                ["author"] = "user",
+                ["entry"] = "run.ps1",
+                ["arguments"] = new System.Text.Json.Nodes.JsonArray(),
+                ["permissions"] = new System.Text.Json.Nodes.JsonArray(),
+                ["config"] = new System.Text.Json.Nodes.JsonObject(),
+                ["config_schema"] = new System.Text.Json.Nodes.JsonObject(),
+                ["enabled"] = true,
+                ["run_at_startup"] = true,
+                ["interval_seconds"] = 60,
+                ["timeout_seconds"] = 10,
+                ["max_output_kb"] = 64,
+            };
+            File.WriteAllText(Path.Combine(targetDir, "plugin.json"),
+                manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+
+            const string templatePs1 = @"[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$ErrorActionPreference = 'SilentlyContinue'
+
+# WinIslands 插件最小模板：向 stdout 输出 JSON 组件即可。
+# 组件字段：id / text / icon / progress / color / tooltip / click_action / click_value / order
+#          / show_when_playing / show_when_idle
+$component = @{
+    id                 = 'sample'
+    text               = '你好，WinIslands！'
+    icon               = '✨'
+    tooltip            = '这是一个插件组件，修改 run.ps1 即可自定义'
+    order              = 100
+    show_when_playing  = $true
+    show_when_idle     = $true
+}
+
+@{ components = @($component) } | ConvertTo-Json -Compress -Depth 6
+";
+            File.WriteAllText(Path.Combine(targetDir, "run.ps1"), templatePs1, new System.Text.UTF8Encoding(false));
+
+            Reload();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin template creation failed [{pluginId}]: {ex.Message}");
+            return "创建失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>获取插件健康状态快照；插件未加载(禁用/未发现)时返回 null。</summary>
+    public PluginHealthSnapshot? GetHealth(string pluginId)
+    {
+        lock (_gate)
+        {
+            var runtime = _runtimes.FirstOrDefault(r => string.Equals(r.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            if (runtime is null) return null;
+            return new PluginHealthSnapshot
+            {
+                PluginId = runtime.Manifest.Id,
+                IsRunning = Volatile.Read(ref runtime.Running) != 0,
+                LastSuccessTime = runtime.LastSuccessTime,
+                LastDurationMs = runtime.LastDurationMs,
+                FailureCount = runtime.FailureCount,
+                LastError = runtime.LastError,
+            };
+        }
+    }
+
+    /// <summary>重启单个插件：停掉旧进程与定时器，用同一清单重新拉起。禁用/未加载时返回 false。</summary>
+    public bool Restart(string pluginId)
+    {
+        PluginManifest? manifest;
+        lock (_gate)
+        {
+            var runtime = _runtimes.FirstOrDefault(r => string.Equals(r.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            if (runtime is not null)
+            {
+                manifest = runtime.Manifest;
+                _runtimes.Remove(runtime);
+                runtime.Dispose();
+            }
+            else
+            {
+                manifest = _plugins.FirstOrDefault(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            }
+            if (manifest is null || !manifest.Enabled) return manifest is not null && !manifest.Enabled;
+            var fresh = new PluginRuntime(manifest);
+            _runtimes.Add(fresh);
+            StartRuntime(fresh);
+        }
+        AppLogger.Info($"Plugin restarted: {pluginId}");
+        return true;
+    }
+
     private List<PluginManifest> DiscoverPlugins()
     {
         var result = new List<PluginManifest>();
@@ -341,6 +579,8 @@ public sealed class PluginService : IDisposable
     private async Task RunAsync(PluginRuntime runtime, CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref runtime.Running, 1, 0) != 0) return;
+        var startedAt = DateTime.UtcNow;
+        runtime.LastError = null; // 新一轮运行开始，清空上次错误（失败次数保留，便于观察稳定性）
         try
         {
             var manifest = runtime.Manifest;
@@ -349,6 +589,8 @@ public sealed class PluginService : IDisposable
             using var process = new Process { StartInfo = startInfo };
             if (!process.Start())
             {
+                runtime.FailureCount++;
+                runtime.LastError = "启动失败";
                 AppLogger.Warn($"Plugin failed to start: {manifest.Id}");
                 return;
             }
@@ -365,6 +607,8 @@ public sealed class PluginService : IDisposable
             catch (OperationCanceledException)
             {
                 TryKill(process);
+                runtime.FailureCount++;
+                runtime.LastError = "运行超时";
                 AppLogger.Warn($"Plugin timed out: {manifest.Id} ({manifest.TimeoutSeconds}s)");
                 return;
             }
@@ -375,7 +619,11 @@ public sealed class PluginService : IDisposable
             if (!string.IsNullOrWhiteSpace(stderr))
                 AppLogger.Warn($"Plugin stderr [{manifest.Id}]: {Limit(stderr, 1000)}");
             if (process.ExitCode != 0)
+            {
+                runtime.FailureCount++;
+                runtime.LastError = $"退出码 {process.ExitCode}";
                 AppLogger.Warn($"Plugin exited with code {process.ExitCode}: {manifest.Id}");
+            }
 
             var components = ParseOutput(manifest.Id, stdout, manifest.MaxOutputKb * 1024);
             AppLogger.Info($"Plugin output parsed: {components?.Count.ToString() ?? "null"}, chars={stdout.Length}");
@@ -384,9 +632,15 @@ public sealed class PluginService : IDisposable
                 AppLogger.Debug($"Plugin components updated [{manifest.Id}]: {components.Count}");
                 ComponentsChanged?.Invoke(this, new PluginComponentsChangedEventArgs(manifest.Id, components));
             }
+
+            // 无论是否输出组件，只要正常退出就记为一次成功，方便观察“最后运行时间/耗时”
+            runtime.LastSuccessTime = DateTime.UtcNow;
+            runtime.LastDurationMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
         }
         catch (Exception ex)
         {
+            runtime.FailureCount++;
+            runtime.LastError = Limit(ex.Message, 300);
             AppLogger.Warn($"Plugin run failed [{(runtime.Manifest.Id)}]: {ex.Message}");
         }
         finally
@@ -394,6 +648,7 @@ public sealed class PluginService : IDisposable
             Interlocked.Exchange(ref runtime.Running, 0);
         }
     }
+
 
     private ProcessStartInfo BuildStartInfo(PluginManifest manifest)
     {
@@ -538,6 +793,12 @@ public sealed class PluginService : IDisposable
         public System.Threading.Timer? Timer { get; set; }
         public CancellationTokenSource Cancellation { get; } = new();
         public int Running;
+
+        // 健康状态：由 RunAsync 更新，GetHealth 在 _gate 锁内读取
+        public DateTime? LastSuccessTime;
+        public long LastDurationMs;
+        public int FailureCount;
+        public string? LastError;
 
         public PluginRuntime(PluginManifest manifest) => Manifest = manifest;
 

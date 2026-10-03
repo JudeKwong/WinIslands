@@ -12,6 +12,19 @@
 
 ## 简体中文
 
+## WinIslands 2.0.2（正式版 / Stable）
+### 更新内容
+
+- **🧩 插件健康状态**：插件管理器内显示每个插件最近成功输出时间、刷新耗时与失败次数，异常插件可一键重启
+- **⚙️ 插件参数设置**：无需编辑文件，直接在插件管理器内修改插件参数（CPU、网速、时区、倒计时等）
+- **📦 插件再分发**：插件可导出为 ZIP 包，并在其他电脑一键导入，方便分享
+- **✨ 插件模板向导**：在插件管理器新建插件时自动生成最小可用模板，降低开发门槛
+- **🎨 插件输出平滑过渡**：插件内容更新时淡入淡出，消除生硬跳变
+- **✂️ 组件超长自动截断**：过长的插件文本优雅省略，不再撑破灵动岛布局
+- **🧩 插件接入组件设置**：插件组件可独立勾选空闲 / 播放时显隐，并参与组件顺序拖动排序
+
+---
+
 ## WinIslands 2.0.1（正式版 / Stable）
 ### 更新内容
 
@@ -288,6 +301,19 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.2 (Stable)
+### What's New
+
+- **🧩 Plugin Health Status**: View last success time, refresh duration and failure count for every plugin, with one-click restart for unhealthy ones
+- **⚙️ In-Manager Plugin Config**: Tweak plugin parameters (CPU, network, timezone, countdown, etc.) right inside the plugin manager
+- **📦 Plugin Redistribution**: Export any plugin to a ZIP bundle and import it on another machine in one click
+- **✨ Plugin Template Wizard**: Create a new plugin backed by an auto-generated minimal template
+- **🎨 Smooth Plugin Transitions**: Plugin content cross-fades on update instead of swapping abruptly
+- **✂️ Automatic Overflow Trimming**: Over-long plugin text is gracefully truncated so the island never breaks
+- **🧩 Plugin Components in Settings**: Plugin components support independent idle/playing visibility toggles and drag-to-reorder
 
 ---
 
