@@ -22,6 +22,7 @@
 - **🎨 插件输出平滑过渡**：插件内容更新时淡入淡出，消除生硬跳变
 - **✂️ 组件超长自动截断**：过长的插件文本优雅省略，不再撑破灵动岛布局
 - **🧩 插件接入组件设置**：插件组件可独立勾选空闲 / 播放时显隐，并参与组件顺序拖动排序
+- 🍏 macOS 版上线：新增原生 macOS 版本，支持 Apple 芯片（arm64）与 Intel（x64）Mac，媒体控制接入 Apple Music / Spotify / Cider。
 
 ---
 
@@ -314,6 +315,7 @@
 - **🎨 Smooth Plugin Transitions**: Plugin content cross-fades on update instead of swapping abruptly
 - **✂️ Automatic Overflow Trimming**: Over-long plugin text is gracefully truncated so the island never breaks
 - **🧩 Plugin Components in Settings**: Plugin components support independent idle/playing visibility toggles and drag-to-reorder
+- 🍏 macOS Release: Brand-new native macOS version for Apple Silicon (arm64) and Intel (x64) Macs, with media control for Apple Music / Spotify / Cider.
 
 ---
 
