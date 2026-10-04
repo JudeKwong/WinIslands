@@ -12,7 +12,7 @@
 - **🧩 插件全家桶（2.0.2）**：插件健康状态、参数设置、一键再分发、模板向导、输出平滑过渡与超长截断，并接入组件设置（独立显隐与拖动排序）。
 - **🧩 插件管理器（2.0.1）**：支持启用 / 禁用、重新扫描、打开目录、权限展示和扩展组件动作。
 - **🧩 本地组件插件（2.0.0）**：支持本地 `plugin.json` 插件进程向灵动岛贡献自定义组件；同时完成 2.0 动效收束，支持亚像素过渡和减少动态效果模式。
-- 🍏 macOS 版上线（2.0.2）：新增原生 macOS 版本，支持 Apple 芯片（arm64）与 Intel（x64）Mac，媒体控制接入 Apple Music / Spotify / Cider。
+- 🍏 macOS 版上线（2.0.2）：新增原生 macOS 版本，支持 Apple 芯片（arm64）与 Intel（x64）Mac，媒体控制接入 Apple Music / Spotify / Cider。 ⚠️ macOS 版为实验性版本，功能可能不完整、可能存在较多 BUG，尚未经过充分测试。
 - **低功耗动效精简（1.9.9）**：低功耗模式下减少展开/收起交错子动画，仅保留核心尺寸和内容过渡
 - **封面动画清理（1.9.8）**：切歌封面动画完成后清理透明度与缩放时钟并提交最终值
 - **动画时间线精简（1.9.7）**：子时间线不再重复设置帧率，并复用已测量的紧凑尺寸目标，减少动画创建开销
@@ -188,6 +188,8 @@
 | macOS (Apple 芯片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-arm64.zip) | Apple 芯片 Mac（M1 及更新机型） |
 | macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Intel 芯片 Mac |
 | Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
+
+> ⚠️ macOS 版为实验性版本：部分功能可能不完整，可能存在较多 BUG，且尚未经过充分测试，请谨慎使用。
 
 历史版本与完整更新日志见 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
 
@@ -444,6 +446,8 @@ dotnet test  WinIslands.slnx -c Release
 | macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Intel 晶片 Mac |
 | Windows 通用 | [通用安裝包](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Inno Setup 安裝精靈，x64 / ARM64 自動依架構安裝 |
 
+> ⚠️ macOS 版為實驗性版本：部分功能可能不完整，可能存在較多 BUG，且尚未經過充分測試，請謹慎使用。
+
 歷史版本與完整更新日誌見 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
 
 ---
@@ -698,6 +702,8 @@ dotnet test  WinIslands.slnx -c Release
 | macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-arm64.zip) | Apple Silicon Macs (M1 and newer) |
 | macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Intel Macs |
 | Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
+
+> ⚠️ macOS build is experimental: some features may be incomplete, it may contain bugs, and it has not been fully tested. Use with caution.
 
 All historical versions and the full changelog: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -954,6 +960,8 @@ Use Tray menu → Quit; closing the island window only hides it (tray-resident b
 | macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Macs Intel |
 | Windows Universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Asistente Inno Setup; instala x64 / ARM64 según la arquitectura |
 
+> ⚠️ La versión de macOS es experimental: algunas funciones pueden estar incompletas, puede contener errores y no se ha probado por completo. Úsala con precaución.
+
 Todas las versiones históricas y el registro de cambios completo: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
 ---
@@ -1208,6 +1216,8 @@ Usa Menú de la bandeja → Salir; cerrar la ventana de la isla solo la oculta (
 | macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-arm64.zip) | Mac à puce Apple (M1 et plus récents) |
 | macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Mac Intel |
 | Windows universel | [Installeur universel](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Assistant Inno Setup ; installe x64 / ARM64 selon l'architecture |
+
+> ⚠️ La version macOS est expérimentale : certaines fonctionnalités peuvent être incomplètes, elle peut contenir des bogues et n'a pas été entièrement testée. À utiliser avec précaution.
 
 Toutes les versions historiques et le journal complet : [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1470,6 +1480,8 @@ Menu de la barre d'état → Quitter ; fermer la fenêtre de l'île ne fait que 
 | macOS (Intel) | [إصدار x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | أجهزة Mac بمعالج Intel |
 | Windows شامل | [مثبّت شامل](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | معالج Inno Setup؛ يثبّت x64 / ARM64 حسب البنية |
 
+> ⚠️ إصدار macOS تجريبي: قد تكون بعض الميزات غير مكتملة، وقد يحتوي على أخطاء، ولم يتم اختباره بالكامل. يُرجى استخدامه بحذر.
+
 جميع الإصدارات السابقة وسجل التغييرات الكامل: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
 ---
@@ -1724,6 +1736,8 @@ dotnet test  WinIslands.slnx -c Release
 | macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-arm64.zip) | Mac на чипе Apple (M1 и новее) |
 | macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Mac на Intel |
 | Windows универсальная | [Универсальный установщик](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Мастер Inno Setup; устанавливает x64 / ARM64 в зависимости от архитектуры |
+
+> ⚠️ Версия для macOS является экспериментальной: отдельные функции могут быть неполными, возможны ошибки, версия не полностью протестирована. Используйте с осторожностью.
 
 Все предыдущие версии и полный журнал изменений: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
@@ -1985,6 +1999,8 @@ dotnet test  WinIslands.slnx -c Release
 | macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-arm64.zip) | Macs com chip Apple (M1 e mais recentes) |
 | macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-2.0.3-osx-x64.zip) | Macs Intel |
 | Windows universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.0.3/WinIslands-Setup-2.0.3.exe) | Assistente Inno Setup; instala x64 / ARM64 conforme a arquitetura |
+
+> ⚠️ A versão para macOS é experimental: alguns recursos podem estar incompletos, pode conter bugs e não foi totalmente testada. Use com cautela.
 
 Todas as versões anteriores e o changelog completo: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
