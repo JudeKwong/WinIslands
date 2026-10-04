@@ -12,6 +12,18 @@
 
 ## 简体中文
 
+## WinIslands 2.0.5（正式版 / Stable）
+### 更新内容
+
+- **🎯 iOS 真实弹簧物理引擎**：展开/收起、紧凑尺寸、上岛推送与位置移动全部改用可打断的弹簧物理（解析解），动画随时可被新操作接管，速度连续不跳变，自然收敛不过冲
+- **📖 展开更慢更自然**：展开弹簧调至“轻微 Q 弹”（阻尼比 0.86 / 响应 0.62s），比上一版更慢更柔和，微微回弹后稳定，接近 iOS 灵动岛手感
+- **🍃 收起更轻更顺**：收起改为高阻尼弹簧（阻尼比 0.97 / 0.52s），几乎无回弹，收尾干净柔软
+- **🔗 文字随卡片一体运动**：展开/收起时文字不再单独弹出或闪现，而是与卡片同步位移，彻底消除“收起时文字突然出现又消失”的跳变
+- **🏃 120fps 渲染管线**：弹簧动画由共享帧时钟驱动（CompositionTarget.Rendering），空闲时自动摘钩不占 CPU，动画期间保持 120fps 顺滑
+- **✅ 回归测试**：247 项单元测试全部通过
+
+---
+
 ## WinIslands 2.0.4（正式版 / Stable）
 ### 更新内容
 
@@ -326,6 +338,18 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.5 (Stable)
+### What's New
+
+- **🎯 Real iOS-style spring physics engine**: Expand/collapse, compact sizing, island pushes and position moves all use an interruptible analytical spring — animations can be taken over instantly by new input, velocity stays continuous (no snapping) and motion settles naturally without overshoot
+- **📖 Slower, more natural expand**: Expand now uses a gentle bounce (damping ratio 0.86 / response 0.62s) — slower and softer than the previous build, with a subtle settle bounce that mimics the iOS Dynamic Island feel
+- **🍃 Gentler collapse**: Collapse uses a high-damping spring (damping ratio 0.97 / 0.52s) with almost no bounce — clean, soft settling
+- **🔗 Text moves with the card**: Text no longer pops in/out on its own during transitions; it moves together with the card, eliminating the sudden appear/disappear jump during collapse
+- **🏃 120fps pipeline**: Springs are driven by a shared render-tick clock (CompositionTarget.Rendering) that unsubscribes when idle (no CPU at rest) and stays smooth at 120fps during animation
+- **✅ Regression testing**: All 247 unit tests passed
 
 ---
 
