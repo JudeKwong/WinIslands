@@ -83,6 +83,8 @@ public class KaraokeTextBlock : TextBlock
     private double _nextKaraokeFrameTime;
     private double _posBase;            // 最近一次来自 ViewModel 的位置（秒）
     private long _posBaseTicks;          // 该位置对应的单调时钟刻度
+    /// <summary>墙钟插值仅用于补充两次 ViewModel 位置更新（约 200ms）之间的间隙；超过该上限视为 ViewModel 已停更（切歌/暂停边缘/恢复首帧），不再外推，避免歌词漂移到句尾再跳回。</summary>
+    private const double MaxWallClockLeadSeconds = 0.5;
 
     public KaraokeTextBlock()
     {
@@ -195,14 +197,7 @@ public class KaraokeTextBlock : TextBlock
             _wordRuns.Clear();
             _wordStarts = new double[_words.Count];
             _wordDenoms = new double[_words.Count];
-            for (var i = 0; i < _words.Count; i++)
-            {
-                var w = _words[i];
-                var duration = Math.Max(w.DurationSec, 0.001);
-                var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
-                _wordStarts[i] = w.BeginSec - lead;
-                _wordDenoms[i] = duration + lead;
-            }
+            BuildWordTimeline(_words, _wordStarts, _wordDenoms);
         }
 
         if (_hasWords)
@@ -292,7 +287,8 @@ public class KaraokeTextBlock : TextBlock
                 var now = _tickClock.Elapsed.TotalSeconds;
                 var fps = AnimationFrameRate.Current(lowPowerMode: false);
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
-                var pos = _posBase + (_tickClock.ElapsedTicks - _posBaseTicks) / (double)Stopwatch.Frequency;
+                var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
+                var pos = ClampWallClockLead(_posBase, elapsed);
                 RenderWords(pos);
                 // 该行已全部点亮/尚未开始：静态即可，停止动画（避免列表里多行同时空转）
                 if (!NeedsAnimation(pos)) StopAnimation();
@@ -430,15 +426,7 @@ public class KaraokeTextBlock : TextBlock
 
     /// <summary>播放位置是否落在本句某个字的起止区间内（该行是否处于正在点亮的状态）。</summary>
     private bool NeedsAnimation(double pos)
-    {
-        var speed = _karaokeSpeedScale;
-        foreach (var w in _words)
-        {
-            if (pos < w.BeginSec) continue;                    // 尚未开始：静态即可
-            if ((pos - w.BeginSec) / w.DurationSec * speed < 1) return true; // 仍在点亮：需要动画
-        }
-        return false;
-    }
+        => NeedsAnimationFor(pos, _wordStarts, _wordDenoms, _karaokeSpeedScale);
 
     private static System.Windows.Media.SolidColorBrush Frozen(System.Windows.Media.SolidColorBrush b) { b.Freeze(); return b; }
 
@@ -462,4 +450,34 @@ public class KaraokeTextBlock : TextBlock
     /// <summary>比较两个颜色是否完全一致（避免为不足 1 字节的色差重复分配画刷）。</summary>
     private static bool ColorEqual(System.Windows.Media.Color a, System.Windows.Media.Color b)
         => a.A == b.A && a.R == b.R && a.G == b.G && a.B == b.B;
+
+    // ── 时间轴纯函数（与渲染共用同一套 lead 校正数组，供单元测试直接验证）──
+
+    /// <summary>按字间交叉过渡 lead 建立逐字时间轴（与 RenderWords 完全同源，含“句首第一字不提前”规则）。</summary>
+    internal static void BuildWordTimeline(IReadOnlyList<TtmlWord> words, double[] starts, double[] denoms)
+    {
+        for (var i = 0; i < words.Count; i++)
+        {
+            var w = words[i];
+            var duration = Math.Max(w.DurationSec, 0.001);
+            var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
+            starts[i] = w.BeginSec - lead;
+            denoms[i] = duration + lead;
+        }
+    }
+
+    /// <summary>与 <see cref="RenderWords"/> 完全一致的点亮区间判定：某位置下该行是否仍处于逐字点亮中（含字间 lead 预亮区间）。</summary>
+    internal static bool NeedsAnimationFor(double pos, double[] starts, double[] denoms, double speed)
+    {
+        for (var i = 0; i < starts.Length && i < denoms.Length; i++)
+        {
+            if (pos < starts[i]) continue;                                    // 尚未开始（含 lead 前）：静态即可
+            if ((pos - starts[i]) / Math.Max(denoms[i], 0.001) * speed < 1) return true; // 仍在点亮：需要动画
+        }
+        return false;
+    }
+
+    /// <summary>墙钟外推限幅：只补足两次位置更新之间的间隙，绝不让歌词进度无限超前（防“漂到句尾再跳回”）。</summary>
+    internal static double ClampWallClockLead(double posBase, double elapsedSeconds)
+        => posBase + Math.Min(Math.Max(elapsedSeconds, 0), MaxWallClockLeadSeconds);
 }

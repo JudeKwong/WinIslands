@@ -4,8 +4,8 @@ using WinIslands.UI;
 namespace WinIslands.Services;
 
 /// <summary>
-/// Í¨ÖªÀúÊ··şÎñ£ºÄÚ´æÖĞÎ¬»¤×î½ü N ÌõÍ¨Öª¼ÇÂ¼£¬Ö§³Ö±ê¼ÇÒÑ¶Á¡¢Ò»¼üÈ«²¿ÒÑ¶Á¡¢É¾³ı¡£
-/// ¿É±»µ¥Ôª²âÊÔ¸²¸Ç£¨´¿Âß¼­£¬²»ÒÀÀµ Windows API£©¡£
+/// é€šçŸ¥å†å²æœåŠ¡ï¼šå†…å­˜ä¸­ç»´æŠ¤æœ€è¿‘ N æ¡é€šçŸ¥è®°å½•ï¼Œæ”¯æŒæ ‡è®°å·²è¯»ã€ä¸€é”®å…¨éƒ¨å·²è¯»ã€åˆ é™¤ã€‚
+/// å¯è¢«å•å…ƒæµ‹è¯•è¦†ç›–ï¼ˆçº¯é€»è¾‘ï¼Œä¸ä¾èµ– Windows APIï¼‰ã€‚
 /// </summary>
 public sealed class NotificationHistoryService : IDisposable
 {
@@ -13,7 +13,7 @@ public sealed class NotificationHistoryService : IDisposable
     private readonly object _gate = new();
     private bool _disposed;
 
-    /// <summary>µ±Ç°ÀúÊ·¼ÇÂ¼ÁĞ±í£¨Ö»¶ÁÊÓÍ¼£©¡£</summary>
+    /// <summary>å½“å‰å†å²è®°å½•åˆ—è¡¨ï¼ˆåªè¯»è§†å›¾ï¼‰ã€‚</summary>
     public IReadOnlyList<EventHistoryItem> Entries
     {
         get
@@ -22,10 +22,10 @@ public sealed class NotificationHistoryService : IDisposable
         }
     }
 
-    /// <summary>×î´ó±£ÁôÌõÊı£¨³¬³öÊ±×Ô¶¯²Ã¼ôÎ²²¿¾É¼ÇÂ¼£©¡£</summary>
+    /// <summary>æœ€å¤§ä¿ç•™æ¡æ•°ï¼ˆè¶…å‡ºæ—¶è‡ªåŠ¨è£å‰ªå°¾éƒ¨æ—§è®°å½•ï¼‰ã€‚</summary>
     public int MaxEntries { get; set; } = 20;
 
-    /// <summary>Ìí¼ÓÒ»ÌõÍ¨Öªµ½ÀúÊ·¼ÇÂ¼£¨²åÈëÍ·²¿£©¡£</summary>
+    /// <summary>æ·»åŠ ä¸€æ¡é€šçŸ¥åˆ°å†å²è®°å½•ï¼ˆæ’å…¥å¤´éƒ¨ï¼‰ã€‚</summary>
     public void Add(string title, string body, string icon, string? source = null)
     {
         lock (_gate)
@@ -46,7 +46,7 @@ public sealed class NotificationHistoryService : IDisposable
         }
     }
 
-    /// <summary>±ê¼Ç±êÌâ+ÕıÎÄÍêÈ«Æ¥ÅäµÄ¼ÇÂ¼ÎªÒÑ¶Á¡£</summary>
+    /// <summary>æ ‡è®°æ ‡é¢˜+æ­£æ–‡å®Œå…¨åŒ¹é…çš„è®°å½•ä¸ºå·²è¯»ã€‚</summary>
     public void MarkReadMatching(string title, string body)
     {
         lock (_gate)
@@ -59,7 +59,7 @@ public sealed class NotificationHistoryService : IDisposable
         }
     }
 
-    /// <summary>È«²¿±ê¼ÇÎªÒÑ¶Á¡£</summary>
+    /// <summary>å…¨éƒ¨æ ‡è®°ä¸ºå·²è¯»ã€‚</summary>
     public void MarkAllRead()
     {
         lock (_gate)
@@ -69,18 +69,18 @@ public sealed class NotificationHistoryService : IDisposable
         }
     }
 
-    /// <summary>ÒÆ³ıÖ¸¶¨¼ÇÂ¼¡£</summary>
+    /// <summary>ç§»é™¤æŒ‡å®šè®°å½•ã€‚</summary>
     public void Remove(EventHistoryItem item)
     {
         lock (_gate)
         {
-            // Í¨¹ı Id ±È½Ï£¬ÒòÎª¼¯ºÏÖĞµÄÒıÓÃ¿ÉÄÜ²»Í¬
+            // é€šè¿‡ Id æ¯”è¾ƒï¼Œå› ä¸ºé›†åˆä¸­çš„å¼•ç”¨å¯èƒ½ä¸åŒ
             var idx = _entries.ToList().FindIndex(e => e.Id == item.Id);
             if (idx >= 0) _entries.RemoveAt(idx);
         }
     }
 
-    /// <summary>Çå¿ÕÈ«²¿ÀúÊ·¡£</summary>
+    /// <summary>æ¸…ç©ºå…¨éƒ¨å†å²ã€‚</summary>
     public void Clear()
     {
         lock (_gate) { _entries.Clear(); }

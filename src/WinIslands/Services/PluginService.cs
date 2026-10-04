@@ -167,6 +167,8 @@ public sealed class PluginService : IDisposable
     private readonly List<PluginManifest> _plugins = new();
     private readonly List<PluginRuntime> _runtimes = new();
     private readonly CancellationTokenSource _lifetime = new();
+    /// <summary>最小轮询间隔（秒）。防止插件配置过密导致进程风暴，拖垮系统。</summary>
+    private const int MinPluginIntervalSeconds = 5;
     private bool _started;
     private bool _disposed;
 
@@ -512,6 +514,9 @@ $component = @{
             manifest.DirectoryPath = pluginDirectory;
             manifest.ManifestPath = manifestPath;
             manifest.IntervalSeconds = Math.Clamp(manifest.IntervalSeconds, 0, 86400);
+            // 防御：任何 >0 的轮询间隔不得小于 5 秒，避免 PowerShell/WMI 进程风暴
+            if (manifest.IntervalSeconds > 0 && manifest.IntervalSeconds < MinPluginIntervalSeconds)
+                manifest.IntervalSeconds = MinPluginIntervalSeconds;
             manifest.TimeoutSeconds = Math.Clamp(manifest.TimeoutSeconds, 1, 120);
             manifest.MaxOutputKb = Math.Clamp(manifest.MaxOutputKb, 1, 1024);
 
@@ -584,7 +589,7 @@ $component = @{
         try
         {
             var manifest = runtime.Manifest;
-            AppLogger.Info($"Plugin starting: {manifest.Id}");
+            AppLogger.Debug($"Plugin starting: {manifest.Id}");
             var startInfo = BuildStartInfo(manifest);
             using var process = new Process { StartInfo = startInfo };
             if (!process.Start())
@@ -594,7 +599,7 @@ $component = @{
                 AppLogger.Warn($"Plugin failed to start: {manifest.Id}");
                 return;
             }
-            AppLogger.Info($"Plugin process started: {manifest.Id}");
+            AppLogger.Debug($"Plugin process started: {manifest.Id}");
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(manifest.TimeoutSeconds));
@@ -615,7 +620,7 @@ $component = @{
 
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
-            AppLogger.Info($"Plugin process exited: {manifest.Id}, code={process.ExitCode}, stdout={stdout.Length}");
+            AppLogger.Debug($"Plugin process exited: {manifest.Id}, code={process.ExitCode}, stdout={stdout.Length}");
             if (!string.IsNullOrWhiteSpace(stderr))
                 AppLogger.Warn($"Plugin stderr [{manifest.Id}]: {Limit(stderr, 1000)}");
             if (process.ExitCode != 0)
@@ -626,7 +631,7 @@ $component = @{
             }
 
             var components = ParseOutput(manifest.Id, stdout, manifest.MaxOutputKb * 1024);
-            AppLogger.Info($"Plugin output parsed: {components?.Count.ToString() ?? "null"}, chars={stdout.Length}");
+            AppLogger.Debug($"Plugin output parsed: {components?.Count.ToString() ?? "null"}, chars={stdout.Length}");
             if (components is not null)
             {
                 AppLogger.Debug($"Plugin components updated [{manifest.Id}]: {components.Count}");

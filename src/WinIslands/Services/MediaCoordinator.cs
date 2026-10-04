@@ -76,7 +76,7 @@ public sealed class MediaCoordinator : IDisposable
             {
                 await _smtc.PushAsync(useCachedTrack: true);
                 // 无活跃会话时把快照视为 null：媒体应用退出后立即清除，不再保留旧曲目
-                snapshot = _smtc.HasActiveSession ? _smtc.LastSnapshot : null;
+                                snapshot = ResolveActiveSmtcSnapshot(_smtc.HasActiveSession, _smtc.LastSnapshot);
             }
 
             // 3) Window-title fallback（无媒体时每 5 秒扫一次，降低空闲 CPU）
@@ -146,6 +146,12 @@ public sealed class MediaCoordinator : IDisposable
             && Math.Abs(previous.DurationSeconds - next.DurationSeconds) < durationTolerance
             && Math.Abs(previous.PositionSeconds - next.PositionSeconds) < positionTolerance;
     }
+
+
+    /// <summary>SMTC 会话解析：无活跃会话时一律视为 null（媒体应用退出后立即清除，不再保留旧曲目）。
+    /// 纯函数便于回归测试：即使 LastSnapshot 仍残留旧曲目，会话已消失也必须清空。</summary>
+    internal static MediaSnapshot? ResolveActiveSmtcSnapshot(bool hasActiveSession, MediaSnapshot? lastSnapshot)
+        => hasActiveSession ? lastSnapshot : null;
 
     private void ScheduleNextTick()
     {

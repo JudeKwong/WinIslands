@@ -34,4 +34,20 @@ public sealed class MediaCoordinatorTests
         DurationSeconds = 180,
         Volume = 0.5,
     };
+
+    [Fact]
+    public void ResolveActiveSmtcSnapshot_NoSession_ClearsStaleResidue()
+    {
+        // 回归：媒体应用退出后即使 LastSnapshot 仍残留旧曲目，也必须视为 null，立即清除岛上媒体信息
+        var stale = Snapshot(42.0);
+        Assert.Null(MediaCoordinator.ResolveActiveSmtcSnapshot(hasActiveSession: false, stale));
+    }
+
+    [Fact]
+    public void ResolveActiveSmtcSnapshot_ActiveSession_KeepsSnapshot()
+    {
+        var snap = Snapshot(42.0);
+        Assert.Same(snap, MediaCoordinator.ResolveActiveSmtcSnapshot(hasActiveSession: true, snap));
+        Assert.Null(MediaCoordinator.ResolveActiveSmtcSnapshot(hasActiveSession: true, null));
+    }
 }

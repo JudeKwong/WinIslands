@@ -12,6 +12,28 @@ namespace WinIslands.Services;
 public static class AppLogger
 {
     private static readonly object Gate = new();
+    /// <summary>是否输出 DEBUG 日志。Release 默认关闭，避免高频日志拖慢磁盘 IO；
+    /// 可用环境变量 WINISLANDS_LOG_LEVEL=DEBUG 开启。</summary>
+    private static readonly bool DebugEnabled = ResolveDebugEnabled();
+
+    private static bool ResolveDebugEnabled()
+    {
+        try
+        {
+            var level = System.Environment.GetEnvironmentVariable("WINISLANDS_LOG_LEVEL");
+            if (!string.IsNullOrWhiteSpace(level))
+            {
+                var v = level.Trim();
+                return v.Equals("DEBUG", StringComparison.OrdinalIgnoreCase) || v.Equals("TRACE", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch { }
+#if DEBUG
+        return true;
+#else
+        return false;
+#endif
+    }
     private static string _currentDay = string.Empty;
     private static StreamWriter? _writer;
     private static int _pendingLines;              // 未落盘行数（批量 flush，减少 UI 线程同步磁盘写）
@@ -36,7 +58,11 @@ public static class AppLogger
     private static bool _startupCleanupDone;
 
     public static void Info(string message) => Write("INFO", message);
-    public static void Debug(string message) => Write("DEBUG", message);
+    public static void Debug(string message)
+    {
+        if (!DebugEnabled) return;
+        Write("DEBUG", message);
+    }
     public static void Warn(string message) => Write("WARN", message);
     public static void Error(string message, Exception? ex = null)
         => Write("ERROR", ex is null ? message : $"{message}{Environment.NewLine}{ex}");
