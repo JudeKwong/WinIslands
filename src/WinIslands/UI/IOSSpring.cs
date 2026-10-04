@@ -1,0 +1,260 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Windows.Media;
+
+namespace WinIslands.UI;
+
+/// <summary>
+/// 真实 iOS 弹簧物理引擎（阻尼简谐振荡器，解析解）。
+///
+/// 与旧的 SpringEase 不同：SpringEase 是把弹簧形状硬映射到固定时长上（时长到了就钳制），
+/// 这不是 iOS 的做法。iOS 的弹簧是物理模拟——从初始位置/速度出发自由振荡，
+/// 直到自然收敛（速度≈0 才结束），并且动画可以被中途打断，打断时以当前值 + 当前速度
+/// 继续运动（速度连续、不跳变）。本类实现了这套完整模型。
+///
+/// 参数采用 UIKit 惯例：
+///   DampingRatio（阻尼比 ζ）—— ζ<1 欠阻尼（轻微过冲回弹，iOS 展开手感），
+///                                ζ=1 临界阻尼（无回弹，文本/透明度过渡），
+///                                ζ>1 过阻尼（无回弹、更慢）。
+///   Response（响应时长，秒）  —— 感知上的收敛时长，换算成固有频率 ω0。
+/// </summary>
+public sealed class IOSSpring
+{
+    // ── 物理参数（由 Configure 换算） ─────────────────────────────
+    public double Mass { get; private set; } = 1;
+    /// <summary>固有角频率 ω0 (rad/s)。</summary>
+    public double Omega0 { get; private set; }
+    /// <summary>阻尼比 ζ。</summary>
+    public double Zeta { get; private set; }
+    /// <summary>阻尼角频率 ωd = ω0·√(1−ζ²)。</summary>
+    public double OmegaD { get; private set; }
+
+    // ── 运行状态 ────────────────────────────────────────────────
+    /// <summary>当前值（目标单位，如像素/透明度）。</summary>
+    public double Value { get; private set; }
+    /// <summary>当前速度（单位/秒）。</summary>
+    public double Velocity { get; private set; }
+    /// <summary>目标值（平衡位置）。</summary>
+    public double Target { get; private set; }
+    public bool IsActive { get; private set; }
+
+    // 当前一次求解的初始条件与流逝时间
+    private double _elapsed;
+    private double _y0;   // 初始偏移（相对当前 Target）
+    private double _v0;   // 初始速度
+
+    private Action<double>? _onUpdate;
+    private Action? _onCompleted;
+    private bool _notifyCompleted;
+
+    // 收敛判定阈值
+    private double _settleOffsetEpsilon = 0.5;
+    private double _settleVelocityEpsilon = 2.5;
+
+    /// <summary>创建并按 UIKit 参数配置弹簧并启动。</summary>
+    public static IOSSpring Create(double dampingRatio, double responseSeconds,
+        double from, double to, Action<double>? onUpdate = null, Action? onCompleted = null,
+        double initialVelocity = 0, double mass = 1)
+    {
+        var s = new IOSSpring();
+        s.Configure(dampingRatio, responseSeconds, mass);
+        s.SetCallbacks(onUpdate, onCompleted);
+        s.Start(from, to, initialVelocity);
+        return s;
+    }
+
+    /// <summary>换算物理参数。response 秒为感知收敛时长。</summary>
+    public void Configure(double dampingRatio, double responseSeconds, double mass = 1)
+    {
+        Mass = Math.Max(0.01, mass);
+        Zeta = Math.Clamp(dampingRatio, 0.01, 2.0);
+        var response = Math.Max(0.03, responseSeconds);
+
+        // 标准 iOS 换算：ωd = 2π/response，ω0 = ωd/√(1−ζ²)；ζ≥1 时取 ω0 = 2π/response。
+        if (Zeta < 1.0)
+        {
+            var root = Math.Sqrt(1 - Zeta * Zeta);
+            Omega0 = (2 * Math.PI / response) / root;
+            OmegaD = 2 * Math.PI / response;
+        }
+        else
+        {
+            Omega0 = 2 * Math.PI / response;
+            OmegaD = 0;
+        }
+    }
+
+    /// <summary>设置逐帧回调与结束回调（可在 Start 之前或之后调用）。</summary>
+    public void SetCallbacks(Action<double>? onUpdate, Action? onCompleted)
+    {
+        _onUpdate = onUpdate;
+        _onCompleted = onCompleted;
+    }
+
+    /// <summary>开始运动：以 from/初速度 向 to 收敛。若已在运动中则以当前值/速度为初始条件改目标（速度连续打断）。</summary>
+    public void Start(double from, double to, double initialVelocity = 0)
+    {
+        Value = from;
+        Velocity = initialVelocity;
+        Target = to;
+        _elapsed = 0;
+        _y0 = from - to;
+        _v0 = initialVelocity;
+        _notifyCompleted = false;
+        IsActive = true;
+        SpringTicker.Add(this);
+    }
+
+    /// <summary>中途改目标：以当前 Value/Velocity 作为新初始条件，向新目标继续运动（iOS 打断语义）。</summary>
+    public void Retarget(double to)
+    {
+        if (!IsActive)
+        {
+            Start(Value, to, 0);
+            return;
+        }
+        _elapsed = 0;
+        _y0 = Value - to;
+        _v0 = Velocity;
+        Target = to;
+        _notifyCompleted = false;
+    }
+
+    /// <summary>手动结束并停在当前值。</summary>
+    public void Stop()
+    {
+        if (!IsActive) return;
+        IsActive = false;
+        SpringTicker.Remove(this);
+    }
+
+    /// <summary>强制瞬移到目标并结束。</summary>
+    public void Complete()
+    {
+        if (!IsActive) return;
+        Value = Target;
+        Velocity = 0;
+        IsActive = false;
+        SpringTicker.Remove(this);
+        if (_notifyCompleted) return;
+        _notifyCompleted = true;
+        try { _onCompleted?.Invoke(); } catch { /* 由调用方兜底 */ }
+    }
+
+    // ── 每帧推进（由 SpringTicker 调用） ──────────────────────────
+    internal void Tick(double dt)
+    {
+        if (!IsActive) return;
+        _elapsed += dt;
+        Solve(_elapsed);
+
+        // 收敛判定：偏移与速度都足够小 → 瞬移到目标并结束
+        if (Math.Abs(Value - Target) < _settleOffsetEpsilon && Math.Abs(Velocity) < _settleVelocityEpsilon)
+        {
+            Complete();
+            return;
+        }
+        try { _onUpdate?.Invoke(Value); } catch { /* 单帧回调异常不影响引擎 */ }
+    }
+
+    /// <summary>阻尼简谐振荡器解析解：由初始偏移 y0、初速 v0 求 t 时刻的偏移与速度。</summary>
+    private void Solve(double t)
+    {
+        if (Zeta < 1.0 - 1e-9)
+        {
+            // 欠阻尼：y = e^(−ζω0t)·(A·cos(ωd·t) + B·sin(ωd·t))
+            var alpha = Zeta * Omega0;
+            var a = _y0;
+            var b = (_v0 + alpha * _y0) / OmegaD;
+            var decay = Math.Exp(-alpha * t);
+            var ct = Math.Cos(OmegaD * t);
+            var st = Math.Sin(OmegaD * t);
+            var y = decay * (a * ct + b * st);
+            var v = decay * ((b * OmegaD - a * alpha) * ct - (a * OmegaD + b * alpha) * st);
+            Value = Target + y;
+            Velocity = v;
+        }
+        else if (Zeta > 1.0 + 1e-9)
+        {
+            // 过阻尼：y = C1·e^(−λ1·t) + C2·e^(−λ2·t)
+            var root = Math.Sqrt(Zeta * Zeta - 1);
+            var l1 = Omega0 * (Zeta + root);
+            var l2 = Omega0 * (Zeta - root);
+            var c2 = (_v0 + l1 * _y0) / (l1 - l2);
+            var c1 = _y0 - c2;
+            var e1 = Math.Exp(-l1 * t);
+            var e2 = Math.Exp(-l2 * t);
+            var y = c1 * e1 + c2 * e2;
+            var v = -l1 * c1 * e1 - l2 * c2 * e2;
+            Value = Target + y;
+            Velocity = v;
+        }
+        else
+        {
+            // 临界阻尼：y = e^(−ω0·t)·(y0 + (v0 + ω0·y0)·t)
+            var k = _v0 + Omega0 * _y0;
+            var decay = Math.Exp(-Omega0 * t);
+            var y = decay * (_y0 + k * t);
+            var v = decay * (_v0 - k * Omega0 * t);
+            Value = Target + y;
+            Velocity = v;
+        }
+    }
+}
+
+/// <summary>
+/// 弹簧帧驱动器：所有活跃弹簧共享一个 CompositionTarget.Rendering 钩子，
+/// 空闲时自动摘钩（CPU≈0），有动画时以合成帧率（60/120Hz）推进，天然 60fps+。
+/// </summary>
+public static class SpringTicker
+{
+    private static readonly List<IOSSpring> _active = new();
+    private static readonly Stopwatch _clock = Stopwatch.StartNew();
+    private static double _lastSeconds;
+    private static bool _hooked;
+
+    public static int ActiveCount => _active.Count;
+
+    internal static void Add(IOSSpring spring)
+    {
+        if (!_hooked)
+        {
+            _lastSeconds = _clock.Elapsed.TotalSeconds;
+            CompositionTarget.Rendering += OnRendering;
+            _hooked = true;
+        }
+        if (!_active.Contains(spring)) _active.Add(spring);
+    }
+
+    internal static void Remove(IOSSpring spring)
+    {
+        _active.Remove(spring);
+        if (_active.Count == 0 && _hooked)
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            _hooked = false;
+        }
+    }
+
+    /// <summary>立即完成所有活跃弹簧（窗口关闭时清理）。</summary>
+    public static void CompleteAll()
+    {
+        var all = _active.ToArray();
+        foreach (var s in all) s.Complete();
+    }
+
+    private static void OnRendering(object? sender, EventArgs e)
+    {
+        if (_active.Count == 0) return;
+        var now = _clock.Elapsed.TotalSeconds;
+        var dt = now - _lastSeconds;
+        _lastSeconds = now;
+        // 防止挂起恢复/调试断点造成巨帧跳变
+        if (dt <= 0 || dt > 0.1) dt = 1.0 / 60.0;
+
+        // 倒序遍历，允许 Tick 内部 Complete 摘除
+        for (var i = _active.Count - 1; i >= 0; i--)
+            _active[i].Tick(dt);
+    }
+}

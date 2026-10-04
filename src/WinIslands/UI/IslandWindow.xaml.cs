@@ -210,6 +210,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _compactAnimationValid;
     private double _compactAnimationWidth;
     private double _compactAnimationHeight;
+    // ── iOS 真弹簧物理动画（2.0.5）：卡片尺寸 / 展开淡入 / 窗口位置 / 推送卡片 ──
+    private IOSSpring? _cardWSpring;      // 卡片宽度弹簧
+    private IOSSpring? _cardHSpring;      // 卡片高度弹簧
+    private IOSSpring? _cardFadeSpring;   // 展开↔收起内容交叉淡入弹簧（与尺寸同步，文字不"额外弹出"）
+    private bool _cardAnimating;          // 卡片弹簧进行中（声波 / 取色渲染让路）
+    private double _cardTargetW;
+    private double _cardTargetH;
+    private Action? _cardSpringCompleted; // 卡片弹簧收敛后的完成回调（兼容旧 Storyboard 语义）
+    private IOSSpring? _posLSpring;       // 窗口 Left 弹簧
+    private IOSSpring? _posTSpring;       // 窗口 Top 弹簧
+    private IOSSpring? _pushOpacitySpring;// 推送卡片透明度弹簧
+    private IOSSpring? _pushScaleSpring;  // 推送卡片缩放弹簧
     private Storyboard? _coverTransitionStoryboard;
     private Storyboard? _pushCardStoryboard;
     private Storyboard? _glassAnimSb;               // 玻璃分层不透明度动画（可随时重开/停止）
@@ -1506,6 +1518,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // 默认 Spring 动效：真实 iOS 弹簧物理平滑调整紧凑尺寸
+        if (_settings.Current.AnimationStyle == "Spring")
+        {
+            AnimateCompactSizeSpring(targetWidth, targetHeight);
+            return;
+        }
+
         BeginAnimationSurface();
 
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: false);
@@ -1543,6 +1562,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (!IsLoaded || CompactPushCard is null || !_vm.HasActivePush) return;
         CompactPushCard.Opacity = 0;
         CompactPushScale.ScaleX = CompactPushScale.ScaleY = 0.94;
+        // 默认 Spring 动效：真实弹簧淡入 + 轻微缩放，推送卡片自然"上岛"
+        if (_settings.Current.AnimationStyle == "Spring")
+        {
+            _pushCardStoryboard?.Stop();
+            _pushCardStoryboard = null;
+            CompactPushCard.BeginAnimation(UIElement.OpacityProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            EnsurePushSprings();
+            var lmPush = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            _pushOpacitySpring!.Configure(1.0, 0.3 * lmPush);
+            _pushOpacitySpring.Start(0, 1);
+            _pushScaleSpring.Configure(0.84, 0.5 * lmPush);
+            _pushScaleSpring.Start(0.94, 1);
+            return;
+        }
         var sb = new Storyboard();
         var (styleEase, styleMs) = GetSizeAnimationStyle(expand: true);
         var smooth = CachedCubicEaseOut;
@@ -1804,7 +1839,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         try
         {
             // 展开/收起动画期间暂停声波动画，避免 20+ 条并行动画争抢渲染线程导致掉帧
-            if (_currentStoryboard is not null) return;
+            if (_cardAnimating || _currentStoryboard is not null) return;
             if (!IsLoaded || !HasWave)
             {
                 RefreshWave();
@@ -2088,7 +2123,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void OnTintFrame(object? sender, EventArgs e)
     {
         // 展开/收起动画期间暂停封面取色呼吸，减少渲染线程争抢（动画结束即恢复）
-        if (_currentStoryboard is not null) return;
+        if (_cardAnimating || _currentStoryboard is not null) return;
         if (!_vm.IsExpanded || !_settings.Current.CoverTintBackground || _vm.Artwork is null || _tintStop0 is null)
         {
             SubscribeTintRendering(false);
@@ -2290,8 +2325,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 保持收起动画启动时的展开宽度：文字不瞬间重排（溢出部分由圆角裁剪收住，且随淡化隐藏）
         ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, CompactWidth) - 20);
 
-        AnimateCard(CompactWidth, CompactHeight, expand: false,
-            onCompleted: () => { Card.Width = CompactWidth; Card.Height = CompactHeight; });
+        // 尺寸收尾由 OnCardSpringSettled 统一写回 _cardTargetW/H（始终是最新目标，兼容收起途中
+        // 被紧凑尺寸重定向连续接管），不再用固定 CompactWidth 回调覆盖，避免收回后宽度/高度错位。
+        AnimateCard(CompactWidth, CompactHeight, expand: false);
     }
 
     /// <summary>
@@ -2330,6 +2366,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 减少动态效果：关闭弹簧/交错动画，直接瞬时切换（无障碍 / 省电）
         if (_settings.Current.ReduceMotion)
         {
+            StopCardSprings();
             EndAnimationSurface();
             Card.Width = width;
             Card.Height = height;
@@ -2345,20 +2382,27 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // 默认 Spring 动效 → 真实 iOS 弹簧物理（可打断、速度连续、自然收敛），
+        // 内容交叉淡入由同一弹簧驱动，文字随卡片一起动，不再"额外弹出"。
+        if (_settings.Current.AnimationStyle == "Spring")
+        {
+            AnimateCardSpring(width, height, expand, fromWidth, fromHeight, onCompleted);
+            return;
+        }
+
         BeginAnimationSurface();
 
         var sb = new Storyboard();
-        // 动效皮肤（33）：Spring= iOS 弹簧（默认）/ Soft=柔和 / Elastic=弹性 / Fade=简洁渐隐
+        // 动效皮肤（非 Spring）：Soft=柔和 / Elastic=弹性 / Fade=简洁渐隐
         var (styleEase, styleSizeMs) = GetSizeAnimationStyle(expand);
         var smooth = CachedCubicEaseOut;
-        var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 低功耗模式（37）：动画时间缩短，更快进入空闲
+        var lm = _settings.Current.LowPowerMode ? 0.6 : 1.0; // 低功耗模式：动画时间缩短，更快进入空闲
 
         // 卡片尺寸：动效皮肤曲线（展开/收起时长由皮肤决定）
         AddAnim(sb, Card, FrameworkElement.WidthProperty, width, (int)(styleSizeMs * lm), styleEase, from: fromWidth);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, height, (int)(styleSizeMs * lm), styleEase, from: fromHeight);
 
-        // iOS 式：内容跟随卡片一起动——清除可能残留的独立缩放/位移动画，只做整体透明度过渡，
-        // 文字不再"额外弹出"，而是随卡片生长/收拢自然浮现/隐去（与卡片尺寸动画同步）。
+        // 内容跟随卡片一起动：清除可能残留的独立缩放/位移动画，只做整体透明度过渡
         ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
@@ -2375,8 +2419,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             ExpandedContent.Opacity = 1;
             AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(300 * lm), smooth);
         }
-        // 胶囊行：展开后立即快速淡出（由展开内容接管）；收起时与展开内容交叉淡入（0→1 平滑过渡），
-        // 避免瞬现/双文字造成的"文字重新弹出"观感
+        // 胶囊行：展开后快速淡出；收起时与展开内容交叉淡入（0→1 平滑过渡）
         if (expand)
             AddAnim(sb, PillRow, UIElement.OpacityProperty, 0, (int)(220 * lm), smooth);
         else
@@ -2394,16 +2437,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             try
             {
                 _currentStoryboard = null;
-                // 关键：清除动画对 Card 尺寸的 HoldEnd 锁定，否则之后设置本地尺寸（含自动重算）不生效，
-                // 多次展开/收起后组件上下间距会残留异常
+                // 关键：清除动画对 Card 尺寸的 HoldEnd 锁定，否则之后设置本地尺寸（含自动重算）不生效
                 Card.BeginAnimation(FrameworkElement.WidthProperty, null);
                 Card.BeginAnimation(FrameworkElement.HeightProperty, null);
-                // 必须写回最终尺寸：清除动画后若只依赖本地值，Card 会回退到紧凑时设置的
-                // 本地尺寸（Width/Height），展开态瞬间缩回紧凑大小导致内容被裁剪而黑屏
+                // 必须写回最终尺寸：清除动画后若只依赖本地值，Card 会回退到紧凑时设置的本地尺寸
                 Card.Width = width;
                 Card.Height = height;
                 FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
-                // 动画结束后整理可见性：展开态折叠胶囊行并固定展开内容不透明，收起态恢复胶囊行
                 if (_vm.IsExpanded)
                 {
                     PillRow.Visibility = Visibility.Collapsed;
@@ -2433,6 +2473,193 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _currentStoryboard = sb;
         AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps（跟随显示器刷新率）
         sb.Begin();
+    }
+
+    // ── iOS 真弹簧物理：卡片展开/收起 ──────────────────────────────
+
+    /// <summary>确保卡片三个弹簧（宽/高/淡入）已创建并绑定回调。回调只绑定一次，弹簧可反复 Start/Retarget。</summary>
+    private void EnsureCardSprings()
+    {
+        if (_cardWSpring is not null) return;
+        _cardWSpring = new IOSSpring();
+        _cardHSpring = new IOSSpring();
+        _cardFadeSpring = new IOSSpring();
+        _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
+        _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
+        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = 1 - v; }, OnCardSpringSettled);
+    }
+
+    private void StopCardSprings()
+    {
+        _cardWSpring?.Stop();
+        _cardHSpring?.Stop();
+        _cardFadeSpring?.Stop();
+        _cardAnimating = false;
+        _cardSpringCompleted = null; // 动画被强制终止，丢弃未完成的回调
+    }
+
+    /// <summary>
+    /// iOS 真弹簧展开/收起（默认 Spring 动效）：
+    /// 尺寸用欠阻尼/近临界弹簧（展开 ζ=0.82 轻微回弹、收起 ζ=0.96 无回弹），
+    /// 透明度用临界阻尼弹簧，且与尺寸共用同一帧循环——内容随卡片生长/收拢自然浮现/隐去，
+    /// 文字不再"额外弹出"。动画可中途打断：以当前值+速度连续改目标（iOS 打断语义）。
+    /// </summary>
+    private void AnimateCardSpring(double width, double height, bool expand,
+        double fromWidth, double fromHeight, Action? onCompleted)
+    {
+        BeginAnimationSurface();
+        EnsureCardSprings();
+
+        // 用户时长调节：默认 700ms ↔ response≈0.5s；低功耗模式整体加快
+        var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+        var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+        var zeta = expand ? 0.82 : 0.96;
+        var response = (expand ? 0.52 : 0.46) * durScale * lm;
+
+        // 清除可能残留的独立缩放/位移动画与交错状态，让内容只随卡片动
+        ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+        ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
+        ExpandedTranslate.Y = 0;
+        ApplyCascadeState(1, 0);
+        ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
+        PillRow.BeginAnimation(UIElement.OpacityProperty, null);
+        ExpandedContent.Visibility = Visibility.Visible;
+        PillRow.Visibility = Visibility.Visible;
+        // 动画期间固定展开内容宽度，避免逐帧重排（60fps 保持布局稳定）
+        ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, CompactWidth)) - 20);
+
+        var fadeTo = expand ? 1.0 : 0.0;
+        var wasAnimating = _cardAnimating; // 记录进入前的动画状态，用于打断判断
+        _cardAnimating = true;
+        _cardTargetW = width;
+        _cardTargetH = height;
+        _cardSpringCompleted = onCompleted; // 收尾时统一回调（支持打断重定向后仍生效）
+
+        if (wasAnimating && _cardWSpring!.IsActive && _cardHSpring!.IsActive)
+        {
+            // 打断重定向（如展开一半点收起）：以当前值+速度连续改目标，方向自然过渡
+            _cardWSpring.Retarget(width);
+            _cardHSpring.Retarget(height);
+            _cardFadeSpring!.Retarget(fadeTo);
+            return;
+        }
+
+        // 全新开始：一次写到位，避免首帧闪烁
+        ExpandedContent.Opacity = expand ? 0 : 1;
+        PillRow.Opacity = expand ? 1 : 0;
+        var fadeFrom = ExpandedContent.Opacity;
+        _cardWSpring!.Configure(zeta, response);
+        _cardWSpring.Start(fromWidth, width);
+        _cardHSpring!.Configure(zeta, response);
+        _cardHSpring.Start(fromHeight, height);
+        _cardFadeSpring!.Configure(1.0, response * 0.88); // 临界阻尼：透明度无回弹，略快于尺寸收尾
+        _cardFadeSpring.Start(fadeFrom, fadeTo);
+    }
+
+    /// <summary>卡片三个弹簧全部收敛后的统一收尾（与旧 Storyboard 路径一致的最终状态）。</summary>
+    private void OnCardSpringSettled()
+    {
+        if (!_cardAnimating) return;
+        if (_cardWSpring?.IsActive == true || _cardHSpring?.IsActive == true || _cardFadeSpring?.IsActive == true)
+            return; // 还有弹簧在收敛，等最后一个结束再收尾
+        try
+        {
+            _cardAnimating = false;
+            Card.BeginAnimation(FrameworkElement.WidthProperty, null);
+            Card.BeginAnimation(FrameworkElement.HeightProperty, null);
+            Card.Width = _cardTargetW;
+            Card.Height = _cardTargetH;
+            FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
+            if (_vm.IsExpanded)
+            {
+                PillRow.Visibility = Visibility.Collapsed;
+                PillRow.Opacity = 0;
+                ExpandedContent.Opacity = 1;
+                ExpandedContent.Width = double.NaN; // 恢复自适应布局
+            }
+            else
+            {
+                PillRow.Visibility = Visibility.Visible;
+                PillRow.Opacity = 1;
+                ExpandedContent.Visibility = Visibility.Collapsed;
+                ExpandedContent.Opacity = 0;
+                ExpandedContent.Width = double.NaN; // 恢复自适应布局
+            }
+            var cb = _cardSpringCompleted; // 先取再清，避免回调里再次触发动画导致重复收尾
+            _cardSpringCompleted = null;
+            cb?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Card spring settled failed", ex);
+        }
+        finally
+        {
+            EndAnimationSurface();
+        }
+    }
+
+    /// <summary>紧凑尺寸变化（无展开时）：真实弹簧平滑调整卡片宽高，避免内容变化时"跳变"。</summary>
+    private void AnimateCompactSizeSpring(double targetWidth, double targetHeight)
+    {
+        if (_cardAnimating)
+        {
+            // 已有卡片动画（展开/收起/尺寸调整）进行中：直接改弹簧目标，连续过渡
+            if (_cardWSpring?.IsActive == true) _cardWSpring.Retarget(targetWidth);
+            if (_cardHSpring?.IsActive == true) _cardHSpring.Retarget(targetHeight);
+            _cardTargetW = targetWidth;
+            _cardTargetH = targetHeight;
+            return;
+        }
+        if (Math.Abs(Card.ActualWidth - targetWidth) < 0.5 && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
+        {
+            Card.Width = targetWidth;
+            Card.Height = targetHeight;
+            return;
+        }
+
+        BeginAnimationSurface();
+        EnsureCardSprings();
+        _cardAnimating = true;
+        _cardTargetW = targetWidth;
+        _cardTargetH = targetHeight;
+        var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+        var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+        var response = 0.4 * durScale * lm;
+        _cardWSpring!.Configure(0.96, response);
+        _cardWSpring.Start(ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth), targetWidth);
+        _cardHSpring!.Configure(0.96, response);
+        _cardHSpring.Start(ResolveAnimationFrom(Card.ActualHeight, Card.Height, targetHeight), targetHeight);
+    }
+
+    // ── iOS 真弹簧物理：窗口位置 / 推送卡片 ─────────────────────────
+
+    private void EnsurePositionSprings()
+    {
+        if (_posLSpring is not null) return;
+        _posLSpring = new IOSSpring();
+        _posTSpring = new IOSSpring();
+        _posLSpring.SetCallbacks(v => Left = v, null);
+        _posTSpring.SetCallbacks(v => Top = v, null);
+    }
+
+    private void EnsurePushSprings()
+    {
+        if (_pushOpacitySpring is not null) return;
+        _pushOpacitySpring = new IOSSpring();
+        _pushScaleSpring = new IOSSpring();
+        _pushOpacitySpring.SetCallbacks(v => { if (CompactPushCard is not null) CompactPushCard.Opacity = v; }, OnPushSpringSettled);
+        _pushScaleSpring.SetCallbacks(v => { if (CompactPushScale is not null) { CompactPushScale.ScaleX = v; CompactPushScale.ScaleY = v; } }, OnPushSpringSettled);
+    }
+
+    private void OnPushSpringSettled()
+    {
+        if (_pushOpacitySpring?.IsActive == true || _pushScaleSpring?.IsActive == true) return;
+        if (CompactPushCard is null) return;
+        CompactPushCard.Opacity = 1;
+        if (CompactPushScale is not null) CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
     }
 
     /// <summary>
@@ -2668,6 +2895,19 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
         _positionStoryboard?.Stop(); // 连续重定位先停旧动画，避免并发抖动
+        // 默认 Spring 动效：真实弹簧，窗口位置丝滑到位
+        if (_settings.Current.AnimationStyle == "Spring")
+        {
+            EnsurePositionSprings();
+            var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+            var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            var response = 0.4 * durScale * lm;
+            if (_posLSpring!.IsActive) _posLSpring.Retarget(left);
+            else { _posLSpring.Configure(0.9, response); _posLSpring.Start(Left, left); }
+            if (_posTSpring!.IsActive) _posTSpring.Retarget(top);
+            else { _posTSpring.Configure(0.9, response); _posTSpring.Start(Top, top); }
+            return;
+        }
         var easing = CachedCubicEaseOut;
         var sb = new Storyboard();
         AddAnim(sb, this, Window.LeftProperty, left, 320, easing);
