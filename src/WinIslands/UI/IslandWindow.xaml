@@ -854,8 +854,8 @@
                               PanningMode="VerticalOnly">
                     <ScrollViewer.RenderTransform>
                         <TransformGroup>
-                            <ScaleTransform x:Name="ExpandedScale" ScaleX="0.985" ScaleY="0.985"/>
-                            <TranslateTransform x:Name="ExpandedTranslate" Y="8"/>
+                            <ScaleTransform x:Name="ExpandedScale" ScaleX="1" ScaleY="1"/>
+                            <TranslateTransform x:Name="ExpandedTranslate" Y="0"/>
                         </TransformGroup>
                     </ScrollViewer.RenderTransform>
                     <StackPanel>

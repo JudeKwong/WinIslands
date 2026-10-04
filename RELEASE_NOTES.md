@@ -12,6 +12,30 @@
 
 ## 简体中文
 
+## WinIslands 2.0.4（正式版 / Stable）
+### 更新内容
+
+- **🎬 iOS 式展开/收起动画**：彻底移除展开内容逐块交错弹出的生硬效果，改为与卡片同步的整体过渡，文字跟随卡片一起运动，不再单独弹出或闪现
+- **📐 收起更慢更丝滑**：收起动画改用高阻尼弹簧（几乎无 Q 弹），时长更接近展开动画，过渡优雅连贯
+- **💠 圆角修复**：动画中亚像素尺寸会把圆角渲染成方框，现通过圆角裁剪几何从根源修复，展开/收起全程圆角干净利落
+- **✅ 回归测试**：239 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.3（正式版 / Stable）
+### 更新内容
+
+- **🛡️ 稳定性大修**：修复插件进程风暴与重复拉起问题，插件异常退出后不再被反复重启，整体稳定性大幅提升
+- **⏱️ 插件轮询降频**：插件轮询间隔从 1s 起提升到 5s 起，空闲时 CPU 占用进一步降低
+- **📝 日志级别过滤**：默认不再记录 DEBUG 级别日志，减小日志体积与磁盘写入
+- **🎵 媒体退出残留修复**：媒体应用退出且无新播放会话时，灵动岛不再残留旧的媒体播放信息
+- **🎤 歌词暂停冻结**：暂停播放时歌词高亮稳定停留在暂停时刻，不再向后跳动；墙钟限幅防止歌词时间漂移
+- **🔔 Windows 通知编码修复**：修复部分第三方应用（如 QQ）通知乱码或无法识别弹出的问题
+- **🧪 回归测试**：239 项单元测试全部通过
+- **⚠️ macOS 实验性说明**：macOS 版功能可能不完整，可能存在较多 BUG，且尚未经过充分测试，请谨慎使用。
+
+---
+
 ## WinIslands 2.0.2（正式版 / Stable）
 ### 更新内容
 
@@ -302,6 +326,30 @@
 - **⏱ 可选服务懒启动**：日程与日历计时器不再随服务构造启动，仅在设置启用后运行
 - **⚡ 启动占用下降**：未使用日程和日历时不会产生 20/30 秒后台轮询
 - **✅ 回归测试**：212 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.4 (Stable)
+### What's New
+
+- **🎬 iOS-style expand/collapse animation**: Removed the staggered per-block pop-in effect in favor of a unified transition that moves together with the card; text follows the card instead of popping in/out on its own
+- **📐 Slower, smoother collapse**: Collapse now uses a high-damping spring (almost no bounce) with a duration close to the expand animation
+- **💠 Rounded-corner fix**: Sub-pixel sizes during animation no longer render corners as sharp rectangles — a corner clip geometry keeps corners clean throughout
+- **✅ Regression testing**: All 239 unit tests passed
+
+---
+
+## WinIslands 2.0.3 (Stable)
+### What's New
+
+- **🛡️ Stability overhaul**: Fixed plugin process storms and repeated re-spawning after abnormal exits
+- **⏱️ Slower plugin polling**: Plugin polling interval now starts at 5s (was 1s), further reducing idle CPU usage
+- **📝 Log level filtering**: DEBUG logs are no longer written by default, shrinking log size and disk I/O
+- **🎵 Media exit residue fix**: When a media app exits without a new session, stale media info no longer stays on the island
+- **🎤 Lyrics pause freeze**: Lyrics highlight stays frozen at the paused position; wall-clock clamping prevents time drift
+- **🔔 Windows notification encoding fix**: Fixed garbled or undetected popups from third-party apps (e.g. QQ)
+- **🧪 Regression testing**: All 239 unit tests passed
+- **⚠️ macOS is experimental**: The macOS build may be incomplete, may contain bugs, and has not been fully tested. Use with caution.
 
 ---
 

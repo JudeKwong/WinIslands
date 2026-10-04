@@ -205,6 +205,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _cardLayoutRoundingBeforeAnimation = true;
     private bool _cardSnapsBeforeAnimation = true;
     private Storyboard? _currentStoryboard;
+    private RectangleGeometry? _cardClip;   // 圆角裁剪几何：动画中亚像素尺寸把圆角渲染成方框，用它从根源裁出圆角边界
     private bool _visibilityRefreshQueued;
     private bool _compactAnimationValid;
     private double _compactAnimationWidth;
@@ -273,6 +274,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private static readonly CubicEase CachedCubicEaseOut = CreateCubicEase(EasingMode.EaseOut);
     private static readonly CubicEase CachedCubicEaseIn = CreateCubicEase(EasingMode.EaseIn);
     private static readonly SpringEase CachedSpringEase = FreezeEase(new SpringEase { Damping = 11, Stiffness = 220, Mass = 1 });
+    // 收起专用弹簧：高阻尼（ζ≈0.86，过冲量 <1%）——收紧时丝滑收敛、几乎无 Q 弹，接近 Apple 收起质感
+    private static readonly SpringEase CachedCollapseEase = FreezeEase(new SpringEase { Damping = 26, Stiffness = 230, Mass = 1 });
     private static readonly SoftSpringEase CachedSoftEase = FreezeEase(new SoftSpringEase { Damping = 15, Stiffness = 220, Mass = 1 });
     private static readonly SoftSpringEase CachedSoftEaseSmooth = FreezeEase(new SoftSpringEase { Damping = 18, Stiffness = 250, Mass = 1 });
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<DependencyProperty, PropertyPath> AnimationPathCache = new();
@@ -315,6 +318,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 展开内容交错过渡区块（功能 2）：为各区块挂载位移变换，供展开/收起错峰动画使用
         _cascadeBlocks = BuildCascadeBlocks(ExpandedPushCard, HeroCard, ArtTitleGrid, ProgressGrid,
             ControlsGrid, LyricQuickOpsPanel, LyricsScroll, QuickActionsPanel);
+
+        // 圆角裁剪：ClipToBounds 只是矩形裁剪，动画中亚像素尺寸会导致圆角边缘被矩形截断（"圆角变方框"）。
+        // 用 RectangleGeometry 做 Card.Clip，从根源保证任何子内容都画不出圆角边界。
+        var clipRadius = Math.Clamp(_settings.Current.CornerRadius, 16, 40);
+        _cardClip = new RectangleGeometry
+        {
+            Rect = new Rect(0, 0, Math.Max(1, Card.ActualWidth), Math.Max(1, Card.ActualHeight)),
+            RadiusX = clipRadius,
+            RadiusY = clipRadius,
+        };
+        Card.Clip = _cardClip;
+        Card.SizeChanged += OnCardSizeChanged;
 
         // 收起延迟（鼠标移出展开态 700ms 后收起）
         _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
@@ -1413,11 +1428,42 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PillRow.Width = Math.Max(80, (knownCompactWidth ?? CompactWidth) - horizontalChrome);
     }
 
+    /// <summary>卡片尺寸变化时同步圆角裁剪几何（防止亚像素尺寸导致圆角变方框）。</summary>
+    private void OnCardSizeChanged(object sender, SizeChangedEventArgs e) => FinalizeCardShape();
+
+    /// <summary>重建圆角裁剪 RectangleGeometry 并强制重绘卡片/玻璃层，让动画收尾后圆角干净利落。</summary>
+    private void FinalizeCardShape()
+    {
+        if (_cardClip is null || Card is null) return;
+        try
+        {
+            var w = Math.Max(1, Card.ActualWidth);
+            var h = Math.Max(1, Card.ActualHeight);
+            var r = Math.Clamp(_settings.Current.CornerRadius, 16, 40);
+            if (Math.Abs(_cardClip.Rect.Width - w) < 0.5
+                && Math.Abs(_cardClip.Rect.Height - h) < 0.5
+                && Math.Abs(_cardClip.RadiusX - r) < 0.5)
+                return; // 几何未变化，无需重绘
+            _cardClip.Rect = new Rect(0, 0, w, h);
+            _cardClip.RadiusX = r;
+            _cardClip.RadiusY = r;
+            Card.InvalidateVisual();
+            if (GlassLayer is not null) GlassLayer.InvalidateVisual();
+        }
+        catch { /* 布局过程中的瞬时异常直接忽略 */ }
+    }
+
     private void ApplyAppearance()
     {
         try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 非法字体名忽略 */ }
         var rounded = new CornerRadius(Math.Clamp(_settings.Current.CornerRadius, 16, 40));
         Card.CornerRadius = rounded;
+        // 同步圆角裁剪几何：设置变化即刻生效，防止旧几何残留导致方角
+        if (_cardClip is not null)
+        {
+            _cardClip.RadiusX = rounded.TopLeft;
+            _cardClip.RadiusY = rounded.TopLeft;
+        }
         // 玻璃分层与卡片同步圆角，避免展开时矩形四角露出（深浅色方框的根因）
         if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
         // 字体缩放 = 1 时清空 LayoutTransform（走普通布局路径，动画期间布局更轻、更快）；
@@ -1486,6 +1532,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
             Card.Width = targetWidth;
             Card.Height = targetHeight;
+            FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
         };
         sb.Begin();
     }
@@ -1756,6 +1803,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         try
         {
+            // 展开/收起动画期间暂停声波动画，避免 20+ 条并行动画争抢渲染线程导致掉帧
+            if (_currentStoryboard is not null) return;
             if (!IsLoaded || !HasWave)
             {
                 RefreshWave();
@@ -2038,6 +2087,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnTintFrame(object? sender, EventArgs e)
     {
+        // 展开/收起动画期间暂停封面取色呼吸，减少渲染线程争抢（动画结束即恢复）
+        if (_currentStoryboard is not null) return;
         if (!_vm.IsExpanded || !_settings.Current.CoverTintBackground || _vm.Artwork is null || _tintStop0 is null)
         {
             SubscribeTintRendering(false);
@@ -2231,12 +2282,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
         ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
         PillRow.Visibility = Visibility.Visible;
-        PillRow.Opacity = 1;
+        PillRow.Opacity = 0; // 与展开内容交叉淡入（AnimateCard 中由 0→1 平滑过渡），避免瞬现"文字重新弹出"
         // 展开内容保持可见以播放「自下而上」的交错淡出动画，动画结束后由 AnimateCard 回调隐藏
         ExpandedContent.Visibility = Visibility.Visible;
         ExpandedContent.Opacity = 1;
         // 60fps 优化：收起动画期间展开内容固定宽度，不随卡片宽度逐帧重排
-        ExpandedContent.Width = Math.Max(120, CompactWidth - 20);
+        // 保持收起动画启动时的展开宽度：文字不瞬间重排（溢出部分由圆角裁剪收住，且随淡化隐藏）
+        ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, CompactWidth) - 20);
 
         AnimateCard(CompactWidth, CompactHeight, expand: false,
             onCompleted: () => { Card.Width = CompactWidth; Card.Height = CompactHeight; });
@@ -2265,6 +2317,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _animationSurfaceActive = false;
         Card.UseLayoutRounding = _cardLayoutRoundingBeforeAnimation;
         Card.SnapsToDevicePixels = _cardSnapsBeforeAnimation;
+        FinalizeCardShape(); // 恢复像素对齐后重建圆角裁剪，消除亚像素圆角走样
     }
     private void AnimateCard(double width, double height, bool expand, Action? onCompleted = null)
     {
@@ -2284,9 +2337,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             PillRow.Opacity = expand ? 0 : 1;
             ExpandedContent.Visibility = expand ? Visibility.Visible : Visibility.Collapsed;
             ExpandedContent.Opacity = expand ? 1 : 0;
-            ExpandedScale.ScaleX = ExpandedScale.ScaleY = expand ? 1 : 0.98;
-            ExpandedTranslate.Y = expand ? 0 : 10;
+            ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
+            ExpandedTranslate.Y = 0;
             ApplyCascadeState(expand ? 1 : 0, expand ? 0 : 10);
+            FinalizeCardShape();
             onCompleted?.Invoke();
             return;
         }
@@ -2303,58 +2357,35 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         AddAnim(sb, Card, FrameworkElement.WidthProperty, width, (int)(styleSizeMs * lm), styleEase, from: fromWidth);
         AddAnim(sb, Card, FrameworkElement.HeightProperty, height, (int)(styleSizeMs * lm), styleEase, from: fromHeight);
 
-        // 展开内容交错过渡（1.2.1 功能 2）：
-        //  展开 —— 区块自上而下依次淡入 + 轻微上移（每区块延迟 70ms，错峰出现）
-        //  收起 —— 区块自下而上反向依次淡出 + 轻微下移，容器最后整体淡出
-        var blocks = _cascadeBlocks;
+        // iOS 式：内容跟随卡片一起动——清除可能残留的独立缩放/位移动画，只做整体透明度过渡，
+        // 文字不再"额外弹出"，而是随卡片生长/收拢自然浮现/隐去（与卡片尺寸动画同步）。
+        ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+        ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
+        ExpandedTranslate.Y = 0;
+        ApplyCascadeState(1, 0); // 同时清除块元素可能残留的交错状态
         if (expand)
         {
-            if (_settings.Current.LowPowerMode)
-            {
-                ApplyCascadeState(1, 0);
-                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(260 * lm), smooth);
-            }
-            else
-            {
-                for (int i = 0; i < blocks.Length; i++)
-                {
-                    var (el, tr) = blocks[i];
-                    el.Opacity = 0;
-                    tr.Y = 12;
-                    var delay = TimeSpan.FromMilliseconds((90 + i * 70) * lm);
-                    AddAnim(sb, el, UIElement.OpacityProperty, 1, (int)(340 * lm), smooth, delay);
-                    AddAnim(sb, tr, TranslateTransform.YProperty, 0, (int)(420 * lm), smooth, delay);
-                }
-                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(460 * lm), smooth, TimeSpan.FromMilliseconds(90 * lm));
-            }
+            ExpandedContent.Opacity = 0;
+            AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 1, (int)(360 * lm), smooth);
         }
         else
         {
-            if (_settings.Current.LowPowerMode)
-            {
-                ApplyCascadeState(0, 10);
-                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth);
-                PillRow.Opacity = 1;
-            }
-            else
-            {
-                for (int i = 0; i < blocks.Length; i++)
-                {
-                    var (el, tr) = blocks[i];
-                    var delay = TimeSpan.FromMilliseconds((blocks.Length - 1 - i) * 55 * lm);
-                    AddAnim(sb, el, UIElement.OpacityProperty, 0, (int)(180 * lm), smooth, delay);
-                    AddAnim(sb, tr, TranslateTransform.YProperty, 14, (int)(220 * lm), smooth, delay);
-                }
-                AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(240 * lm), smooth,
-                    TimeSpan.FromMilliseconds((blocks.Length * 55 + 150) * lm));
-                PillRow.Opacity = 1;
-            }
+            ExpandedContent.Opacity = 1;
+            AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(300 * lm), smooth);
         }
-
-        // 胶囊行：展开后淡出（由大图区接管）；收起时立即恢复完全不透明，
-        // 避免缩回瞬间胶囊内容还在淡入而出现"空内容"
+        // 胶囊行：展开后立即快速淡出（由展开内容接管）；收起时与展开内容交叉淡入（0→1 平滑过渡），
+        // 避免瞬现/双文字造成的"文字重新弹出"观感
         if (expand)
-            AddAnim(sb, PillRow, UIElement.OpacityProperty, 0, (int)(300 * lm), smooth, TimeSpan.FromMilliseconds(80));
+            AddAnim(sb, PillRow, UIElement.OpacityProperty, 0, (int)(220 * lm), smooth);
+        else
+        {
+            PillRow.BeginAnimation(UIElement.OpacityProperty, null);
+            PillRow.Visibility = Visibility.Visible;
+            PillRow.Opacity = 0;
+            AddAnim(sb, PillRow, UIElement.OpacityProperty, 1, (int)(280 * lm), smooth, TimeSpan.FromMilliseconds(40 * lm));
+        }
 
         sb.Completed += (_, _) =>
         {
@@ -2371,6 +2402,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 // 本地尺寸（Width/Height），展开态瞬间缩回紧凑大小导致内容被裁剪而黑屏
                 Card.Width = width;
                 Card.Height = height;
+                FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
                 // 动画结束后整理可见性：展开态折叠胶囊行并固定展开内容不透明，收起态恢复胶囊行
                 if (_vm.IsExpanded)
                 {
@@ -2418,15 +2450,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         switch (_settings.Current.AnimationStyle)
         {
             case "Soft":
-                return (CachedSoftEase, expand ? Ms(baseMs * 1.08) : Ms(baseMs * 0.94));
+                return (expand ? CachedSoftEase : CachedCollapseEase, expand ? Ms(baseMs * 1.08) : Ms(baseMs * 0.94));
             case "Elastic":
-                return (CachedElasticEase, expand ? Ms(baseMs * 0.97) : Ms(baseMs * 0.84));
+                return (CachedElasticEase, expand ? Ms(baseMs * 0.97) : Ms(baseMs * 0.90));
             case "Smooth":
-                return (CachedSoftEaseSmooth, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.88));
+                return (expand ? CachedSoftEaseSmooth : CachedCollapseEase, expand ? Ms(baseMs * 1.02) : Ms(baseMs * 0.94));
             case "Fade":
-                return (CachedCubicEaseOut, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.64));
+                return (CachedCubicEaseOut, expand ? Ms(baseMs * 0.74) : Ms(baseMs * 0.72));
             default: // Spring
-                return (CachedSpringEase, expand ? baseMs : Ms(baseMs * 0.86)); // 1.2.1：阻尼略降、刚度略升 -> 回弹更有弹性
+                // 收起改用高阻尼弹簧（无 Q 弹）且时长接近展开（×0.94），更慢更丝滑
+                return (expand ? CachedSpringEase : CachedCollapseEase, expand ? baseMs : Ms(baseMs * 0.94));
         }
     }
     internal static double ResolveAnimationFrom(double actual, double current, double fallback)
