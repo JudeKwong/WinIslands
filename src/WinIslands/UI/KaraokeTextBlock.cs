@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -229,6 +229,7 @@ public class KaraokeTextBlock : TextBlock
             Opacity = 1;
             BeginAnimation(OpacityProperty, null);   // 摘除动画，恢复静态 1
         };
+        AnimationFrameRate.Apply(anim, LowPowerModeOverride); // 2.4.0：低功耗/降频时统一限制帧率
         BeginAnimation(OpacityProperty, anim);
     }
     private void OnPositionChanged(double pos)

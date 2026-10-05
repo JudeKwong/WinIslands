@@ -34,6 +34,9 @@ public static class FadeOnTextChange
     // 首次赋值（初始绑定）不淡入：启动/进入页面时的首个文本直接显示，避免空窗闪烁。
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<TextBlock, object> Initialized = new();
 
+    /// <summary>全局低功耗覆盖（2.4.0）：由 IslandWindow 在设置变化时同步，统一限制本组件的动画帧率。</summary>
+    public static bool LowPowerModeOverride;
+
     private static void OnEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not TextBlock tb) return;
@@ -76,6 +79,7 @@ public static class FadeOnTextChange
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             });
+            AnimationFrameRate.Apply(fade, LowPowerModeOverride); // 2.4.0
             tb.BeginAnimation(UIElement.OpacityProperty, fade);
 
             if (GetSlideUp(tb) && tb.RenderTransform is System.Windows.Media.TranslateTransform tr)
@@ -93,6 +97,7 @@ public static class FadeOnTextChange
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 });
+                AnimationFrameRate.Apply(slide, LowPowerModeOverride); // 2.4.0
                 tr.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
             }
         }

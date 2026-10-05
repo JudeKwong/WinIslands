@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
@@ -77,7 +77,11 @@ public static class Marquee
         if (d is not FrameworkElement fe) return;
         if (fe.RenderTransform is not TranslateTransform tt) return;
         if ((bool)e.NewValue) tt.BeginAnimation(TranslateTransform.XProperty, null); // 停住当前帧
-        else ScheduleEvaluate(fe);
+        else
+        {
+            if (States.TryGetValue(fe, out var st)) st.Running = false; // 2.4.0：解除暂停后强制重启滚动会话
+            ScheduleEvaluate(fe);
+        }
     }
 
     private static void OnLoaded(object sender, RoutedEventArgs e) => ScheduleEvaluate((FrameworkElement)sender);
@@ -145,7 +149,10 @@ public static class Marquee
     {
         if (States.TryGetValue(fe, out var state)) state.Running = false;
         if (fe.RenderTransform is TranslateTransform tt)
+        {
             tt.BeginAnimation(TranslateTransform.XProperty, null);
+            tt.X = 0; // 2.4.0：清除动画后归零偏移，避免短文本时残留滚出位置
+        }
     }
 
     private static double MeasureTextWidth(TextBlock tb, string text)

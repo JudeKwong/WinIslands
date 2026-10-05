@@ -1,3 +1,21 @@
+## WinIslands 2.4.0（正式版 / Stable）
+### 更新内容
+
+- **🎞️ 文字过渡全链路降频对齐**：媒体信息淡入淡出、歌词当前行缩放强调、歌词入场淡入等所有文字/歌词动画统一接入帧率上限——低功耗下稳定 60 FPS、高性能屏 120 FPS，文字切换不再出现忽快忽慢的节奏断层，过渡更丝滑
+- **🐛 修复跑马灯暂停/恢复 Bug**：媒体暂停时歌名跑马灯不再停在错误帧，恢复播放后强制重启滚动会话；短文本收起滚动时清空残留偏移，文字不再"跑偏"、不再贴着边缘
+- **✅ 设置即改即生效扩展**：低功耗开关现在同步到文字淡入、歌词缩放强调与歌词入场动画，启动时一次性对齐，动画帧率全局一致无死角
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.4.0 (Stable)
+### What's New
+
+- **🎞️ Frame-rate alignment across the whole text pipeline**: media-info cross-fade, current-lyric scale emphasis and lyric entrance fades all honor the frame-rate ceiling — a stable 60 FPS in low-power mode and 120 FPS on high-refresh screens, so text swaps keep a consistent, silky rhythm with no micro judder
+- **🐛 Marquee pause/resume fixes**: the track-title marquee no longer freezes on a wrong frame while paused and is force-restarted on resume; short text clears its leftover scroll offset, so text never drifts off-center or masks the edge
+- **✅ Settings apply instantly, extended**: the low-power switch now also feeds the text cross-fade, lyric emphasis and lyric entrance fade drivers (aligned once at startup), leaving no animation path on a stale frame rate
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 <div align="center">
 
 **🌐 选择语言 / Select Language**

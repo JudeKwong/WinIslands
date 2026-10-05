@@ -43,6 +43,9 @@ public static class LyricEmphasis
 
     private static readonly ConditionalWeakTable<FrameworkElement, ScaleTransform> Scales = new();
 
+    /// <summary>全局低功耗覆盖（2.4.0）：由 IslandWindow 在设置变化时同步，统一限制本组件的动画帧率。</summary>
+    public static bool LowPowerModeOverride;
+
     // 进入：轻 Q 弹（阻尼 14，刚度 180，负责展开时「涨到目标」的顺滑手感）；
     // 退出：更高阻尼无回弹（防止过去行缩回时弹跳）。
     private static readonly SoftSpringEase CachedInEase = Freeze(new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 });
@@ -74,9 +77,11 @@ public static class LyricEmphasis
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             var ease = (bool)e.NewValue ? CachedInEase : CachedOutEase;
             var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
+            AnimationFrameRate.Apply(anim, LowPowerModeOverride); // 2.4.0：低功耗/降频时统一限制帧率
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
             // BeginAnimation 需要两个独立动画实例（同一实例不能同时动画两个 DP）
             var animY = new DoubleAnimation(target, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
+            AnimationFrameRate.Apply(animY, LowPowerModeOverride); // 2.4.0
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
         }
         catch (Exception ex)
