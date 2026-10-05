@@ -12,6 +12,8 @@ internal static class AnimationFrameRate
 {
     private const int Standard = 60;
     private const int HighRefresh = 120;
+    /// <summary>低功耗模式下的动画帧率上限（2.3.0）：弹簧 / 卡拉OK等合成帧驱动统一降到 60 FPS。</summary>
+    public const int StandardForLowPower = 60;
     private static readonly int HardwareFrameRate = Resolve(RenderCapability.Tier);
 
     public static int Current(bool lowPowerMode) => lowPowerMode ? Standard : HardwareFrameRate;

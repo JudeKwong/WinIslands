@@ -11,6 +11,24 @@
 ---
 
 ## 简体中文
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🔋 低功耗模式动画全链路降频**：弹簧物理与逐字卡拉OK高亮等合成帧驱动统一按 60 FPS 帧截止推进，低功耗模式下展开/收起、歌词点亮不再以 120 FPS 空转，动画期间 CPU 占用进一步下降；帧基准保持连续，开关切换瞬间无跳帧
+- **⚡ 逐字卡拉OK颜色缓存**：高亮 / 底色画刷只在颜色真正变化时转换一次，RenderWords 每帧不再重复 Brush→Color 转换，播放时每帧开销再降一档
+- **✅ 设置即改即生效**：低功耗开关与帧率上限在设置页修改后立即同步到弹簧与歌词驱动器，启动时也按当前设置一次性对齐，无残留旧帧率
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🔋 Low-power animations are now truly capped at 60 FPS**: spring physics and per-word karaoke highlighting share a 60 FPS frame deadline — in low-power mode expand/collapse and lyric drawing no longer run at 120 FPS, lowering CPU while animating, with a continuous frame baseline so toggling never hitches
+- **⚡ Per-frame color caching for word-by-word karaoke**: highlight / base brushes are converted to colors only when they actually change, so per-frame Brush→Color work is gone and playing costs even less CPU
+- **✅ Settings apply instantly**: the low-power switch and frame-rate cap feed into the spring and lyric drivers the moment you change them (and are aligned once at startup), so no stale frame rate lingers
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 ## WinIslands 2.2.0（正式版 / Stable）
 ### 更新内容
 
@@ -120,6 +138,24 @@
 ---
 
 ## 简体中文
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🔋 低功耗模式动画全链路降频**：弹簧物理与逐字卡拉OK高亮等合成帧驱动统一按 60 FPS 帧截止推进，低功耗模式下展开/收起、歌词点亮不再以 120 FPS 空转，动画期间 CPU 占用进一步下降；帧基准保持连续，开关切换瞬间无跳帧
+- **⚡ 逐字卡拉OK颜色缓存**：高亮 / 底色画刷只在颜色真正变化时转换一次，RenderWords 每帧不再重复 Brush→Color 转换，播放时每帧开销再降一档
+- **✅ 设置即改即生效**：低功耗开关与帧率上限在设置页修改后立即同步到弹簧与歌词驱动器，启动时也按当前设置一次性对齐，无残留旧帧率
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🔋 Low-power animations are now truly capped at 60 FPS**: spring physics and per-word karaoke highlighting share a 60 FPS frame deadline — in low-power mode expand/collapse and lyric drawing no longer run at 120 FPS, lowering CPU while animating, with a continuous frame baseline so toggling never hitches
+- **⚡ Per-frame color caching for word-by-word karaoke**: highlight / base brushes are converted to colors only when they actually change, so per-frame Brush→Color work is gone and playing costs even less CPU
+- **✅ Settings apply instantly**: the low-power switch and frame-rate cap feed into the spring and lyric drivers the moment you change them (and are aligned once at startup), so no stale frame rate lingers
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 ## WinIslands 2.2.0（正式版 / Stable）
 ### 更新内容
 
@@ -174,6 +210,24 @@
 
 ---
 ## 简体中文
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🔋 低功耗模式动画全链路降频**：弹簧物理与逐字卡拉OK高亮等合成帧驱动统一按 60 FPS 帧截止推进，低功耗模式下展开/收起、歌词点亮不再以 120 FPS 空转，动画期间 CPU 占用进一步下降；帧基准保持连续，开关切换瞬间无跳帧
+- **⚡ 逐字卡拉OK颜色缓存**：高亮 / 底色画刷只在颜色真正变化时转换一次，RenderWords 每帧不再重复 Brush→Color 转换，播放时每帧开销再降一档
+- **✅ 设置即改即生效**：低功耗开关与帧率上限在设置页修改后立即同步到弹簧与歌词驱动器，启动时也按当前设置一次性对齐，无残留旧帧率
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🔋 Low-power animations are now truly capped at 60 FPS**: spring physics and per-word karaoke highlighting share a 60 FPS frame deadline — in low-power mode expand/collapse and lyric drawing no longer run at 120 FPS, lowering CPU while animating, with a continuous frame baseline so toggling never hitches
+- **⚡ Per-frame color caching for word-by-word karaoke**: highlight / base brushes are converted to colors only when they actually change, so per-frame Brush→Color work is gone and playing costs even less CPU
+- **✅ Settings apply instantly**: the low-power switch and frame-rate cap feed into the spring and lyric drivers the moment you change them (and are aligned once at startup), so no stale frame rate lingers
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 ## WinIslands 2.2.0（正式版 / Stable）
 ### 更新内容
 
@@ -203,6 +257,24 @@
 
 ---
 ## 简体中文
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🔋 低功耗模式动画全链路降频**：弹簧物理与逐字卡拉OK高亮等合成帧驱动统一按 60 FPS 帧截止推进，低功耗模式下展开/收起、歌词点亮不再以 120 FPS 空转，动画期间 CPU 占用进一步下降；帧基准保持连续，开关切换瞬间无跳帧
+- **⚡ 逐字卡拉OK颜色缓存**：高亮 / 底色画刷只在颜色真正变化时转换一次，RenderWords 每帧不再重复 Brush→Color 转换，播放时每帧开销再降一档
+- **✅ 设置即改即生效**：低功耗开关与帧率上限在设置页修改后立即同步到弹簧与歌词驱动器，启动时也按当前设置一次性对齐，无残留旧帧率
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🔋 Low-power animations are now truly capped at 60 FPS**: spring physics and per-word karaoke highlighting share a 60 FPS frame deadline — in low-power mode expand/collapse and lyric drawing no longer run at 120 FPS, lowering CPU while animating, with a continuous frame baseline so toggling never hitches
+- **⚡ Per-frame color caching for word-by-word karaoke**: highlight / base brushes are converted to colors only when they actually change, so per-frame Brush→Color work is gone and playing costs even less CPU
+- **✅ Settings apply instantly**: the low-power switch and frame-rate cap feed into the spring and lyric drivers the moment you change them (and are aligned once at startup), so no stale frame rate lingers
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 ## WinIslands 2.2.0（正式版 / Stable）
 ### 更新内容
 
@@ -230,6 +302,24 @@
 
 ---
 ## 简体中文
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🔋 低功耗模式动画全链路降频**：弹簧物理与逐字卡拉OK高亮等合成帧驱动统一按 60 FPS 帧截止推进，低功耗模式下展开/收起、歌词点亮不再以 120 FPS 空转，动画期间 CPU 占用进一步下降；帧基准保持连续，开关切换瞬间无跳帧
+- **⚡ 逐字卡拉OK颜色缓存**：高亮 / 底色画刷只在颜色真正变化时转换一次，RenderWords 每帧不再重复 Brush→Color 转换，播放时每帧开销再降一档
+- **✅ 设置即改即生效**：低功耗开关与帧率上限在设置页修改后立即同步到弹簧与歌词驱动器，启动时也按当前设置一次性对齐，无残留旧帧率
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🔋 Low-power animations are now truly capped at 60 FPS**: spring physics and per-word karaoke highlighting share a 60 FPS frame deadline — in low-power mode expand/collapse and lyric drawing no longer run at 120 FPS, lowering CPU while animating, with a continuous frame baseline so toggling never hitches
+- **⚡ Per-frame color caching for word-by-word karaoke**: highlight / base brushes are converted to colors only when they actually change, so per-frame Brush→Color work is gone and playing costs even less CPU
+- **✅ Settings apply instantly**: the low-power switch and frame-rate cap feed into the spring and lyric drivers the moment you change them (and are aligned once at startup), so no stale frame rate lingers
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
 ## WinIslands 2.2.0（正式版 / Stable）
 ### 更新内容
 

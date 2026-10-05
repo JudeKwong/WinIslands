@@ -462,7 +462,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             RefreshWave();
             ApplyCoverTint();
             PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(MarqueeEnabled)));
+            // 2.3.0：低功耗模式同步到弹簧 / 逐字卡拉OK合成帧驱动（设置即改即生效）
+            SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
+            KaraokeTextBlock.LowPowerModeOverride = _settings.Current.LowPowerMode;
         };
+        // 2.3.0：启动时立即按当前低功耗设置同步一次（不等待设置变更事件）
+        SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
+        KaraokeTextBlock.LowPowerModeOverride = _settings.Current.LowPowerMode;
         _vm.PropertyChanged += OnVmPropertyChanged;
         _theme.ThemeChanged += _onThemeChanged;
         _settings.Changed += _onSettingsChanged;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Media;
@@ -255,6 +255,9 @@ public static class SpringTicker
     private static double _lastSeconds;
     private static double _smoothDt;   // 帧间隔指数移动平均（秒），掉帧时弹簧步伐平滑用
     private static bool _hooked;
+    private static double _nextFrameTime;  // 低功耗降频的帧截止时刻（2.3.0）
+    /// <summary>低功耗模式：将弹簧动画帧率上限降至 60 FPS（App 在设置变化时更新）。</summary>
+    public static bool CapAt60Fps;
 
     public static int ActiveCount => _active.Count;
 
@@ -264,6 +267,7 @@ public static class SpringTicker
         {
             _lastSeconds = _clock.Elapsed.TotalSeconds;
             _smoothDt = 0; // 新的动画会话：清除上次帧间隔统计，重建平滑基线
+            _nextFrameTime = _lastSeconds;
             CompositionTarget.Rendering += OnRendering;
             _hooked = true;
         }
@@ -291,6 +295,11 @@ public static class SpringTicker
     {
         if (_active.Count == 0) return;
         var now = _clock.Elapsed.TotalSeconds;
+        if (CapAt60Fps && !AnimationFrameRate.ShouldProcessFrame(now, ref _nextFrameTime, AnimationFrameRate.StandardForLowPower))
+        {
+            _lastSeconds = now; // 跳过的帧也推进基准，避免恢复后 dt 巨帧
+            return;
+        }
         var dt = now - _lastSeconds;
         _lastSeconds = now;
         // 防止挂起恢复/调试断点造成巨帧跳变

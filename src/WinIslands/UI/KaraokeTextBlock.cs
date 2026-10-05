@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -66,6 +66,8 @@ public class KaraokeTextBlock : TextBlock
         get => (bool)GetValue(EntranceFadeEnabledProperty);
         set => SetValue(EntranceFadeEnabledProperty, value);
     }
+    /// <summary>低功耗模式（App 在设置变化时更新）：逐字卡拉OK推进降频至 60 FPS，减少动画时 CPU 占用。</summary>
+    public static bool LowPowerModeOverride;
 
     private bool _renderingSubscribed;     // CompositionTarget.Rendering 已挂接
     private double _lastTickTime;          // 上一帧时间（秒），用于帧率无关平滑
@@ -96,6 +98,10 @@ public class KaraokeTextBlock : TextBlock
     private SolidColorBrush? _sharedBaseBrush;
     private System.Windows.Media.Color _sharedHlColor;
     private System.Windows.Media.Color _sharedBaseColor;
+    // 2.3.0：高亮/底色颜色缓存——只在画刷属性变化时重算一次，RenderWords 每帧不再重复 Brush→Color 转换
+    private System.Windows.Media.Color _cachedHlColor;
+    private System.Windows.Media.Color _cachedBaseColor;
+    private bool _colorsDirty = true;
     private bool _hasWords;
     private double _karaokeSpeedScale = 1.0;
     private double _nextKaraokeFrameTime;
@@ -281,6 +287,8 @@ public class KaraokeTextBlock : TextBlock
     private static void OnRenderPropsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var k = (KaraokeTextBlock)d;
+        if (e.Property == HighlightBrushProperty || e.Property == BaseBrushProperty)
+            k._colorsDirty = true;
         if (e.Property == KaraokeTextProperty)
             k.OnKaraokeTextChanged((string?)e.OldValue, (string?)e.NewValue);
         k.RefreshTarget();
@@ -386,7 +394,9 @@ public class KaraokeTextBlock : TextBlock
                 // 若在此处乘倍率会产生「先超前、再被拉回」的每 200ms 回跳，看起来卡顿。
                 // 「高亮更快」改为在 RenderWords 内缩放每个字的进度（见 speedScale），效果相同但不回跳。
                 var now = _tickClock.Elapsed.TotalSeconds;
-                var fps = AnimationFrameRate.Current(lowPowerMode: false);
+                var fps = LowPowerModeOverride
+                    ? AnimationFrameRate.StandardForLowPower
+                    : AnimationFrameRate.Current(lowPowerMode: false);
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
                 var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
                 var pos = ClampWallClockLead(_posBase, elapsed);
@@ -404,6 +414,10 @@ public class KaraokeTextBlock : TextBlock
 
         // 整行均分模式：缓动逼近（差距大时走得快、接近时变慢）
         var nowTick = _tickClock.Elapsed.TotalSeconds;
+        var lineFps = LowPowerModeOverride
+            ? AnimationFrameRate.StandardForLowPower
+            : AnimationFrameRate.Current(lowPowerMode: false);
+        if (!AnimationFrameRate.ShouldProcessFrame(nowTick, ref _nextKaraokeFrameTime, lineFps)) return;
         var dtTick = Math.Min(0.05, Math.Max(0.001, nowTick - _lastTickTime));
         _lastTickTime = nowTick;
         // 帧率无关指数平滑：rate=42 在 60fps 下等效于旧的 0.5 系数，120fps 下自动适配
@@ -437,8 +451,14 @@ public class KaraokeTextBlock : TextBlock
             else Array.Clear(_wordPhase, 0, _wordPhase.Length); // 重建后阶段归零（全部未点亮），避免旧阶段误导共享刷切换
         }
 
-        var hl = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;
-        var bs = ToColor(BaseBrush) ?? System.Windows.Media.Colors.Gray;
+        if (_colorsDirty)
+        {
+            _cachedHlColor = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;
+            _cachedBaseColor = ToColor(BaseBrush) ?? System.Windows.Media.Colors.Gray;
+            _colorsDirty = false;
+        }
+        var hl = _cachedHlColor;
+        var bs = _cachedBaseColor;
         // 2.1.3：已点亮/未点亮分享冻结画刷；颜色变化（如主题切换）时重建并复位阶段，
         // 让已点亮/未点亮的字重新指向新画刷，避免残留旧主题色。
         if (EnsureSharedBrushes(hl, bs))
@@ -536,8 +556,14 @@ public class KaraokeTextBlock : TextBlock
         }
 
         var f = Math.Clamp(_currentFraction, 0, 1);
-        var hl = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;
-        var bs = ToColor(BaseBrush) ?? System.Windows.Media.Colors.Gray;
+        if (_colorsDirty)
+        {
+            _cachedHlColor = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;
+            _cachedBaseColor = ToColor(BaseBrush) ?? System.Windows.Media.Colors.Gray;
+            _colorsDirty = false;
+        }
+        var hl = _cachedHlColor;
+        var bs = _cachedBaseColor;
 
         // 按字符着色（而非二维渐变）：换行时高亮按阅读顺序从左到右逐行流动
         var len = text.Length;
