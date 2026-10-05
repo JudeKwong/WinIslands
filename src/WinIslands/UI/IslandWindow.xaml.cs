@@ -1391,6 +1391,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var baseBrush = ExpandedLyricBaseBrush;
             var highlightBrush = ExpandedLyricHighlightBrush;
 
+            // 2.1.2：当前行强调改为「渲染级缩放」（LyricEmphasis），不再动画 FontSize。
+            // FontSize 会触发测量/布局，放大的行挤压相邻行、触发换行，列表回流导致跳动；
+            // 只缩放 RenderTransform 时行高不变、页面不回流，文字过渡丝滑且零布局开销。
+            var targetScale = LyricEmphasis.ComputeTargetScale(baseSize, currentSize);
+            const double emphasisMs = 240;
+
             var style = new Style(typeof(TextBlock));
             style.Setters.Add(new Setter(TextBlock.FontSizeProperty, baseSize));
             style.Setters.Add(new Setter(TextBlock.ForegroundProperty, baseBrush));
@@ -1400,19 +1406,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             style.Setters.Add(new Setter(TextBlock.LineHeightProperty, lineHeight));
             style.Setters.Add(new Setter(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight));
             style.Setters.Add(new Setter(TextBlock.OpacityProperty, 0.28));
+            style.Setters.Add(new Setter(TextBlock.RenderTransformOriginProperty, new Point(0.5, 0.5)));
+            style.Setters.Add(new Setter(LyricEmphasis.TargetScaleProperty, targetScale));
+            style.Setters.Add(new Setter(LyricEmphasis.DurationMsProperty, emphasisMs));
 
             var inSb = new Storyboard();
-            var grow = new DoubleAnimation { To = currentSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 } };
-            Storyboard.SetTargetProperty(grow, new PropertyPath(TextBlock.FontSizeProperty));
-            inSb.Children.Add(grow);
             var fadeIn = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 } };
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(TextBlock.OpacityProperty));
             inSb.Children.Add(fadeIn);
 
             var outSb = new Storyboard();
-            var shrink = new DoubleAnimation { To = baseSize, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 16, Stiffness = 160, Mass = 1 } };
-            Storyboard.SetTargetProperty(shrink, new PropertyPath(TextBlock.FontSizeProperty));
-            outSb.Children.Add(shrink);
             var fadeOut = new DoubleAnimation { To = 0.28, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 16, Stiffness = 160, Mass = 1 } };
             Storyboard.SetTargetProperty(fadeOut, new PropertyPath(TextBlock.OpacityProperty));
             outSb.Children.Add(fadeOut);
@@ -1428,6 +1431,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             trigger.ExitActions.Add(new BeginStoryboard { Storyboard = outSb });
             trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
             trigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, highlightBrush));
+            trigger.Setters.Add(new Setter(LyricEmphasis.IsCurrentProperty, true));
             style.Triggers.Add(trigger);
 
             Resources["LyricLineText"] = style;
@@ -1437,7 +1441,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             AppLogger.Error("UpdateLyricLineStyle failed", ex);
         }
     }
-
     private void OnLanguageChanged(object? sender, EventArgs e) => RefreshNotificationHistoryProps();
 
     private void RefreshNotificationHistoryProps()
@@ -2562,8 +2565,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>逐帧统一应用圆角：裁剪几何 + 卡片边框 + 玻璃层三者同步，形变全程圆角连续（消除"圆角变方框"）。</summary>
+    private double _lastAppliedCardRadius = double.NaN;   // 2.1.2：圆角写入去抖，收敛/静止帧不再刷布局
+
     private void ApplyCardRadius(double r)
     {
+        // 亚像素内的重复写入跳过：每帧写 CornerRadius 会触发边框/玻璃重绘，
+        // 已收敛到目标值或差值 <0.05px 时直接忽略，减少动画尾部与静止时的布局开销。
+        if (!double.IsNaN(_lastAppliedCardRadius) && Math.Abs(r - _lastAppliedCardRadius) < 0.05)
+            return;
+        _lastAppliedCardRadius = r;
         if (_cardClip is not null)
         {
             _cardClip.RadiusX = r;

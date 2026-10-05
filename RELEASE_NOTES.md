@@ -29,6 +29,26 @@
 
 ---
 ## 简体中文
+## WinIslands 2.1.2（正式版 / Stable）
+### 更新内容
+
+- **🎵 歌词「当前行」强调改为渲染级缩放（根治“歌词放大又缩小地跳动”）**：旧实现用 FontSize 动画放大当前行——FontSize 影响测量与布局，放大的行挤压相邻行、变宽触发换行，整列歌词回流跳动；新版只缩放渲染（RenderTransform），行高与布局完全不变，列表不回流、不换行，垂直滚动位置稳定。放大带轻微 Q 弹（阻尼 14/+3px 视感比例，随用户字号自适应），与 iOS 音乐歌词的当前行高亮一致
+- **💬 紧凑歌词换句淡入**：未展开时歌词切句不再硬切——新句以 170ms 平滑淡入浮现（不触碰 RenderTransform，与跑马灯完全兼容），切句观感如 iOS 音乐小组件；首次绑定与隐藏状态下不淡入，避免启动闪烁/透明度残留
+- **⚡ 渲染性能优化**：圆角弹簧逐帧写入去抖（亚像素变化跳过重复的 CornerRadius 写刷，收敛与静止帧不再触发无谓布局）；歌词强调改为零布局成本
+- **🧪 回归测试**：新增 LyricEmphasis 缩放倍率纯函数测试 7 项（线性比例/下限/封顶/非法输入兜底），268 项单元测试全部通过
+
+---
+
+## WinIslands 2.1.2 (Stable)
+### What's New
+
+- **🎵 Current lyric line now emphasized with render-only scaling (root fix for “lyrics jumping after growing/shrinking”)**: The old implementation animated FontSize to enlarge the current line — FontSize affects measure & layout, so the enlarged line squeezed neighbours and could re-wrap, making the whole list reflow and jump. Now it scales the render transform only: line height and layout never change, the list never reflows, and the vertical scroll position stays rock-steady. The bump carries a gentle iOS-style overshoot (damping 14, ratio derived from the user's base/current font sizes, capped at 1.35)
+- **💬 Compact lyric line-change fade-in**: In the collapsed pill, switching to a new lyric line is no longer a hard cut — the new line fades in smoothly over 170ms (RenderTransform untouched, fully compatible with Marquee), just like an iOS music widget. First bind and hidden-state changes skip the fade to avoid startup flash / leftover transparency
+- **⚡ Rendering performance**: Per-frame corner-radius writes are now de-duplicated (sub-pixel changes skip redundant CornerRadius layout/render passes at settle and idle frames); lyric emphasis costs zero layout
+- **🧪 Regression testing**: 7 new pure-function tests for the emphasis scale ratio (linear ratio / floor / cap / invalid-input fallback) — all 268 unit tests pass
+
+---
+## 简体中文
 ## WinIslands 2.1.0（正式版 / Stable）
 ### 更新内容
 

@@ -57,6 +57,16 @@ public class KaraokeTextBlock : TextBlock
         DependencyProperty.Register(nameof(KaraokeSpeed), typeof(double), typeof(KaraokeTextBlock),
             new FrameworkPropertyMetadata(1.0, OnRenderPropsChanged));
 
+    /// <summary>换句时淡入过渡（2.1.2）：歌词切句不再是硬切，用 170ms 淡入平滑浮现（仅紧凑胶囊使用；不碰 RenderTransform，避免与跑马灯冲突）。</summary>
+    public static readonly DependencyProperty EntranceFadeEnabledProperty =
+        DependencyProperty.Register(nameof(EntranceFadeEnabled), typeof(bool), typeof(KaraokeTextBlock),
+            new PropertyMetadata(false));
+    public bool EntranceFadeEnabled
+    {
+        get => (bool)GetValue(EntranceFadeEnabledProperty);
+        set => SetValue(EntranceFadeEnabledProperty, value);
+    }
+
     private bool _renderingSubscribed;     // CompositionTarget.Rendering 已挂接
     private double _lastTickTime;          // 上一帧时间（秒），用于帧率无关平滑
     private readonly Stopwatch _tickClock = Stopwatch.StartNew();
@@ -161,6 +171,51 @@ public class KaraokeTextBlock : TextBlock
         set => SetValue(KaraokeSpeedProperty, value);
     }
 
+    private bool _entranceInitialized;      // 首次赋文本不淡入（避免启动闪烁）
+    private static readonly System.Windows.Media.Animation.CubicEase EntranceEase = CreateEntranceEase();
+
+    private static System.Windows.Media.Animation.CubicEase CreateEntranceEase()
+    {
+        var e = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+        e.Freeze();
+        return e;
+    }
+
+    /// <summary>换句淡入：新句从 0 快速淡入到 1，Old→New 之间没有硬切跳变。</summary>
+    private void OnKaraokeTextChanged(string? oldText, string? newText)
+    {
+        if (!EntranceFadeEnabled)
+        {
+            Opacity = 1;
+            _entranceInitialized = true;
+            return;
+        }
+        if (string.Equals(oldText ?? string.Empty, newText ?? string.Empty, StringComparison.Ordinal))
+            return;
+        if (!_entranceInitialized)
+        {
+            Opacity = 1;
+            _entranceInitialized = true;   // 首次绑定：保持可见，不淡入
+            return;
+        }
+        if (!IsLoaded || !IsVisible)
+        {
+            Opacity = 1;                   // 隐藏/未加载时不淡入，避免残留 0 透明度
+            return;
+        }
+        BeginAnimation(OpacityProperty, null);
+        Opacity = 0;
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(1.0, TimeSpan.FromMilliseconds(170))
+        {
+            EasingFunction = EntranceEase,
+        };
+        anim.Completed += (_, _) =>
+        {
+            Opacity = 1;
+            BeginAnimation(OpacityProperty, null);   // 摘除动画，恢复静态 1
+        };
+        BeginAnimation(OpacityProperty, anim);
+    }
     private void OnPositionChanged(double pos)
     {
         // 2.0.6 位置平滑校正：播放中且正在逐帧渲染时，播放器上报的进度常有量化/滞后
@@ -215,7 +270,12 @@ public class KaraokeTextBlock : TextBlock
     }
 
     private static void OnRenderPropsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((KaraokeTextBlock)d).RefreshTarget();
+    {
+        var k = (KaraokeTextBlock)d;
+        if (e.Property == KaraokeTextProperty)
+            k.OnKaraokeTextChanged((string?)e.OldValue, (string?)e.NewValue);
+        k.RefreshTarget();
+    }
 
     private void RefreshTarget()
     {

@@ -1,4 +1,4 @@
-<Window x:Class="WinIslands.UI.IslandWindow"
+﻿<Window x:Class="WinIslands.UI.IslandWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:WinIslands.UI.Converters"
@@ -101,7 +101,7 @@
         <!-- 逐句卡拉OK歌词：非当前句淡化，当前句大号醒目（20px），字号/透明度平滑过渡 -->
         <!-- 展开歌词每行样式：字号/行距/行高绑定窗口属性（设置页可调），当前句动画放大+高亮 -->
         <!-- 注意：此样式由 IslandWindow.xaml.cs 的 UpdateLyricLineStyle() 按用户设置动态重建并覆盖；XAML 默认值仅在启动瞬间兜底 -->
-        <Style x:Key="LyricLineText" TargetType="TextBlock">
+                <Style x:Key="LyricLineText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{Binding LyricBaseFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=13}"/>
             <Setter Property="Foreground" Value="{Binding ExpandedLyricBaseBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -109,17 +109,15 @@
             <Setter Property="Margin" Value="{Binding LyricLineMargin, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=&quot;0,7&quot;}"/>
             <Setter Property="LineHeight" Value="{Binding LyricLineHeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=24}"/>
             <Setter Property="Opacity" Value="0.28"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="karaoke:LyricEmphasis.TargetScale" Value="1.18"/>
+            <Setter Property="karaoke:LyricEmphasis.DurationMs" Value="240"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                     <DataTrigger.EnterActions>
                         <BeginStoryboard>
                             <Storyboard Timeline.DesiredFrameRate="120">
-                                <DoubleAnimation Storyboard.TargetProperty="FontSize" To="20" Duration="0:0:0.2">
-                                    <DoubleAnimation.EasingFunction>
-                                        <CubicEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2">
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.22">
                                     <DoubleAnimation.EasingFunction>
                                         <CubicEase EasingMode="EaseOut"/>
                                     </DoubleAnimation.EasingFunction>
@@ -130,12 +128,7 @@
                     <DataTrigger.ExitActions>
                         <BeginStoryboard>
                             <Storyboard Timeline.DesiredFrameRate="120">
-                                <DoubleAnimation Storyboard.TargetProperty="FontSize" To="13" Duration="0:0:0.2">
-                                    <DoubleAnimation.EasingFunction>
-                                        <CubicEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.28" Duration="0:0:0.2">
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.28" Duration="0:0:0.22">
                                     <DoubleAnimation.EasingFunction>
                                         <CubicEase EasingMode="EaseOut"/>
                                     </DoubleAnimation.EasingFunction>
@@ -145,11 +138,10 @@
                     </DataTrigger.ExitActions>
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="Foreground" Value="{Binding ExpandedLyricHighlightBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
+                    <Setter Property="karaoke:LyricEmphasis.IsCurrent" Value="True"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-
-        <!-- 歌词行容器：不加背景胶囊，当前句高亮只由卡拉OK文字渐变体现（避免双重高亮） -->
         <Style x:Key="LyricLineBorder" TargetType="Border">
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="10,2"/>
@@ -610,6 +602,7 @@
                                         <Grid MaxWidth="300" ClipToBounds="True">
                                             <karaoke:KaraokeTextBlock
                                                 KaraokeText="{Binding DataContext.CurrentLyricText, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            EntranceFadeEnabled="True"
                                                 HighlightFraction="{Binding DataContext.CompactHighlightFraction, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 Words="{Binding DataContext.CurrentLyricWords, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 PositionSeconds="{Binding DataContext.KaraokePositionSeconds, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -651,6 +644,7 @@
                                         Visibility="{Binding DataContext.HasLyrics, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                         <karaoke:KaraokeTextBlock
                                             KaraokeText="{Binding DataContext.CurrentLyricText, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            EntranceFadeEnabled="True"
                                             HighlightFraction="{Binding DataContext.CompactHighlightFraction, RelativeSource={RelativeSource AncestorType=Window}}"
                                             Words="{Binding DataContext.CurrentLyricWords, RelativeSource={RelativeSource AncestorType=Window}}"
                                             PositionSeconds="{Binding DataContext.KaraokePositionSeconds, RelativeSource={RelativeSource AncestorType=Window}}"
