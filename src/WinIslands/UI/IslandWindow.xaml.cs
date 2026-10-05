@@ -214,6 +214,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private IOSSpring? _cardWSpring;      // 卡片宽度弹簧
     private IOSSpring? _cardHSpring;      // 卡片高度弹簧
     private IOSSpring? _cardFadeSpring;   // 展开↔收起内容交叉淡入弹簧（与尺寸同步，文字不"额外弹出"）
+    private IOSSpring? _cardRSpring;      // 卡片圆角弹簧（2.0.7）：圆角随形变连续过渡，消除"圆角变方框"与形变结束时圆角闪变
     private bool _cardAnimating;          // 卡片弹簧进行中（声波 / 取色渲染让路）
     private double _cardTargetW;
     private double _cardTargetH;
@@ -1451,14 +1452,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             var w = Math.Max(1, Card.ActualWidth);
             var h = Math.Max(1, Card.ActualHeight);
-            var r = Math.Clamp(_settings.Current.CornerRadius, 16, 40);
+            var r = ComputeCardRuntimeRadius(h, _settings.Current.CornerRadius);
             if (Math.Abs(_cardClip.Rect.Width - w) < 0.5
                 && Math.Abs(_cardClip.Rect.Height - h) < 0.5
                 && Math.Abs(_cardClip.RadiusX - r) < 0.5)
                 return; // 几何未变化，无需重绘
             _cardClip.Rect = new Rect(0, 0, w, h);
-            _cardClip.RadiusX = r;
-            _cardClip.RadiusY = r;
+            // 形变中圆角由 _cardRSpring 驱动；空闲时（或设置变化）按最终尺寸直接写，避免两者抢写打架
+            if (_cardRSpring is not { IsActive: true })
+            {
+                _cardClip.RadiusX = r;
+                _cardClip.RadiusY = r;
+                Card.CornerRadius = new CornerRadius(r);
+                if (GlassLayer is not null) GlassLayer.CornerRadius = new CornerRadius(r);
+            }
             Card.InvalidateVisual();
             if (GlassLayer is not null) GlassLayer.InvalidateVisual();
         }
@@ -1468,7 +1475,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ApplyAppearance()
     {
         try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 非法字体名忽略 */ }
-        var rounded = new CornerRadius(Math.Clamp(_settings.Current.CornerRadius, 16, 40));
+        var hh = Card.ActualHeight > 4 ? Card.ActualHeight : (double.IsFinite(CompactHeight) ? CompactHeight : 56);
+        var rounded = new CornerRadius(ComputeCardRuntimeRadius(hh, _settings.Current.CornerRadius));
         Card.CornerRadius = rounded;
         // 同步圆角裁剪几何：设置变化即刻生效，防止旧几何残留导致方角
         if (_cardClip is not null)
@@ -2484,9 +2492,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring = new IOSSpring();
         _cardHSpring = new IOSSpring();
         _cardFadeSpring = new IOSSpring();
+        _cardRSpring = new IOSSpring();
         _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
         _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
         _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = 1 - v; }, OnCardSpringSettled);
+        _cardRSpring.SetCallbacks(ApplyCardRadius, OnCardSpringSettled);
     }
 
     private void StopCardSprings()
@@ -2494,8 +2504,33 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring?.Stop();
         _cardHSpring?.Stop();
         _cardFadeSpring?.Stop();
+        _cardRSpring?.Stop();
         _cardAnimating = false;
         _cardSpringCompleted = null; // 动画被强制终止，丢弃未完成的回调
+    }
+
+    /// <summary>
+    /// iOS 液态形变圆角（2.0.7）：紧凑胶囊 = 高度/2（完整药丸），展开卡片 = 用户设置半径（封顶）。
+    /// 纯函数，便于单元测试。
+    /// </summary>
+    internal static double ComputeCardRuntimeRadius(double height, double settingRadius)
+    {
+        var s = Math.Clamp(settingRadius, 16.0, 40.0);           // 与设置面板一致：16~40
+        var h = double.IsFinite(height) ? Math.Max(4.0, height) : 4.0; // 非法高度按最小高度兜底，绝不产生 NaN
+        return Math.Clamp(Math.Min(h / 2.0, s), 4.0, s);
+    }
+
+    /// <summary>逐帧统一应用圆角：裁剪几何 + 卡片边框 + 玻璃层三者同步，形变全程圆角连续（消除"圆角变方框"）。</summary>
+    private void ApplyCardRadius(double r)
+    {
+        if (_cardClip is not null)
+        {
+            _cardClip.RadiusX = r;
+            _cardClip.RadiusY = r;
+        }
+        var rounded = new CornerRadius(r);
+        Card.CornerRadius = rounded;
+        if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
     }
 
     /// <summary>
@@ -2539,12 +2574,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardTargetH = height;
         _cardSpringCompleted = onCompleted; // 收尾时统一回调（支持打断重定向后仍生效）
 
+        // iOS 分层弹簧（2.0.7）：圆角弹簧比尺寸快约 18%——"形状先导、尺寸跟随"，形变观感更接近 iOS 灵动岛液态形变；
+        // 透明度：展开内容稍快浮现、收起内容先淡出再收拢（与尺寸共用帧循环，文字不额外弹出）。
+        var radiusTo = ComputeCardRuntimeRadius(height, _settings.Current.CornerRadius);
+        var radiusFrom = _cardClip?.RadiusX ?? radiusTo;
+
         if (wasAnimating && _cardWSpring!.IsActive && _cardHSpring!.IsActive)
         {
             // 打断重定向（如展开一半点收起）：以当前值+速度连续改目标，方向自然过渡
             _cardWSpring.Retarget(width);
             _cardHSpring.Retarget(height);
             _cardFadeSpring!.Retarget(fadeTo);
+            _cardRSpring!.Retarget(radiusTo); // 圆角同步连续改道（iOS 打断语义）
             return;
         }
 
@@ -2556,15 +2597,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring.Start(fromWidth, width);
         _cardHSpring!.Configure(zeta, response);
         _cardHSpring.Start(fromHeight, height);
-        _cardFadeSpring!.Configure(1.0, response * 0.88); // 临界阻尼：透明度无回弹，略快于尺寸收尾
+        _cardFadeSpring!.Configure(1.0, response * (expand ? 0.72 : 0.84)); // 临界阻尼：展开内容稍快浮现、收起先淡出；无回弹
         _cardFadeSpring.Start(fadeFrom, fadeTo);
+        _cardRSpring!.Configure(expand ? 0.90 : 0.96, response * 0.82); // 圆角先导：比尺寸快，形变全程连续
+        _cardRSpring.Start(radiusFrom, radiusTo);
     }
 
     /// <summary>卡片三个弹簧全部收敛后的统一收尾（与旧 Storyboard 路径一致的最终状态）。</summary>
     private void OnCardSpringSettled()
     {
         if (!_cardAnimating) return;
-        if (_cardWSpring?.IsActive == true || _cardHSpring?.IsActive == true || _cardFadeSpring?.IsActive == true)
+        if (_cardWSpring?.IsActive == true || _cardHSpring?.IsActive == true || _cardFadeSpring?.IsActive == true || _cardRSpring?.IsActive == true)
             return; // 还有弹簧在收敛，等最后一个结束再收尾
         try
         {
@@ -2611,6 +2654,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             // 已有卡片动画（展开/收起/尺寸调整）进行中：直接改弹簧目标，连续过渡
             if (_cardWSpring?.IsActive == true) _cardWSpring.Retarget(targetWidth);
             if (_cardHSpring?.IsActive == true) _cardHSpring.Retarget(targetHeight);
+            if (_cardRSpring?.IsActive == true) _cardRSpring.Retarget(ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius));
             _cardTargetW = targetWidth;
             _cardTargetH = targetHeight;
             return;
@@ -2634,6 +2678,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring.Start(ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth), targetWidth);
         _cardHSpring!.Configure(0.96, response);
         _cardHSpring.Start(ResolveAnimationFrom(Card.ActualHeight, Card.Height, targetHeight), targetHeight);
+        // 圆角随紧凑尺寸同步形变：紧凑态保持药丸形（高/2），收尾圆润不生硬
+        _cardRSpring!.Configure(0.97, response * 0.85);
+        _cardRSpring.Start(ResolveAnimationFrom(_cardClip?.RadiusX ?? 0, 0, ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius)), ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius));
     }
 
     // ── iOS 真弹簧物理：窗口位置 / 推送卡片 ─────────────────────────

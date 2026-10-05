@@ -122,4 +122,40 @@ public sealed class IOSSpringTests
         s.Complete(); // 强制完成 → 从驱动器摘除
         Assert.Equal(0, SpringTicker.ActiveCount);
     }
+
+    [Fact]
+    public void NaN_Input_StopsWithoutCrash()
+    {
+        // 2.0.7 稳定性：任何 NaN/Inf 输入都必须静默停止，绝不能卡死循环或污染 UI 回调
+        var s = IOSSpring.Create(1.0, 0.3, from: 0, to: 10);
+        s.Retarget(double.NaN); // 非法目标：应被忽略（防御性）
+        Assert.True(s.IsActive);
+        Assert.True(double.IsFinite(s.Value), "target NaN must not corrupt position");
+
+        s.Retarget(double.PositiveInfinity);
+        Assert.True(double.IsFinite(s.Value), "inf target must not corrupt position");
+
+        // 直接污染运行值（模拟极端数值事故）→ Tick 静默停止
+        s.Start(double.NaN, 10);
+        s.Tick(Dt);
+        Assert.False(s.IsActive);
+        Assert.True(double.IsFinite(s.Value));
+        s.Complete();
+    }
+
+    [Fact]
+    public void ComputeCardRuntimeRadius_PillAndExpandedShapes()
+    {
+        // 紧凑胶囊：圆角 = 高/2（完整药丸）且不超过用户设置
+        Assert.Equal(28, IslandWindow.ComputeCardRuntimeRadius(56, 28), 4);
+        Assert.Equal(24, IslandWindow.ComputeCardRuntimeRadius(48, 28), 4);
+        Assert.Equal(14, IslandWindow.ComputeCardRuntimeRadius(28, 40), 4); // 高度小→按高度
+        // 展开大卡片：圆角 = 用户设置（封顶）
+        Assert.Equal(28, IslandWindow.ComputeCardRuntimeRadius(300, 28), 4);
+        Assert.Equal(40, IslandWindow.ComputeCardRuntimeRadius(400, 99), 4); // 设置越界→钳制
+        Assert.Equal(16, IslandWindow.ComputeCardRuntimeRadius(200, 5), 4);  // 设置过低→钳制
+        // 极端高度不产生负值/NaN
+        Assert.True(double.IsFinite(IslandWindow.ComputeCardRuntimeRadius(double.NaN, 28)));
+        Assert.True(IslandWindow.ComputeCardRuntimeRadius(-5, 28) >= 4);
+    }
 }

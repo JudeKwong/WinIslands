@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Media;
@@ -109,6 +109,7 @@ public sealed class IOSSpring
     /// <summary>中途改目标：以当前 Value/Velocity 作为新初始条件，向新目标继续运动（iOS 打断语义）。</summary>
     public void Retarget(double to)
     {
+        if (!double.IsFinite(to)) return; // 防御：非法目标忽略，防止数值污染扩散
         if (!IsActive)
         {
             Start(Value, to, 0);
@@ -148,6 +149,16 @@ public sealed class IOSSpring
         if (!IsActive) return;
         _elapsed += dt;
         Solve(_elapsed);
+
+        // 数值防护：任何 NaN/Inf 都不允许进入 UI 回调或收敛判定，静默停止避免污染扩散
+        if (!double.IsFinite(Value) || !double.IsFinite(Velocity))
+        {
+            Value = double.IsFinite(Target) ? Target : 0;
+            Velocity = 0;
+            IsActive = false;
+            SpringTicker.Remove(this);
+            return;
+        }
 
         // 收敛判定：偏移与速度都足够小 → 瞬移到目标并结束
         if (Math.Abs(Value - Target) < _settleOffsetEpsilon && Math.Abs(Velocity) < _settleVelocityEpsilon)

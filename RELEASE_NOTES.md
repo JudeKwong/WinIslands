@@ -12,6 +12,26 @@
 
 ## 简体中文
 
+## WinIslands 2.0.7（正式版 / Stable）
+### 更新内容
+
+- **🪄 iOS 液态形变圆角**：展开/收起/紧凑尺寸全部启用圆角弹簧，圆角随形变连续过渡，彻底消除“圆角变方框”与形变收尾时的圆角闪变；紧凑态保持完整药丸形（高/2），展开态按用户设置圆角
+- **⚖️ 分层弹簧时序**：圆角弹簧比尺寸快约 18%（形状先导、尺寸跟随），透明度分层（展开内容稍快浮现、收起先淡出再收拢），观感更接近 iOS 灵动岛
+- **🛡️ 弹簧数值防护**：NaN/Inf 等非法输入静默停止，杜绝异常数值污染 UI 或造成卡死；非法目标在入口直接忽略
+- **✅ 回归测试**：249 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.7 (Stable)
+### What's New
+
+- **🪄 iOS liquid corner-radius morph**: Expand/collapse/compact size changes now drive the corner radius through its own spring, so corners morph continuously — no more “square corners” or radius popping at the end of a transition; compact stays a true pill (height/2), expanded follows the user radius
+- **⚖️ Layered spring timing**: The radius spring leads the size spring by ~18% (shape leads, size follows) and opacity is layered (content fades in earlier on expand, fades out before collapse) — closer to the iOS Dynamic Island feel
+- **🛡️ Spring numeric guard**: NaN/Inf inputs stop silently instead of corrupting the UI or freezing; invalid retargets are ignored at the entry point
+- **✅ Regression testing**: All 249 unit tests passed
+
+---
+
 ## WinIslands 2.0.6（正式版 / Stable）
 ### 更新内容
 
