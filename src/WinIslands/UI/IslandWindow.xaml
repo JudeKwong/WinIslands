@@ -202,7 +202,7 @@
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 上岛推送（第三方软件推送到灵动岛）：紧凑态即展示全部内容，尺寸自适应 -->
                     <!-- 上岛推送（第三方软件推送到灵动岛）：紧凑态单行显示（图标 + 标题 + 单行摘要），展开态展示完整详情 -->
-                    <Border x:Name="CompactPushCard" Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}"
+                    <Border x:Name="CompactPushCard" RenderTransformOrigin="0.5,0.5" Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}"
                             CornerRadius="14"
                             Background="{Binding PushCardBackground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#221B1B26}"
                             BorderBrush="{Binding PushCardBorder, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#59FFFFFF}"
@@ -848,7 +848,7 @@
                 </Grid>
 
                 <!-- ═══ 展开内容 ═══ -->
-                <ScrollViewer x:Name="ExpandedContent" Grid.Row="0" Grid.RowSpan="2" Margin="0,10,0,0"
+                <ScrollViewer x:Name="ExpandedContent" Grid.Row="0" Grid.RowSpan="2" Margin="0,10,0,0" RenderTransformOrigin="0.5,0.5"
                               Background="Transparent"
                               Visibility="Collapsed" Opacity="0" VerticalScrollBarVisibility="Hidden"
                               PanningMode="VerticalOnly">

@@ -1,4 +1,4 @@
-﻿using WinIslands.UI;
+using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -73,7 +73,8 @@ public sealed class CrossFadeCurvesTests
     [Fact]
     public void Parallax_Expand_ContentGrowsIntoPlace()
     {
-        // 展开：内容从稍小/稍上方随卡片生长到正常位置
+        // 展开：内容从中心缩放浮现（iOS 真实行为：无垂直漂移，纯中心缩放 + 淡入）
+        // 与卡片形变同频，文字不再从上面出现
         var (s0, y0) = CrossFadeCurves.ContentParallax(0.0, expand: true);
         Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, s0, 6);
         Assert.Equal(CrossFadeCurves.ExpandParallaxYFrom, y0, 6);
@@ -81,14 +82,14 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(1.0, s1, 6);
         Assert.Equal(0.0, y1, 6);
         var (sm, ym) = CrossFadeCurves.ContentParallax(0.5, expand: true);
-        Assert.InRange(sm, 0.98, 0.99);   // 0.97 -> 1.0 的中点
-        Assert.InRange(ym, -7, -5);       // -12 -> 0 的中点
+        Assert.InRange(sm, 0.955, 0.965); // 0.92 -> 1.0 的中点
+        Assert.Equal(0.0, ym, 6);         // 中心缩放：无垂直位移
     }
 
     [Fact]
     public void Parallax_Collapse_ContentRetreats()
     {
-        // 收起：内容轻微收缩并上移淡出
+        // 收起：内容轻微收缩并淡出（中心缩放，无垂直漂移）
         var (s1, y1) = CrossFadeCurves.ContentParallax(1.0, expand: false);
         Assert.Equal(1.0, s1, 6);
         Assert.Equal(0.0, y1, 6);

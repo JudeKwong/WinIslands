@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace WinIslands.UI;
 
@@ -51,12 +51,12 @@ public static class CrossFadeCurves
     public const double CollapsePillReappearAt = 0.5;
 
     /// <summary>Expand: content starts slightly smaller and higher, growing into place.</summary>
-    public const double ExpandParallaxScaleFrom = 0.97;
-    public const double ExpandParallaxYFrom = -12;
+    public const double ExpandParallaxScaleFrom = 0.92;
+    public const double ExpandParallaxYFrom = 0;
 
     /// <summary>Collapse: content gently shrinks and drifts upward while fading out.</summary>
-    public const double CollapseParallaxScaleTo = 0.975;
-    public const double CollapseParallaxYTo = -8;
+    public const double CollapseParallaxScaleTo = 0.93;
+    public const double CollapseParallaxYTo = 0;
 
     /// <summary>
     /// Content parallax (2.1.0): drives the expanded content's scale + vertical

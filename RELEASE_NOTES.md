@@ -11,6 +11,24 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.1（正式版 / Stable）
+### 更新内容
+
+- **🍎 内容中心缩放过渡（修复“文字从上面出现”）**：展开时内容不再从稍小、稍上方的位置滑入——改为从卡片中心缩放浮现（RenderTransformOrigin 居中 + 纯中心视差，无垂直漂移），收起时向中心轻柔收缩淡出，与 iOS 灵动岛的生长方向完全一致，文字随卡片一体生长，全程丝滑无跳变
+- **🔒 上岛推送入场对齐 iOS**：紧凑推送卡片的缩放入场改为以自身中心为原点（0.94→1.0），第三方“上岛”内容不再从左上角冒出，更接近 iOS 的揭示动画
+- **🧪 回归测试**：视差曲线测试同步更新（0.92→1.0 中心缩放、收起 0.93），261 项全部通过
+
+---
+
+## WinIslands 2.1.1 (Stable)
+### What's New
+
+- **🍎 Center-scale content transition (fixes “text popping from above”)**: Expanded content no longer slides in from a smaller, higher position — it now grows from the center of the card (centered RenderTransformOrigin + pure center parallax, no vertical drift) and gently retreats toward center on collapse, matching the iOS Dynamic Island's growth direction. Text moves together with the card morph — smooth, no jumps
+- **🔒 iOS-aligned push entrance**: The compact push card's scale-in now originates from its own center (0.94→1.0), so third-party “island” content no longer emerges from the top-left corner
+- **🧪 Regression testing**: Parallax curve tests updated for the new center-scale values (0.92→1.0 expand, 0.93 collapse) — all 261 tests pass
+
+---
+## 简体中文
 ## WinIslands 2.1.0（正式版 / Stable）
 ### 更新内容
 
