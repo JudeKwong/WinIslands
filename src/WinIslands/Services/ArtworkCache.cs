@@ -16,6 +16,7 @@ public static class ArtworkCache
 {
     private static readonly HttpClient Http = CreateClient();
     private static readonly object IoGate = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> PathCache = new();
     private const int MaxArtworkBytes = 10 * 1024 * 1024;
 
     private static HttpClient CreateClient()
@@ -33,7 +34,13 @@ public static class ArtworkCache
         return Convert.ToHexString(bytes)[..24];
     }
 
+    /// <summary>Returns a previously resolved cache path for a key without touching the disk.
+    /// Only positive results are cached (misses still scan the directory once).</summary>
+    public static bool TryGetCachedPath(string key, out string path)
+        => PathCache.TryGetValue(key, out path!);
+
     /// <summary>Save raw image bytes to the cache and return the file path.</summary>
+
     public static string SaveBytes(byte[] data, string key)
     {
         string? tmp = null;
@@ -44,12 +51,17 @@ public static class ArtworkCache
             var path = Path.Combine(AppPaths.ThumbCacheDir, $"{key}{ext}");
             lock (IoGate)
             {
-                if (File.Exists(path) && new FileInfo(path).Length > 0) return path;
+                if (File.Exists(path) && new FileInfo(path).Length > 0)
+                {
+                    PathCache.TryAdd(key, path);
+                    return path;
+                }
                 tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 File.WriteAllBytes(tmp, data);
                 File.Move(tmp, path, overwrite: true);
                 tmp = null;
             }
+            PathCache.TryAdd(key, path);
             return path;
         }
         catch (Exception ex)

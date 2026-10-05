@@ -10,13 +10,13 @@ public sealed class MemoryOptimizerTests
     [Fact]
     public void ShouldTrim_RequiresBothMemoryThresholds()
     {
-        Assert.False(MemoryOptimizer.ShouldTrim(200 * Mb, 139 * Mb, 0, Interval));
-        Assert.False(MemoryOptimizer.ShouldTrim(159 * Mb, 200 * Mb, 0, Interval));
+        Assert.False(MemoryOptimizer.ShouldTrim(200 * Mb, 39 * Mb, 0, Interval));
+        Assert.False(MemoryOptimizer.ShouldTrim(119 * Mb, 200 * Mb, 0, Interval));
     }
 
     [Fact]
     public void ShouldTrim_AllowsWhenHighAndIntervalElapsed()
-        => Assert.True(MemoryOptimizer.ShouldTrim(160 * Mb, 140 * Mb, 0, Interval));
+        => Assert.True(MemoryOptimizer.ShouldTrim(121 * Mb, 41 * Mb, 0, Interval));
 
     [Fact]
     public void ShouldTrim_ThrottlesRepeatedRequests()

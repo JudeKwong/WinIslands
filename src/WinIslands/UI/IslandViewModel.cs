@@ -998,6 +998,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
 
     private int _statsTick;
+    private int _diskTick; // 磁盘查询节流：每 5 秒查一次，减少空闲 IO 唤醒
     private float? _cpuValue;
     private long _lastNetDownBytes;
     private long _lastNetUpBytes;
@@ -1148,7 +1149,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             }
 
             // 磁盘剩余空间（系统盘；仅组件开启或提醒开启时查询，查询开销小）
-            if (ShowIdleDisk || _settings.Current.DiskAlertEnabled)
+            if ((ShowIdleDisk || _settings.Current.DiskAlertEnabled) && ++_diskTick % 5 == 1)
             {
                 try
                 {

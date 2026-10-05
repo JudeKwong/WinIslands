@@ -162,7 +162,7 @@ public sealed class MediaCoordinator : IDisposable
     }
 
     internal static TimeSpan ResolvePollInterval(bool mediaActive)
-        => TimeSpan.FromSeconds(mediaActive ? 1 : 2);
+        => TimeSpan.FromSeconds(mediaActive ? 1 : 5);
 
     private void OnSmtcSessionsChanged(object? sender, EventArgs e) => PublishSessions();
 

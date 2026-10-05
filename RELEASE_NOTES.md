@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 **🌐 选择语言 / Select Language**
 
@@ -11,6 +11,29 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.4（正式版 / Stable）
+### 更新内容
+
+- **⚡ 空闲 CPU / 磁盘 IO 大幅削减**：媒体会话空闲轮询由 2 秒放宽到 5 秒；WASAPI 声纹采集在无数据时的忙轮询由 8ms 放宽到 50ms，并新增 16ms（60Hz）发布上限——数据包到达过快时直接释放缓冲，不再无谓空转；音频波形在暂停/空闲时的唤醒间隔进一步放宽到 250ms
+- **🖼️ 专辑封面路径内存缓存**：封面文件定位不再每个 tick 扫描缓存目录（原先 SMTC 活跃时每秒扫盘一次），改为内存缓存命中直返——Disk Read 热点显著下降
+- **🎵 本地歌词目录索引缓存**：本地 .lrc 查找改为 60 秒目录索引复用，避免每次查询都全量枚举音乐库目录
+- **💾 磁盘剩余空间查询节流**：仅在组件/提醒开启时每 5 个轮询周期查询一次，空闲时不再反复触发磁盘 IO
+- **🧠 内存修剪更积极**：私有内存达到 40MB（原 140MB）、工作集达到 120MB（原 160MB）即触发抑制与修剪，闲置常驻内存进一步降低
+- **🧪 回归测试**：268 项单元测试全部通过
+
+---
+
+## WinIslands 2.1.4 (Stable)
+### What's New
+
+- **⚡ Idle CPU & disk I/O cut way down**: media-session polling relaxed from 2 s to 5 s when idle; WASAPI audio-wave capture no longer busy-loops at 8 ms when no data is ready (now 50 ms) and publishing is capped at 60 Hz (16 ms) — packets that arrive faster are released without wasted spin; the wave service wakes every 250 ms while paused/idle
+- **🖼️ Album-art path memory cache**: cover files are resolved from an in-memory cache instead of scanning the thumbnail directory on every tick (previously once per second while SMTC media was active) — the Disk-Read hotspot drops sharply
+- **🎵 Local-lyrics directory index cache**: .lrc lookups reuse a 60-second directory index instead of enumerating the whole music library on every query
+- **💾 Disk-free-space polling throttled**: queried only every 5th poll cycle when its component/alert is enabled, so idle time no longer keeps hitting the disk
+- **🧠 More aggressive memory trimming**: private memory at 40 MB (was 140 MB) and working set at 120 MB (was 160 MB) now trigger suppression & trim, further lowering resident memory when idle
+- **🧪 Regression**: all 268 unit tests pass
+
+---
 ## WinIslands 2.1.3（正式版 / Stable）
 ### 更新内容
 

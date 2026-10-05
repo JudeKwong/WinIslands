@@ -28,6 +28,10 @@ public sealed class LyricsService
     private readonly AmllTtmlApiService _amll = new();
     private readonly Dictionary<string, LyricsResult> _cache = new();
     private readonly object _cacheLock = new();
+    // 本地 .lrc 目录索引缓存：避免每次查询都枚举整个歌词目录（60s TTL）
+    private readonly Dictionary<string, (DateTime Stamp, string[] Files)> _dirIndex = new();
+    private readonly object _dirIndexLock = new();
+    private static readonly TimeSpan DirIndexTtl = TimeSpan.FromSeconds(60);
 
     public LyricsService(SettingsService settings, CiderMediaProvider? cider)
     {
@@ -245,6 +249,20 @@ public sealed class LyricsService
     public void ClearCache()
     {
         lock (_cacheLock) _cache.Clear();
+        lock (_dirIndexLock) _dirIndex.Clear();
+    }
+
+    /// <summary>取得目录内 .lrc 文件列表（60 秒内复用，避免频繁枚举音乐库目录）。</summary>
+    private string[] GetLrcIndex(string dir)
+    {
+        var now = DateTime.UtcNow;
+        lock (_dirIndexLock)
+        {
+            if (_dirIndex.TryGetValue(dir, out var hit) && now - hit.Stamp < DirIndexTtl) return hit.Files;
+            var files = Directory.EnumerateFiles(dir, "*.lrc", SearchOption.TopDirectoryOnly).ToArray();
+            _dirIndex[dir] = (now, files);
+            return files;
+        }
     }
 
     internal static string TrackKey(TrackInfo track) =>

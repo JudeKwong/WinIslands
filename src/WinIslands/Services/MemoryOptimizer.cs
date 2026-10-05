@@ -8,8 +8,8 @@ namespace WinIslands.Services;
 /// </summary>
 public static class MemoryOptimizer
 {
-    private const long TrimPrivateThresholdBytes = 140L * 1024 * 1024;
-    private const long TrimWorkingSetThresholdBytes = 160L * 1024 * 1024;
+    private const long TrimPrivateThresholdBytes = 40L * 1024 * 1024;
+    private const long TrimWorkingSetThresholdBytes = 120L * 1024 * 1024;
     private const long MinIntervalMs = 3L * 60 * 1000;
     private static long _lastTrimTicks;
 

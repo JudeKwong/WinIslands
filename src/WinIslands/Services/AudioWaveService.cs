@@ -37,7 +37,8 @@ public sealed class AudioWaveService : IDisposable
     private readonly Random _rng = new();
     private volatile bool _syncEnabled = true;   // 跟随音乐节奏：true=真实音频采集，false=节拍模拟
     private double _sensitivity = 1.0;       // 灵敏度倍率（0.2~3.0），用 Volatile 读写保证跨线程可见
-    private DateTime _lastUpdate = DateTime.UtcNow; // 相邻数据包时间（用于包络指数平滑）
+    private DateTime _lastUpdate = DateTime.UtcNow;
+    private DateTime _lastPublish = DateTime.UtcNow; // 上次发布波纹的时间（限制发布频率到 60Hz，即约 16ms 一次）；相邻数据包时间（用于包络指数平滑）
 
     /// <summary>当前波纹强度（0..1），UI 每帧轮询。</summary>
     public double Level => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _levelBits));
@@ -108,7 +109,7 @@ public sealed class AudioWaveService : IDisposable
                         AppLogger.Info("Audio wave: live WASAPI loopback capture active");
                         // 实时采集由 worker 线程持续运行；此处等待其结束（播放停止 / 关闭“跟随音乐节奏”）
                         // 空闲（未播放）时降低唤醒频率：worker 内部已挂起采集，主线程仅需低频等待
-                        while (_running && _syncEnabled && !done.IsSet) Thread.Sleep(_playing ? 50 : 100);
+                        while (_running && _syncEnabled && !done.IsSet) Thread.Sleep(_playing ? 50 : 250);
                         LiveCapture = false;
                         continue;
                     }
@@ -166,7 +167,7 @@ public sealed class AudioWaveService : IDisposable
                     if (_level < 0.01) _level = 0;
                 }
             }
-            Thread.Sleep(_playing ? 16 : 50); // 播放 60Hz 平滑轨迹；暂停时降低唤醒频率
+            Thread.Sleep(_playing ? 16 : 250); // 播放 60Hz 平滑轨迹；暂停时进一步降低唤醒频率
         }
     }
 
@@ -225,22 +226,32 @@ public sealed class AudioWaveService : IDisposable
                             PublishLevel(_level);
                             if (_level < 0.01) _level = 0;
                         }
-                        Thread.Sleep(100);
+                        Thread.Sleep(250);
                         continue;
                     }
 
                     uint packet = 0;
                     if (cap.GetNextPacketSize(out packet) < 0 || packet == 0)
                     {
-                        Thread.Sleep(8);
+                        Thread.Sleep(50);
                         continue;
                     }
                     if (cap.GetBuffer(out var dataPtr, out uint frames, out _, out _, out _) < 0 || frames == 0 || dataPtr == IntPtr.Zero)
                     {
                         cap.ReleaseBuffer(0);
-                        Thread.Sleep(8);
+                        Thread.Sleep(50);
                         continue;
                     }
+
+                    // WASAPI 数据包到达间隔约 10ms，而 UI 目标 60Hz（约 16ms 发布一次）：
+                    // 若距上次发布不足 16ms 则直接释放缓冲并继续，避免波纹发布频率超过 60Hz 上限。
+                    var nowUtc = DateTime.UtcNow;
+                    if ((nowUtc - _lastPublish).TotalMilliseconds < 16.0)
+                    {
+                        cap.ReleaseBuffer(frames);
+                        continue;
+                    }
+                    _lastPublish = nowUtc;
 
                     var totalBytes = (int)(frames * blockAlign);
                     totalBytes = Math.Min(totalBytes, 1 << 20); // prevent abnormal oversized packets
