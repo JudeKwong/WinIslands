@@ -720,6 +720,11 @@ public partial class SettingsWindow : Window
             MessageBox.Show(this, found ? Localization.Get("Update_Found") : Localization.Get("Update_None"),
                 Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"Check update failed: {ex}");
+            MessageBox.Show(this, ex.Message, Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         finally
         {
             BtnCheckUpdate.IsEnabled = true;
@@ -853,7 +858,16 @@ public partial class SettingsWindow : Window
 
     private async void Diagnostics_Click(object sender, RoutedEventArgs e)
     {
-        var text = await DiagnosticsCommand.RunAsync(_service, _cider);
+        string text;
+        try
+        {
+            text = await DiagnosticsCommand.RunAsync(_service, _cider);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"Diagnostics failed: {ex}");
+            text = "ERROR: " + ex.Message;
+        }
         var win = new Window
         {
             Title = Localization.Get("Diagnostics"),

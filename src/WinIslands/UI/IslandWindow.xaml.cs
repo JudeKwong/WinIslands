@@ -220,6 +220,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _cardTargetH;
     private Action? _cardSpringCompleted; // 卡片弹簧收敛后的完成回调（兼容旧 Storyboard 语义）
     private bool _expandedFadeIn = true;   // 2.0.9：当前淡入方向（true=展开，false=收起），供胶囊行交叉淡入曲线使用
+    // 2.1.6：展开目标高度缓存——展开动画期间内容（歌词行/封面/推送）变化时复用已测高度，
+    // 不再每次 Expand() 重新 Measure，避免卡片在展开途中“呼吸”抖动；内容变化置脏标记，
+    // 缓存只在 Expand() 时消费，下一次展开前重新测量（展开中更新的脏标记零成本）。
+    private double _expandedTargetHeight = double.NaN;
+    private bool _expandedHeightValid;
+    private bool _expandedHeightDirty = true;
     private IOSSpring? _posLSpring;       // 窗口 Left 弹簧
     private IOSSpring? _posTSpring;       // 窗口 Top 弹簧
     private IOSSpring? _pushOpacitySpring;// 推送卡片透明度弹簧
@@ -443,6 +449,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _onThemeChanged = (_, _) => ApplyTheme();
         _onSettingsChanged = (_, _) =>
         {
+            _expandedHeightDirty = true; // 设置变化（展开宽度/字号等）影响展开高度，下次展开前重测（2.1.6）
             ApplyExpandedSectionVisibility();
             ApplyAppearance();
             RefreshWave();
@@ -1706,6 +1713,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 if (!_vm.IsExpanded && _vm.IsVisible) AnimateCompactSize();
                 break;
             case nameof(IslandViewModel.HasActivePush):
+                _expandedHeightDirty = true; // 推送内容会影响展开卡片高度，下次展开前重测（2.1.6）
                 ApplySize();           // 确保窗口足够大（首次）
                 AnimateCompactSize();  // 尺寸变化：弹簧动画，丝滑
                 PlayPushCardAnimation(); // 上岛卡片：淡入 + 缩放动画
@@ -1713,6 +1721,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 RaisePushThemeProps();
                 break;
             case nameof(IslandViewModel.HasMedia):
+                _expandedHeightDirty = true; // 媒体信息区出现/消失影响展开高度（2.1.6）
                 ApplyExpandedSectionVisibility();
                 RefreshWave();
                 break;
@@ -1723,6 +1732,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 RefreshWave();
                 break;
             case nameof(IslandViewModel.Artwork):
+                _expandedHeightDirty = true; // 封面加载完成可能改变展开内容高度（2.1.6）
                 ApplyCoverTint();
                 PlayCoverTransition(); // 切歌：封面交叉淡入 + 轻微缩放
                 break;
@@ -2324,14 +2334,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
         ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
 
-        // 先测量展开内容自然高度（ScrollViewer 内容总高），得到卡片目标高度
+        // 先测量展开内容自然高度（ScrollViewer 内容总高），得到卡片目标高度（2.1.6 结果缓存）。
         ExpandedContent.Opacity = 0;
         ExpandedContent.Visibility = Visibility.Visible;
         // 60fps 优化：展开内容固定目标宽度，展开动画期间不随卡片宽度逐帧重排（内容只布局一次）
         ExpandedContent.Width = Math.Max(120, ExpandedWidth - 20);
-        ExpandedContent.Measure(new System.Windows.Size(ExpandedContent.Width, double.PositiveInfinity));
-        var contentH = ExpandedContent.DesiredSize.Height;
-        var targetHeight = Math.Clamp(contentH + 24, 200, MaxExpandedHeight);
+        if (!_expandedHeightValid || _expandedHeightDirty)
+        {
+            ExpandedContent.Measure(new System.Windows.Size(ExpandedContent.Width, double.PositiveInfinity));
+            var ch = ExpandedContent.DesiredSize.Height;
+            _expandedTargetHeight = Math.Clamp(ch + 24, 200, MaxExpandedHeight);
+            _expandedHeightValid = true;
+            _expandedHeightDirty = false;
+        }
+        var targetHeight = _expandedTargetHeight;
 
         // 重新显示胶囊行：动画期间淡出，与展开内容交叉过渡
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);

@@ -11,6 +11,25 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.6（正式版 / Stable）
+### 更新内容
+
+- **📐 展开动画目标高度缓存**：展开时优先复用上一次计算好的目标高度，歌曲 / 组件信息在动画期间变化时卡片不再「呼吸」抖动；内容、设置或上岛推送变化时才重新计算
+- **🌊 音频声纹线程加固**：为采集循环加入代次守卫，Stop→Start 快速切换不会再出现双采集循环；Dispose 会等待采集线程退出，避免资源泄漏
+- **🛡️ 设置窗口防御性修复**：检查更新、诊断信息等操作增加异常兜底，网络或权限错误只会给出提示，不会再让设置窗口崩溃
+- **🧪 回归测试**：274 项单元测试全部通过（新增方向感知打断重定向连续性、动画起点回退测试）
+
+---
+
+## WinIslands 2.1.6 (Stable)
+### What's New
+
+- **📐 Expanded-height cache for expand animation**: reuse the previously measured target height, so the card no longer "breathes" while song/component info changes mid-animation; recompute only when content, settings or an Island push actually changes
+- **🌊 Audio waveform thread hardening**: generation guard around the capture loop prevents double capture on rapid Stop→Start; Dispose now joins the thread so nothing leaks
+- **🛡️ Settings-window defensive fixes**: check-for-update and diagnostics are wrapped in exception handlers — network/permission errors show a friendly message instead of crashing the window
+- **🧪 Regression**: all 274 unit tests pass (direction-aware retarget continuity, non-finite animation-start fallback)
+
+---
 ## WinIslands 2.1.5（正式版 / Stable）
 ### 更新内容
 

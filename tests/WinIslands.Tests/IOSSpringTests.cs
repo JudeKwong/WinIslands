@@ -198,4 +198,55 @@ public sealed class IOSSpringTests
         Assert.False(s.IsActive);
         Assert.Equal(20.01, s.Value, 6);
     }
+
+    [Fact]
+    public void ConfigureThenRetarget_KeepsPositionAndVelocityContinuous()
+    {
+        // 2.1.6：动画中途「重新配置刚度/阻尼后反向改目标」——与 AnimateCardSpring 的
+        // wasAnimating 分支完全一致（先 Configure 再 Retarget）。配置变化不得造成跳变，
+        // Retarget 后位置/速度连续，最终平滑收敛到新目标。
+        var s = IOSSpring.Create(0.86, 0.62, from: 0, to: 340);
+        try
+        {
+            for (var i = 0; i < 40; i++) s.Tick(Dt); // 展开途中（约 0.33s）
+            Assert.True(s.IsActive);
+            var before = s.Value;
+            var vBefore = s.Velocity;
+
+            s.Configure(0.97, 0.52); // 收紧阻尼、加快响应（收起手感）
+            Assert.Equal(before, s.Value, 6);     // Configure 不得改变当前状态
+            Assert.Equal(vBefore, s.Velocity, 6);
+
+            s.Retarget(0); // 反向收回
+            Assert.Equal(before, s.Value, 6);     // 位置不跳
+            Assert.Equal(vBefore, s.Velocity, 6); // 速度不跳
+
+            var prev = s.Value;
+            s.Tick(Dt);
+            // 首帧不跳变：运动方向与 Retarget 保留的速度一致（幅度由加速度接管，可大）
+            Assert.True(Math.Abs(s.Value - prev) < 1e-9 || Math.Sign(s.Value - prev) == Math.Sign(vBefore),
+                "first frame must move in retained-velocity direction");
+            Assert.True(double.IsFinite(s.Value), "value must stay finite");
+
+            Drain(s, 2.0);
+            Assert.False(s.IsActive);
+            Assert.InRange(s.Value, -0.5, 0.5);
+        }
+        finally
+        {
+            s.Complete(); // 断言失败也不泄漏到静态 SpringTicker，保证其它测试计数正确
+        }
+    }
+
+    [Fact]
+    public void ResolveAnimationFrom_NonFiniteFallsBack()
+    {
+        // 2.1.6：动画起点解析——ActualWidth 为 0/NaN（首帧未布局）时逐级回退到 Width/目标值，
+        // 绝不把 0 或 NaN 作为动画起点导致卡片瞬移/黑框。
+        Assert.Equal(300, IslandWindow.ResolveAnimationFrom(0, 300, 400), 6);
+        Assert.Equal(400, IslandWindow.ResolveAnimationFrom(0, double.NaN, 400), 6);
+        Assert.Equal(400, IslandWindow.ResolveAnimationFrom(double.NaN, double.NaN, 400), 6);
+        Assert.Equal(300, IslandWindow.ResolveAnimationFrom(300, 1, 400), 6);
+        Assert.Equal(400, IslandWindow.ResolveAnimationFrom(-1, -1, 400), 6); // 非法负值 → 回退
+    }
 }

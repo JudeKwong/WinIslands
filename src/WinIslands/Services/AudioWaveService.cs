@@ -30,6 +30,7 @@ public sealed class AudioWaveService : IDisposable
     private volatile bool _liveStarted;         // WASAPI 实时采集已就绪（worker 线程置位）
     private volatile bool _wasapiWorkerActive;  // WASAPI 初始化 worker 是否仍在运行（防止阻塞线程累积）
     private Thread? _thread;
+    private int _generation;              // 代次守卫: Stop→Start 时递增, 旧采集线程立即失效 (2.1.6)
     private readonly object _gate = new();
     private double _level;              // 0..1 平滑后的波纹强度
     private long _levelBits;            // 无锁发布给 UI 的 double 位快照
@@ -65,7 +66,8 @@ public sealed class AudioWaveService : IDisposable
     {
         if (_running) return;
         _running = true;
-        _thread = new Thread(Loop) { IsBackground = true, Name = "AudioWave" };
+        var gen = Interlocked.Increment(ref _generation); // 代次守卫 (2.1.6)
+        _thread = new Thread(() => Loop(gen)) { IsBackground = true, Name = "AudioWave" };
         _thread.Start();
     }
 
@@ -74,10 +76,10 @@ public sealed class AudioWaveService : IDisposable
         _running = false;
     }
 
-    private void Loop()
+    private void Loop(int gen)
     {
         var simActive = false;
-        while (_running)
+        while (gen == _generation && _running)
         {
             try
             {
@@ -91,7 +93,7 @@ public sealed class AudioWaveService : IDisposable
                     var done = new ManualResetEventSlim(false);
                     var worker = new Thread(() =>
                     {
-                        try { TryWasapiLoop(); }
+                        try { TryWasapiLoop(gen); }
                         catch (Exception ex) { AppLogger.Debug($"Audio wave WASAPI failed: {ex.Message}"); }
                         finally { _liveStarted = false; _wasapiWorkerActive = false; done.Set(); }
                     })
@@ -109,7 +111,7 @@ public sealed class AudioWaveService : IDisposable
                         AppLogger.Info("Audio wave: live WASAPI loopback capture active");
                         // 实时采集由 worker 线程持续运行；此处等待其结束（播放停止 / 关闭“跟随音乐节奏”）
                         // 空闲（未播放）时降低唤醒频率：worker 内部已挂起采集，主线程仅需低频等待
-                        while (_running && _syncEnabled && !done.IsSet) Thread.Sleep(_playing ? 50 : 250);
+                        while (gen == _generation && _running && _syncEnabled && !done.IsSet) Thread.Sleep(_playing ? 50 : 250);
                         LiveCapture = false;
                         continue;
                     }
@@ -131,19 +133,19 @@ public sealed class AudioWaveService : IDisposable
                 AppLogger.Info("Audio wave: using beat simulation (no live audio capture)");
                 simActive = true;
             }
-            SimulateLoop();
+            SimulateLoop(gen);
         }
     }
 
     // ── 模拟降级：无实时采集时按“节拍”起伏，暂停时衰减到 0 ────────
-    private void SimulateLoop()
+    private void SimulateLoop(int gen)
     {
         var sw = Stopwatch.StartNew();
         var bpm = 88 + _rng.NextDouble() * 56;                  // 88 ~ 144 BPM
         var beatLen = 60.0 / bpm;
         double pulse = 0, nextBeat = 0;
         var attemptSw = Stopwatch.StartNew();                   // 跟随开启且实时不可用时，周期回外层重试
-        while (_running && (!_syncEnabled || attemptSw.ElapsedMilliseconds < SimulateRetryMs))
+        while (gen == _generation && _running && (!_syncEnabled || attemptSw.ElapsedMilliseconds < SimulateRetryMs))
         {
             lock (_gate)
             {
@@ -172,7 +174,7 @@ public sealed class AudioWaveService : IDisposable
     }
 
     // ── WASAPI 环回采集 ────────────────────────────────────────────
-    private bool TryWasapiLoop()
+    private bool TryWasapiLoop(int gen)
     {
         if (CoInitializeEx(IntPtr.Zero, 0) < 0) return false; // COINIT_MULTITHREADED
 
@@ -215,7 +217,7 @@ public sealed class AudioWaveService : IDisposable
                 var step = fmt.wBitsPerSample / 8;           // 每样本字节（2 或 4）
                 if (step < 2) step = 2;
 
-                while (_running && _syncEnabled)
+                while (gen == _generation && _running && _syncEnabled)
                 {
                     // 无播放时不采集：挂起读取循环（保持 WASAPI 会话打开，恢复播放即刻续采），降低空闲 CPU
                     if (!_playing)
@@ -358,7 +360,12 @@ public sealed class AudioWaveService : IDisposable
 
     private void PublishLevel(double value) => Interlocked.Exchange(ref _levelBits, BitConverter.DoubleToInt64Bits(value));
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        Stop();
+        _thread?.Join(500); // 等待采集线程安全退出, 避免 Stop 后线程仍在 COM 调用中 (2.1.6)
+        _thread = null;
+    }
 
     // ── COM 接口（vtable 索引自 IUnknown 后开始）──
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
