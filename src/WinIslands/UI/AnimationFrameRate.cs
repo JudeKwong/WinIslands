@@ -16,6 +16,9 @@ internal static class AnimationFrameRate
 
     public static int Current(bool lowPowerMode) => lowPowerMode ? Standard : HardwareFrameRate;
 
+    /// <summary>显示器级帧率目标（不含低功耗降频），供音频采集 / 外部采样组件对齐发布节奏（2.1.8）。</summary>
+    public static int DisplayTarget => HardwareFrameRate;
+
     public static void Apply(Timeline timeline, bool lowPowerMode)
         => Timeline.SetDesiredFrameRate(timeline, Current(lowPowerMode));
 

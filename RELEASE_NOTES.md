@@ -11,6 +11,13 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.8（正式版 / Stable）
+### 更新内容
+
+- **🌊 音频声纹发布频率跟随显示器刷新率**：声纹采集不再固定 60Hz 发布，而是以当前显示器刷新率为发布节奏（120Hz 屏约 8.3ms/帧、60Hz 屏 16ms/帧），高刷屏上波纹不再以 60Hz 跳变，跟随音乐节奏更连贯、更跟手
+- **🧪 回归测试**：278 项单元测试全部通过
+
+---
 ## WinIslands 2.1.7（正式版 / Stable）
 ### 更新内容
 
@@ -20,6 +27,13 @@
 
 ---
 
+## WinIslands 2.1.8 (Stable)
+### What's New
+
+- **🌊 Audio waveform now publishes at the display refresh rate**: instead of a fixed 60Hz publish loop, waveform samples are published at the monitor's refresh rate (~8.3ms per frame on 120Hz, 16ms on 60Hz), so the bars no longer step at 60Hz on high-refresh displays — they follow the music more smoothly and responsively
+- **🧪 Regression**: all 278 unit tests pass
+
+---
 ## WinIslands 2.1.7 (Stable)
 ### What's New
 

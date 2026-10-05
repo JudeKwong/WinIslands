@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using WinIslands.UI;
 
 namespace WinIslands.Services;
 
@@ -39,7 +40,10 @@ public sealed class AudioWaveService : IDisposable
     private volatile bool _syncEnabled = true;   // 跟随音乐节奏：true=真实音频采集，false=节拍模拟
     private double _sensitivity = 1.0;       // 灵敏度倍率（0.2~3.0），用 Volatile 读写保证跨线程可见
     private DateTime _lastUpdate = DateTime.UtcNow;
-    private DateTime _lastPublish = DateTime.UtcNow; // 上次发布波纹的时间（限制发布频率到 60Hz，即约 16ms 一次）；相邻数据包时间（用于包络指数平滑）
+    // 2.1.8：发布频率跟随显示器刷新率（120Hz 屏约 8.3ms 一次、60Hz 屏 16ms），与 UI 合成帧对齐，
+    // 波纹在高刷屏上不再以 60Hz 跳变；低功耗模式 UI 端以 60Hz 轮询，发布更快无副作用。
+    private static readonly double PublishIntervalMs = 1000.0 / Math.Max(60, AnimationFrameRate.DisplayTarget);
+    private DateTime _lastPublish = DateTime.UtcNow;
 
     /// <summary>当前波纹强度（0..1），UI 每帧轮询。</summary>
     public double Level => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _levelBits));
@@ -169,7 +173,7 @@ public sealed class AudioWaveService : IDisposable
                     if (_level < 0.01) _level = 0;
                 }
             }
-            Thread.Sleep(_playing ? 16 : 250); // 播放 60Hz 平滑轨迹；暂停时进一步降低唤醒频率
+            Thread.Sleep(_playing ? (int)PublishIntervalMs : 250); // 播放按显示器刷新率平滑推进；暂停时进一步降低唤醒频率
         }
     }
 
@@ -248,7 +252,7 @@ public sealed class AudioWaveService : IDisposable
                     // WASAPI 数据包到达间隔约 10ms，而 UI 目标 60Hz（约 16ms 发布一次）：
                     // 若距上次发布不足 16ms 则直接释放缓冲并继续，避免波纹发布频率超过 60Hz 上限。
                     var nowUtc = DateTime.UtcNow;
-                    if ((nowUtc - _lastPublish).TotalMilliseconds < 16.0)
+                    if ((nowUtc - _lastPublish).TotalMilliseconds < PublishIntervalMs)
                     {
                         cap.ReleaseBuffer(frames);
                         continue;
