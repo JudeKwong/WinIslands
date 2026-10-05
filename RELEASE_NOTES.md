@@ -11,21 +11,25 @@
 ---
 
 ## 简体中文
-## WinIslands 2.1.1（正式版 / Stable）
+## WinIslands 2.1.3（正式版 / Stable）
 ### 更新内容
 
-- **🍎 内容中心缩放过渡（修复“文字从上面出现”）**：展开时内容不再从稍小、稍上方的位置滑入——改为从卡片中心缩放浮现（RenderTransformOrigin 居中 + 纯中心视差，无垂直漂移），收起时向中心轻柔收缩淡出，与 iOS 灵动岛的生长方向完全一致，文字随卡片一体生长，全程丝滑无跳变
-- **🔒 上岛推送入场对齐 iOS**：紧凑推送卡片的缩放入场改为以自身中心为原点（0.94→1.0），第三方“上岛”内容不再从左上角冒出，更接近 iOS 的揭示动画
-- **🧪 回归测试**：视差曲线测试同步更新（0.92→1.0 中心缩放、收起 0.93），261 项全部通过
+- **🎶 逐字卡拉OK渲染性能重构**：已点亮/未点亮的汉字共享冻结画刷，只有正在过渡的 1~2 个字才逐帧混色——整行不再每帧创建/改写几十个画刷，GC 抖动基本消除，120Hz 下逐字高亮更稳、更跟手
+- **🍃 换句文字过渡更接近 iOS**：每句歌词（紧凑态与逐字卡拉OK）的换句淡入从固定三次缓动改为柔和阻尼弹簧（先快后缓、轻微 Q 弹收尾），与 iOS 文字揭示的物理手感一致
+- **🎨 修复主题切换时歌词高亮残留旧颜色**：逐字着色改为共享画刷后，切换明暗主题或自定义高亮/底色时会立即让所有已点亮/未点亮文字指向新画刷，不再残留上一主题的颜色
+- **📐 紧凑歌词右侧间距修正**：单行模式的歌词最大宽度放宽（300→420、右留白 14px），文字不再贴住右侧播放控件——空间不足时灵动岛自动加宽，而不是压缩文字间距
+- **🧪 回归测试**：268 项单元测试全部通过（逐字时间轴/强调缩放/视差曲线）
 
 ---
 
-## WinIslands 2.1.1 (Stable)
+## WinIslands 2.1.3 (Stable)
 ### What's New
 
-- **🍎 Center-scale content transition (fixes “text popping from above”)**: Expanded content no longer slides in from a smaller, higher position — it now grows from the center of the card (centered RenderTransformOrigin + pure center parallax, no vertical drift) and gently retreats toward center on collapse, matching the iOS Dynamic Island's growth direction. Text moves together with the card morph — smooth, no jumps
-- **🔒 iOS-aligned push entrance**: The compact push card's scale-in now originates from its own center (0.94→1.0), so third-party “island” content no longer emerges from the top-left corner
-- **🧪 Regression testing**: Parallax curve tests updated for the new center-scale values (0.92→1.0 expand, 0.93 collapse) — all 261 tests pass
+- **🎶 Per-word karaoke rendering reworked**: lit/unlit characters now share frozen brushes; only the 1–2 characters currently transitioning blend colors per frame — per-frame per-character brush allocation is gone, GC hiccups disappear, and word-by-word highlighting is steadier and more responsive at 120 Hz
+- **🍃 iOS-like line-change transition**: lyric entrance (compact + full karaoke) now uses a soft damped spring (fast start, gentle settle, subtle overshoot) instead of a fixed cubic ease, matching how iOS reveals text
+- **🎨 Fix: stale lyric highlight after theme switch**: switching light/dark themes or custom highlight/base colors now immediately re-points every lit/unlit character to the new brushes, so no leftover color from the previous theme lingers
+- **📐 Compact lyric right-side clearance**: the single-line lyric max width is widened (300→420, 14 px right padding) so text no longer hugs the right-side playback controls — the island auto-widens when space runs out instead of squeezing text gaps
+- **🧪 Regression**: all 268 unit tests pass (word timeline, emphasis scale, parallax curves)
 
 ---
 ## 简体中文
@@ -46,6 +50,24 @@
 - **💬 Compact lyric line-change fade-in**: In the collapsed pill, switching to a new lyric line is no longer a hard cut — the new line fades in smoothly over 170ms (RenderTransform untouched, fully compatible with Marquee), just like an iOS music widget. First bind and hidden-state changes skip the fade to avoid startup flash / leftover transparency
 - **⚡ Rendering performance**: Per-frame corner-radius writes are now de-duplicated (sub-pixel changes skip redundant CornerRadius layout/render passes at settle and idle frames); lyric emphasis costs zero layout
 - **🧪 Regression testing**: 7 new pure-function tests for the emphasis scale ratio (linear ratio / floor / cap / invalid-input fallback) — all 268 unit tests pass
+
+---
+## 简体中文
+## WinIslands 2.1.1（正式版 / Stable）
+### 更新内容
+
+- **🍎 内容中心缩放过渡（修复“文字从上面出现”）**：展开时内容不再从稍小、稍上方的位置滑入——改为从卡片中心缩放浮现（RenderTransformOrigin 居中 + 纯中心视差，无垂直漂移），收起时向中心轻柔收缩淡出，与 iOS 灵动岛的生长方向完全一致，文字随卡片一体生长，全程丝滑无跳变
+- **🔒 上岛推送入场对齐 iOS**：紧凑推送卡片的缩放入场改为以自身中心为原点（0.94→1.0），第三方“上岛”内容不再从左上角冒出，更接近 iOS 的揭示动画
+- **🧪 回归测试**：视差曲线测试同步更新（0.92→1.0 中心缩放、收起 0.93），261 项全部通过
+
+---
+
+## WinIslands 2.1.1 (Stable)
+### What's New
+
+- **🍎 Center-scale content transition (fixes “text popping from above”)**: Expanded content no longer slides in from a smaller, higher position — it now grows from the center of the card (centered RenderTransformOrigin + pure center parallax, no vertical drift) and gently retreats toward center on collapse, matching the iOS Dynamic Island's growth direction. Text moves together with the card morph — smooth, no jumps
+- **🔒 iOS-aligned push entrance**: The compact push card's scale-in now originates from its own center (0.94→1.0), so third-party “island” content no longer emerges from the top-left corner
+- **🧪 Regression testing**: Parallax curve tests updated for the new center-scale values (0.92→1.0 expand, 0.93 collapse) — all 261 tests pass
 
 ---
 ## 简体中文

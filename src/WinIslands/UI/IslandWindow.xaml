@@ -640,7 +640,7 @@
                                         <TextBlock Text="&#x00B7;" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
                                                    Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                                    Visibility="{Binding DataContext.HasLyrics, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
-                                        <Grid MaxWidth="300" ClipToBounds="True"
+                                        <Grid MaxWidth="420" ClipToBounds="True" Margin="0,0,14,0"
                                         Visibility="{Binding DataContext.HasLyrics, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                         <karaoke:KaraokeTextBlock
                                             KaraokeText="{Binding DataContext.CurrentLyricText, RelativeSource={RelativeSource AncestorType=Window}}"

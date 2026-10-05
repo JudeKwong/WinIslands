@@ -88,6 +88,14 @@ public class KaraokeTextBlock : TextBlock
     private readonly List<Run> _wordRuns = new();
     private double[] _wordStarts = Array.Empty<double>();
     private double[] _wordDenoms = Array.Empty<double>();
+    // 2.1.3：逐字渲染性能优化——已点亮/未点亮的字共享冻结画刷，只对「正在过渡」的字逐帧算色。
+    // 每字用阶段标记（0=未点亮共享底刷、1=过渡中独立刷、2=已点亮共享高亮刷），
+    // 仅在阶段切换或颜色字节变化时才写 Run.Foreground，避免每帧对整行做 Color.FromArgb + SmoothStep。
+    private byte[] _wordPhase = Array.Empty<byte>();
+    private SolidColorBrush? _sharedHighlightBrush;
+    private SolidColorBrush? _sharedBaseBrush;
+    private System.Windows.Media.Color _sharedHlColor;
+    private System.Windows.Media.Color _sharedBaseColor;
     private bool _hasWords;
     private double _karaokeSpeedScale = 1.0;
     private double _nextKaraokeFrameTime;
@@ -172,11 +180,12 @@ public class KaraokeTextBlock : TextBlock
     }
 
     private bool _entranceInitialized;      // 首次赋文本不淡入（避免启动闪烁）
-    private static readonly System.Windows.Media.Animation.CubicEase EntranceEase = CreateEntranceEase();
+    // 2.1.3：换句淡入改用柔和阻尼弹簧（先快后缓、轻微 Q 弹），比固定 Cubic 更接近 iOS 文字揭示的质感
+    private static readonly SoftSpringEase EntranceEase = CreateEntranceEase();
 
-    private static System.Windows.Media.Animation.CubicEase CreateEntranceEase()
+    private static SoftSpringEase CreateEntranceEase()
     {
-        var e = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+        var e = new SoftSpringEase { Damping = 15, Stiffness = 210, Mass = 1 };
         e.Freeze();
         return e;
     }
@@ -424,10 +433,19 @@ public class KaraokeTextBlock : TextBlock
             Inlines.Clear();
             foreach (var r in _wordRuns) Inlines.Add(r);
             _renderedWords = _words;
+            if (_wordPhase.Length != _wordRuns.Count) _wordPhase = new byte[_wordRuns.Count];
+            else Array.Clear(_wordPhase, 0, _wordPhase.Length); // 重建后阶段归零（全部未点亮），避免旧阶段误导共享刷切换
         }
 
         var hl = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;
         var bs = ToColor(BaseBrush) ?? System.Windows.Media.Colors.Gray;
+        // 2.1.3：已点亮/未点亮分享冻结画刷；颜色变化（如主题切换）时重建并复位阶段，
+        // 让已点亮/未点亮的字重新指向新画刷，避免残留旧主题色。
+        if (EnsureSharedBrushes(hl, bs))
+        {
+            for (var i = 0; i < _wordPhase.Length; i++)
+                if (_wordPhase[i] != 1) _wordPhase[i] = 0;
+        }
 
         // 字间交叉过渡：后续字在其开始前约 45ms 提前起笔，前一字在结束后同样微延收笔，
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
@@ -438,27 +456,68 @@ public class KaraokeTextBlock : TextBlock
         var deltaR = hl.R - bs.R;
         var deltaG = hl.G - bs.G;
         var deltaB = hl.B - bs.B;
-        for (var i = 0; i < _wordRuns.Count && i < _words.Count; i++)
+        var count = Math.Min(_wordRuns.Count, _words.Count);
+        for (var i = 0; i < count; i++)
         {
-            var raw = (pos - _wordStarts[i]) / _wordDenoms[i] * speedScale;
-            var frac = SmoothStep(raw); // ease-in-out：起笔/收笔有加减速，匀速的机械感消失
+            // 2.1.3：先按词阶段分支——已点亮/未点亮的字直接切共享冻结刷（且仅在阶段切换时才写），
+            // 不再每帧对全行计算 SmoothStep + Color.FromArgb；只有正在过渡的 1~2 个字才逐帧混色。
+            var start = _wordStarts[i];
+            var end = start + _wordDenoms[i] / speedScale;
+            var run = _wordRuns[i];
+            if (pos >= end)
+            {
+                if (_wordPhase[i] != 2) { run.Foreground = _sharedHighlightBrush; _wordPhase[i] = 2; }
+                continue;
+            }
+            if (pos < start)
+            {
+                if (_wordPhase[i] != 0) { run.Foreground = _sharedBaseBrush; _wordPhase[i] = 0; }
+                continue;
+            }
+            // 正在过渡：ease-in-out（起笔/收笔有加减速）+字间 lead 重叠
+            var raw = (pos - start) / _wordDenoms[i] * speedScale;
+            var frac = SmoothStep(raw);
             var c = System.Windows.Media.Color.FromArgb(
                 (byte)(bs.A + deltaA * frac),
                 (byte)(bs.R + deltaR * frac),
                 (byte)(bs.G + deltaG * frac),
                 (byte)(bs.B + deltaB * frac));
-            // 只在颜色字节值真正变化时才新建画刷（高帧率下多数帧的色差不足 1 字节），
-            // 避免每帧分配 SolidColorBrush 造成 GC 抖动而掉帧。
-            if (_wordRuns[i].Foreground is not SolidColorBrush brush)
+            if (_wordPhase[i] != 1)
             {
-                brush = new SolidColorBrush(c);
-                _wordRuns[i].Foreground = brush;
+                // 进入过渡：从共享刷切换为独立刷（不可以改共享冻结刷）
+                run.Foreground = new SolidColorBrush(c);
+                _wordPhase[i] = 1;
             }
-            else if (!ColorEqual(brush.Color, c))
+            else if (run.Foreground is SolidColorBrush brush)
             {
-                brush.Color = c;
+                if (!ColorEqual(brush.Color, c)) brush.Color = c;
+            }
+            else
+            {
+                run.Foreground = new SolidColorBrush(c);
             }
         }
+    }
+
+    /// <summary>2.1.3：确保共享冻结画刷与当前高亮/底色一致（颜色变化时重建，执行中几乎不发生）。</summary>
+    private bool EnsureSharedBrushes(System.Windows.Media.Color hl, System.Windows.Media.Color bs)
+    {
+        var changed = false;
+        if (_sharedHighlightBrush is null || !ColorEqual(_sharedHlColor, hl))
+        {
+            _sharedHlColor = hl;
+            _sharedHighlightBrush = new SolidColorBrush(hl);
+            _sharedHighlightBrush.Freeze();
+            changed = true;
+        }
+        if (_sharedBaseBrush is null || !ColorEqual(_sharedBaseColor, bs))
+        {
+            _sharedBaseColor = bs;
+            _sharedBaseBrush = new SolidColorBrush(bs);
+            _sharedBaseBrush.Freeze();
+            changed = true;
+        }
+        return changed;
     }
 
     private void Render()
