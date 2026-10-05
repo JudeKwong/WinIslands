@@ -1865,7 +1865,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                     Subtitle = subtitle,
                     Body = body ?? string.Empty,
                     Icon = icon,
-                    Type = type,
+                    Type = type ?? "info",
                     TimeUtc = DateTime.Now,
                     TimeText = DateTime.Now.ToString("HH:mm"),
                 });
@@ -1881,7 +1881,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             Subtitle = subtitle ?? string.Empty,
             Body = body ?? string.Empty,
             Icon = icon,
-            Type = type,
+            Type = type ?? "info",
             Priority = "high", // 系统事件优先于普通第三方推送展示
             DurationSeconds = dur,
             ExpiresAt = DateTime.UtcNow.AddSeconds(dur),

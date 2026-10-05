@@ -490,7 +490,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private Point _touchStartPoint;
     private bool _touchManipulating;
 
-    private void OnTouchDown(object sender, TouchEventArgs e)
+    private void OnTouchDown(object? sender, TouchEventArgs e)
     {
         try
         {
@@ -508,7 +508,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         catch { }
     }
 
-    private void OnTouchUp(object sender, TouchEventArgs e)
+    private void OnTouchUp(object? sender, TouchEventArgs e)
     {
         try
         {
@@ -525,12 +525,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         catch { }
     }
 
-    private void OnManipulationStarted(object sender, ManipulationStartedEventArgs e)
+    private void OnManipulationStarted(object? sender, ManipulationStartedEventArgs e)
     {
         _touchManipulating = true;
     }
 
-    private void OnManipulationDelta(object sender, ManipulationDeltaEventArgs e)
+    private void OnManipulationDelta(object? sender, ManipulationDeltaEventArgs e)
     {
         // 展开状态下允许触摸垂直滚动歌词
         if (_vm.IsExpanded)
@@ -539,7 +539,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void OnManipulationCompleted(object sender, ManipulationCompletedEventArgs e)
+    private void OnManipulationCompleted(object? sender, ManipulationCompletedEventArgs e)
     {
         try
         {
@@ -1617,7 +1617,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var lmPush = _settings.Current.LowPowerMode ? 0.65 : 1.0;
             _pushOpacitySpring!.Configure(1.0, 0.3 * lmPush);
             _pushOpacitySpring.Start(0, 1);
-            _pushScaleSpring.Configure(0.84, 0.5 * lmPush);
+            _pushScaleSpring!.Configure(0.84, 0.5 * lmPush);
             _pushScaleSpring.Start(0.94, 1);
             return;
         }

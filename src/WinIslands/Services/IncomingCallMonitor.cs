@@ -27,8 +27,6 @@ public sealed class IncomingCallMonitor : IDisposable
 
     /// <summary>检测到通话窗口（参数：进程名, 窗口标题, 类型）。</summary>
     public event Action<string, string, CallKind>? CallStarted;
-    /// <summary>通话窗口消失（参数：进程名）。</summary>
-    public event Action<string>? CallEnded;
 
     /// <summary>启动轮询（间隔 1.5s，去抖窗口出现时序）。</summary>
     public void Start(System.Collections.Generic.IEnumerable<string> apps)

@@ -11,6 +11,14 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.9（正式版 / Stable）
+### 更新内容
+
+- **🧹 代码稳定性硬化（编译零告警）**：消除全部可空性与未等待异步告警（CS8601 / CS4014 等）——上岛推送与通知历史类型兜底、事件回调签名改为可空安全、Karaoke 渲染空值容忍、移除未使用事件；测试代码全面接入取消令牌，动画与事件链路的异常路径更少、更稳健
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
+
 ## WinIslands 2.1.8（正式版 / Stable）
 ### 更新内容
 
@@ -24,6 +32,14 @@
 - **🧈 交叉淡入 / 内容生长改用 iOS 非线性曲线**：展开时内容透明度改用 SmoothStep（起止两端零斜率），内容缩放与位移动画改用 EaseOutQuad（起步快、收尾缓），收起时反向缓入——整段过渡不再线性机械，观感更接近 iOS 灵动岛的「形状先导、内容跟随」
 - **📐 DPI 切换后展开高度自动重测**：显示器缩放比例变化（120% / 150% / 200% 之间切换）会改变字体渲染尺寸，此时旧的展开目标高度缓存自动失效，下一次展开前重新测量，避免内容被裁切或上下留白不均
 - **🧪 回归测试**：278 项单元测试全部通过（新增 SmoothStep / EaseOutQuad 曲线端点与中点、内容生长与收拢单调性等专项测试）
+
+---
+
+## WinIslands 2.1.9 (Stable)
+### What's New
+
+- **🧹 Code-stability hardening (zero build warnings)**: resolved every nullability / unawaited-async warning (CS8601 / CS4014 etc.) — type fallbacks for island pushes & notification history, nullable-safe event callback signatures, Karaoke render null tolerance, removed unused events; test code now passes cancellation tokens end-to-end, leaving fewer null-reference and fire-and-forget failure paths across animation & event flows
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
 
 ---
 

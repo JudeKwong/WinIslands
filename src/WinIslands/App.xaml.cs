@@ -120,7 +120,7 @@ AppPaths.EnsureDirectories();
         _bluetooth.DeviceConnected += async (_, name) =>
         {
             var battery = await _bluetooth.GetBatteryLevelAsync(name); // 异步读电量，失败返回 null，不阻塞 UI
-            Dispatcher.BeginInvoke(() => _vm?.ShowDeviceEvent("bt:conn:" + name, connected: true, deviceName: name, batteryPercent: battery));
+            _ = Dispatcher.BeginInvoke(() => _vm?.ShowDeviceEvent("bt:conn:" + name, connected: true, deviceName: name, batteryPercent: battery));
         };
         _bluetooth.DeviceDisconnected += (_, name) => Dispatcher.BeginInvoke(() =>
             _vm?.ShowDeviceEvent("bt:disc:" + name, connected: false, deviceName: name, batteryPercent: null));
@@ -305,7 +305,8 @@ AppPaths.EnsureDirectories();
         RecreateWindows();
 
         // ── 迷你播放器（独立悬浮小窗，按需创建并跟随媒体状态显隐）──
-        _vm.PropertyChanged += (_, e) =>
+        if (_vm is null) return;
+            _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IslandViewModel.HasMedia)) UpdateMiniPlayerVisibility();
         };
@@ -586,7 +587,7 @@ AppPaths.EnsureDirectories();
             if (_updater is null) return;
             var hasNew = await _updater.CheckAsync();
             if (!hasNew && showWhenUpToDate)
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("update:none",
+                _ = Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("update:none",
                     Localization.Get("Update_Title"), Localization.Get("Update_None"), "\uE72E", "info", 5));
         }
         catch (Exception ex)
@@ -669,6 +670,7 @@ AppPaths.EnsureDirectories();
             _pluginManager.Activate();
             return;
         }
+        if (_theme is null) return;
         _pluginManager = new PluginManagerWindow(_plugins, _theme);
         _pluginManager.Closed += (_, _) => _pluginManager = null;
         _pluginManager.Show();
@@ -769,7 +771,7 @@ AppPaths.EnsureDirectories();
     /// <summary>迷你播放器显隐策略：开关开启且正在播放媒体时显示，否则隐藏并保存位置。</summary>
     private void UpdateMiniPlayerVisibility()
     {
-        if (_settings is null || _vm is null) return;
+        if (_settings is null || _vm is null || _theme is null) return;
         var s = _settings.Current;
         if (s.MiniPlayerEnabled && _vm.HasMedia)
         {

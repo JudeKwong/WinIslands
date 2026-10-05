@@ -82,9 +82,9 @@ public class IslandPushTests : IDisposable
             """{"id":"t1","title":"T","theme":"dark","buttons":[{"label":"Run","action":"command","value":"notepad.exe"}]}""");
         Assert.NotNull(push);
         Assert.Equal("dark", push!.Theme);
-        Assert.Single(push.Buttons!);
-        Assert.Equal("command", push.Buttons[0].Action);
-        Assert.Equal("notepad.exe", push.Buttons[0].Value);
+        var btn = Assert.Single(push.Buttons!);
+        Assert.Equal("command", btn.Action);
+        Assert.Equal("notepad.exe", btn.Value);
     }
 
     [Fact]

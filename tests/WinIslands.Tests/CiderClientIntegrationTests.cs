@@ -31,13 +31,13 @@ public sealed class CiderClientIntegrationTests : IDisposable
     [Fact]
     public async Task Connects_V3_And_Reads_Snapshot_And_Lyrics()
     {
-        var ok = await _client.ConnectAsync(_server.Port);
+        var ok = await _client.ConnectAsync(_server.Port, TestContext.Current.CancellationToken);
         Assert.True(ok, _client.LastError);
         Assert.True(_client.IsConnected);
         Assert.Equal(CiderApiProfile.V3, _client.Profile);
 
         // 快照：曲目 + 显式播放状态
-        var snap = await _client.GetSnapshotAsync();
+        var snap = await _client.GetSnapshotAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(snap);
         Assert.Equal("Mock Song 测试", snap!.Track.Title);
         Assert.Equal("Mock Artist", snap.Track.Artist);
@@ -46,7 +46,7 @@ public sealed class CiderClientIntegrationTests : IDisposable
         Assert.True(snap.HasVolumeControl);
 
         // 歌词：模拟返回纯 LRC
-        var lrc = await _client.GetLyricsAsync();
+        var lrc = await _client.GetLyricsAsync(null, TestContext.Current.CancellationToken);
         Assert.NotNull(lrc);
         Assert.Contains("作词：林夕", lrc);
         Assert.Contains("[00:03.00]", lrc);
@@ -55,18 +55,18 @@ public sealed class CiderClientIntegrationTests : IDisposable
     [Fact]
     public async Task Control_And_Volume_Endpoints_Are_Called()
     {
-        await _client.ConnectAsync(_server.Port);
+        await _client.ConnectAsync(_server.Port, TestContext.Current.CancellationToken);
 
-        Assert.True(await _client.TogglePlayPauseAsync());
-        Assert.True(await _client.NextAsync());
-        Assert.True(await _client.PreviousAsync());
-        Assert.True(await _client.PlayAsync());
-        Assert.True(await _client.PauseAsync());
-        Assert.True(await _client.SeekAsync(42.5));
+        Assert.True(await _client.TogglePlayPauseAsync(TestContext.Current.CancellationToken));
+        Assert.True(await _client.NextAsync(TestContext.Current.CancellationToken));
+        Assert.True(await _client.PreviousAsync(TestContext.Current.CancellationToken));
+        Assert.True(await _client.PlayAsync(TestContext.Current.CancellationToken));
+        Assert.True(await _client.PauseAsync(TestContext.Current.CancellationToken));
+        Assert.True(await _client.SeekAsync(42.5, TestContext.Current.CancellationToken));
 
-        var vol = await _client.GetVolumeAsync();
+        var vol = await _client.GetVolumeAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0.7, vol);
-        Assert.True(await _client.SetVolumeAsync(0.35));
+        Assert.True(await _client.SetVolumeAsync(0.35, TestContext.Current.CancellationToken));
 
         var posted = _server.Posts.ToArray();
         Assert.Contains("/api/v1/playback/playpause", posted);
@@ -81,8 +81,8 @@ public sealed class CiderClientIntegrationTests : IDisposable
     [Fact]
     public async Task Auth_Header_Sent_When_Token_Configured()
     {
-        await _client.ConnectAsync(_server.Port);
-        await _client.GetSnapshotAsync();
+        await _client.ConnectAsync(_server.Port, TestContext.Current.CancellationToken);
+        await _client.GetSnapshotAsync(TestContext.Current.CancellationToken);
         Assert.Contains("apptoken: test-token", _server.HeadersSeen, StringComparer.OrdinalIgnoreCase);
     }
 

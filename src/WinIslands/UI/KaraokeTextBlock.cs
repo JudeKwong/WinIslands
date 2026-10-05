@@ -565,8 +565,8 @@ public class KaraokeTextBlock : TextBlock
         {
             _lastLitChars = litChars;
             _litRun.Text = litChars > 0 ? text.Substring(0, litChars) : string.Empty;
-            _blendRun.Text = litChars < len ? text[litChars].ToString() : string.Empty;
-            _restRun.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
+            _blendRun!.Text = litChars < len ? text[litChars].ToString() : string.Empty;
+            _restRun!.Text = litChars + 1 < len ? text.Substring(litChars + 1) : string.Empty;
         }
 
         if (!ColorEqual(_litBrush!.Color, hl)) _litBrush.Color = hl;

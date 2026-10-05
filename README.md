@@ -8,6 +8,8 @@
 
 > **说明 / Note**: 以简体中文为标准 · Simplified Chinese is the standard reference.
 
+- **🧹 代码稳定性硬化（2.1.9）**：编译零告警——消除全部可空性 / 未等待异步告警，上岛推送、通知历史、Karaoke 渲染与事件回调全面空值兜底，测试代码全部接入取消令牌，动画与事件链路更稳健。
+- **🧪 回归测试（2.1.9）**：278 项单元测试全部通过，编译零警告。
 - **🌊 音频声纹发布频率跟随显示器刷新率（2.1.8）**：声纹采集不再固定 60Hz 发布，而是以当前显示器刷新率为发布节奏（120Hz 屏约 8.3ms/帧、60Hz 屏 16ms/帧），高刷屏上波纹不再以 60Hz 跳变，跟随音乐更连贯。
 - **🧪 回归测试（2.1.8）**：278 项单元测试全部通过。
 - **🧈 交叉淡入 / 内容生长改用 iOS 非线性曲线（2.1.7）**：展开时内容透明度改用 SmoothStep（起止两端零斜率、不机械线性），内容缩放与位移改用 EaseOutQuad（起步快、收尾缓），收起时反向缓入——「形状先导、内容跟随」的观感更接近 iOS 灵动岛。
@@ -203,15 +205,15 @@
 
 ---
 
-## 📥 下载（最新稳定版 2.1.8）
+## 📥 下载（最新稳定版 2.1.9）
 
 | 平台 | 下载 | 说明 |
 | --- | --- | --- |
-| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
-| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
-| macOS (Apple 芯片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Apple 芯片 Mac（M1 及更新机型） |
-| macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Intel 芯片 Mac |
-| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
+| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
+| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
+| macOS (Apple 芯片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Apple 芯片 Mac（M1 及更新机型） |
+| macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Intel 芯片 Mac |
+| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
 
 > ⚠️ macOS 版为实验性版本：部分功能可能不完整，可能存在较多 BUG，且尚未经过充分测试，请谨慎使用。
 
@@ -460,15 +462,15 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 下載（最新穩定版 2.1.8）
+## 📥 下載（最新穩定版 2.1.9）
 
 | 平台 | 下載 | 說明 |
 | --- | --- | --- |
-| Windows x64 | [x64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | 主流 64 位元電腦首選，單檔免安裝，直接執行 |
-| Windows ARM64 | [ARM64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Surface Pro X / 驍龍機型等 ARM 裝置 |
-| macOS (Apple 晶片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Apple 晶片 Mac（M1 及更新機型） |
-| macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Intel 晶片 Mac |
-| Windows 通用 | [通用安裝包](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Inno Setup 安裝精靈，x64 / ARM64 自動依架構安裝 |
+| Windows x64 | [x64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | 主流 64 位元電腦首選，單檔免安裝，直接執行 |
+| Windows ARM64 | [ARM64 攜帶版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Surface Pro X / 驍龍機型等 ARM 裝置 |
+| macOS (Apple 晶片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Apple 晶片 Mac（M1 及更新機型） |
+| macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Intel 晶片 Mac |
+| Windows 通用 | [通用安裝包](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Inno Setup 安裝精靈，x64 / ARM64 自動依架構安裝 |
 
 > ⚠️ macOS 版為實驗性版本：部分功能可能不完整，可能存在較多 BUG，且尚未經過充分測試，請謹慎使用。
 
@@ -717,15 +719,15 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 Download (latest stable 2.1.8)
+## 📥 Download (latest stable 2.1.9)
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
-| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Apple Silicon Macs (M1 and newer) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Intel Macs |
-| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
+| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
+| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
+| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Apple Silicon Macs (M1 and newer) |
+| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Intel Macs |
+| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
 
 > ⚠️ macOS build is experimental: some features may be incomplete, it may contain bugs, and it has not been fully tested. Use with caution.
 
@@ -974,15 +976,15 @@ Use Tray menu → Quit; closing the island window only hides it (tray-resident b
 
 ---
 
-## 📥 Descargas (última estable 2.1.8)
+## 📥 Descargas (última estable 2.1.9)
 
 | Plataforma | Descarga | Notas |
 | --- | --- | --- |
-| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | Para PCs de 64 bits convencionales; archivo único, sin instalación |
-| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Macs con chip Apple (M1 y posteriores) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Macs Intel |
-| Windows Universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Asistente Inno Setup; instala x64 / ARM64 según la arquitectura |
+| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | Para PCs de 64 bits convencionales; archivo único, sin instalación |
+| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
+| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Macs con chip Apple (M1 y posteriores) |
+| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Macs Intel |
+| Windows Universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Asistente Inno Setup; instala x64 / ARM64 según la arquitectura |
 
 > ⚠️ La versión de macOS es experimental: algunas funciones pueden estar incompletas, puede contener errores y no se ha probado por completo. Úsala con precaución.
 
@@ -1231,15 +1233,15 @@ Usa Menú de la bandeja → Salir; cerrar la ventana de la isla solo la oculta (
 
 ---
 
-## 📥 Téléchargement (dernière version stable 2.1.8)
+## 📥 Téléchargement (dernière version stable 2.1.9)
 
 | Plateforme | Téléchargement | Notes |
 | --- | --- | --- |
-| Windows x64 | [Portable x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | Le choix recommandé pour les PC 64 bits ; fichier unique, sans installation, exécution directe |
-| Windows ARM64 | [Portable ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Pour Surface Pro X / appareils ARM Snapdragon |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Mac à puce Apple (M1 et plus récents) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Mac Intel |
-| Windows universel | [Installeur universel](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Assistant Inno Setup ; installe x64 / ARM64 selon l'architecture |
+| Windows x64 | [Portable x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | Le choix recommandé pour les PC 64 bits ; fichier unique, sans installation, exécution directe |
+| Windows ARM64 | [Portable ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Pour Surface Pro X / appareils ARM Snapdragon |
+| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Mac à puce Apple (M1 et plus récents) |
+| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Mac Intel |
+| Windows universel | [Installeur universel](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Assistant Inno Setup ; installe x64 / ARM64 selon l'architecture |
 
 > ⚠️ La version macOS est expérimentale : certaines fonctionnalités peuvent être incomplètes, elle peut contenir des bogues et n'a pas été entièrement testée. À utiliser avec précaution.
 
@@ -1494,15 +1496,15 @@ Menu de la barre d'état → Quitter ; fermer la fenêtre de l'île ne fait que 
 
 ---
 
-## 📥 التحميل (آخر إصدار مستقر 2.1.8)
+## 📥 التحميل (آخر إصدار مستقر 2.1.9)
 
 | النظام | التحميل | ملاحظات |
 | --- | --- | --- |
-| Windows x64 | [نسخة محمولة x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | الخيار الأول لأجهزة 64 بت الشائعة؛ ملف واحد بدون تثبيت، يعمل مباشرة |
-| Windows ARM64 | [نسخة محمولة ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | لأجهزة Surface Pro X / أجهزة ARM Snapdragon |
-| macOS (Apple Silicon) | [إصدار arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | أجهزة Mac بشريحة Apple (M1 والأحدث) |
-| macOS (Intel) | [إصدار x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | أجهزة Mac بمعالج Intel |
-| Windows شامل | [مثبّت شامل](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | معالج Inno Setup؛ يثبّت x64 / ARM64 حسب البنية |
+| Windows x64 | [نسخة محمولة x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | الخيار الأول لأجهزة 64 بت الشائعة؛ ملف واحد بدون تثبيت، يعمل مباشرة |
+| Windows ARM64 | [نسخة محمولة ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | لأجهزة Surface Pro X / أجهزة ARM Snapdragon |
+| macOS (Apple Silicon) | [إصدار arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | أجهزة Mac بشريحة Apple (M1 والأحدث) |
+| macOS (Intel) | [إصدار x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | أجهزة Mac بمعالج Intel |
+| Windows شامل | [مثبّت شامل](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | معالج Inno Setup؛ يثبّت x64 / ARM64 حسب البنية |
 
 > ⚠️ إصدار macOS تجريبي: قد تكون بعض الميزات غير مكتملة، وقد يحتوي على أخطاء، ولم يتم اختباره بالكامل. يُرجى استخدامه بحذر.
 
@@ -1751,15 +1753,15 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 Скачать (последняя стабильная версия 2.1.8)
+## 📥 Скачать (последняя стабильная версия 2.1.9)
 
 | Платформа | Скачать | Примечания |
 | --- | --- | --- |
-| Windows x64 | [Портативная x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | Рекомендуется для обычных 64-битных ПК; один файл, без установки, запуск сразу |
-| Windows ARM64 | [Портативная ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Для Surface Pro X / устройств ARM Snapdragon |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Mac на чипе Apple (M1 и новее) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Mac на Intel |
-| Windows универсальная | [Универсальный установщик](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Мастер Inno Setup; устанавливает x64 / ARM64 в зависимости от архитектуры |
+| Windows x64 | [Портативная x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | Рекомендуется для обычных 64-битных ПК; один файл, без установки, запуск сразу |
+| Windows ARM64 | [Портативная ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Для Surface Pro X / устройств ARM Snapdragon |
+| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Mac на чипе Apple (M1 и новее) |
+| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Mac на Intel |
+| Windows универсальная | [Универсальный установщик](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Мастер Inno Setup; устанавливает x64 / ARM64 в зависимости от архитектуры |
 
 > ⚠️ Версия для macOS является экспериментальной: отдельные функции могут быть неполными, возможны ошибки, версия не полностью протестирована. Используйте с осторожностью.
 
@@ -2014,15 +2016,15 @@ dotnet test  WinIslands.slnx -c Release
 
 ---
 
-## 📥 Download (última versão estável 2.1.8)
+## 📥 Download (última versão estável 2.1.9)
 
 | Plataforma | Download | Observações |
 | --- | --- | --- |
-| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-x64.exe) | Recomendado para PCs 64 bits comuns; arquivo único, sem instalação, execução direta |
-| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-arm64.zip) | Macs com chip Apple (M1 e mais recentes) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-2.1.8-osx-x64.zip) | Macs Intel |
-| Windows universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.1.8/WinIslands-Setup-2.1.8.exe) | Assistente Inno Setup; instala x64 / ARM64 conforme a arquitetura |
+| Windows x64 | [Portátil x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-x64.exe) | Recomendado para PCs 64 bits comuns; arquivo único, sem instalação, execução direta |
+| Windows ARM64 | [Portátil ARM64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-win-arm64.exe) | Para Surface Pro X / dispositivos ARM Snapdragon |
+| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-arm64.zip) | Macs com chip Apple (M1 e mais recentes) |
+| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-2.1.9-osx-x64.zip) | Macs Intel |
+| Windows universal | [Instalador universal](https://github.com/JudeKwong/WinIslands/releases/download/2.1.9/WinIslands-Setup-2.1.9.exe) | Assistente Inno Setup; instala x64 / ARM64 conforme a arquitetura |
 
 > ⚠️ A versão para macOS é experimental: alguns recursos podem estar incompletos, pode conter bugs e não foi totalmente testada. Use com cautela.
 
