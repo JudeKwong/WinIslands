@@ -54,9 +54,9 @@ public sealed class CrossFadeCurvesTests
         // 展开中途点收起时（v 在 0.2~0.5 之间）胶囊行立即接棒，消除空洞期
         Assert.Equal(0.0, CrossFadeCurves.PillOpacity(1.0, expand: false), 6);
         Assert.Equal(0.0, CrossFadeCurves.PillOpacity(0.6, expand: false), 6);
-        Assert.InRange(CrossFadeCurves.PillOpacity(0.4, expand: false), 0.15, 0.25);
+        Assert.InRange(CrossFadeCurves.PillOpacity(0.4, expand: false), 0.09, 0.12); // SmoothStep(0.2)=0.104，2.1.7 变为平滑过渡
         Assert.InRange(CrossFadeCurves.PillOpacity(0.25, expand: false), 0.45, 0.55);
-        Assert.InRange(CrossFadeCurves.PillOpacity(0.2, expand: false), 0.55, 0.65);
+        Assert.InRange(CrossFadeCurves.PillOpacity(0.2, expand: false), 0.63, 0.67); // SmoothStep(0.6)=0.648，2.1.7 变为平滑过渡
         Assert.Equal(1.0, CrossFadeCurves.PillOpacity(0.0, expand: false), 6);
     }
 
@@ -82,7 +82,7 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(1.0, s1, 6);
         Assert.Equal(0.0, y1, 6);
         var (sm, ym) = CrossFadeCurves.ContentParallax(0.5, expand: true);
-        Assert.InRange(sm, 0.955, 0.965); // 0.92 -> 1.0 的中点
+        Assert.InRange(sm, 0.975, 0.985); // EaseOutQuad(0.5)=0.75 → 0.92+0.08·0.75=0.98，2.1.7 内容生长改为缓出 // 0.92 -> 1.0 的中点
         Assert.Equal(0.0, ym, 6);         // 中心缩放：无垂直位移
     }
 
@@ -111,5 +111,66 @@ public sealed class CrossFadeCurvesTests
         var (sx, yx) = CrossFadeCurves.ContentParallax(2.0, expand: true);
         Assert.Equal(1.0, sx, 6);
         Assert.Equal(0.0, yx, 6);
+    }
+
+    [Fact]
+    public void SmoothStep_EndpointsAndMidpoint()
+    {
+        // Smoothstep：两端零斜率、严格 0→1，中点恰为 0.5（iOS 交叉淡入/淡出曲线）
+        Assert.Equal(0.0, CrossFadeCurves.SmoothStep(0.0), 9);
+        Assert.Equal(1.0, CrossFadeCurves.SmoothStep(1.0), 9);
+        Assert.Equal(0.5, CrossFadeCurves.SmoothStep(0.5), 9);
+        Assert.Equal(1.0, CrossFadeCurves.SmoothStep(1.7), 9); // 越界钳制
+        Assert.Equal(0.0, CrossFadeCurves.SmoothStep(-0.3), 9);
+    }
+
+    [Fact]
+    public void EaseOutQuad_EndpointsAndMidpoint()
+    {
+        // 二次缓出：0→0、1→1，中点为 0.75（起步快、收尾慢的增长节奏）
+        Assert.Equal(0.0, CrossFadeCurves.EaseOutQuad(0.0), 9);
+        Assert.Equal(1.0, CrossFadeCurves.EaseOutQuad(1.0), 9);
+        Assert.Equal(0.75, CrossFadeCurves.EaseOutQuad(0.5), 9);
+        Assert.Equal(1.0, CrossFadeCurves.EaseOutQuad(1.2), 9);
+        Assert.Equal(0.0, CrossFadeCurves.EaseOutQuad(-1.0), 9);
+    }
+
+    [Fact]
+    public void Parallax_Expand_ScaleMonotonicAndEased()
+    {
+        // 2.1.7：内容生长按 EaseOutQuad 非线性推进（起步快、收尾缓），且随透明度严格单调增
+        double prev = -1;
+        for (var i = 0; i <= 40; i++)
+        {
+            var v = i / 40.0;
+            var (s, _) = CrossFadeCurves.ContentParallax(v, expand: true);
+            Assert.True(s >= prev, $"scale must not decrease at v={v}");
+            prev = s;
+        }
+        // EaseOutQuad 使中段领先线性：v=0.5 时 scale=0.98 > 线性中点 0.96
+        var (sm, _) = CrossFadeCurves.ContentParallax(0.5, expand: true);
+        Assert.InRange(sm, 0.975, 0.985);
+    }
+
+    [Fact]
+    public void Parallax_Collapse_ScaleRetreatsEased()
+    {
+        // 2.1.7：收拢时 opacity v 由 1 → 0，scale 由 1 → 0.93（在 v 增大的方向上单调递增），
+        // 即随收起进度以 EaseInQuad 节奏收缩（收起时间轴上看是快起慢落），终值精确。
+        var (s1, _) = CrossFadeCurves.ContentParallax(1.0, expand: false);
+        Assert.Equal(1.0, s1, 9);
+        var (s0, _) = CrossFadeCurves.ContentParallax(0.0, expand: false);
+        Assert.Equal(CrossFadeCurves.CollapseParallaxScaleTo, s0, 9);
+        double prev = -1;
+        for (var i = 0; i <= 40; i++)
+        {
+            var v = i / 40.0;
+            var (s, _) = CrossFadeCurves.ContentParallax(v, expand: false);
+            Assert.True(s >= prev, $"scale must not decrease at v={v}");
+            prev = s;
+        }
+        // EaseInQuad(v)：v=0.5 时 scale = 0.93 + 0.07*0.25 = 0.9475（慢于线性推进）
+        var (sm, _) = CrossFadeCurves.ContentParallax(0.5, expand: false);
+        Assert.InRange(sm, 0.945, 0.95);
     }
 }

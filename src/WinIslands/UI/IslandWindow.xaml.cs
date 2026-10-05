@@ -476,6 +476,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PreviewTouchDown += (_, _) => { /* 确保触摸事件不被子元素吞掉 */};
         DpiChanged += (_, _) =>
         {
+            _expandedHeightDirty = true; // DPI 变化影响字体渲染尺寸，展开目标高度缓存失效，下次展开前重测（2.1.7）
             Reposition();
             ApplySize(); // DPI 变化时重新计算卡片尺寸（多显示器不同缩放比场景）
             ApplyAppearance(); // 刷新外观确保字体渲染正确

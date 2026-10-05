@@ -39,11 +39,11 @@ public static class CrossFadeCurves
         var v = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : 0.0;
         if (expand)
         {
-            // v: 0→1，胶囊行在 v∈[0, 0.25] 内淡出
-            return Math.Clamp(1 - v / 0.25, 0.0, 1.0);
+            // v: 0→1，胶囊行在 v∈[0, 0.25] 内平滑淡出让位（SmoothStep：两端零斜率，iOS 交叉淡出手感）
+            return 1.0 - SmoothStep(Math.Clamp(v / 0.25, 0.0, 1.0));
         }
-        // 收起：v 由 1→0，胶囊行在 v∈[0.2, 0] 内淡入
-        return Math.Clamp((0.5 - v) / 0.5, 0.0, 1.0);
+        // 收起：v 由 1→0，胶囊行在 v∈[0.5, 0] 内平滑淡入（SmoothStep：与内容淡出重叠交叉，不线性硬切）
+        return SmoothStep(Math.Clamp((0.5 - v) / 0.5, 0.0, 1.0));
     }
 
     // Reappear window constant shared by PillOpacity (collapse) so mid-flight
@@ -67,14 +67,31 @@ public static class CrossFadeCurves
     public static (double Scale, double TranslateY) ContentParallax(double expandedOpacity, bool expand)
     {
         var t = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+        // iOS 节奏：生长用二次缓出（起步快、收尾缓），收拢用缓入（先缓后快），
+        // 内容随卡片形变始终非线性推进，避免线性淡入/缩放的“机械感”。
+        var grow = expand ? EaseOutQuad(t) : 1.0 - EaseOutQuad(1.0 - t);
         if (expand)
         {
-            var scale = ExpandParallaxScaleFrom + (1.0 - ExpandParallaxScaleFrom) * t;
-            var y = ExpandParallaxYFrom * (1.0 - t);
+            var scale = ExpandParallaxScaleFrom + (1.0 - ExpandParallaxScaleFrom) * grow;
+            var y = ExpandParallaxYFrom * (1.0 - grow);
             return (scale, y);
         }
-        var cs = CollapseParallaxScaleTo + (1.0 - CollapseParallaxScaleTo) * t;
-        var cy = CollapseParallaxYTo * (1.0 - t);
+        var cs = CollapseParallaxScaleTo + (1.0 - CollapseParallaxScaleTo) * grow;
+        var cy = CollapseParallaxYTo * (1.0 - grow);
         return (cs, cy);
+    }
+
+    /// <summary>Smoothstep 缓动：0→1 平滑插值，两端零斜率（iOS 交叉淡入/淡出曲线）。</summary>
+    public static double SmoothStep(double x)
+    {
+        x = Math.Clamp(x, 0.0, 1.0);
+        return x * x * (3.0 - 2.0 * x);
+    }
+
+    /// <summary>二次缓出：起步快、收尾慢（iOS 内容“生长”节奏）。</summary>
+    public static double EaseOutQuad(double t)
+    {
+        t = Math.Clamp(t, 0.0, 1.0);
+        return t * (2.0 - t);
     }
 }

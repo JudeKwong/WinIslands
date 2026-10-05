@@ -11,7 +11,24 @@
 ---
 
 ## 简体中文
-## WinIslands 2.1.6（正式版 / Stable）
+## WinIslands 2.1.7（正式版 / Stable）
+### 更新内容
+
+- **🧈 交叉淡入 / 内容生长改用 iOS 非线性曲线**：展开时内容透明度改用 SmoothStep（起止两端零斜率），内容缩放与位移动画改用 EaseOutQuad（起步快、收尾缓），收起时反向缓入——整段过渡不再线性机械，观感更接近 iOS 灵动岛的「形状先导、内容跟随」
+- **📐 DPI 切换后展开高度自动重测**：显示器缩放比例变化（120% / 150% / 200% 之间切换）会改变字体渲染尺寸，此时旧的展开目标高度缓存自动失效，下一次展开前重新测量，避免内容被裁切或上下留白不均
+- **🧪 回归测试**：278 项单元测试全部通过（新增 SmoothStep / EaseOutQuad 曲线端点与中点、内容生长与收拢单调性等专项测试）
+
+---
+
+## WinIslands 2.1.7 (Stable)
+### What's New
+
+- **🧈 iOS-style non-linear curves for cross-fade & content growth**: expanded-content fades now use SmoothStep (zero slope at both ends) and content scale/offset follows EaseOutQuad (fast start, gentle finish), while collapsing eases in reverse — no more mechanical linear transitions, matching the iOS Dynamic Island "shape leads, content follows" feel
+- **📐 Expanded-height cache auto-invalidates on DPI change**: switching display scaling (120%/150%/200%) changes font metrics, so the cached expanded height now invalidates and remeasures before the next expand, preventing clipped or unevenly padded expanded content
+- **🧪 Regression**: all 278 unit tests pass (new SmoothStep / EaseOutQuad endpoint & midpoint checks plus content scale monotonicity tests)
+
+---
+
 ### 更新内容
 
 - **📐 展开动画目标高度缓存**：展开时优先复用上一次计算好的目标高度，歌曲 / 组件信息在动画期间变化时卡片不再「呼吸」抖动；内容、设置或上岛推送变化时才重新计算
