@@ -586,7 +586,7 @@
                                             <Grid MaxWidth="220" ClipToBounds="True">
                                             <TextBlock Text="{Binding DataContext.Title, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="12" FontWeight="SemiBold"
                                                        Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
-                                                       karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}" karaoke:FadeOnTextChange.Enabled="True"
                                                        VerticalAlignment="Center"/>
                                         </Grid>
                                             <!-- 播放来源徽标（如 Spotify / 网易云音乐），无来源名时隐藏 -->
@@ -596,7 +596,7 @@
                                                            Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding DataContext.Artist, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="10" Margin="0,1,0,0"
+                                        <TextBlock Text="{Binding DataContext.Artist, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="10" Margin="0,1,0,0" karaoke:FadeOnTextChange.Enabled="True"
                                                    Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                                    TextTrimming="CharacterEllipsis"/>
                                         <Grid MaxWidth="300" ClipToBounds="True">
@@ -631,10 +631,10 @@
                                         <Grid MaxWidth="140" ClipToBounds="True">
                                         <TextBlock Text="{Binding DataContext.Title, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="12" FontWeight="SemiBold"
                                                    Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
-                                                   karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}" karaoke:FadeOnTextChange.Enabled="True"
                                                    VerticalAlignment="Center"/>
                                     </Grid>
-                                        <TextBlock Text="{Binding DataContext.Artist, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="10" Margin="6,0,0,0"
+                                        <TextBlock Text="{Binding DataContext.Artist, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="10" Margin="6,0,0,0" karaoke:FadeOnTextChange.Enabled="True"
                                                    Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                                    TextTrimming="CharacterEllipsis" MaxWidth="100" VerticalAlignment="Center"/>
                                         <TextBlock Text="&#x00B7;" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
@@ -654,7 +654,7 @@
                                             BaseBrush="{Binding CompactLyricBaseBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#A0FFFFFF}"
                                             FontSize="11" Margin="8,0,0,0"
                                             TextAlignment="Left" FontWeight="SemiBold"
-                                            karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            karaoke:Marquee.IsEnabled="{Binding MarqueeEnabled, RelativeSource={RelativeSource AncestorType=Window}}" karaoke:FadeOnTextChange.Enabled="True"
                                             VerticalAlignment="Center"/>
                                     </Grid>
                                     </StackPanel>
@@ -952,11 +952,11 @@
                             </Border>
                             <!-- 信息叠加 -->
                             <StackPanel VerticalAlignment="Bottom" Margin="16,0,16,14">
-                                <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                            Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Artist}" FontSize="12.5" Margin="0,2,0,0"
+                                <TextBlock Text="{Binding Artist}" FontSize="12.5" Margin="0,2,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                            Foreground="White" Opacity="0.88" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Album}" FontSize="11" Margin="0,2,0,0"
+                                <TextBlock Text="{Binding Album}" FontSize="11" Margin="0,2,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                            Foreground="White" Opacity="0.66" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </Grid>
@@ -984,13 +984,13 @@
                             </Grid>
                         </Border>
                         <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"
+                            <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                        Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Artist}" FontSize="12.5" Margin="0,2,0,0"
+                            <TextBlock Text="{Binding Artist}" FontSize="12.5" Margin="0,2,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                        Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Album}" FontSize="11" Margin="0,2,0,0"
+                            <TextBlock Text="{Binding Album}" FontSize="11" Margin="0,2,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                        Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                        TextTrimming="CharacterEllipsis"/>
                         </StackPanel>

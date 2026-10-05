@@ -11,6 +11,15 @@
 ---
 
 ## 简体中文
+## WinIslands 2.2.0（正式版 / Stable）
+### 更新内容
+
+- **✨ iOS 式文本切换过渡（杜绝“文字突跳”）**：歌名 / 歌手 / 专辑等媒体信息切换时不再硬切——透明度先柔和跌到 0.25（85ms 缓入）再以 EaseOut 弹回原值（260ms），大封面 / 展开卡还叠加 6px 上移归位的细腻位移；换歌时文字像 iOS「正在播放」一样顺滑刷新，任意状态下切歌都不再突兀
+- **🧠 常驻内存进一步下降**：工作集修剪阈值 120MB → 96MB、修剪间隔 3 分钟 → 2 分钟；播放中只要没有展开动画 / 弹簧运动也会安全修剪，空闲占用更低
+- **🛠️ 修复紧凑卡 XAML 标记残留**：移除自闭合标签后多余字符，展开 / 单行模式下切歌不再产生解析异常
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
 ## WinIslands 2.1.9（正式版 / Stable）
 ### 更新内容
 
@@ -35,6 +44,16 @@
 
 ---
 
+## WinIslands 2.2.0 (Stable)
+### What's New
+
+- **✨ iOS-style text-swap transition (no more abrupt text pops)**: media info (title / artist / album) no longer hard-cuts — opacity eases down to 0.25 (85ms ease-in) and springs back with EaseOut (260ms), with an optional 6px slide-up on the big-cover / expanded cards; switching songs refreshes text the way iOS "Now Playing" does, smoothly from any state
+- **🧠 Lower resident memory**: working-set trim threshold 120MB → 96MB, trim interval 3min → 2min; memory is also safely trimmed during playback as long as no card spring is running — lower idle footprint
+- **🛠️ Fixed stray XAML tokens in the compact card**: removed leftover characters after self-closing tags, so song switches while expanded / single-line no longer risk a parse failure
+- **🧪 Regression**: all 278 unit tests pass with zero build warnings
+
+---
+
 ## WinIslands 2.1.9 (Stable)
 ### What's New
 
@@ -42,7 +61,6 @@
 - **🧪 Regression**: all 278 unit tests pass with zero build warnings
 
 ---
-
 ## WinIslands 2.1.8 (Stable)
 ### What's New
 
@@ -102,6 +120,15 @@
 ---
 
 ## 简体中文
+## WinIslands 2.2.0（正式版 / Stable）
+### 更新内容
+
+- **✨ iOS 式文本切换过渡（杜绝“文字突跳”）**：歌名 / 歌手 / 专辑等媒体信息切换时不再硬切——透明度先柔和跌到 0.25（85ms 缓入）再以 EaseOut 弹回原值（260ms），大封面 / 展开卡还叠加 6px 上移归位的细腻位移；换歌时文字像 iOS「正在播放」一样顺滑刷新，任意状态下切歌都不再突兀
+- **🧠 常驻内存进一步下降**：工作集修剪阈值 120MB → 96MB、修剪间隔 3 分钟 → 2 分钟；播放中只要没有展开动画 / 弹簧运动也会安全修剪，空闲占用更低
+- **🛠️ 修复紧凑卡 XAML 标记残留**：移除自闭合标签后多余字符，展开 / 单行模式下切歌不再产生解析异常
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
 ## WinIslands 2.1.4（正式版 / Stable）
 ### 更新内容
 
@@ -147,6 +174,15 @@
 
 ---
 ## 简体中文
+## WinIslands 2.2.0（正式版 / Stable）
+### 更新内容
+
+- **✨ iOS 式文本切换过渡（杜绝“文字突跳”）**：歌名 / 歌手 / 专辑等媒体信息切换时不再硬切——透明度先柔和跌到 0.25（85ms 缓入）再以 EaseOut 弹回原值（260ms），大封面 / 展开卡还叠加 6px 上移归位的细腻位移；换歌时文字像 iOS「正在播放」一样顺滑刷新，任意状态下切歌都不再突兀
+- **🧠 常驻内存进一步下降**：工作集修剪阈值 120MB → 96MB、修剪间隔 3 分钟 → 2 分钟；播放中只要没有展开动画 / 弹簧运动也会安全修剪，空闲占用更低
+- **🛠️ 修复紧凑卡 XAML 标记残留**：移除自闭合标签后多余字符，展开 / 单行模式下切歌不再产生解析异常
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
 ## WinIslands 2.1.2（正式版 / Stable）
 ### 更新内容
 
@@ -167,6 +203,15 @@
 
 ---
 ## 简体中文
+## WinIslands 2.2.0（正式版 / Stable）
+### 更新内容
+
+- **✨ iOS 式文本切换过渡（杜绝“文字突跳”）**：歌名 / 歌手 / 专辑等媒体信息切换时不再硬切——透明度先柔和跌到 0.25（85ms 缓入）再以 EaseOut 弹回原值（260ms），大封面 / 展开卡还叠加 6px 上移归位的细腻位移；换歌时文字像 iOS「正在播放」一样顺滑刷新，任意状态下切歌都不再突兀
+- **🧠 常驻内存进一步下降**：工作集修剪阈值 120MB → 96MB、修剪间隔 3 分钟 → 2 分钟；播放中只要没有展开动画 / 弹簧运动也会安全修剪，空闲占用更低
+- **🛠️ 修复紧凑卡 XAML 标记残留**：移除自闭合标签后多余字符，展开 / 单行模式下切歌不再产生解析异常
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
 ## WinIslands 2.1.1（正式版 / Stable）
 ### 更新内容
 
@@ -185,6 +230,15 @@
 
 ---
 ## 简体中文
+## WinIslands 2.2.0（正式版 / Stable）
+### 更新内容
+
+- **✨ iOS 式文本切换过渡（杜绝“文字突跳”）**：歌名 / 歌手 / 专辑等媒体信息切换时不再硬切——透明度先柔和跌到 0.25（85ms 缓入）再以 EaseOut 弹回原值（260ms），大封面 / 展开卡还叠加 6px 上移归位的细腻位移；换歌时文字像 iOS「正在播放」一样顺滑刷新，任意状态下切歌都不再突兀
+- **🧠 常驻内存进一步下降**：工作集修剪阈值 120MB → 96MB、修剪间隔 3 分钟 → 2 分钟；播放中只要没有展开动画 / 弹簧运动也会安全修剪，空闲占用更低
+- **🛠️ 修复紧凑卡 XAML 标记残留**：移除自闭合标签后多余字符，展开 / 单行模式下切歌不再产生解析异常
+- **🧪 回归测试**：278 项单元测试全部通过，编译零警告
+
+---
 ## WinIslands 2.1.0（正式版 / Stable）
 ### 更新内容
 
@@ -1744,7 +1798,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **🩹 修复展开时的白色/黑色方框**：玻璃分层与卡片同步圆角并开启裁剪，展开时不再露出矩形边角（浅色模式白框 / 深色模式黑框），视觉更纯净
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -1766,7 +1819,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **🔋 低电量常驻指示**：电量低于阈值且未接电源时，灵动岛右上角常驻显示电量胶囊（≤10% 红色 / 其余橙色），随电量实时刷新；接上电源或电量回升后自动消失，设置中可开关。
 
 - **🎧 设备连接动画**：蓝牙设备连接/断开时展示 iOS 风格动画卡片；连接时自动读取设备电量并显示「设备名 · 电量 xx%」，读不到电量时只显示设备名，不阻塞界面。
-
 
 ## WinIslands 1.2.1（正式版 / Stable）
 
@@ -1832,7 +1884,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **动效皮肤统一提速**：iOS 弹簧 / 柔和 / 弹性 / 简洁渐隐四种动效皮肤基准时长同步缩短，保持各自风格但整体更利落
 
-
 ## WinIslands 1.1.7（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -1869,7 +1920,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - 修复上岛输入框提交问题；修复上岛按钮数据（含输入值）回传丢失问题
 
-
 ## WinIslands 1.1.5（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -1886,7 +1936,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - 紧凑态歌词间距修复：歌词与右侧按钮保持固定间距；空间不足自动扩大岛宽（720→800）
 - 稳定性：AMLL 5 秒超时 + 优雅降级；控件重新可见校准墙钟基准
-
 
 ## WinIslands 1.1.4（正式版 / Stable）
 
@@ -1909,7 +1958,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **稳定性修复**：修复启动时对剪贴板已有内容误弹「已复制」提示（启动基线）；修复日历 .ics 标题转义（\, \; \n）显示为反斜杠的问题
 
 - **性能与稳定性**：蓝牙 / SMTC / 天气接口日志降噪，天气限流指数退避；构建通过，单元与集成测试 104 项全部通过
-
 
 ## WinIslands 1.1.3（正式版 / Stable）
 
@@ -1935,7 +1983,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **性能与稳定性**：动态主题变为按需订阅合成帧（空闲 0 CPU）、渐变画刷缓存复用降低 GC 压力；修复新版本与旧版本实例同时运行互斥体冲突导致无法启动的问题
 
-
 ## WinIslands 1.1.1（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -1960,7 +2007,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **修复歌词缩放跳动**：移除卡拉OK逐字回弹位移导致的歌词「放大又缩小」抖动；展开态当前行歌词的字号 / 透明度改为 300ms 平滑过渡，滚动更丝滑稳定
 
-
 ## WinIslands 1.1.0（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -1982,7 +2028,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **卡拉OK逐字点亮回弹**：每句歌词从第一个字开始平滑点亮，带轻微回弹动效，更流畅自然
 
 - 内部轮询架构优化：隐藏状态下也能触发音量 / 复制 / 下载 / 截图等临时上岛事件
-
 
 ## WinIslands 1.0.9（正式版 / Stable）
 
@@ -2023,7 +2068,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **动画性能优化**：卡拉OK逐字复用 Run 对象（消除逐帧布局）、稳定 60fps 故事板、日志批量刷新，动画更丝滑
 
 - **移除组件上的红色角标圆点**（按用户要求）
-
 
 ## WinIslands 1.0.8（正式版 / Stable）
 
@@ -2097,7 +2141,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - Windows 通用安装包（Inno Setup，同时支持 x64 与 ARM64，自动按架构安装）
 - > 便携版为独立 exe 文件，不再提供 ZIP 压缩包。
 
-
 ## WinIslands 1.0.7（正式版 / Stable）
 
 一款现代化、多功能的 Windows 灵动岛组件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2111,7 +2154,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - 新增设置（设置 → 外观 → 声音波纹）：跟随音乐节奏开关、灵敏度 0.2–3.0、波纹高度 0.4–1.6，改动即时生效
 
 - 无音频设备 / 音频服务异常时自动降级为节拍模拟，并每 8 秒自动重试恢复实时采集，不卡死、不堆积线程
-
 
 ## WinIslands 1.0.6（正式版 / Stable）
 
@@ -2138,7 +2180,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - 资产 Assets：Windows x64 / arm64 便携版（单文件自包含，免安装直接运行）；Windows 通用安装包（Inno Setup，同时支持 x64 与 ARM64，自动按架构安装）
 
 - > 便携版为独立 exe 文件，不再提供 ZIP 压缩包。
-
 
 ## WinIslands 1.0.5（正式版 / Stable）
 
@@ -2601,7 +2642,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **🩹 修復展開時的白色/黑色方框**：玻璃分層與卡片同步圓角並開啟裁切，展開時不再露出矩形邊角（淺色模式白框 / 深色模式黑框），視覺更純淨
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 一款現代化、多功能的 Windows 動態島元件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2623,7 +2663,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **🔋 低電量常駐指示**：電量低於閾值且未接電源時，動態島右上角常駐顯示電量膠囊（≤10% 紅色 / 其餘橙色），隨電量即時刷新；接上電源或電量回升後自動消失，設定中可開關。
 
 - **🎧 裝置連線動畫**：藍牙裝置連線/中斷時展示 iOS 風格動畫卡片；連線時自動讀取裝置電量並顯示「裝置名稱 · 電量 xx%」，讀不到電量時只顯示裝置名稱，不阻塞介面。
-
 
 ## WinIslands 1.2.1（正式版 / Stable）
 
@@ -2689,7 +2728,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **動效皮膚統一提速**：iOS 彈簧 / 柔和 / 彈性 / 簡潔漸隱四種動效皮膚基準時長同步縮短，保持各自風格但整體更俐落
 
-
 ## WinIslands 1.1.7（正式版 / Stable）
 
 一款現代化、多功能的 Windows 靈動島元件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2726,7 +2764,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - 修復上島輸入框提交問題；修復上島按鈕數據（含輸入值）回傳丟失問題
 
-
 ## WinIslands 1.1.5（正式版 / Stable）
 
 一款現代化、多功能的 Windows 靈動島組件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2743,7 +2780,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - 緊湊態歌詞間距修復：歌詞與右側按鈕保持固定間距；空間不足自動擴大島寬（720→800）
 - 穩定性：AMLL 5 秒超時 + 優雅降級；控件重新可見校準牆鍾基準
-
 
 ## WinIslands 1.1.4（正式版 / Stable）
 
@@ -2766,7 +2802,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **穩定性修復**：修復啓動時對剪貼板已有內容誤彈「已複製」提示（啓動基線）；修復日曆 .ics 標題轉義（\, \; \n）顯示爲反斜槓的問題
 
 - **性能與穩定性**：藍牙 / SMTC / 天氣接口日誌降噪，天氣限流指數退避；構建通過，單元與集成測試 104 項全部通過
-
 
 ## WinIslands 1.1.3（正式版 / Stable）
 
@@ -2792,7 +2827,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **性能與穩定性**：動態主題變爲按需訂閱合成幀（空閒 0 CPU）、漸變畫刷緩存復用降低 GC 壓力；修復新版本與舊版本實例同時運行互斥體衝突導致無法啓動的問題
 
-
 ## WinIslands 1.1.1（正式版 / Stable）
 
 一款現代化、多功能的 Windows 靈動島組件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2817,7 +2851,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **修復歌詞縮放跳動**：移除卡拉OK逐字回彈位移導致的歌詞「放大又縮小」抖動；展開態當前行歌詞的字號 / 透明度改爲 300ms 平滑過渡，滾動更絲滑穩定
 
-
 ## WinIslands 1.1.0（正式版 / Stable）
 
 一款現代化、多功能的 Windows 靈動島組件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2839,7 +2872,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **卡拉OK逐字點亮回彈**：每句歌詞從第一個字開始平滑點亮，帶輕微回彈動效，更流暢自然
 
 - 內部輪詢架構優化：隱藏狀態下也能觸發音量 / 複製 / 下載 / 截圖等臨時上島事件
-
 
 ## WinIslands 1.0.9（正式版 / Stable）
 
@@ -2880,7 +2912,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **動畫性能優化**：卡拉OK逐字復用 Run 對象（消除逐幀布局）、穩定 60fps 故事板、日誌批量刷新，動畫更絲滑
 
 - **移除組件上的紅色角標圓點**（按用戶要求）
-
 
 ## WinIslands 1.0.8（正式版 / Stable）
 
@@ -2954,7 +2985,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - Windows 通用安裝包（Inno Setup，同時支持 x64 與 ARM64，自動按架構安裝）
 - > 便攜版爲獨立 exe 文件，不再提供 ZIP 壓縮包。
 
-
 ## WinIslands 1.0.7（正式版 / Stable）
 
 一款現代化、多功能的 Windows 靈動島組件。A modern, multi-functional Dynamic Island widget for Windows.
@@ -2968,7 +2998,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - 新增設置（設置 → 外觀 → 聲音波紋）：跟隨音樂節奏開關、靈敏度 0.2–3.0、波紋高度 0.4–1.6，改動即時生效
 
 - 無音頻設備 / 音頻服務異常時自動降級爲節拍模擬，並每 8 秒自動重試恢復實時採集，不卡死、不堆積線程
-
 
 ## WinIslands 1.0.6（正式版 / Stable）
 
@@ -2995,7 +3024,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - 資產 Assets：Windows x64 / arm64 便攜版（單文件自包含，免安裝直接運行）；Windows 通用安裝包（Inno Setup，同時支持 x64 與 ARM64，自動按架構安裝）
 
 - > 便攜版爲獨立 exe 文件，不再提供 ZIP 壓縮包。
-
 
 ## WinIslands 1.0.5（正式版 / Stable）
 
@@ -3117,7 +3145,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **🩹 Fixed white/black frame when expanded**：The glass layer now matches the card corner radius with clipping enabled, so rectangular edges no longer peek out when expanding (white frame in light mode / black frame in dark mode) — a cleaner look
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3139,7 +3166,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **🔋 Persistent low-battery indicator**: when the battery drops below the threshold and is not charging, a small battery pill stays in the island's top-right corner (red ≤10% / orange otherwise), refreshing in real time; it disappears automatically when plugged in or recovered, and can be toggled in settings.
 
 - **🎧 Device connection animation**: Bluetooth connect/disconnect now shows an iOS-style animated card; on connect, the device's battery is read automatically and shown as "Device name · Battery xx%" (name only when battery can't be read), without blocking the UI.
-
 
 ## WinIslands 1.2.1 (Stable)
 
@@ -3205,7 +3231,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **All animation skins accelerated**: iOS Spring / Soft / Elastic / Fade share the same reduced base durations, keeping their character but feeling snappier overall
 
-
 ## WinIslands 1.1.7 (Stable)
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3242,7 +3267,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - Fixed island input submission; fixed lost push-button data (including input value) callbacks
 
-
 ## WinIslands 1.1.5 (Stable)
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3259,7 +3283,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - Compact-state lyrics spacing fix: fixed spacing between lyrics and the right-side buttons; island width auto-grows when space is insufficient (720→800)
 - Stability: AMLL 5s timeout + graceful fallback; wall-clock baseline recalibrated when controls become visible again
-
 
 ## WinIslands 1.1.4 (Stable)
 
@@ -3282,7 +3305,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **Stability fixes**: fixed spurious “Copied” toast on startup with pre-existing clipboard content (startup baseline); fixed calendar .ics title escaping (\, \; \n) showing as backslashes
 
 - **Performance & stability**: reduced log noise for Bluetooth / SMTC / weather APIs, exponential backoff for weather rate limiting; build passes, all 104 unit & integration tests pass
-
 
 ## WinIslands 1.1.3 (Stable)
 
@@ -3308,7 +3330,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **Performance & stability**: dynamic theme subscribes to composition frames on demand (0 CPU idle), gradient brushes cached/reused to lower GC pressure; fixed mutex conflict preventing startup when new and old versions run at the same time
 
-
 ## WinIslands 1.1.1 (Stable)
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3333,7 +3354,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 
 - **Fixed lyric scale jumping**: removed the “grow then shrink” jitter caused by karaoke word bounce offset; font size/opacity of the current lyric line in expanded state now transitions smoothly over 300ms for smoother scrolling
 
-
 ## WinIslands 1.1.0 (Stable)
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3355,7 +3375,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **Karaoke word lighting with bounce**: each lyric line lights up smoothly from the first word with a slight bounce effect, more fluid and natural
 
 - Internal polling architecture optimized: temporary island events such as volume / copy / download / screenshot can be triggered while hidden
-
 
 ## WinIslands 1.0.9 (Stable)
 
@@ -3396,7 +3415,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - **Animation performance optimization**: karaoke word highlighting reuses Run objects (eliminating per-frame layout), stabilized 60fps storyboards, batched log refresh — smoother animations
 
 - **Removed red badge dots on widgets** (per user request)
-
 
 ## WinIslands 1.0.8 (Stable)
 
@@ -3470,7 +3488,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - Windows universal installer (Inno Setup, supports x64 and ARM64, installs by architecture)
 - > Portable builds are standalone exe files; ZIP archives are no longer provided.
 
-
 ## WinIslands 1.0.7 (Stable)
 
 A modern, multi-functional Dynamic Island widget for Windows.
@@ -3484,7 +3501,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - New settings (Settings → Appearance → Sound wave): follow-music-rhythm toggle, sensitivity 0.2–3.0, wave height 0.4–1.6; changes take effect immediately
 
 - When there is no audio device / the audio service is abnormal, it gracefully falls back to beat simulation and retries restoring live capture every 8 seconds — no freezes, no thread buildup
-
 
 ## WinIslands 1.0.6 (Stable)
 
@@ -3511,7 +3527,6 @@ A modern, multi-functional Dynamic Island widget for Windows.
 - Assets: Windows x64 / arm64 portable builds (single-file self-contained, no install, run directly); Windows universal installer (Inno Setup, supports x64 and ARM64, installs by architecture)
 
 - > Portable builds are standalone exe files; ZIP archives are no longer provided.
-
 
 ## WinIslands 1.0.5 (Stable)
 
@@ -3633,7 +3648,6 @@ Una moderna y multifuncional Dynamic Island para Windows. A modern, multi-functi
 
 - **🩹 Corregido el marco blanco/negro al expandirse**：La capa de cristal ahora coincide con el radio de las esquinas de la tarjeta con recorte activado, por lo que ya no asoman bordes rectangulares al expandir (marco blanco en modo claro / marco negro en modo oscuro): un aspecto más limpio
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 Una moderna y multifuncional Dynamic Island para Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -3655,7 +3669,6 @@ Una moderna y multifuncional Dynamic Island para Windows. A modern, multi-functi
 - **🔋 Indicador de batería baja persistente**: cuando la batería baja del umbral y no está cargando, una pequeña píldora de batería permanece en la esquina superior derecha de la isla (roja ≤10 % / naranja en otros casos), actualizándose en tiempo real; desaparece al conectar la carga o recuperarse, y se puede activar en los ajustes.
 
 - **🎧 Animación de conexión de dispositivos**: al conectar/desconectar un dispositivo Bluetooth se muestra una tarjeta animada estilo iOS; al conectar se lee automáticamente la batería y se muestra «Nombre del dispositivo · Batería xx %» (solo el nombre si no se puede leer), sin bloquear la interfaz.
-
 
 ## WinIslands 1.2.1 (Estable)
 
@@ -3721,7 +3734,6 @@ Un widget moderno y multifuncional de Dynamic Island para Windows.
 
 - **Todos los estilos de animación acelerados**: iOS Spring / Soft / Elastic / Fade comparten las mismas duraciones base reducidas, manteniendo su carácter pero con una sensación más ágil
 
-
 ## WinIslands 1.1.7 (Estable)
 
 Un widget Dynamic Island moderno y multifuncional para Windows.
@@ -3758,7 +3770,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 
 - Corregido el envío de campos de entrada de la isla; corregida la pérdida de datos de los botones de envío (incluido el valor de entrada) en las devoluciones de llamada
 
-
 ## WinIslands 1.1.5 (Estable)
 
 Un widget Dynamic Island moderno y multifuncional para Windows.
@@ -3775,7 +3786,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 
 - Corregido el espaciado de letras en estado compacto: distancia fija entre las letras y los botones de la derecha; el ancho de la isla crece automáticamente si falta espacio (720→800)
 - Estabilidad: tiempo de espera de AMLL de 5 s + degradación elegante; recalibración de la referencia de reloj al volver a verse los controles
-
 
 ## WinIslands 1.1.4 (Estable)
 
@@ -3798,7 +3808,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - **Correcciones de estabilidad**: corregido el aviso falso «Copiado» al iniciar con contenido ya en el portapapeles (línea base de inicio); corregido el escape de títulos .ics del calendario (\, \; \n) que se mostraban como barras invertidas
 
 - **Rendimiento y estabilidad**: menos ruido en los registros de Bluetooth / SMTC / clima, retroceso exponencial para la limitación del clima; compilación correcta, las 104 pruebas unitarias y de integración pasan
-
 
 ## WinIslands 1.1.3 (Estable)
 
@@ -3824,7 +3833,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 
 - **Rendimiento y estabilidad**: el tema dinámico se suscribe a los fotogramas de composición bajo demanda (0 CPU en reposo), pinceles de degradado en caché para reducir la presión del GC; corregido el conflicto de mutex que impedía iniciar cuando las versiones nueva y antigua se ejecutan a la vez
 
-
 ## WinIslands 1.1.1 (Estable)
 
 Un widget Dynamic Island moderno y multifuncional para Windows.
@@ -3849,7 +3857,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 
 - **Corregido el salto de escala de letras**: eliminada la vibración de «crecer y encoger» causada por el desplazamiento de rebote de las palabras del karaoke; el tamaño/opacidad de la línea actual en estado expandido transiciona suavemente en 300 ms para un desplazamiento más fluido
 
-
 ## WinIslands 1.1.0 (Estable)
 
 Un widget Dynamic Island moderno y multifuncional para Windows.
@@ -3871,7 +3878,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - **Iluminación de palabras de karaoke con rebote**: cada línea se ilumina suavemente desde la primera palabra con un ligero rebote, más fluido y natural
 
 - Arquitectura de sondeo interno optimizada: los eventos temporales de la isla como volumen / copia / descarga / captura pueden activarse mientras está oculta
-
 
 ## WinIslands 1.0.9 (Estable)
 
@@ -3912,7 +3918,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - **Optimización del rendimiento de animación**: el resaltado de palabras karaoke reutiliza objetos Run (eliminando el diseño por fotograma), storyboards estables a 60 fps, refresco de registros por lotes — animaciones más fluidas
 
 - **Eliminados los puntos rojos de insignia en los widgets** (por petición del usuario)
-
 
 ## WinIslands 1.0.8 (Estable)
 
@@ -3986,7 +3991,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - Instalador universal de Windows (Inno Setup, soporta x64 y ARM64, instala según la arquitectura)
 - > Las versiones portátiles son archivos exe independientes; ya no se ofrecen archivos ZIP.
 
-
 ## WinIslands 1.0.7 (Estable)
 
 Un widget Dynamic Island moderno y multifuncional para Windows.
@@ -4000,7 +4004,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - Nuevos ajustes (Configuración → Apariencia → Onda de sonido): interruptor seguir ritmo de música, sensibilidad 0,2–3,0, altura de onda 0,4–1,6; cambios con efecto inmediato
 
 - Sin dispositivo de audio / servicio de audio anómalo, degrada suavemente a simulación de ritmo y reintenta restaurar la captura en vivo cada 8 segundos — sin congelaciones ni acumulación de hilos
-
 
 ## WinIslands 1.0.6 (Estable)
 
@@ -4027,7 +4030,6 @@ Un widget Dynamic Island moderno y multifuncional para Windows.
 - Activos: versiones portátiles de Windows x64 / arm64 (archivo único autocontenido, sin instalar, ejecución directa); instalador universal de Windows (Inno Setup, soporta x64 y ARM64, instala según la arquitectura)
 
 - > Las versiones portátiles son archivos exe independientes; ya no se ofrecen archivos ZIP.
-
 
 ## WinIslands 1.0.5 (Estable)
 
@@ -4149,7 +4151,6 @@ Une Dynamic Island moderne et polyvalente pour Windows. A modern, multi-function
 
 - **🩹 Correction du cadre blanc/noir lors de l’expansion**：La couche de verre épouse désormais le rayon des coins de la carte avec un écrêtage activé : les bords rectangulaires n’apparaissent plus à l’expansion (cadre blanc en mode clair / cadre noir en mode sombre) — un rendu plus net
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 Une Dynamic Island moderne et polyvalente pour Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -4171,7 +4172,6 @@ Une Dynamic Island moderne et polyvalente pour Windows. A modern, multi-function
 - **🔋 Indicateur de batterie faible persistant** : lorsque la batterie descend sous le seuil sans charge, une petite pilule de batterie reste affichée en haut à droite de l'île (rouge ≤10 % / orange sinon), mise à jour en temps réel ; elle disparaît automatiquement une fois branché ou rechargé, et peut être activée dans les réglages.
 
 - **🎧 Animation de connexion d'appareils** : la connexion/déconnexion Bluetooth affiche désormais une carte animée style iOS ; à la connexion, le niveau de batterie de l'appareil est lu automatiquement et affiché comme « Nom de l'appareil · Batterie xx % » (nom seul si la batterie n'est pas lisible), sans bloquer l'interface.
-
 
 ## WinIslands 1.2.1 (Stable)
 
@@ -4237,7 +4237,6 @@ Un widget moderne et multifonctionnel de Dynamic Island pour Windows.
 
 - **Tous les styles d'animation accélérés** : iOS Spring / Soft / Elastic / Fade partagent les mêmes durées de base réduites, conservant leur caractère avec une sensation plus vive
 
-
 ## WinIslands 1.1.7 (Stable)
 
 Un widget Dynamic Island moderne et multifonctionnel pour Windows.
@@ -4274,7 +4273,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - Correction de l'envoi des champs de saisie de l'île ; correction de la perte des données des boutons d'envoi (y compris la valeur de saisie) dans les rappels
 
-
 ## WinIslands 1.1.5 (Stable)
 
 Un widget Dynamic Island moderne et multifonctionnel pour Windows.
@@ -4291,7 +4289,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - Correctif de l'espacement des paroles à l'état compact : distance fixe entre les paroles et les boutons de droite ; la largeur de l'île s'agrandit automatiquement si l'espace manque (720→800)
 - Stabilité : délai d'expiration AMLL de 5 s + repli élégant ; recalibrage de la référence d'horloge quand les contrôles redeviennent visibles
-
 
 ## WinIslands 1.1.4 (Stable)
 
@@ -4314,7 +4311,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Correctifs de stabilité** : corrigé le faux message « Copié » au démarrage avec un contenu déjà dans le presse-papiers (ligne de base de démarrage) ; corrigé l'échappement des titres .ics du calendrier (\, \; \n) affichés comme des barres obliques inverses
 
 - **Performance et stabilité** : bruit de journal réduit pour les API Bluetooth / SMTC / météo, backoff exponentiel pour le rate limiting de la météo ; compilation réussie, les 104 tests unitaires et d'intégration passent
-
 
 ## WinIslands 1.1.3 (Stable)
 
@@ -4340,7 +4336,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **Performance et stabilité** : le thème dynamique s'abonne aux images composites à la demande (0 CPU au repos), pinceaux dégradés mis en cache pour réduire la pression GC ; corrigé le conflit de mutex empêchant le démarrage quand des versions nouvelles et anciennes tournent en même temps
 
-
 ## WinIslands 1.1.1 (Stable)
 
 Un widget Dynamic Island moderne et multifonctionnel pour Windows.
@@ -4365,7 +4360,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **Corrigé le saut d'échelle des paroles** : supprimé l'oscillation « grandir puis rétrécir » causée par le décalage de rebond des mots du karaoké ; la taille/opacité de la ligne actuelle à l'état déplié transite en douceur sur 300 ms pour un défilement plus fluide
 
-
 ## WinIslands 1.1.0 (Stable)
 
 Un widget Dynamic Island moderne et multifonctionnel pour Windows.
@@ -4387,7 +4381,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Allumage des mots du karaoké avec rebond** : chaque ligne s'allume en douceur depuis le premier mot avec un léger rebond, plus fluide et naturel
 
 - Architecture de sondage interne optimisée : les événements temporaires de l'île (volume / copie / téléchargement / capture) peuvent être déclenchés pendant qu'elle est masquée
-
 
 ## WinIslands 1.0.9 (Stable)
 
@@ -4428,7 +4421,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Optimisation des performances d'animation** : la surbrillance mot à mot du karaoké réutilise les objets Run (éliminant la mise en page image par image), storyboards stables à 60 fps, rafraîchissement des journaux par lots — animations plus fluides
 
 - **Points d'insigne rouges supprimés des widgets** (à la demande de l'utilisateur)
-
 
 ## WinIslands 1.0.8 (Stable)
 
@@ -4502,7 +4494,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Installeur universel Windows (Inno Setup, prend en charge x64 et ARM64, installe selon l'architecture)
 - > Les versions portables sont des fichiers exe autonomes ; les archives ZIP ne sont plus fournies.
 
-
 ## WinIslands 1.0.7 (Stable)
 
 Un widget Dynamic Island moderne et multifonctionnel pour Windows.
@@ -4516,7 +4507,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Nouveaux réglages (Paramètres → Apparence → Onde sonore) : interrupteur suivre le rythme musical, sensibilité 0,2–3,0, hauteur d'onde 0,4–1,6 ; changements immédiats
 
 - Sans périphérique audio / service audio anormal, repli élégant sur la simulation de rythme avec nouvelle tentative de restauration de la capture en direct toutes les 8 secondes — pas de gel ni d'accumulation de fils
-
 
 ## WinIslands 1.0.6 (Stable)
 
@@ -4543,7 +4533,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Ressources : versions portables Windows x64 / arm64 (fichier unique autonome, sans installation, exécution directe) ; installeur universel Windows (Inno Setup, prend en charge x64 et ARM64, installe selon l'architecture)
 
 - > Les versions portables sont des fichiers exe autonomes ; les archives ZIP ne sont plus fournies.
-
 
 ## WinIslands 1.0.5 (Stable)
 
@@ -4671,7 +4660,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **🩹 إصلاح الإطار الأبيض/الأسود عند التوسيع**：أصبحت طبقة الزجاج الآن مطابقة لنصف قطر زوايا البطاقة مع تفعيل القص، بحيث لا تظهر الحواف المستطيلة عند التوسيع (إطار أبيض في الوضع الفاتح / إطار أسود في الوضع الداكن) — مظهر أنظف
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 جزيرة ديناميكية حديثة ومتعددة الوظائف لنظام ويندوز. A modern, multi-functional Dynamic Island widget for Windows.
@@ -4693,7 +4681,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **🔋 مؤشر انخفاض البطارية الدائم**: عندما تنخفض البطارية دون الحدّ المحدد دون شحن، تبقى حبّة بطارية صغيرة في الزاوية العلوية اليمنى من الجزيرة (حمراء ≤10% / برتقالية في غير ذلك)، وتتحدّث لحظيًا؛ تختفي تلقائيًا عند التوصيل بالشاحن أو ارتفاع الشحن، ويمكن إيقافها من الإعدادات.
 
 - **🎧 حركة اتصال الأجهزة**: عند اتصال/انقطاع جهاز بلوتوث تظهر بطاقة متحركة بأسلوب iOS؛ وعند الاتصال تُقرأ بطارية الجهاز تلقائيًا ويُعرض «اسم الجهاز · البطارية xx%»، وعند تعذّر القراءة يُعرض الاسم فقط، دون تعطيل الواجهة.
-
 
 ## WinIslands 1.2.1 (مستقر)
 
@@ -4759,7 +4746,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **تسريع جميع أنماط الحركة**: أنماط iOS Spring / Soft / Elastic / Fade تشترك في مدد أساسية أقصر، مع الحفاظ على طابعها لكن بإحساس أسرع
 
-
 ## WinIslands 1.1.7 (إصدار مستقر)
 
 أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
@@ -4796,7 +4782,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - إصلاح مشكلة إرسال حقل الإدخال على الجزيرة؛ وإصلاح فقدان بيانات أزرار الإرسال (بما في ذلك قيمة الإدخال) في الاستدعاءات
 
-
 ## WinIslands 1.1.5 (إصدار مستقر)
 
 أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
@@ -4813,7 +4798,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - إصلاح تباعد الكلمات في الوضع المضغوط: مسافة ثابتة بين الكلمات والأزرار اليمنى؛ يزداد عرض الجزيرة تلقائيًا عند عدم كفاية المساحة (720←800)
 - الاستقرار: مهلة AMLL 5 ثوانٍ + تراجع أنيق؛ إعادة معايرة أساس وقت الحائط عند عودة عناصر التحكم للظهور
-
 
 ## WinIslands 1.1.4 (إصدار مستقر)
 
@@ -4836,7 +4820,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **إصلاحات الاستقرار**: إصلاح ظهور «تم النسخ» الخاطئ عند بدء التشغيل مع محتوى موجود في الحافظة (خط الأساس عند البدء)؛ إصلاح مشكلة ظهور أحرف ترميز .ics في التقويم (\, \; \n) كخطوط مائلة عكسية
 
 - **الأداء والاستقرار**: تقليل ضجيج سجلات Bluetooth / SMTC / الطقس، وتراجع أسي لتقييد الطقس؛ البناء ناجح، وجميع اختبارات الوحدة والتكامل الـ 104 نجحت
-
 
 ## WinIslands 1.1.3 (إصدار مستقر)
 
@@ -4862,7 +4845,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **الأداء والاستقرار**: تحول السمة الديناميكية إلى الاشتراك في إطارات التركيب عند الطلب (0 CPU في الخمول) وإعادة استخدام مخازن الفرشاة المتدرجة لتقليل ضغط GC؛ إصلاح تعارض كائن المزامنة بين النسخة الجديدة والقديمة الذي يمنع بدء التشغيل
 
-
 ## WinIslands 1.1.1 (إصدار مستقر)
 
 أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
@@ -4887,7 +4869,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **إصلاح قفزات تكبير الكلمات**: إزالة اهتزاز «تكبير ثم تصغير» الناتج عن إزاحة النطّاط الحرفية في الكاراوكي؛ تحويل حجم/شفافية سطر الكلمات الحالي في الوضع الموسع إلى انتقال سلس 300ms، تمرير أكثر سلاسة وثباتًا
 
-
 ## WinIslands 1.1.0 (إصدار مستقر)
 
 أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
@@ -4909,7 +4890,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **إضاءة حرفية مرتدة في الكاراوكي**: كل سطر كلمات يُضاء بسلاسة من الحرف الأول مع ارتداد خفيف، أكثر سلاسة وطبيعية
 
 - تحسين بنية الاستقصاء الداخلية: يمكن تشغيل أحداث مؤقتة مثل الصوت / النسخ / التنزيل / لقطة الشاشة حتى في حالة الإخفاء
-
 
 ## WinIslands 1.0.9 (إصدار مستقر)
 
@@ -4950,7 +4930,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **تحسين أداء الحركات**: إعادة استخدام كائنات Run للكلمات حرفًا بحرف (إزالة تخطيط كل إطار)، وقصص 60fps ثابتة، وتحديث السجلات دفعة واحدة، حركات أنعم
 
 - **إزالة النقاط الحمراء على المكوّنات** (حسب طلب المستخدم)
-
 
 ## WinIslands 1.0.8 (إصدار مستقر)
 
@@ -5024,7 +5003,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - مثبّت Windows الشامل (Inno Setup، يدعم x64 وARM64، يُثبت حسب البنية)
 - > الإصدارات المحمولة ملفات exe مستقلة؛ لم يعد يتم توفير أرشيفات ZIP.
 
-
 ## WinIslands 1.0.7 (إصدار مستقر)
 
 أداة Dynamic Island حديثة ومتعددة الوظائف لنظام Windows.
@@ -5038,7 +5016,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - إعدادات جديدة (الإعدادات ← المظهر ← موجة الصوت): مفتاح متابعة الإيقاع، الحساسية 0.2–3.0، ارتفاع الموجة 0.4–1.6؛ تسري التغييرات فورًا
 
 - عند عدم وجود جهاز صوت / خلل في خدمة الصوت، يتم التراجع تلقائيًا إلى محاكاة الإيقاع مع إعادة محاولة الاستعادة كل 8 ثوانٍ — لا تجمد ولا تراكم للخيوط
-
 
 ## WinIslands 1.0.6 (إصدار مستقر)
 
@@ -5065,7 +5042,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - الأصول: إصدارات محمولة Windows x64 / arm64 (ملف مفرد ذاتي الاحتواء، بدون تثبيت، يعمل مباشرة)؛ مثبّت Windows الشامل (Inno Setup، يدعم x64 وARM64، يُثبت حسب البنية)
 
 - > الإصدارات المحمولة ملفات exe مستقلة؛ لم يعد يتم توفير أرشيفات ZIP.
-
 
 ## WinIslands 1.0.5 (إصدار مستقر)
 
@@ -5187,7 +5163,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **🩹 Исправлена белая/чёрная рамка при разворачивании**：Стеклянный слой теперь повторяет скругление углов карточки с включённой обрезкой, поэтому при разворачивании больше не видны прямоугольные края (белая рамка в светлой теме / чёрная в тёмной) — вид стал чище
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 Современный многофункциональный Dynamic Island для Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -5209,7 +5184,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **🔋 Постоянный индикатор низкого заряда**: когда заряд падает ниже порога и устройство не заряжается, в правом верхнем углу острова постоянно отображается небольшая пилюля заряда (красная ≤10 % / иначе оранжевая), обновляясь в реальном времени; она исчезает при подключении к сети или повышении заряда, и её можно отключить в настройках.
 
 - **🎧 Анимация подключения устройств**: при подключении/отключении Bluetooth показывается анимированная карточка в стиле iOS; при подключении автоматически считывается заряд устройства и отображается «Название устройства · Заряд xx%» (только название, если заряд прочитать нельзя), не блокируя интерфейс.
-
 
 ## WinIslands 1.2.1 (Stable)
 
@@ -5275,7 +5249,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **Все скины анимации ускорены**: iOS Spring / Soft / Elastic / Fade используют одинаковые сокращённые базовые длительности, сохраняя свой характер, но ощущаются более отзывчивыми
 
-
 ## WinIslands 1.1.7 (Стабильный)
 
 Современный, многофункциональный виджет Dynamic Island для Windows.
@@ -5312,7 +5285,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - Исправлена отправка полей ввода острова; исправлена потеря данных кнопок отправки (включая введённое значение) в обратных вызовах
 
-
 ## WinIslands 1.1.5 (Стабильный)
 
 Современный, многофункциональный виджет Dynamic Island для Windows.
@@ -5329,7 +5301,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - Исправлены отступы текстов в компактном режиме: фиксированное расстояние между текстами и кнопками справа; при нехватке места ширина острова увеличивается автоматически (720→800)
 - Стабильность: тайм-аут AMLL 5 с + корректное понижение; калибровка базовой точки часов при повторном появлении элементов управления
-
 
 ## WinIslands 1.1.4 (Стабильный)
 
@@ -5352,7 +5323,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Исправления стабильности**: исправлено ложное уведомление «Скопировано» при запуске с уже имеющимся содержимым буфера обмена (базовая точка запуска); исправлено экранирование заголовков .ics календаря (\, \; \n), отображавшихся как обратные слэши
 
 - **Производительность и стабильность**: снижен шум журналов Bluetooth / SMTC / погоды, экспоненциальная задержка при ограничении погоды; сборка проходит, все 104 модульных и интеграционных теста успешны
-
 
 ## WinIslands 1.1.3 (Стабильный)
 
@@ -5378,7 +5348,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **Производительность и стабильность**: динамическая тема подписывается на композиционные кадры по требованию (0 CPU в простое), градиентные кисти кэшируются для снижения нагрузки GC; исправлен конфликт мьютексов, не позволявший запускаться при одновременной работе новых и старых версий
 
-
 ## WinIslands 1.1.1 (Стабильный)
 
 Современный, многофункциональный виджет Dynamic Island для Windows.
@@ -5403,7 +5372,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 
 - **Исправлено дрожание масштаба текстов**: убрано дрожание «увеличение и уменьшение», вызванное смещением отскока слов караоке; размер/прозрачность текущей строки в развёрнутом виде теперь плавно меняются за 300 мс
 
-
 ## WinIslands 1.1.0 (Стабильный)
 
 Современный, многофункциональный виджет Dynamic Island для Windows.
@@ -5425,7 +5393,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Пословная подсветка караоке с отскоком**: каждая строка плавно загорается с первого слова с лёгким отскоком — плавнее и естественнее
 
 - Оптимизирована внутренняя архитектура опроса: временные события острова (громкость / копирование / загрузка / скриншот) могут срабатывать в скрытом состоянии
-
 
 ## WinIslands 1.0.9 (Стабильный)
 
@@ -5466,7 +5433,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - **Оптимизация производительности анимации**: пословная подсветка караоке переиспользует объекты Run (устраняя покадровую разметку), стабильные раскадровки 60 fps, пакетное обновление журналов — анимации плавнее
 
 - **Удалены красные точки-значки с виджетов** (по запросу пользователя)
-
 
 ## WinIslands 1.0.8 (Стабильный)
 
@@ -5540,7 +5506,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Универсальный установщик Windows (Inno Setup, x64 и ARM64, установка по архитектуре)
 - > Портативные сборки — отдельные exe-файлы; ZIP-архивы больше не предоставляются.
 
-
 ## WinIslands 1.0.7 (Стабильный)
 
 Современный, многофункциональный виджет Dynamic Island для Windows.
@@ -5554,7 +5519,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Новые настройки (Настройки → Внешний вид → Звуковая волна): переключатель следования ритму, чувствительность 0,2–3,0, высота волны 0,4–1,6; изменения применяются сразу
 
 - При отсутствии аудиоустройства / сбое аудиослужбы — корректное понижение до имитации ритма с повторной попыткой восстановления захвата каждые 8 секунд; без зависаний и накопления потоков
-
 
 ## WinIslands 1.0.6 (Стабильный)
 
@@ -5581,7 +5545,6 @@ Un widget Dynamic Island moderne et multifonctionnel pour Windows.
 - Артефакты: портативные сборки Windows x64 / arm64 (один файл, автономный, без установки, запуск сразу); универсальный установщик Windows (Inno Setup, x64 и ARM64, установка по архитектуре)
 
 - > Портативные сборки — отдельные exe-файлы; ZIP-архивы больше не предоставляются.
-
 
 ## WinIslands 1.0.5 (Стабильный)
 
@@ -5709,7 +5672,6 @@ Um Dynamic Island moderno e multifuncional para Windows. A modern, multi-functio
 
 - **🩹 Corrigida a moldura branca/preta ao expandir**：A camada de vidro agora acompanha o raio dos cantos do cartão com recorte ativado, então as bordas retangulares não aparecem mais ao expandir (moldura branca no modo claro / moldura preta no modo escuro) — visual mais limpo
 
-
 ## WinIslands 1.2.5（正式版 / Stable）
 
 Um Dynamic Island moderno e multifuncional para Windows. A modern, multi-functional Dynamic Island widget for Windows.
@@ -5731,7 +5693,6 @@ Um Dynamic Island moderno e multifuncional para Windows. A modern, multi-functio
 - **🔋 Indicador persistente de bateria fraca**: quando a bateria fica abaixo do limite e não está carregando, uma pequena pílula de bateria permanece no canto superior direito da ilha (vermelha ≤10% / laranja caso contrário), atualizando em tempo real; desaparece ao conectar o carregador ou recuperar, e pode ser ativada nas configurações.
 
 - **🎧 Animação de conexão de dispositivos**: ao conectar/desconectar um dispositivo Bluetooth, um cartão animado estilo iOS é exibido; ao conectar, a bateria do dispositivo é lida automaticamente e mostrada como «Nome do dispositivo · Bateria xx%» (somente o nome se não for possível ler), sem bloquear a interface.
-
 
 ## WinIslands 1.2.1 (Estável)
 
@@ -5797,7 +5758,6 @@ Um widget moderno e multifuncional de Dynamic Island para Windows.
 
 - **Todos os estilos de animação acelerados**: iOS Spring / Soft / Elastic / Fade compartilham as mesmas durações básicas reduzidas, mantendo o seu caráter, mas com sensação mais ágil
 
-
 ## WinIslands 1.1.7 (Estável)
 
 Um widget Dynamic Island moderno e multifuncional para Windows.
@@ -5834,7 +5794,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 
 - Corrigido o envio dos campos de entrada da ilha; corrigida a perda de dados dos botões de envio (incluindo o valor digitado) nos retornos de chamada
 
-
 ## WinIslands 1.1.5 (Estável)
 
 Um widget Dynamic Island moderno e multifuncional para Windows.
@@ -5851,7 +5810,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 
 - Espaçamento das letras no estado compacto corrigido: distância fixa entre as letras e os botões à direita; a largura da ilha cresce automaticamente quando falta espaço (720→800)
 - Estabilidade: tempo limite AMLL de 5 s + fallback elegante; recalibração da referência de relógio quando os controles voltam a ficar visíveis
-
 
 ## WinIslands 1.1.4 (Estável)
 
@@ -5874,7 +5832,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - **Correções de estabilidade**: corrigido o aviso falso “Copiado” ao iniciar com conteúdo já na área de transferência (linha de base de inicialização); corrigido o escape de títulos .ics do calendário (\, \; \n) exibidos como barras invertidas
 
 - **Desempenho e estabilidade**: menos ruído nos logs de Bluetooth / SMTC / clima, backoff exponencial para limite de frequência do clima; build passa, todos os 104 testes unitários e de integração passam
-
 
 ## WinIslands 1.1.3 (Estável)
 
@@ -5900,7 +5857,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 
 - **Desempenho e estabilidade**: o tema dinâmico assina frames de composição sob demanda (0 CPU em repouso), pincéis de gradiente em cache para reduzir a pressão do GC; corrigido o conflito de mutex que impedia a inicialização quando versões novas e antigas rodam ao mesmo tempo
 
-
 ## WinIslands 1.1.1 (Estável)
 
 Um widget Dynamic Island moderno e multifuncional para Windows.
@@ -5925,7 +5881,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 
 - **Corrigido o salto de escala das letras**: removida a vibração de “crescer e encolher” causada pelo deslocamento de rebote das palavras do karaokê; o tamanho/opacidade da linha atual no estado expandido transita suavemente em 300 ms para rolagem mais fluida
 
-
 ## WinIslands 1.1.0 (Estável)
 
 Um widget Dynamic Island moderno e multifuncional para Windows.
@@ -5947,7 +5902,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - **Iluminação de palavras do karaokê com rebote**: cada linha acende suavemente desde a primeira palavra com um leve rebote, mais fluido e natural
 
 - Arquitetura de sondagem interna otimizada: eventos temporários da ilha, como volume / cópia / download / captura, podem ser acionados enquanto ela está oculta
-
 
 ## WinIslands 1.0.9 (Estável)
 
@@ -5988,7 +5942,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - **Otimização do desempenho de animação**: o destaque de palavras do karaokê reutiliza objetos Run (eliminando o layout por frame), storyboards estáveis a 60 fps, atualização de logs em lote — animações mais suaves
 
 - **Pontos vermelhos removidos dos widgets** (a pedido do usuário)
-
 
 ## WinIslands 1.0.8 (Estável)
 
@@ -6062,7 +6015,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - Instalador universal Windows (Inno Setup, suporta x64 e ARM64, instala pela arquitetura)
 - > As versões portáteis são arquivos exe independentes; arquivos ZIP não são mais fornecidos.
 
-
 ## WinIslands 1.0.7 (Estável)
 
 Um widget Dynamic Island moderno e multifuncional para Windows.
@@ -6076,7 +6028,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - Novas configurações (Configurações → Aparência → Onda de som): botão seguir ritmo da música, sensibilidade 0,2–3,0, altura da onda 0,4–1,6; mudanças imediatas
 
 - Sem dispositivo de áudio / serviço de áudio anormal, cai suavemente para simulação de batida e tenta restaurar a captura ao vivo a cada 8 segundos — sem travas ou acúmulo de threads
-
 
 ## WinIslands 1.0.6 (Estável)
 
@@ -6103,7 +6054,6 @@ Um widget Dynamic Island moderno e multifuncional para Windows.
 - Ativos: versões portáteis Windows x64 / arm64 (arquivo único autossuficiente, sem instalação, execução direta); instalador universal Windows (Inno Setup, suporta x64 e ARM64, instala pela arquitetura)
 
 - > As versões portáteis são arquivos exe independentes; arquivos ZIP não são mais fornecidos.
-
 
 ## WinIslands 1.0.5 (Estável)
 

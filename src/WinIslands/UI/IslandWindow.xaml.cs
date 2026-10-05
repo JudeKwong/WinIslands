@@ -245,6 +245,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
+    /// <summary>2.2.0: ReduceMotion 开关，供文本切换过渡判断是否退化为直接切换。</summary>
+    internal bool IsReduceMotionEnabled => _settings.Current.ReduceMotion;
+
     /// <summary>展开内容交错过渡区块（自上而下）：上岛推送 / Hero / 封面标题 / 进度 / 控制 / 歌词快捷 / 歌词 / 快捷操作。
     /// 1.2.1：展开时依次淡入上移、收起时反向淡出下移，仿 iOS 灵动岛错峰进出。</summary>
     private (FrameworkElement El, TranslateTransform Tr)[] _cascadeBlocks = Array.Empty<(FrameworkElement, TranslateTransform)>();
@@ -401,7 +404,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _memoryTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _memoryTrimTimer.Tick += (_, _) =>
         {
-            if (!_vm.IsPlaying && !_vm.IsExpanded) MemoryOptimizer.RequestTrim();
+            // 2.2.0：播放中也可修剪——只要没有正在运行的弹簧动画（卡片/位置/推送）且未展开，
+            // 后台 GC 不会造成可见卡顿；媒体播放由外部进程驱动，不受影响。
+            if (_vm.IsExpanded) return;
+            if (_cardAnimating || SpringTicker.ActiveCount > 0) return;
+            MemoryOptimizer.RequestTrim();
         };
         _memoryTrimTimer.Start();
 
