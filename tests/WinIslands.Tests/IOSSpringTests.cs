@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -157,5 +157,45 @@ public sealed class IOSSpringTests
         // 极端高度不产生负值/NaN
         Assert.True(double.IsFinite(IslandWindow.ComputeCardRuntimeRadius(double.NaN, 28)));
         Assert.True(IslandWindow.ComputeCardRuntimeRadius(-5, 28) >= 4);
+    }
+    [Fact]
+    public void OpacitySpanSpring_RunsToNaturalEnd_NoEarlySnap()
+    {
+        // 2.0.8：透明度弹簧（0~1，临界阻尼）不会被固定阈值(0.5)在半路钳制瞬移。
+        // 旧行为：offset<0.5 且 vel<2.5 时即 Complete → 最后 ~8% 直接被跳变吸附；
+        // 新行为：小跨度阈值按比例收紧，透明度淡入淡出流畅跑到自然终点。
+        var s = IOSSpring.Create(1.0, 0.3, from: 0, to: 1);
+        for (var i = 0; i < 26; i++) s.Tick(Dt); // 约 0.22s：旧阈值已满足（offset≈0.08, vel≈1/s）
+        Assert.True(s.IsActive, "small-span spring must not snap mid-way");
+
+        Drain(s, 2.0);
+        Assert.False(s.IsActive);
+        Assert.Equal(1.0, s.Value, 6);
+    }
+
+    [Fact]
+    public void PixelSpanSpring_KeepsOriginalEpsilon()
+    {
+        // 大跨度（像素尺寸/位移 300px 级）：阈值保持 0.5 / 2.5，收敛速度与旧版一致
+        var s = IOSSpring.Create(0.82, 0.5, from: 0, to: 300);
+        var steps = 0;
+        while (s.IsActive && steps < 400) { s.Tick(Dt); steps++; }
+        Assert.False(s.IsActive);
+        Assert.InRange(s.Value, 299.5, 300.5);
+        Assert.True(steps < 250, $"large-span spring settled too late ({steps} steps)");
+    }
+
+    [Fact]
+    public void TinyRetarget_TightensEpsilonAndFinishes()
+    {
+        // 打断到极小跨度：阈值收紧后依然可靠收敛到精确目标
+        var s = IOSSpring.Create(1.0, 0.3, from: 10, to: 20);
+        Drain(s, 1.0);
+        Assert.False(s.IsActive);
+        s.Retarget(20.01);
+        Assert.True(s.IsActive);
+        Drain(s, 1.5);
+        Assert.False(s.IsActive);
+        Assert.Equal(20.01, s.Value, 6);
     }
 }

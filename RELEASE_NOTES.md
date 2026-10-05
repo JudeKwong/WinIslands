@@ -11,6 +11,25 @@
 ---
 
 ## 简体中文
+## WinIslands 2.0.8（正式版 / Stable）
+### 更新内容
+
+- **🎯 弹簧自适应收敛**：透明度、缩放等小量程弹簧不再被固定阈值在半途钳制瞬移——展开/收起、上岛推送、歌词滚动的淡入淡出真正跑到自然终点，彻底消除“文字突然出现/消失”的尾部跳变
+- **🖌️ 收敛即写回**：弹簧收敛/结束时把最终值精确写回界面，元素不再停留在收敛前一帧的旧值上，动画收尾更干净利落
+- **🎞️ 动画连贯性**：收尾不再有肉眼可见的“吸附跳跃”，120fps 帧循环下过渡全程丝滑
+- **✅ 回归测试**：252 项单元测试全部通过
+
+---
+
+## WinIslands 2.0.8 (Stable)
+### What's New
+
+- **🎯 Spring adaptive convergence**: Small-range springs (opacity, scale) are no longer clamped mid-flight by a fixed threshold — fades for expand/collapse, island push and lyric scrolling now run to their true natural end, eliminating the “text suddenly appears/disappears” tail jump
+- **🖌️ Final-value write-back on settle**: When a spring converges or is forced to complete, the exact final value is written back to the UI — elements no longer rest on a stale last-frame value
+- **🎞️ Coherent transitions**: No more visible “snap-to-target” at the tail; the whole transition stays smooth at 120fps
+- **✅ Regression testing**: All 252 unit tests passed
+
+---
 
 ## WinIslands 2.0.7（正式版 / Stable）
 ### 更新内容

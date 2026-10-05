@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Media;
@@ -48,9 +48,15 @@ public sealed class IOSSpring
     private Action? _onCompleted;
     private bool _notifyCompleted;
 
-    // 收敛判定阈值
+    // 收敛判定阈值（单位：目标值单位）
     private double _settleOffsetEpsilon = 0.5;
     private double _settleVelocityEpsilon = 2.5;
+
+    // 2.0.8：当前运动的自适应收敛阈值（按跨度缩小）。
+    // iOS 弹簧收敛到目标后才结束；固定阈值对小量程（如透明度 0~1）会在半途被钳制瞬移，造成"尾部跳变"。
+    // 这里按当前运动跨度线性缩放，像素级大跨度保持原阈值，小跨度收紧，让每个弹簧真正收敛到自然终点。
+    private double _offsetEps = 0.5;
+    private double _velEps = 2.5;
 
     /// <summary>创建并按 UIKit 参数配置弹簧并启动。</summary>
     public static IOSSpring Create(double dampingRatio, double responseSeconds,
@@ -101,6 +107,7 @@ public sealed class IOSSpring
         _elapsed = 0;
         _y0 = from - to;
         _v0 = initialVelocity;
+        UpdateEpsilon(Math.Abs(from - to));
         _notifyCompleted = false;
         IsActive = true;
         SpringTicker.Add(this);
@@ -118,6 +125,7 @@ public sealed class IOSSpring
         _elapsed = 0;
         _y0 = Value - to;
         _v0 = Velocity;
+        UpdateEpsilon(Math.Abs(Value - to));
         Target = to;
         _notifyCompleted = false;
     }
@@ -134,10 +142,17 @@ public sealed class IOSSpring
     public void Complete()
     {
         if (!IsActive) return;
+        var done = Value != Target;
         Value = Target;
         Velocity = 0;
         IsActive = false;
         SpringTicker.Remove(this);
+        // 2.0.8：收敛/强制结束时把最终值写回 UI，避免界面停留在最后一帧的旧值上
+        // （旧版 Complete 不回调，元素会停在收敛前一刻的数值，视觉上略有残留）。
+        if (done)
+        {
+            try { _onUpdate?.Invoke(Target); } catch { /* 单帧回调异常不影响引擎 */ }
+        }
         if (_notifyCompleted) return;
         _notifyCompleted = true;
         try { _onCompleted?.Invoke(); } catch { /* 由调用方兜底 */ }
@@ -160,8 +175,8 @@ public sealed class IOSSpring
             return;
         }
 
-        // 收敛判定：偏移与速度都足够小 → 瞬移到目标并结束
-        if (Math.Abs(Value - Target) < _settleOffsetEpsilon && Math.Abs(Velocity) < _settleVelocityEpsilon)
+        // 收敛判定：偏移与速度都足够小（阈值按运动跨度自适应）→ 瞬移到目标并结束
+        if (Math.Abs(Value - Target) < _offsetEps && Math.Abs(Velocity) < _velEps)
         {
             Complete();
             return;
@@ -169,6 +184,21 @@ public sealed class IOSSpring
         try { _onUpdate?.Invoke(Value); } catch { /* 单帧回调异常不影响引擎 */ }
     }
 
+    /// <summary>按当前运动跨度更新收敛阈值（2.0.8）。</summary>
+    private void UpdateEpsilon(double span)
+    {
+        if (!double.IsFinite(span) || span < 0)
+        {
+            _offsetEps = _settleOffsetEpsilon;
+            _velEps = _settleVelocityEpsilon;
+            return;
+        }
+        // span≥100 单位（像素级尺寸/位移）→ 保持原阈值 0.5 / 2.5；
+        // span<100（如透明度 0~1、缩放、圆角小变化）→ 按比例收紧，弹簧真正收敛到自然终点。
+        var s = Math.Min(1.0, span / 100.0);
+        _offsetEps = Math.Max(0.0005, _settleOffsetEpsilon * s);
+        _velEps = Math.Max(0.05, _settleVelocityEpsilon * s);
+    }
     /// <summary>阻尼简谐振荡器解析解：由初始偏移 y0、初速 v0 求 t 时刻的偏移与速度。</summary>
     private void Solve(double t)
     {
