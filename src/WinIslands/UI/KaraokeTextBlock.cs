@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -85,6 +85,12 @@ public class KaraokeTextBlock : TextBlock
     private long _posBaseTicks;          // 该位置对应的单调时钟刻度
     /// <summary>墙钟插值仅用于补充两次 ViewModel 位置更新（约 200ms）之间的间隙；超过该上限视为 ViewModel 已停更（切歌/暂停边缘/恢复首帧），不再外推，避免歌词漂移到句尾再跳回。</summary>
     private const double MaxWallClockLeadSeconds = 0.5;
+    /// <summary>播放器位置报告与墙钟外推基本一致的上限（秒）：不超过该值直接采用新位置。</summary>
+    private const double PositionSyncThresholdSeconds = 0.30;
+    /// <summary>偏差超过该值视为真实 seek/切歌/暂停恢复：直接硬同步，保证准确。</summary>
+    private const double PositionHardSyncThresholdSeconds = 0.80;
+    /// <summary>中等偏差（SMTC/本地 API 上报量化、滞后）每次上报的收敛比例：0.5 = 每 200ms 收敛一半残余偏差，约两次平滑到位，肉眼无回跳。</summary>
+    private const double PositionCorrectionGain = 0.5;
 
     public KaraokeTextBlock()
     {
@@ -157,8 +163,34 @@ public class KaraokeTextBlock : TextBlock
 
     private void OnPositionChanged(double pos)
     {
-        _posBase = pos;
-        _posBaseTicks = _tickClock.ElapsedTicks;
+        // 2.0.6 位置平滑校正：播放中且正在逐帧渲染时，播放器上报的进度常有量化/滞后
+        // （如整秒取整、SMTC 缓存），直接硬切会每 200ms 肉眼可见地回跳；
+        // 按偏差大小分级处理：基本一致→直接采用；中等偏差→按增益平滑收敛；大偏差
+        // （seek/切歌/暂停恢复）→硬同步，保证点击进度条后立即准确。
+        if (IsPlaying && _hasWords && _renderingSubscribed && IsVisible)
+        {
+            var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
+            var extrapolated = _posBase + Math.Min(Math.Max(elapsed, 0), MaxWallClockLeadSeconds);
+            var delta = pos - extrapolated;
+            if (Math.Abs(delta) > PositionHardSyncThresholdSeconds)
+            {
+                _posBase = pos;                                              // 大偏差：硬同步（seek/切歌/暂停恢复）
+            }
+            else if (Math.Abs(delta) > PositionSyncThresholdSeconds)
+            {
+                _posBase = extrapolated + delta * PositionCorrectionGain;    // 中等偏差：平滑收敛不跳变
+            }
+            else
+            {
+                _posBase = pos;                                              // 基本一致：直接采用
+            }
+            _posBaseTicks = _tickClock.ElapsedTicks;
+        }
+        else
+        {
+            _posBase = pos;
+            _posBaseTicks = _tickClock.ElapsedTicks;
+        }
         // 位置更新可能来自 seek/恢复：立即重绘一次；隐藏时不启动定时器（避免空转耗 CPU）
         if (!_hasWords || !IsVisible) return;
         if (IsPlaying)

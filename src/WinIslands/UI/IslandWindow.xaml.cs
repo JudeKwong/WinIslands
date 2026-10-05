@@ -2643,8 +2643,21 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (_posLSpring is not null) return;
         _posLSpring = new IOSSpring();
         _posTSpring = new IOSSpring();
-        _posLSpring.SetCallbacks(v => Left = v, null);
-        _posTSpring.SetCallbacks(v => Top = v, null);
+        _posLSpring.SetCallbacks(v => Left = v, OnPositionSpringSettled);
+        _posTSpring.SetCallbacks(v => Top = v, OnPositionSpringSettled);
+    }
+
+    /// <summary>位置弹簧全部收敛后：物理像素取整，避免亚像素位置让窗口边缘发虚、文字发糊。</summary>
+    private void OnPositionSpringSettled()
+    {
+        if (_posLSpring?.IsActive == true || _posTSpring?.IsActive == true) return; // 还有弹簧在收敛，最后一个结束再收尾
+        try
+        {
+            var scale = ScreenHelper.GetDpiScale(_screen);
+            Left = Math.Round(Left * scale) / scale;
+            Top = Math.Round(Top * scale) / scale;
+        }
+        catch { /* 取整失败保留当前值 */ }
     }
 
     private void EnsurePushSprings()
@@ -2931,13 +2944,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // ── 歌词自动滚动 ──────────────────────────────────────────
 
     private bool _lyricsScrollQueued;
-    private bool _lyricsScrollRendering;
+    private IOSSpring? _lyricsScrollSpring;   // 歌词滚动弹簧：临界阻尼，重定向保持速度连续（2.0.6）
     private double _lyricsScrollTarget;
-    private double _lyricsScrollFrom;
-    private double _lyricsScrollLastOffset;
-    private readonly System.Diagnostics.Stopwatch _lyricsScrollClock = System.Diagnostics.Stopwatch.StartNew();
-    private long _lyricsScrollStartTicks;
-    private const double LyricsScrollMs = 520;
     private void QueueLyricsScroll(int index)
     {
         if (!IsLoaded || !IsVisible || !_vm.IsExpanded) return;
@@ -2973,56 +2981,50 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
         _lyricsScrollTarget = target;
-        _lyricsScrollFrom = viewer.VerticalOffset;
-        _lyricsScrollStartTicks = _lyricsScrollClock.ElapsedTicks;
-        _lyricsScrollLastOffset = viewer.VerticalOffset;
-        StartLyricsScroll();
+        EnsureLyricsScrollSpring();
+        if (_lyricsScrollSpring!.IsActive)
+        {
+            // 快速连续切句：以当前速度重定向到新目标，滚动连续不"一动一停"
+            _lyricsScrollSpring.Retarget(target);
+        }
+        else
+        {
+            var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+            _lyricsScrollSpring.Configure(1.0, 0.34 * durScale); // 临界阻尼：无回弹、丝滑到位
+            _lyricsScrollSpring.Start(viewer.VerticalOffset, target);
+        }
     }
 
-    /// <summary>
-    /// 平滑滚动：时间基准三次缓出（与帧率无关，60fps / 120Hz 显示器表现一致、丝滑连贯）。
-    /// 快速连续切句时以最近一次目标重新起算，不会“一动一停”。
-    /// </summary>
-    /// <summary>歌词滚动改为合成帧事件驱动，与显示器刷新率同步。</summary>
-    private void StartLyricsScroll()
+    private void EnsureLyricsScrollSpring()
     {
-        if (_lyricsScrollRendering) return;
-        _lyricsScrollRendering = true;
-        System.Windows.Media.CompositionTarget.Rendering += OnLyricsScrollRendering;
+        if (_lyricsScrollSpring is not null) return;
+        _lyricsScrollSpring = new IOSSpring();
+        _lyricsScrollSpring.SetCallbacks(v =>
+        {
+            if (LyricsScroll is null || LyricsList.Items.Count == 0 || !_vm.IsExpanded || !IsVisible || !IsLoaded)
+            {
+                StopLyricsScroll();
+                return;
+            }
+            LyricsScroll.ScrollToVerticalOffset(v);
+        }, OnLyricsScrollSettled);
     }
 
+    /// <summary>歌词滚动弹簧收敛后：精确落位到目标偏移，不留亚像素偏差。</summary>
+    private void OnLyricsScrollSettled()
+    {
+        if (_lyricsScrollSpring?.IsActive == true) return;
+        if (!IsLoaded || !IsVisible || !_vm.IsExpanded || LyricsScroll is null || LyricsList.Items.Count == 0) return;
+        LyricsScroll.ScrollToVerticalOffset(_lyricsScrollTarget);
+    }
+
+    /// <summary>停止歌词滚动（收起/隐藏/列表变化时）。</summary>
     private void StopLyricsScroll()
     {
-        if (!_lyricsScrollRendering) return;
-        _lyricsScrollRendering = false;
-        System.Windows.Media.CompositionTarget.Rendering -= OnLyricsScrollRendering;
+        _lyricsScrollSpring?.Stop();
     }
 
-    private void OnLyricsScrollRendering(object? sender, EventArgs e) => SmoothScrollStep();
-    private void SmoothScrollStep()
-    {
-        if (!_vm.IsExpanded || !IsVisible || !IsLoaded || LyricsList.Items.Count == 0)
-        {
-            StopLyricsScroll();
-            return;
-        }
-        var viewer = LyricsScroll;
-        var elapsed = (_lyricsScrollClock.ElapsedTicks - _lyricsScrollStartTicks) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        var t = Math.Clamp(elapsed / LyricsScrollMs, 0, 1);
-        // Quintic ease-in-out keeps the first movement gentle while avoiding a hard stop.
-        var eased = t * t * t * (t * (t * 6 - 15) + 10);
-        var offset = _lyricsScrollFrom + (_lyricsScrollTarget - _lyricsScrollFrom) * eased;
-        if (Math.Abs(offset - _lyricsScrollLastOffset) >= 0.05)
-        {
-            viewer.ScrollToVerticalOffset(offset);
-            _lyricsScrollLastOffset = offset;
-        }
-        if (t >= 1)
-        {
-            viewer.ScrollToVerticalOffset(_lyricsScrollTarget);
-            StopLyricsScroll();
-        }
-    }
+
 }
 
 

@@ -212,6 +212,7 @@ public static class SpringTicker
     private static readonly List<IOSSpring> _active = new();
     private static readonly Stopwatch _clock = Stopwatch.StartNew();
     private static double _lastSeconds;
+    private static double _smoothDt;   // 帧间隔指数移动平均（秒），掉帧时弹簧步伐平滑用
     private static bool _hooked;
 
     public static int ActiveCount => _active.Count;
@@ -221,6 +222,7 @@ public static class SpringTicker
         if (!_hooked)
         {
             _lastSeconds = _clock.Elapsed.TotalSeconds;
+            _smoothDt = 0; // 新的动画会话：清除上次帧间隔统计，重建平滑基线
             CompositionTarget.Rendering += OnRendering;
             _hooked = true;
         }
@@ -252,6 +254,15 @@ public static class SpringTicker
         _lastSeconds = now;
         // 防止挂起恢复/调试断点造成巨帧跳变
         if (dt <= 0 || dt > 0.1) dt = 1.0 / 60.0;
+
+        // 帧间隔平滑（2.0.6）：偶发一帧卡顿（GC/合成器抖动）时弹簧步伐保持平顺。
+        // iOS 的 CoreAnimation 由渲染服务统一调度，单帧抖动不会让动画跳一下；
+        // 这里对真实帧间隔做指数移动平均（EWMA），并限制单帧步长不超过均值的 1.5 倍，
+        // 掉帧瞬间弹簧仍按近似节奏推进，视觉上连续不突跳。
+        if (_smoothDt <= 0) _smoothDt = dt;
+        else _smoothDt = _smoothDt * 0.85 + dt * 0.15;
+        var maxStep = Math.Max(1.0 / 240.0, _smoothDt * 1.5);
+        if (dt > maxStep) dt = maxStep;
 
         // 倒序遍历，允许 Tick 内部 Complete 摘除
         for (var i = _active.Count - 1; i >= 0; i--)
