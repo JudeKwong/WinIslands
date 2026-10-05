@@ -380,7 +380,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _compactRestoreTimer.Tick += (_, _) =>
         {
             _compactRestoreTimer.Stop();
-            _memoryTrimTimer.Stop();
+            // 注意：这里不要碰 _memoryTrimTimer——内存修剪是常驻节电服务，
+            // 若在每次收起时被 Stop，空闲内存回收将永久停用（2.1.5 修复）。
             if (IsLoaded && !_vm.IsExpanded)
             {
                 Card.BeginAnimation(FrameworkElement.WidthProperty, null);
@@ -1872,8 +1873,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            // 展开/收起动画期间暂停声波动画，避免 20+ 条并行动画争抢渲染线程导致掉帧
-            if (_cardAnimating || _currentStoryboard is not null) return;
+            // 卡片弹簧与声波纹共用同一合成帧（开销极低）：动画期间波纹继续跟随音频，
+            // 避免用户展开时看到波纹“冻住”（iOS 风格：形变与声波并行、互不打断）。
+            // 仅旧 Storyboard 动效皮肤路径仍让路（该路径确实是多动画争抢）。
+            if (_currentStoryboard is not null) return;
             if (!IsLoaded || !HasWave)
             {
                 RefreshWave();
@@ -2633,7 +2636,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         if (wasAnimating && _cardWSpring!.IsActive && _cardHSpring!.IsActive)
         {
-            // 打断重定向（如展开一半点收起）：以当前值+速度连续改目标，方向自然过渡
+            // 打断重定向（如展开一半点收起）：先重设弹簧参数再改目标——
+            // 展开（欠阻尼、Q弹）与收起（近临界、收尾柔和）的手感参数不同，
+            // 只 Retarget 会沿用旧方向参数导致方向切换后过冲/发僵（2.1.5 修复）。
+            // Retarget 本身保留当前值+速度，改参数后速度依然连续，完整 iOS 打断语义。
+            _cardWSpring.Configure(zeta, response);
+            _cardHSpring.Configure(zeta, response);
+            _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(response, expand));
+            _cardRSpring!.Configure(expand ? 0.90 : 0.96, response * 0.82);
             _cardWSpring.Retarget(width);
             _cardHSpring.Retarget(height);
             _cardFadeSpring!.Retarget(fadeTo);
@@ -2675,7 +2685,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 PillRow.Visibility = Visibility.Collapsed;
                 PillRow.Opacity = 0;
                 ExpandedContent.Opacity = 1;
-                ExpandedContent.Width = double.NaN; // 恢复自适应布局
+                RestoreExpandedContentAutoWidth(); // 下一帧再恢复自适应宽度，避免同帧重排闪动（2.1.5）
             }
             else
             {
@@ -2683,7 +2693,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 PillRow.Opacity = 1;
                 ExpandedContent.Visibility = Visibility.Collapsed;
                 ExpandedContent.Opacity = 0;
-                ExpandedContent.Width = double.NaN; // 恢复自适应布局
+                RestoreExpandedContentAutoWidth(); // 下一帧再恢复自适应宽度，避免同帧重排闪动（2.1.5）
             }
             var cb = _cardSpringCompleted; // 先取再清，避免回调里再次触发动画导致重复收尾
             _cardSpringCompleted = null;
@@ -2699,15 +2709,40 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 动画收尾后延迟一帧再恢复展开内容的自适应宽度：
+    /// 先让动画结束帧以固定宽度稳定渲染，再释放宽度约束交给布局自动伸展，
+    /// 避免同一帧内宽度突变触发一次性重排（黑/白方框、文字闪动的根因之一）。
+    /// 若下一帧前新一轮卡片动画已开始，则跳过（宽度由动画路径接管）。
+    /// </summary>
+    private void RestoreExpandedContentAutoWidth()
+    {
+        try
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (ExpandedContent is null) return;
+                if (_cardAnimating) return; // 新一轮动画已开始：宽度由动画路径管理
+                ExpandedContent.Width = double.NaN; // 恢复自适应布局
+            }, DispatcherPriority.Loaded);
+        }
+        catch { /* 窗口已关闭时忽略 */ }
+    }
+
     /// <summary>紧凑尺寸变化（无展开时）：真实弹簧平滑调整卡片宽高，避免内容变化时"跳变"。</summary>
     private void AnimateCompactSizeSpring(double targetWidth, double targetHeight)
     {
         if (_cardAnimating)
         {
-            // 已有卡片动画（展开/收起/尺寸调整）进行中：直接改弹簧目标，连续过渡
-            if (_cardWSpring?.IsActive == true) _cardWSpring.Retarget(targetWidth);
-            if (_cardHSpring?.IsActive == true) _cardHSpring.Retarget(targetHeight);
-            if (_cardRSpring?.IsActive == true) _cardRSpring.Retarget(ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius));
+            // 已有卡片动画（展开/收起/尺寸调整）进行中：先按紧凑方向重设弹簧参数
+            // （近临界、更快的收尾手感），再连续改目标——避免打断后沿用展开的
+            // 欠阻尼参数产生不必要的过冲（2.1.5）。
+            var durScale2 = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+            var lm2 = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            var resp2 = 0.46 * durScale2 * lm2;
+            if (_cardWSpring?.IsActive == true) { _cardWSpring.Configure(0.96, resp2); _cardWSpring.Retarget(targetWidth); }
+            if (_cardHSpring?.IsActive == true) { _cardHSpring.Configure(0.96, resp2); _cardHSpring.Retarget(targetHeight); }
+            if (_cardRSpring?.IsActive == true) { _cardRSpring.Configure(0.97, resp2 * 0.85); _cardRSpring.Retarget(ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius)); }
             _cardTargetW = targetWidth;
             _cardTargetH = targetHeight;
             return;

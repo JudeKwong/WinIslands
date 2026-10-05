@@ -1,4 +1,5 @@
 using WinIslands.UI;
+using WinIslands.Services;
 
 namespace WinIslands.Tests;
 
@@ -30,5 +31,19 @@ public class PositionGuardTests
     public void Adopts_Or_Ignores_Reported_Position(double reported, double current, bool seeking, bool expectedAdopt)
     {
         Assert.Equal(expectedAdopt, IslandViewModel.ShouldAdoptReportedPosition(reported, current, seeking));
+    }
+
+    /// <summary>
+    /// 暂停冻结（2.1.5）：暂停时进度与歌词高亮必须停在暂停时刻——
+    /// 无论播放器上报多少/回退多少，本地一律不采纳，防止“暂停后歌词继续走”。
+    /// </summary>
+    [Theory]
+    [InlineData(PlaybackStatus.Paused, true)]
+    [InlineData(PlaybackStatus.Closed, false)]
+    [InlineData(PlaybackStatus.Playing, false)]
+    [InlineData(PlaybackStatus.Stopped, false)]
+    public void Freezes_Position_Only_While_Paused(PlaybackStatus status, bool expectedFreeze)
+    {
+        Assert.Equal(expectedFreeze, IslandViewModel.ShouldFreezePosition(status));
     }
 }

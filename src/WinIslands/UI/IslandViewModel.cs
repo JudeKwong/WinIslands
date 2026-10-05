@@ -2289,23 +2289,20 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         SourceDetail = snapshot.Track.SourceAppName;
         var prevStatus = Status;
         if (trackChanged) { _statusOverrideActive = false; _pauseLock = false; } // 换曲后上一状态锁定作废
-        if (_statusOverrideActive)
+        if (_pauseLock)
+        {
+            // 暂停锁定（2.1.5 粘性）：用户点击暂停 / 重启恢复为暂停后，本地保持暂停，
+            // 进度与歌词完全冻结，直到用户再次点击播放 / 换曲 / 媒体结束。
+            // 期间完全忽略快照上报的状态——Cider SMTC 在暂停时常持续误报 Playing，
+            // 旧实现先走乐观保护分支，8s 超时后会把本地状态打回 Playing，
+            // 导致“暂停后歌词继续往后走”。现在锁定优先，误报不再能解冻播放。
+        }
+        else if (_statusOverrideActive)
         {
             // 乐观状态保护期：直到快照确认目标状态或超时，否则保持按钮状态，不被快照打回
             if (snapshot.Status == _optimisticStatus || DateTime.UtcNow > _statusOverrideUntilUtc)
             {
                 _statusOverrideActive = false;
-                Status = snapshot.Status;
-            }
-        }
-        else if (_pauseLock)
-        {
-            // 暂停锁定：用户点击暂停 / 重启恢复的是暂停 —— 忽略快照误报的 Playing
-            // （Cider SMTC 在暂停时常仍报 Playing），保持暂停、不推进歌词；
-            // 直到快照确认暂停/停止（解除锁定）或用户点击播放。
-            if (snapshot.Status is PlaybackStatus.Paused or PlaybackStatus.Closed or PlaybackStatus.Stopped)
-            {
-                _pauseLock = false;
                 Status = snapshot.Status;
             }
         }
@@ -2358,8 +2355,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             // 暂停锁定期间：位置保持冻结，不采纳快照位置（避免歌词/进度在暂停时继续走）
         }
-        else if (hasRealPosition)
+        else if (!ShouldFreezePosition(Status) && hasRealPosition)
         {
+            // 暂停期间绝不采纳播放器上报位置：即使 _pauseLock 未启用（例如从播放器端暂停），
+            // 位置与歌词高亮也冻结在暂停时刻，防止 Cider/SMTC 上报轻微漂移或过期回退
+            // 超时把歌词推着往后走（2.1.5）。
             var current = _interpolatedPosition;
             var seeking = _suppressSeek > 0; // 用户正在拖拽进度条
             if (ShouldAdoptReportedPosition(reported, current, seeking))
@@ -2421,6 +2421,14 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (trackChanged) OnPropertyChanged(nameof(HasLyrics));
         if (trackChanged || statusChanged || previous?.Source != snapshot.Source) UpdateVisibility();
     }
+
+    /// <summary>
+    /// 当前状态是否应冻结进度/歌词位置（不采纳播放器上报的位置）。
+    /// 暂停时恒为 true：进度与歌词高亮必须停在暂停时刻，播放器（Cider/SMTC）上报的
+    /// 轻微漂移或过期读数都不得把歌词推着往后走（2.1.5）。纯函数，便于单元测试。
+    /// </summary>
+    internal static bool ShouldFreezePosition(PlaybackStatus status)
+        => status == PlaybackStatus.Paused;
 
     /// <summary>
     /// 判断是否应立即采用播放器上报的位置（秒）。

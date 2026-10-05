@@ -11,6 +11,31 @@
 ---
 
 ## 简体中文
+## WinIslands 2.1.5（正式版 / Stable）
+### 更新内容
+
+- **🧊 暂停即冻结（修复「暂停后歌词继续走」）**：暂停时进度条与歌词高亮完全停在暂停那一刻——播放器（Cider/SMTC）误报 Playing、过期回退或轻微漂移都再也无法把歌词推着往前走；暂停锁定改为粘性，重启恢复为暂停后同样保持冻结，直到你再次点击播放
+- **🎯 打断动画时切换 iOS 手感**：展开一半点收起、或在动画中被再次调整大小时，会先按新方向重设弹簧参数（展开欠阻尼 Q 弹、收起近临界柔和收尾）再连续改目标，位置与速度连续过渡，不再过冲或发僵
+- **🌊 动画期间声纹持续跟随**：卡片展开/收起时声波纹继续随音乐跳动，不再「冻住」；弹簧形变与声波共用同一合成帧，几乎零额外开销
+- **🎨 修复收尾瞬间的黑/白方框闪动**：动画落定后延迟一帧再恢复自适宽布局，消除同帧重排导致的一次性闪屏
+- **🧠 修复内存修剪被永久停用**：收起时不再误停常驻内存修剪服务，空闲内存回收恢复正常
+- **🧪 回归测试**：272 项单元测试全部通过（新增暂停冻结专项测试）
+
+---
+
+## WinIslands 2.1.5 (Stable)
+### What's New
+
+- **🧊 Pause now truly freezes lyric/progress (fixes 'lyrics keep advancing after pause')**: while paused the progress bar and lyric highlight stay exactly where you paused — misreported Playing, stale rollback or tiny drift from Cider/SMTC can no longer push lyrics forward; the pause lock is now sticky, stays frozen after restart-into-paused, and releases only when you hit play again
+- **🎯 Direction-aware spring retargeting**: interrupting expand/collapse (or resizing mid-animation) now reconfigures the spring to the new direction's feel (under-damped bouncy expand, near-critical soft settle for collapse) before retargeting — position and velocity stay continuous, no overshoot or stiff snap
+- **🌊 Waveform keeps dancing during card animations**: the audio wave no longer freezes while the card springs open/closed; the spring and wave share one composite frame so the cost is negligible
+- **🎨 Fixed one-frame dark/light box flicker on settle**: auto-width is restored one frame after the animation lands, eliminating the same-frame relayout flash
+- **🧠 Fixed memory-trim being permanently disabled**: collapsing no longer stops the resident memory trimmer, so idle memory reclamation works again
+- **🧪 Regression**: all 272 unit tests pass (new pause-freeze tests added)
+
+---
+
+## 简体中文
 ## WinIslands 2.1.4（正式版 / Stable）
 ### 更新内容
 
