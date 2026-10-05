@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace WinIslands.UI;
 
@@ -31,7 +31,7 @@ public static class CrossFadeCurves
     /// <summary>
     /// 胶囊行（紧凑内容）在当前展开内容透明度 v 下的目标不透明度。
     /// 展开：胶囊行在内容浮现的前 25% 期间让位（1→0），两手交接丝滑。
-    /// 收起：内容淡出到最后 1/5 时胶囊行才浮现（0→1），正好配合卡片收拢到胶囊尺寸。
+    /// 收起：内容淡出一半时胶囊行即开始浮现（0→1），与内容淡出重叠，消除中途打断时的空洞期。
     /// </summary>
     public static double PillOpacity(double expandedOpacity, bool expand)
     {
@@ -43,6 +43,38 @@ public static class CrossFadeCurves
             return Math.Clamp(1 - v / 0.25, 0.0, 1.0);
         }
         // 收起：v 由 1→0，胶囊行在 v∈[0.2, 0] 内淡入
-        return Math.Clamp((0.2 - v) / 0.2, 0.0, 1.0);
+        return Math.Clamp((0.5 - v) / 0.5, 0.0, 1.0);
+    }
+
+    // Reappear window constant shared by PillOpacity (collapse) so mid-flight
+    // retargets (expand -> collapse) keep the pill row visible continuously.
+    public const double CollapsePillReappearAt = 0.5;
+
+    /// <summary>Expand: content starts slightly smaller and higher, growing into place.</summary>
+    public const double ExpandParallaxScaleFrom = 0.97;
+    public const double ExpandParallaxYFrom = -12;
+
+    /// <summary>Collapse: content gently shrinks and drifts upward while fading out.</summary>
+    public const double CollapseParallaxScaleTo = 0.975;
+    public const double CollapseParallaxYTo = -8;
+
+    /// <summary>
+    /// Content parallax (2.1.0): drives the expanded content's scale + vertical
+    /// offset from the same spring value that drives its opacity, so the text
+    /// grows/retreats in sync with the card morph instead of statically fading.
+    /// Returns (Scale, TranslateY).
+    /// </summary>
+    public static (double Scale, double TranslateY) ContentParallax(double expandedOpacity, bool expand)
+    {
+        var t = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+        if (expand)
+        {
+            var scale = ExpandParallaxScaleFrom + (1.0 - ExpandParallaxScaleFrom) * t;
+            var y = ExpandParallaxYFrom * (1.0 - t);
+            return (scale, y);
+        }
+        var cs = CollapseParallaxScaleTo + (1.0 - CollapseParallaxScaleTo) * t;
+        var cy = CollapseParallaxYTo * (1.0 - t);
+        return (cs, cy);
     }
 }

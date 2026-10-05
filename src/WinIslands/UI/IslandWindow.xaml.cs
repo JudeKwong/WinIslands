@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -269,6 +269,28 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             el.Opacity = opacity;
             tr.Y = y;
         }
+    }
+    /// <summary>
+    /// iOS content parallax (2.1.0): the expanded content's scale + vertical offset
+    /// are driven by the same spring as its opacity, so text visibly "grows into place"
+    /// while expanding and gently retreats while collapsing - matching the card morph
+    /// instead of statically fading in/out.
+    /// </summary>
+    private void ApplyContentParallax(double v, bool expand)
+    {
+        if (ExpandedScale is null || ExpandedTranslate is null) return;
+        var (scale, y) = CrossFadeCurves.ContentParallax(v, expand);
+        ExpandedScale.ScaleX = scale;
+        ExpandedScale.ScaleY = scale;
+        ExpandedTranslate.Y = y;
+    }
+
+    /// <summary>Snap parallax transforms back to neutral at settle.</summary>
+    private void ResetContentParallax()
+    {
+        if (ExpandedScale is null || ExpandedTranslate is null) return;
+        ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
+        ExpandedTranslate.Y = 0;
     }
     private Storyboard? _positionStoryboard;   // 位置动画独占：连续重定位先停旧动画
     private HwndSource? _hwndSource;
@@ -2428,6 +2450,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             ExpandedContent.Opacity = 1;
             AddAnim(sb, ExpandedContent, UIElement.OpacityProperty, 0, (int)(300 * lm), smooth);
         }
+        // Content parallax (2.1.0): non-Spring styles get the same grow/retreat
+        // feel through storyboard animations on the shared scale/translate transforms.
+        if (expand)
+        {
+            AddAnim(sb, ExpandedScale, ScaleTransform.ScaleXProperty, 1, (int)(320 * lm), smooth);
+            AddAnim(sb, ExpandedScale, ScaleTransform.ScaleYProperty, 1, (int)(320 * lm), smooth);
+            AddAnim(sb, ExpandedTranslate, TranslateTransform.YProperty, 0, (int)(320 * lm), smooth);
+        }
+        else
+        {
+            AddAnim(sb, ExpandedScale, ScaleTransform.ScaleXProperty, CrossFadeCurves.CollapseParallaxScaleTo, (int)(260 * lm), smooth);
+            AddAnim(sb, ExpandedScale, ScaleTransform.ScaleYProperty, CrossFadeCurves.CollapseParallaxScaleTo, (int)(260 * lm), smooth);
+            AddAnim(sb, ExpandedTranslate, TranslateTransform.YProperty, CrossFadeCurves.CollapseParallaxYTo, (int)(260 * lm), smooth);
+        }
         // 胶囊行：展开后快速淡出；收起时与展开内容交叉淡入（0→1 平滑过渡）
         if (expand)
             AddAnim(sb, PillRow, UIElement.OpacityProperty, 0, (int)(220 * lm), smooth);
@@ -2452,7 +2488,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 // 必须写回最终尺寸：清除动画后若只依赖本地值，Card 会回退到紧凑时设置的本地尺寸
                 Card.Width = width;
                 Card.Height = height;
-                FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
+                FinalizeCardShape();
+                ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                ResetContentParallax(); // 收尾：圆角裁剪与最终尺寸精确对齐
                 if (_vm.IsExpanded)
                 {
                     PillRow.Visibility = Visibility.Collapsed;
@@ -2496,7 +2536,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardRSpring = new IOSSpring();
         _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
         _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
-        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); }, OnCardSpringSettled);
+        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); ApplyContentParallax(v, _expandedFadeIn); }, OnCardSpringSettled);
         _cardRSpring.SetCallbacks(ApplyCardRadius, OnCardSpringSettled);
     }
 
@@ -2618,7 +2658,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
             Card.Width = _cardTargetW;
             Card.Height = _cardTargetH;
-            FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
+            FinalizeCardShape();
+            ResetContentParallax(); // 收尾：圆角裁剪与最终尺寸精确对齐
             if (_vm.IsExpanded)
             {
                 PillRow.Visibility = Visibility.Collapsed;

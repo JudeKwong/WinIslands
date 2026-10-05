@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -48,13 +48,15 @@ public sealed class CrossFadeCurvesTests
     }
 
     [Fact]
-    public void Collapse_PillAppearsOnlyAtFinalFifth_NoEarlyPopIn()
+    public void Collapse_PillReappearsBeforeContentFullyFades_NoDeadAir()
     {
-        // 收起：内容仍可见时胶囊行保持隐藏；内容淡出到最后 1/5 才浮现，配合卡片收拢
+        // 收起：胶囊行在内容淡出一半时就开始浮现，与内容淡出重叠，
+        // 展开中途点收起时（v 在 0.2~0.5 之间）胶囊行立即接棒，消除空洞期
         Assert.Equal(0.0, CrossFadeCurves.PillOpacity(1.0, expand: false), 6);
-        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(0.5, expand: false), 6);
-        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(0.2, expand: false), 6);
-        Assert.InRange(CrossFadeCurves.PillOpacity(0.1, expand: false), 0.45, 0.55);
+        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(0.6, expand: false), 6);
+        Assert.InRange(CrossFadeCurves.PillOpacity(0.4, expand: false), 0.15, 0.25);
+        Assert.InRange(CrossFadeCurves.PillOpacity(0.25, expand: false), 0.45, 0.55);
+        Assert.InRange(CrossFadeCurves.PillOpacity(0.2, expand: false), 0.55, 0.65);
         Assert.Equal(1.0, CrossFadeCurves.PillOpacity(0.0, expand: false), 6);
     }
 
@@ -66,5 +68,47 @@ public sealed class CrossFadeCurvesTests
         // NaN/Inf 按 0 兜底 → 胶囊行保持可见
         Assert.Equal(1.0, CrossFadeCurves.PillOpacity(double.NaN, expand: true), 6);
         Assert.Equal(1.0, CrossFadeCurves.PillOpacity(double.PositiveInfinity, expand: false), 6);
+    }
+
+    [Fact]
+    public void Parallax_Expand_ContentGrowsIntoPlace()
+    {
+        // 展开：内容从稍小/稍上方随卡片生长到正常位置
+        var (s0, y0) = CrossFadeCurves.ContentParallax(0.0, expand: true);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, s0, 6);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxYFrom, y0, 6);
+        var (s1, y1) = CrossFadeCurves.ContentParallax(1.0, expand: true);
+        Assert.Equal(1.0, s1, 6);
+        Assert.Equal(0.0, y1, 6);
+        var (sm, ym) = CrossFadeCurves.ContentParallax(0.5, expand: true);
+        Assert.InRange(sm, 0.98, 0.99);   // 0.97 -> 1.0 的中点
+        Assert.InRange(ym, -7, -5);       // -12 -> 0 的中点
+    }
+
+    [Fact]
+    public void Parallax_Collapse_ContentRetreats()
+    {
+        // 收起：内容轻微收缩并上移淡出
+        var (s1, y1) = CrossFadeCurves.ContentParallax(1.0, expand: false);
+        Assert.Equal(1.0, s1, 6);
+        Assert.Equal(0.0, y1, 6);
+        var (s0, y0) = CrossFadeCurves.ContentParallax(0.0, expand: false);
+        Assert.Equal(CrossFadeCurves.CollapseParallaxScaleTo, s0, 6);
+        Assert.Equal(CrossFadeCurves.CollapseParallaxYTo, y0, 6);
+    }
+
+    [Fact]
+    public void Parallax_ClampsBadInputs()
+    {
+        // NaN/Inf 按方向终值兜底；越界值钳制到 [0,1]
+        var (sn, yn) = CrossFadeCurves.ContentParallax(double.NaN, expand: true);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, sn, 6);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxYFrom, yn, 6);
+        var (so, yo) = CrossFadeCurves.ContentParallax(double.PositiveInfinity, expand: false);
+        Assert.Equal(1.0, so, 6);
+        Assert.Equal(0.0, yo, 6);
+        var (sx, yx) = CrossFadeCurves.ContentParallax(2.0, expand: true);
+        Assert.Equal(1.0, sx, 6);
+        Assert.Equal(0.0, yx, 6);
     }
 }
