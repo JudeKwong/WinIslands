@@ -219,6 +219,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _cardTargetW;
     private double _cardTargetH;
     private Action? _cardSpringCompleted; // 卡片弹簧收敛后的完成回调（兼容旧 Storyboard 语义）
+    private bool _expandedFadeIn = true;   // 2.0.9：当前淡入方向（true=展开，false=收起），供胶囊行交叉淡入曲线使用
     private IOSSpring? _posLSpring;       // 窗口 Left 弹簧
     private IOSSpring? _posTSpring;       // 窗口 Top 弹簧
     private IOSSpring? _pushOpacitySpring;// 推送卡片透明度弹簧
@@ -2495,7 +2496,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardRSpring = new IOSSpring();
         _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
         _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
-        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = 1 - v; }, OnCardSpringSettled);
+        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); }, OnCardSpringSettled);
         _cardRSpring.SetCallbacks(ApplyCardRadius, OnCardSpringSettled);
     }
 
@@ -2567,6 +2568,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 动画期间固定展开内容宽度，避免逐帧重排（60fps 保持布局稳定）
         ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, CompactWidth)) - 20);
 
+        _expandedFadeIn = expand; // 2.0.9：记录淡入方向，交叉淡入曲线据此解耦胶囊行与内容
         var fadeTo = expand ? 1.0 : 0.0;
         var wasAnimating = _cardAnimating; // 记录进入前的动画状态，用于打断判断
         _cardAnimating = true;
@@ -2597,7 +2599,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring.Start(fromWidth, width);
         _cardHSpring!.Configure(zeta, response);
         _cardHSpring.Start(fromHeight, height);
-        _cardFadeSpring!.Configure(1.0, response * (expand ? 0.72 : 0.84)); // 临界阻尼：展开内容稍快浮现、收起先淡出；无回弹
+        _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(response, expand)); // 临界阻尼：展开内容略滞后形变浮现（形状先导、内容跟随），收起先淡出再收拢；无回弹
         _cardFadeSpring.Start(fadeFrom, fadeTo);
         _cardRSpring!.Configure(expand ? 0.90 : 0.96, response * 0.82); // 圆角先导：比尺寸快，形变全程连续
         _cardRSpring.Start(radiusFrom, radiusTo);
