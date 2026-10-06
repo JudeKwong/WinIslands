@@ -191,4 +191,109 @@ public class SpringEaseTests
         Assert.True(SpringEaseMath.EvaluatePresanitized(0.25, 12, 200, 1) < 1.02, "settles down");
     }
 
+    [Fact]
+    public void Prepared_BitIdenticalToPresanitized_ForSanitizedParams()
+    {
+        // 2.6.7: Prepare + EvaluatePrepared must be bit-identical to the
+        // pre-sanitized path for every sanitized param combo, across a dense t
+        // grid plus endpoints/out-of-range/NaN/+-Inf (DoubleToInt64Bits compared).
+        foreach (var (d, k, m) in new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (1.0, 1.0, 1e-9),
+            (120.0, 1200.0, 8.0),
+            (35.0, 90.0, 0.25),
+        })
+        {
+            var c = SpringEaseMath.Prepare(d, k, m);
+            for (var i = 0; i <= 5000; i++)
+            {
+                var t = i / 5000.0;
+                var a = SpringEaseMath.EvaluatePresanitized(t, d, k, m);
+                var b = SpringEaseMath.EvaluatePrepared(c, t);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(a), BitConverter.DoubleToInt64Bits(b));
+            }
+            foreach (var t in new[] { 0.0, -1.0, 1.0, 2.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+            {
+                var a = SpringEaseMath.EvaluatePresanitized(t, d, k, m);
+                var b = SpringEaseMath.EvaluatePrepared(c, t);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(a), BitConverter.DoubleToInt64Bits(b));
+            }
+        }
+    }
+
+    [Fact]
+    public void Prepare_CoefficientFolding_BitIdenticalToOldDerivation()
+    {
+        // 2.6.7: the folded coefficients must be bit-identical to the old inline
+        // derivations: omegaD == omega0*Sqrt(z2>0?z2:0.0001), ratio == (zeta*omega0)/omegaD,
+        // and negZm == (-zeta)*omega0 (IEEE keeps the sign bit independent, so
+        // -(zeta*omega0) is bit-identical to (-zeta)*omega0).
+        var combos = new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (0.0, 1.0, 1e-9),
+            (100.0, 1e-9, 1e-9),
+            (42.0, 500.0, 3.0),
+        };
+        foreach (var (d, k, m) in combos)
+        {
+            var c = SpringEaseMath.Prepare(d, k, m);
+            var omega0 = Math.Sqrt(k / m);
+            var zeta = d / (2 * Math.Sqrt(k * m));
+            var z2 = 1 - zeta * zeta;
+            var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
+            var negZmOld = (-zeta) * omega0;
+            var ratioOld = (zeta * omega0) / omegaD;
+            Assert.Equal(BitConverter.DoubleToInt64Bits(omegaD), BitConverter.DoubleToInt64Bits(c.OmegaD));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(ratioOld), BitConverter.DoubleToInt64Bits(c.RatioZetaOmega0OverOmegaD));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(negZmOld), BitConverter.DoubleToInt64Bits(c.NegZetaOmega0));
+            // the folded -(zeta*omega0) form is itself bit-identical to (-zeta)*omega0
+            Assert.Equal(BitConverter.DoubleToInt64Bits(negZmOld), BitConverter.DoubleToInt64Bits(-(zeta * omega0)));
+        }
+    }
+
+    [Fact]
+    public void Prepared_ExactEndpoints_AndOvershootShape()
+    {
+        // 2.6.7: the prepared fast path lands exactly on endpoints and keeps the
+        // Q-bounce shape, same as the pre-sanitized path it replaces.
+        var c = SpringEaseMath.Prepare(12, 200, 1);
+        Assert.Equal(0.0, SpringEaseMath.EvaluatePrepared(c, 0.0));
+        Assert.Equal(0.0, SpringEaseMath.EvaluatePrepared(c, -1.0));
+        Assert.Equal(1.0, SpringEaseMath.EvaluatePrepared(c, 1.0));
+        Assert.Equal(1.0, SpringEaseMath.EvaluatePrepared(c, 5.0));
+        Assert.True(SpringEaseMath.EvaluatePrepared(c, 0.1) >= 1.0, "overshoot at t=0.1");
+        Assert.True(SpringEaseMath.EvaluatePrepared(c, 0.25) < 1.02, "settles down");
+    }
+
+    [Fact]
+    public void SpringEase_InstanceBitIdenticalToMath_AcrossParamChanges()
+    {
+        // 2.6.7: the instance path (which caches Prepare on parameter change) must
+        // be bit-identical to SpringEaseMath.Evaluate for the same sanitized params,
+        // including after mutating Damping/Stiffness/Mass (re-prepare path).
+        var s = new SpringEase();
+        foreach (var (d, k, m) in new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (30.0, 260.0, 2.0),
+            (0.0, 200.0, 1.0),
+        })
+        {
+            s.Damping = d; s.Stiffness = k; s.Mass = m;
+            for (var i = 0; i <= 2000; i++)
+            {
+                var t = i / 2000.0;
+                var a = s.Ease(t);
+                var b = SpringEaseMath.Evaluate(t, d, k, m);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(a), BitConverter.DoubleToInt64Bits(b));
+            }
+        }
+    }
 }

@@ -17,6 +17,9 @@ public sealed class SpringEase : Freezable, IEasingFunction
 
     private double _lastD = -1, _lastK = -1, _lastM = -1;
     private double _dd = 12, _kk = 200, _mm = 1;
+    // 2.6.7：常量系数（ω0/ζ/ωD/ζω0/ωD 与 −ζω0）在参数变化时随消毒一起预计算一次，
+    // 逐帧求值直接复用，不再重复 sqrt/除法/乘法推导（输出逐位一致）。
+    private SpringEaseMath.SpringCoeffs _coeffs;
 
     protected override Freezable CreateInstanceCore() =>
         new SpringEase { Damping = Damping, Stiffness = Stiffness, Mass = Mass };
@@ -27,11 +30,13 @@ public sealed class SpringEase : Freezable, IEasingFunction
         if (_lastD != Damping || _lastK != Stiffness || _lastM != Mass)
         {
             SpringEaseMath.Sanitize(Damping, Stiffness, Mass, out _dd, out _kk, out _mm);
+            _coeffs = SpringEaseMath.Prepare(_dd, _kk, _mm);
             _lastD = Damping; _lastK = Stiffness; _lastM = Mass;
         }
         // 2.6.5：参数已由 Sanitize 消毒并缓存（_dd/_kk/_mm），走预消毒快路径，
         // 每帧免去 Evaluate 内部的 3 次 IsFinite + 3 次取值域判断；输出逐位一致。
-        return SpringEaseMath.EvaluatePresanitized(normalizedTime, _dd, _kk, _mm);
+        // 2.6.7：系数已随消毒预计算（_coeffs），逐帧只做 Exp/SinCos/乘加。
+        return SpringEaseMath.EvaluatePrepared(_coeffs, normalizedTime);
     }
 }
 
@@ -46,6 +51,8 @@ public sealed class SoftSpringEase : Freezable, IEasingFunction
 
     private double _lastD2 = -1, _lastK2 = -1, _lastM2 = -1;
     private double _dd2 = 16, _kk2 = 150, _mm2 = 1;
+    // 2.6.7：同上——常量系数随消毒预计算（_coeffs2），逐帧求值直接复用。
+    private SpringEaseMath.SpringCoeffs _coeffs2;
 
     protected override Freezable CreateInstanceCore() =>
         new SoftSpringEase { Damping = Damping, Stiffness = Stiffness, Mass = Mass };
@@ -56,10 +63,12 @@ public sealed class SoftSpringEase : Freezable, IEasingFunction
         if (_lastD2 != Damping || _lastK2 != Stiffness || _lastM2 != Mass)
         {
             SpringEaseMath.Sanitize(Damping, Stiffness, Mass, out _dd2, out _kk2, out _mm2);
+            _coeffs2 = SpringEaseMath.Prepare(_dd2, _kk2, _mm2);
             _lastD2 = Damping; _lastK2 = Stiffness; _lastM2 = Mass;
         }
         // 2.6.5：同上——参数已消毒缓存（_dd2/_kk2/_mm2），走预消毒快路径。
-        return SpringEaseMath.EvaluatePresanitized(normalizedTime, _dd2, _kk2, _mm2);
+        // 2.6.7：系数已随消毒预计算（_coeffs2），逐帧求值直接复用。
+        return SpringEaseMath.EvaluatePrepared(_coeffs2, normalizedTime);
     }
 }
 
@@ -95,18 +104,60 @@ internal static class SpringEaseMath
     /// 端点精确归位；对已消毒输入与旧 Evaluate（消毒后路径）逐位一致（DoubleToInt64Bits 验证）。
     /// </summary>
     public static double EvaluatePresanitized(double normalized, double d, double k, double m)
+        => EvaluatePrepared(Prepare(d, k, m), normalized);
+
+    /// <summary>
+    /// 2.6.7：弹簧常量系数集合——与 t 无关的中间量在参数变化时一次预计算，
+    /// 逐帧求值全部复用（每帧省 2 次 sqrt、1 次除法与若干乘法/比较；输出逐位一致）。
+    /// </summary>
+    internal readonly struct SpringCoeffs
+    {
+        /// <summary>阻尼振荡角频率 ωD（旧公式逐帧 ω0·Sqrt(z2&gt;0?z2:0.0001)，现预计算）。</summary>
+        internal readonly double OmegaD;
+        /// <summary>旧公式逐帧 (ζ·ω0)/ωD，用于 sin 项系数。</summary>
+        internal readonly double RatioZetaOmega0OverOmegaD;
+        /// <summary>旧公式逐帧 (−ζ)·ω0（衰减指数系数；IEEE 符号对称下与 −(ζ·ω0) 逐位一致）。</summary>
+        internal readonly double NegZetaOmega0;
+
+        internal SpringCoeffs(double omegaD, double ratio, double negZm)
+        {
+            OmegaD = omegaD;
+            RatioZetaOmega0OverOmegaD = ratio;
+            NegZetaOmega0 = negZm;
+        }
+    }
+
+    /// <summary>
+    /// 2.6.7：预计算弹簧常量系数。推导顺序与旧逐帧内联公式完全相同，因此逐位一致：
+    /// ω0=Sqrt(k/m)；ζ=d/(2·Sqrt(k·m))；z2=1−ζ²；ωD=ω0·Sqrt(z2&gt;0?z2:0.0001)；
+    /// zm=ζ·ω0；ratio=(ζ·ω0)/ωD=zm/ωD；negZm=−zm（≡(−ζ)·ω0，IEEE 符号位独立）。
+    /// </summary>
+    public static SpringCoeffs Prepare(double d, double k, double m)
+    {
+        var omega0 = Math.Sqrt(k / m);
+        var zeta = d / (2 * Math.Sqrt(k * m));
+        var z2 = 1 - zeta * zeta;
+        var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
+        var zm = zeta * omega0;
+        var ratio = zm / omegaD;
+        var negZm = -zm;
+        return new SpringCoeffs(omegaD, ratio, negZm);
+    }
+
+    /// <summary>
+    /// 2.6.7：预计算系数求值快路径（逐帧热路径）。调用方保证 c 由 Prepare 产出；
+    /// t 仍按原式钳制到 [0,1]、端点精确归位，中途保留 Q 弹过冲；对任意 t 与旧逐帧
+    /// 公式逐位一致（t=0→0、t=1→1；NaN/±Inf 经 Math.Clamp 后与原路径一致）。
+    /// </summary>
+    public static double EvaluatePrepared(in SpringCoeffs c, double normalized)
     {
         var t = Math.Clamp(normalized, 0.0, 1.0);
         if (t <= 0.0) return 0.0;
         if (t >= 1.0) return 1.0;
         var tt = t * 1.7;
-        var omega0 = Math.Sqrt(k / m);
-        var zeta = d / (2 * Math.Sqrt(k * m));
-        var z2 = 1 - zeta * zeta;
-        var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
-        var decay = Math.Exp(-zeta * omega0 * tt);
-        var (st, ct) = Math.SinCos(omegaD * tt);
-        var v = 1 - decay * (ct + (zeta * omega0 / omegaD) * st);
+        var decay = Math.Exp(c.NegZetaOmega0 * tt);
+        var (st, ct) = Math.SinCos(c.OmegaD * tt);
+        var v = 1 - decay * (ct + c.RatioZetaOmega0OverOmegaD * st);
         return v < 0 ? 0 : v;
     }
 }

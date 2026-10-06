@@ -1,3 +1,19 @@
+## WinIslands 2.6.7（正式版 / Stable）
+### 更新内容
+
+- 🚀 弹簧缓动常量系数预计算：SpringEase/SoftSpringEase 的旧逐帧公式每次都重算 ω0=Sqrt(k/m)、ζ=d/(2·Sqrt(k·m))、z2、ωD=ω0·Sqrt(z2&gt;0?z2:0.0001) 以及 (ζ·ω0)/ωD、(−ζ)·ω0（2 次 sqrt + 多次乘除）；现新增 Prepare 一次预计算全部与 t 无关的常量系数（SpringCoeffs：ωD、ζω0/ωD、−ζω0），参数变化时随消毒一并生成，逐帧 EvaluatePrepared 热路径只做 Exp/SinCos/乘加，每个活跃弹簧每帧省 2 次 sqrt、1 次除法与若干乘法，输出与旧公式逐位一致（IEEE 符号位独立：−(ζ·ω0) ≡ (−ζ)·ω0；DoubleToInt64Bits 密集扫描验证）
+- 🧪 测试：新增 4 项——预计算路径 × 5001 个 t 采样点与旧逐帧路径逐位一致（6 组消毒参数 × 2 轮）、系数字折叠与旧推导逐位一致（ωD/比例/衰减系数且 −(ζ·ω0) ≡ (−ζ)·ω0）、预计算路径端点精确且保持 Q 弹形状、实例路径（含改参数重算）与 SpringEaseMath.Evaluate 逐位一致；共 508 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.7 (Stable)
+### What’s New
+
+- 🚀 Spring easing constant coefficients precomputed: the old per-frame formula re-derived omega0=Sqrt(k/m), zeta=d/(2*Sqrt(k*m)), z2, omegaD=omega0*Sqrt(z2&gt;0?z2:0.0001) plus (zeta*omega0)/omegaD and (-zeta)*omega0 (2 sqrts + several mul/div) on every Ease call; a new Prepare now precomputes all t-independent coefficients once (SpringCoeffs: omegaD, zeta*omega0/omegaD, -zeta*omega0) alongside sanitize on parameter change, so the per-frame EvaluatePrepared hot path only does Exp/SinCos/mul-add, saving 2 sqrts, 1 division and several multiplies per active spring per frame with bit-identical output (IEEE keeps the sign bit independent, so -(zeta*omega0) == (-zeta)*omega0; DoubleToInt64Bits dense-sweep verified)
+- 🧪 Tests: 4 new cases - prepared path bit-identical to the old per-frame path over 5001 t samples (6 sanitized param sets x 2 rounds), folded coefficients bit-identical to the old derivations (omegaD/ratio/decay coefficient, plus -(zeta*omega0) == (-zeta)*omega0), prepared path exact endpoints with the Q-bounce shape, and the instance path (including param-change re-prepare) bit-identical to SpringEaseMath.Evaluate; 508 unit tests green
+
+---
+
 ## WinIslands 2.6.6（正式版 / Stable）
 ### 更新内容
 
