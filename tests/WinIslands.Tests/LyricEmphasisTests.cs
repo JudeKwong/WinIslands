@@ -43,4 +43,56 @@ public sealed class LyricEmphasisTests
         Assert.Equal(1.18, LyricEmphasis.ComputeTargetScale(-5, 16), 6);
         Assert.Equal(1.18, LyricEmphasis.ComputeTargetScale(13, double.PositiveInfinity), 6);
     }
+    // ── 2.3.0：真实 IOSSpring 物理引擎参数换算 ─────────────────────────
+    [Theory]
+    [InlineData(240)]
+    [InlineData(120)]
+    [InlineData(60)]
+    [InlineData(900)]
+    [InlineData(500)]
+    public void EnterParams_FiniteAndInRange(double ms)
+    {
+        var (zeta, response) = LyricEmphasis.ComputeEnterParams(ms);
+        Assert.Equal(0.78, zeta, 6);
+        Assert.InRange(response, 0.06, 0.9);
+    }
+
+    [Fact]
+    public void EnterParams_DefaultDurationMapsToResponse()
+    {
+        // 默认 240ms → 响应 0.24s，直接用作弹簧感知收敛时长
+        var (_, response) = LyricEmphasis.ComputeEnterParams(240);
+        Assert.Equal(0.24, response, 4);
+    }
+
+    [Fact]
+    public void ExitParams_DampedAndQuicker()
+    {
+        // 退出：阻尼更高（无回弹）、收敛比进入更快（×0.72）
+        var (zeta, response) = LyricEmphasis.ComputeExitParams(240);
+        Assert.Equal(0.90, zeta, 6);
+        Assert.Equal(0.1728, response, 4);
+    }
+
+    [Fact]
+    public void DurationParams_ClampedToSafeWindow()
+    {
+        // DurationMs 越界（内部误传 10 / 5000）→ 钳制到 60~900ms，绝不产生 NaN
+        var (_, rLo) = LyricEmphasis.ComputeEnterParams(10);
+        var (_, rHi) = LyricEmphasis.ComputeEnterParams(5000);
+        Assert.Equal(0.06, rLo, 4);
+        Assert.Equal(0.9, rHi, 4);
+    }
+
+    [Fact]
+    public void DurationParams_InvalidInputFallsBack()
+    {
+        // NaN / Inf：兜底到默认 240ms，保持稳定不崩
+        var (z1, r1) = LyricEmphasis.ComputeEnterParams(double.NaN);
+        Assert.Equal(0.78, z1, 6);
+        Assert.Equal(0.24, r1, 4);
+        var (z2, r2) = LyricEmphasis.ComputeExitParams(double.PositiveInfinity);
+        Assert.Equal(0.90, z2, 6);
+        Assert.True(double.IsFinite(r2));
+    }
 }

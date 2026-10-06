@@ -1,3 +1,21 @@
+## WinIslands 2.3.0（正式版 / Stable）
+### 更新内容
+
+- **🎼 歌词行强调接入真实物理引擎**：展开歌词「当前行」的放大/回落从「固定时长补间 + 软弹簧缓动」换成与展开/收起同一套的 iOS 真弹簧物理引擎（合成帧驱动）——动画自然跑到物理静止，切行打断时以当前位移 + 当前速度连续接力，不再有固定时长结束时的硬切，也不再生硬地时快时慢
+- **📐 UIKit 参数化**：进入（轻 Q 弹 ζ=0.78）与退出（果断无回弹 ζ=0.90、收敛更快 ×0.72）两组弹簧参数由纯函数从设置换算，越界/非法输入自动钳制兜底
+- **✅ 回归测试**：新增弹簧参数换算 9 项测试（进入/退出参数、默认时长映射、钳制窗口、NaN/Inf 兜底），共 360 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.3.0 (Stable)
+### What's New
+
+- **🎼 Lyric emphasis now runs on the real physics engine**: the current-line grow/shrink in the expanded lyric view moved from fixed-duration tweening + soft-spring ease to the same iOS true-spring engine (composition-frame driven) used by expand/collapse - it settles naturally to rest, and line-change interruptions carry over current position + velocity with zero discontinuity, no hard end cut, no robotic speed changes
+- **📐 UIKit-style parameters**: enter (light overshoot ζ=0.78) vs exit (decisive, no overshoot ζ=0.90, faster ×0.72) spring params are derived from settings via pure functions, with clamping/fallback for out-of-range or NaN inputs
+- **✅ Regression**: 9 new spring-parameter tests (enter/exit params, default duration mapping, clamp window, NaN/Inf fallback) - 360 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.20（正式版 / Stable）
 ### 更新内容
 

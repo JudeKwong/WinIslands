@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 
 namespace WinIslands.UI;
 
@@ -15,8 +14,13 @@ namespace WinIslands.UI;
 /// 本类改为只缩放渲染（RenderTransform），行高/布局完全不变：
 ///   - 当前行从小到大平滑放大（带轻微 Q 弹，跟随 iOS），过去行平滑缩回；
 ///   - 页面不回流、不换行，垂直滚动位置稳定，文字过渡丝滑。
-/// 每个元素持有自己的 ScaleTransform（ConditionalWeakTable 随元素自动回收），
-/// 动画可随时打断（BeginAnimation 重新起播），停止自然连续。
+/// 每个元素持有自己的 ScaleTransform 与 IOSSpring（ConditionalWeakTable 随元素自动回收）。
+///
+/// 2.3.0：驱动引擎从「固定时长 DoubleAnimation + SoftSpringEase」换成与展开/收起
+/// 同一套的真实 IOSSpring 物理引擎（SpringTicker 合成帧驱动）：
+///   - 物理收敛、不抢时长：动画一直跑到自然静止，结尾没有硬切/跳变；
+///   - 切行打断时以当前位移 + 当前速度作为新一段的初始条件，位置与速度连续、不跳变；
+///   - 进入（轻 Q 弹）与退出（果断无回弹）使用两组 UIKit 风格参数，由纯函数换算。
 /// </summary>
 public static class LyricEmphasis
 {
@@ -34,28 +38,47 @@ public static class LyricEmphasis
     public static void SetTargetScale(DependencyObject o, double v) => o.SetValue(TargetScaleProperty, v);
     public static double GetTargetScale(DependencyObject o) => (double)o.GetValue(TargetScaleProperty);
 
-    /// <summary>过渡时长（毫秒）。</summary>
+    /// <summary>弹簧响应时长（毫秒）。由纯函数换算成物理响应秒（进入/退出两组参数）。</summary>
     public static readonly DependencyProperty DurationMsProperty = DependencyProperty.RegisterAttached(
         "DurationMs", typeof(double), typeof(LyricEmphasis), new PropertyMetadata(240.0));
 
     public static void SetDurationMs(DependencyObject o, double v) => o.SetValue(DurationMsProperty, v);
     public static double GetDurationMs(DependencyObject o) => (double)o.GetValue(DurationMsProperty);
 
-    private static readonly ConditionalWeakTable<FrameworkElement, ScaleTransform> Scales = new();
+    private sealed class ElementState
+    {
+        public ScaleTransform? Scale;
+        public IOSSpring? Spring;
+    }
 
-    /// <summary>全局低功耗覆盖（2.4.0）：由 IslandWindow 在设置变化时同步，统一限制本组件的动画帧率。</summary>
+    private static readonly ConditionalWeakTable<FrameworkElement, ElementState> States = new();
+
+    /// <summary>低功耗兼容字段（2.4.0 起帧率上限由 SpringTicker.CapAt60Fps 统一接管；保留给 IslandWindow 赋值，无副作用）。</summary>
     public static bool LowPowerModeOverride;
 
-    // 进入：轻 Q 弹（阻尼 14，刚度 180，负责展开时「涨到目标」的顺滑手感）；
-    // 退出：更高阻尼无回弹（防止过去行缩回时弹跳）。
-    private static readonly SoftSpringEase CachedInEase = Freeze(new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 });
-    private static readonly SoftSpringEase CachedOutEase = Freeze(new SoftSpringEase { Damping = 18, Stiffness = 150, Mass = 1 });
+    /// <summary>进入（当前行涨起）：轻 Q 弹，iOS 展开手感。</summary>
+    public const double EnterZeta = 0.78;
+    /// <summary>退出（过去行回落）：更高阻尼、无回弹，回落果断。</summary>
+    public const double ExitZeta = 0.90;
+    /// <summary>退出相对进入的响应时长比例：回落比涨起略快，节奏自然。</summary>
+    private const double ExitResponseScale = 0.72;
 
-    private static SoftSpringEase Freeze(SoftSpringEase e)
+    /// <summary>由 UI 设置（DurationMs）换算「进入」弹簧参数（纯函数，便于单元测试）。</summary>
+    internal static (double Zeta, double ResponseSeconds) ComputeEnterParams(double durationMs)
     {
-        e.Freeze();
-        return e;
+        var response = ClampDuration(durationMs) / 1000.0;
+        return (EnterZeta, response);
     }
+
+    /// <summary>由 UI 设置换算「退出」弹簧参数：阻尼更高、收敛更快（纯函数，便于单元测试）。</summary>
+    internal static (double Zeta, double ResponseSeconds) ComputeExitParams(double durationMs)
+    {
+        var response = ClampDuration(durationMs) * ExitResponseScale / 1000.0;
+        return (ExitZeta, response);
+    }
+
+    private static double ClampDuration(double ms)
+        => Math.Clamp(double.IsFinite(ms) ? ms : 240.0, 60.0, 900.0);
 
     /// <summary>按 基础字号/当前行字号 计算渲染缩放倍率（纯函数，便于单元测试）。</summary>
     internal static double ComputeTargetScale(double baseSize, double currentSize)
@@ -70,19 +93,30 @@ public static class LyricEmphasis
         if (d is not FrameworkElement fe) return;
         try
         {
-            var scale = GetScale(fe);
+            var state = GetState(fe);
+            var scale = state.Scale!;
             var target = (bool)e.NewValue ? ReadTargetScale(fe) : 1.0;
-            var ms = Math.Clamp(ReadDuration(fe), 60, 900);
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-            var ease = (bool)e.NewValue ? CachedInEase : CachedOutEase;
-            var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
-            AnimationFrameRate.Apply(anim, LowPowerModeOverride); // 2.4.0：低功耗/降频时统一限制帧率
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
-            // BeginAnimation 需要两个独立动画实例（同一实例不能同时动画两个 DP）
-            var animY = new DoubleAnimation(target, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
-            AnimationFrameRate.Apply(animY, LowPowerModeOverride); // 2.4.0
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+            var (zeta, response) = (bool)e.NewValue
+                ? ComputeEnterParams(ReadDuration(fe))
+                : ComputeExitParams(ReadDuration(fe));
+
+            // iOS 打断语义：以旧弹簧的当前位移 + 当前速度作为新一段的初始条件，
+            // 位置与速度都不跳变；旧弹簧从合成帧队列摘除（保留当前值作为起点）。
+            var from = scale.ScaleX;
+            var velocity = 0.0;
+            if (state.Spring is { IsActive: true } old)
+            {
+                from = old.Value;
+                velocity = old.Velocity;
+                old.Stop();
+            }
+
+            state.Spring = IOSSpring.Create(
+                zeta, response,
+                from: from, to: target,
+                onUpdate: v => { scale.ScaleX = v; scale.ScaleY = v; },
+                onCompleted: null,
+                initialVelocity: velocity);
         }
         catch (Exception ex)
         {
@@ -90,15 +124,28 @@ public static class LyricEmphasis
         }
     }
 
-    private static ScaleTransform GetScale(FrameworkElement fe)
+    private static ElementState GetState(FrameworkElement fe)
     {
-        if (fe.RenderTransform is ScaleTransform st) return st;
-        if (Scales.TryGetValue(fe, out var cached)) return cached;
-        var created = new ScaleTransform(1, 1);
-        Scales.Add(fe, created);
-        fe.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-        fe.RenderTransform = created;
-        return created;
+        if (!States.TryGetValue(fe, out var state))
+        {
+            state = new ElementState();
+            States.Add(fe, state);
+        }
+        if (state.Scale is null)
+        {
+            if (fe.RenderTransform is ScaleTransform existing)
+            {
+                state.Scale = existing;
+            }
+            else
+            {
+                var created = new ScaleTransform(1, 1);
+                fe.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+                fe.RenderTransform = created;
+                state.Scale = created;
+            }
+        }
+        return state;
     }
 
     private static double ReadTargetScale(FrameworkElement fe)
