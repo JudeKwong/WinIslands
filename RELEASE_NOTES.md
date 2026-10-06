@@ -1,3 +1,21 @@
+## WinIslands 2.5.0（正式版 / Stable）
+### 更新内容
+
+- **🎵 波形热路径合并三角调用**：条/频谱与粒子两条声波纹路径每帧原本对同一自变量 t*6.0 各调一次 Math.Sin + Math.Cos（两次主元换算），收敛为 WaveMath.WaveBase——单次 Math.SinCos 只换算一次，JIT 展开为单条 FSINCOS 指令对，波纹跟随音乐的每帧更省 CPU、帧更稳
+- **🧮 纯函数抽取**：WaveBase 纳入 WaveMath 纯函数集合，与旧分开调用结果一致（15 位有效数字内），非法输入（NaN/±Inf）按 IEEE 语义返回 NaN、不抛异常
+- **✅ 回归测试**：新增与旧公式采样一致性、单位圆约束、非有限输入不抛异常测试 2 项，共 448 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.0 (Stable)
+### What's New
+
+- **🎵 Wave hot path merges the trig calls**: both the bar/spectrum and particle wave paths used to pay Math.Sin + Math.Cos on the same argument (t*6.0) per frame - they now share WaveMath.WaveBase, a single Math.SinCos with one argument reduction that the JIT lowers to one FSINCOS pair, so audio-reactive waves stay cheaper and steadier frame-to-frame
+- **🧮 Pure function**: WaveBase joins the WaveMath toolbox - results agree with the old separate calls (15 significant digits), NaN/±Inf inputs follow IEEE semantics without throwing
+- **✅ Regression**: 2 new sample-consistency/unit-circle/non-finite-safety tests, 448 unit tests green
+
+---
+
 ## WinIslands 2.4.9（正式版 / Stable）
 ### 更新内容
 

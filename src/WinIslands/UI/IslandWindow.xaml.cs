@@ -2009,8 +2009,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         var n = bars.Count;
         if (n == 0) return;
-        var sinBase = Math.Sin(t * 6.0);
-        var cosBase = Math.Cos(t * 6.0);
+        var (sinBase, cosBase) = WaveMath.WaveBase(t); // 2.5.0: 单次 SinCos，同参数一次主元换算
         var isPlaying = _vm.IsPlaying;
         // 2.3.5: 循环不变量提升到循环外（每帧少 n-1 次乘加）；i/n 改用预计算倒数乘法代替除法
         var invN = 1.0 / n;
@@ -2172,8 +2171,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         var n = parts.Count;
         if (n == 0) return;
-        var sinBase = Math.Sin(t * 6.0);
-        var cosBase = Math.Cos(t * 6.0);
+        var (sinBase, cosBase) = WaveMath.WaveBase(t); // 2.5.0: 单次 SinCos，同参数一次主元换算
         var isPlaying = _vm.IsPlaying;
         var amp = level * maxY; // 2.3.5: 循环不变量提升
         for (var i = 0; i < n; i++)

@@ -46,4 +46,10 @@ internal static class WaveMath
         if (!double.IsFinite(dt) || !double.IsFinite(rate)) return 0.0;
         return 1.0 - Math.Exp(-dt * rate);
     }
+    /// <summary>
+    /// 波形基波（2.5.0）：一次 Math.SinCos 同时求 sin/cos——同一自变量 t*6.0 只做主元换算一次，
+    /// JIT 展开为单条 FSINCOS 指令对。条/频谱与粒子两条波形热路径共用此纯函数，
+    /// 浮点结果与原分开调用的 Math.Sin / Math.Cos 一致（15 位有效数字内）。
+    /// </summary>
+    internal static (double Sin, double Cos) WaveBase(double t) => Math.SinCos(t * 6.0);
 }

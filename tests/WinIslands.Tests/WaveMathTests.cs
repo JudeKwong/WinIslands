@@ -125,5 +125,37 @@ public sealed class WaveMathTests
         Assert.Equal(0.0, WaveMath.SmoothAlpha(0.02, double.NaN), 9);
         Assert.Equal(0.0, WaveMath.SmoothAlpha(0.02, double.PositiveInfinity), 9);
     }
+    /// <summary>
+    /// 2.5.0：波形基波合并三角调用——WaveBase 必须与旧的 Math.Sin/Math.Cos 分开调用结果一致
+    /// （采样覆盖正负、跨 2π、零附近、常见节拍值；15 位有效数字容差容忍主元约简的尾位差异）。
+    /// </summary>
+    [Fact]
+    public void WaveBase_MatchesSeparateSinCos()
+    {
+        double[] samples = {
+            -37.5, -7.0, -0.001, 0.0, 0.001, 0.25,
+            1.0471975511965976, 3.141592653589793, 6.283185307179586,
+            12.566370614359172, 99.9, 1234.5678
+        };
+        foreach (var t in samples)
+        {
+            var (sin, cos) = WaveMath.WaveBase(t);
+            Assert.Equal(Math.Sin(t * 6.0), sin, 15);
+            Assert.Equal(Math.Cos(t * 6.0), cos, 15);
+            // 单位圆约束：sin²+cos² ≈ 1（合并调用共享主元约简，精度不低于分开调用）
+            Assert.Equal(1.0, sin * sin + cos * cos, 14);
+        }
+    }
 
+    [Fact]
+    public void WaveBase_NonFiniteInputs_RemainNonFiniteAndDoNotThrow()
+    {
+        // 非法时钟的 t（NaN/±Inf）不得让波形路径抛异常：sin/cos 的 IEEE 语义返回 NaN
+        var (sinN, cosN) = WaveMath.WaveBase(double.NaN);
+        Assert.True(double.IsNaN(sinN) && double.IsNaN(cosN));
+        var (sinP, cosP) = WaveMath.WaveBase(double.PositiveInfinity);
+        Assert.True(double.IsNaN(sinP) && double.IsNaN(cosP));
+        var (sinM, cosM) = WaveMath.WaveBase(double.NegativeInfinity);
+        Assert.True(double.IsNaN(sinM) && double.IsNaN(cosM));
+    }
 }
