@@ -32,6 +32,9 @@ public static class Marquee
     private const double GapPx = 28;            // 首尾循环间隙
     private const double InitialDelaySec = 1.0; // 首次停顿（秒）
 
+    /// <summary>低功耗/降频时的跑马灯帧率上限开关（2.2.5）：与逐字卡拉OK/歌词强调一致，由设置即时同步。</summary>
+    public static bool LowPowerModeOverride;
+
     // 文本属性监听（TextBlock.Text / KaraokeTextBlock.KaraokeText）
     private static readonly DependencyPropertyDescriptor TextDescriptor =
         DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
@@ -133,7 +136,7 @@ public static class Marquee
                 BeginTime = TimeSpan.FromSeconds(InitialDelaySec),
                 RepeatBehavior = RepeatBehavior.Forever,
             };
-            AnimationFrameRate.Apply(anim, lowPowerMode: false);
+            AnimationFrameRate.Apply(anim, LowPowerModeOverride); // 2.2.5：低功耗模式下同样限帧 60 FPS
             state.Text = text;
             state.ViewWidth = viewW;
             state.Running = true;

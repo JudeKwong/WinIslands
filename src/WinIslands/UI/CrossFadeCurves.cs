@@ -50,12 +50,12 @@ public static class CrossFadeCurves
     // retargets (expand -> collapse) keep the pill row visible continuously.
     public const double CollapsePillReappearAt = 0.5;
 
-    /// <summary>Expand: content starts slightly smaller and higher, growing into place.</summary>
-    public const double ExpandParallaxScaleFrom = 0.92;
+    /// <summary>Expand: content starts slightly smaller, growing into place（极轻微中心生长，消除文字缩放跳动感）。</summary>
+    public const double ExpandParallaxScaleFrom = 0.965;
     public const double ExpandParallaxYFrom = 0;
 
-    /// <summary>Collapse: content gently shrinks and drifts upward while fading out.</summary>
-    public const double CollapseParallaxScaleTo = 0.93;
+    /// <summary>Collapse: content gently shrinks while fading out（极轻微收缩，不产生文字缩放跳动）。</summary>
+    public const double CollapseParallaxScaleTo = 0.98;
     public const double CollapseParallaxYTo = 0;
 
     /// <summary>

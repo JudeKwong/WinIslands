@@ -82,7 +82,7 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(1.0, s1, 6);
         Assert.Equal(0.0, y1, 6);
         var (sm, ym) = CrossFadeCurves.ContentParallax(0.5, expand: true);
-        Assert.InRange(sm, 0.975, 0.985); // EaseOutQuad(0.5)=0.75 → 0.92+0.08·0.75=0.98，2.1.7 内容生长改为缓出 // 0.92 -> 1.0 的中点
+        Assert.InRange(sm, 0.988, 0.994); // EaseOutQuad(0.5)=0.75 → 0.92+0.08·0.75=0.98，2.1.7 内容生长改为缓出 // 0.92 -> 1.0 的中点
         Assert.Equal(0.0, ym, 6);         // 中心缩放：无垂直位移
     }
 
@@ -149,7 +149,7 @@ public sealed class CrossFadeCurvesTests
         }
         // EaseOutQuad 使中段领先线性：v=0.5 时 scale=0.98 > 线性中点 0.96
         var (sm, _) = CrossFadeCurves.ContentParallax(0.5, expand: true);
-        Assert.InRange(sm, 0.975, 0.985);
+        Assert.InRange(sm, 0.988, 0.994);
     }
 
     [Fact]
@@ -171,6 +171,13 @@ public sealed class CrossFadeCurvesTests
         }
         // EaseInQuad(v)：v=0.5 时 scale = 0.93 + 0.07*0.25 = 0.9475（慢于线性推进）
         var (sm, _) = CrossFadeCurves.ContentParallax(0.5, expand: false);
-        Assert.InRange(sm, 0.945, 0.95);
+        Assert.InRange(sm, 0.982, 0.988);
+    }
+    [Fact]
+    public void Parallax_ScaleRangesAreSubtle_NoVisibleTextJump()
+    {
+        // 2.2.5：视差缩放范围收敛到 ±3.5%/±2% 以内，避免文字放大缩小跳动感
+        Assert.InRange(CrossFadeCurves.ExpandParallaxScaleFrom, 0.95, 1.0);
+        Assert.InRange(CrossFadeCurves.CollapseParallaxScaleTo, 0.95, 1.0);
     }
 }

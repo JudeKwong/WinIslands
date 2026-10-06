@@ -467,12 +467,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             KaraokeTextBlock.LowPowerModeOverride = _settings.Current.LowPowerMode;
             FadeOnTextChange.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
             LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
+            Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
         };
         // 2.3.0：启动时立即按当前低功耗设置同步一次（不等待设置变更事件）
         SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
         KaraokeTextBlock.LowPowerModeOverride = _settings.Current.LowPowerMode;
         FadeOnTextChange.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
         LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
+        Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
         _vm.PropertyChanged += OnVmPropertyChanged;
         _theme.ThemeChanged += _onThemeChanged;
         _settings.Changed += _onSettingsChanged;

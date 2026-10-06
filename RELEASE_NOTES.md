@@ -1,3 +1,20 @@
+## WinIslands 2.2.5（正式版 / Stable）
+### 更新内容
+
+- **🎬 iOS 质感打磨：内容缩放不再“放大缩小跳动”**：展开/收起时内容的视差缩放幅度大幅收敛（展开最大仅 +3.5%、收起最大仅 -2%），与淡入淡出保持同频，文字随卡片形变自然浮现与隐去，不再出现明显的缩放跳动感，动画更接近灵动岛的沉稳质感
+- **🔋 跑马灯低功耗限帧修复**：修复滚动歌词/歌名在低功耗（节电）模式下仍按 120FPS 运行的 Bug——现在与逐字卡拉OK、歌词强调一致，低功耗时统一限帧 60 FPS，进一步降低后台占用
+- **🧪 回归测试**：新增内容视差缩放区间、低功耗帧率常数等专项测试，共 304 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.5 (Stable)
+### What's New
+
+- **🎬 iOS-style polish: content no longer zooms and jumps**: the parallax scale window on expand/collapse is now far subtler (expand grows only +3.5%, collapse shrinks only -2%) and stays in sync with the cross-fade, so text emerges and retreats naturally with the card morph - no more visible scale jump, closer to the calm Dynamic Island feel
+- **🔋 Marquee low-power frame cap fix**: scrolling lyrics/titles no longer run at 120 FPS in battery-saver mode - like word karaoke and lyric emphasis, the marquee now caps at 60 FPS under low-power mode, trimming background usage
+- **🧪 Regression**: new tests for the parallax scale window and the low-power frame-rate ceiling - 304 unit tests total, all green with zero warnings
+
+---
 ## WinIslands 2.2.4（正式版 / Stable）
 ### 更新内容
 

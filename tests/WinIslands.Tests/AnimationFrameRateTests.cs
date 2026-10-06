@@ -46,4 +46,9 @@ public sealed class AnimationFrameRateTests
         var next = 1.0;
         Assert.True(AnimationFrameRate.ShouldProcessFrame(2.0, ref next, 120));
         Assert.Equal(2.0 + 1.0 / 120.0, next, 6);
-    }}
+    }
+
+    [Fact]
+    public void LowPowerCeilingConstant_IsSixty()
+        => Assert.Equal(60, AnimationFrameRate.StandardForLowPower);
+}
