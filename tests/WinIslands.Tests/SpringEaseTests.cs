@@ -109,5 +109,86 @@ public class SpringEaseTests
             return v < 0 ? 0 : v;
         }
     }
+    [Fact]
+    public void Presanitized_BitIdenticalToEvaluate_ForSanitizedParams()
+    {
+        // 2.6.5: for any sanitized params (finite, d>=0, k>0, m>0) x any t (endpoints/out-of-range/NaN/+-Inf),
+        // the pre-sanitized fast path is bit-identical to Evaluate with internal sanitize (DoubleToInt64Bits).
+        foreach (var (d, k, m) in new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (100.0, 1e-9, 1e-9),
+            (1.0, 1.0, 1e-9),
+            (120.0, 1200.0, 8.0),
+        })
+        foreach (var t in new[]
+        {
+            0.0, -5.0, 1.0, 3.0, double.NaN,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0001, 0.001, 0.01, 0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 0.8, 0.999, 0.999999999
+        })
+        {
+            var a = SpringEaseMath.Evaluate(t, d, k, m);
+            var b = SpringEaseMath.EvaluatePresanitized(t, d, k, m);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(a), BitConverter.DoubleToInt64Bits(b));
+        }
+    }
+
+    [Fact]
+    public void Evaluate_RefactoredDelegation_BitIdenticalToOldBody()
+    {
+        // 2.6.5: Evaluate refactored to "local sanitize + delegate to the pre-sanitized fast path";
+        // for arbitrary raw params (NaN/Inf/negative/zero) it stays bit-identical to the old inline body.
+        foreach (var (d, k, m) in new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (double.NaN, double.NaN, double.NaN),
+            (double.PositiveInfinity, 0.0, 0.0),
+            (-1.0, -5.0, -2.0),
+            (100.0, 1e-9, 1e-9),
+            (12.0, double.NegativeInfinity, 1.0),
+        })
+        foreach (var t in new[] { 0.0, -0.5, 0.001, 0.05, 0.1, 0.2, 0.5, 0.9, 1.0, 2.0, double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            var fresh = SpringEaseMath.Evaluate(t, d, k, m);
+            var old = OldEvaluateWithInternalSanitize(t, d, k, m);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(fresh), BitConverter.DoubleToInt64Bits(old));
+
+            static double OldEvaluateWithInternalSanitize(double normalized, double damp, double stiffness, double mass)
+            {
+                var d0 = double.IsFinite(damp) && damp >= 0 ? damp : 12.0;
+                var k0 = double.IsFinite(stiffness) && stiffness > 0 ? stiffness : 200.0;
+                var m0 = double.IsFinite(mass) && mass > 0 ? mass : 1.0;
+                var t0 = Math.Clamp(normalized, 0.0, 1.0);
+                if (t0 <= 0.0) return 0.0;
+                if (t0 >= 1.0) return 1.0;
+                var tt = t0 * 1.7;
+                var omega0 = Math.Sqrt(k0 / m0);
+                var zeta = d0 / (2 * Math.Sqrt(k0 * m0));
+                var z2 = 1 - zeta * zeta;
+                var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
+                var decay = Math.Exp(-zeta * omega0 * tt);
+                var (st, ct) = Math.SinCos(omegaD * tt);
+                var v = 1 - decay * (ct + (zeta * omega0 / omegaD) * st);
+                return v < 0 ? 0 : v;
+            }
+        }
+    }
+
+    [Fact]
+    public void Presanitized_ExactEndpoints_AndOvershootShape()
+    {
+        // 2.6.5: pre-sanitized fast path lands exactly on endpoints and keeps the Q-bounce shape.
+        Assert.Equal(0.0, SpringEaseMath.EvaluatePresanitized(0.0, 12, 200, 1));
+        Assert.Equal(0.0, SpringEaseMath.EvaluatePresanitized(-1.0, 12, 200, 1));
+        Assert.Equal(1.0, SpringEaseMath.EvaluatePresanitized(1.0, 12, 200, 1));
+        Assert.Equal(1.0, SpringEaseMath.EvaluatePresanitized(5.0, 12, 200, 1));
+        Assert.True(SpringEaseMath.EvaluatePresanitized(0.1, 12, 200, 1) >= 1.0, "overshoot at t=0.1");
+        Assert.True(SpringEaseMath.EvaluatePresanitized(0.25, 12, 200, 1) < 1.02, "settles down");
+    }
 
 }

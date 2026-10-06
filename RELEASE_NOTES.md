@@ -1,3 +1,19 @@
+## WinIslands 2.6.5（正式版 / Stable）
+### 更新内容
+
+- 🚀 弹簧缓动预消毒快路径：SpringEase/SoftSpringEase 在参数变化时已用 Sanitize 消毒并缓存（_dd/_kk/_mm），但逐帧调用的 Evaluate 仍每次都重做 3 次 IsFinite + 3 次取值域判断；现新增 EvaluatePresanitized 预消毒快路径，两条 Ease 热路径直接进入公式主体，每个活跃动画每帧省 6 次检查，t 仍按原式钳制、端点精确归位，对已消毒输入与旧路径逐位一致（DoubleToInt64Bits 密集扫描验证）
+- 🧪 测试：新增 3 项——已消毒参数组合 × 20 个 t 采样点（含端点/越界/NaN/±Inf）快路径与 Evaluate 逐位一致、重构后 Evaluate 对任意原始参数与旧内联公式逐位一致、快路径端点精确归位且保持 Q 弹过冲形状；共 501 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.5 (Stable)
+### What’s New
+
+- 🚀 Spring easing pre-sanitized fast path: SpringEase/SoftSpringEase already sanitize and cache parameters (_dd/_kk/_mm) on parameter change, yet the per-frame Evaluate re-ran 3 IsFinite + 3 domain checks every call; a new EvaluatePresanitized fast path now lets both Ease hot paths enter the formula body directly, saving 6 checks per active animation per frame with t still clamped as before and exact endpoints, bit-identical for sanitized inputs (DoubleToInt64Bits dense sweep)
+- 🧪 Tests: 3 new cases - sanitized param combos x 20 t samples (endpoints/out-of-range/NaN/-Inf) bit-identical to Evaluate, refactored Evaluate bit-identical to the old inline body for arbitrary raw params, and fast-path exact endpoints with the Q-bounce shape; 501 unit tests green
+
+---
+
 ## WinIslands 2.6.4（正式版 / Stable）
 ### 更新内容
 
