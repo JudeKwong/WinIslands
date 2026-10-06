@@ -1,4 +1,4 @@
-﻿using WinIslands.UI;
+using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -273,5 +273,149 @@ public sealed class IOSSpringTests
         Drain(s, 2.0);
         Assert.False(s.IsActive);
         Assert.InRange(s.Value, 99.5, 100.5);
+    }
+
+    // ── 2.2.9：解析解系数缓存（RebuildCoefficients）→ 与旧公式逐步逐点一致（同数值说明正确性）──
+    private static (double Value, double Vel) LegacyUnderdamped(double zeta, double response, double from, double to, double v0, double t)
+    {
+        var omegaD = 2 * Math.PI / response;
+        var root = Math.Sqrt(1 - zeta * zeta);
+        var omega0 = (2 * Math.PI / response) / root;
+        var y0 = from - to;
+        var alpha = zeta * omega0;
+        var a = y0;
+        var b = (v0 + alpha * y0) / omegaD;
+        var decay = Math.Exp(-alpha * t);
+        var ct = Math.Cos(omegaD * t);
+        var st = Math.Sin(omegaD * t);
+        var y = decay * (a * ct + b * st);
+        var v = decay * ((b * omegaD - a * alpha) * ct - (a * omegaD + b * alpha) * st);
+        return (to + y, v);
+    }
+
+    private static (double Value, double Vel) LegacyOverdamped(double zeta, double response, double from, double to, double v0, double t)
+    {
+        var root = Math.Sqrt(zeta * zeta - 1);
+        var omega0 = 2 * Math.PI / response;
+        var l1 = omega0 * (zeta + root);
+        var l2 = omega0 * (zeta - root);
+        var y0 = from - to;
+        var c2 = (v0 + l1 * y0) / (l1 - l2);
+        var c1 = y0 - c2;
+        var e1 = Math.Exp(-l1 * t);
+        var e2 = Math.Exp(-l2 * t);
+        var y = c1 * e1 + c2 * e2;
+        var v = -l1 * c1 * e1 - l2 * c2 * e2;
+        return (to + y, v);
+    }
+
+    private static (double Value, double Vel) LegacyCritical(double response, double from, double to, double v0, double t)
+    {
+        var omega0 = 2 * Math.PI / response;
+        var y0 = from - to;
+        var k = v0 + omega0 * y0;
+        var decay = Math.Exp(-omega0 * t);
+        var y = decay * (y0 + k * t);
+        var v = decay * (v0 - k * omega0 * t);
+        return (to + y, v);
+    }
+
+    [Fact]
+    public void CachedCoefficients_Underdamped_MatchesLegacyFormula()
+    {
+        const double zeta = 0.82, response = 0.5, from = 0, to = 100, v0 = 30;
+        var s = IOSSpring.Create(zeta, response, from, to, initialVelocity: v0);
+        try
+        {
+            for (var i = 1; i <= 30 && s.IsActive; i++)
+            {
+                s.Tick(Dt);
+                var t = i * Dt;
+                var exp = LegacyUnderdamped(zeta, response, from, to, v0, t);
+                Assert.Equal(exp.Value, s.Value, 12);
+                Assert.Equal(exp.Vel, s.Velocity, 12);
+            }
+        }
+        finally { s.Stop(); }
+    }
+
+    [Fact]
+    public void CachedCoefficients_Overdamped_MatchesLegacyFormula()
+    {
+        const double zeta = 1.6, response = 0.4, from = 0, to = 100, v0 = -20;
+        var s = IOSSpring.Create(zeta, response, from, to, initialVelocity: v0);
+        try
+        {
+            for (var i = 1; i <= 40 && s.IsActive; i++)
+            {
+                s.Tick(Dt);
+                var t = i * Dt;
+                var exp = LegacyOverdamped(zeta, response, from, to, v0, t);
+                Assert.Equal(exp.Value, s.Value, 12);
+                Assert.Equal(exp.Vel, s.Velocity, 12);
+            }
+        }
+        finally { s.Stop(); }
+    }
+
+    [Fact]
+    public void CachedCoefficients_CriticalDamped_MatchesLegacyFormula()
+    {
+        const double response = 0.3, from = 0, to = 1, v0 = 0;
+        var s = IOSSpring.Create(1.0, response, from, to, initialVelocity: v0);
+        try
+        {
+            for (var i = 1; i <= 30 && s.IsActive; i++)
+            {
+                s.Tick(Dt);
+                var t = i * Dt;
+                var exp = LegacyCritical(response, from, to, v0, t);
+                Assert.Equal(exp.Value, s.Value, 12);
+                Assert.Equal(exp.Vel, s.Velocity, 12);
+            }
+        }
+        finally { s.Stop(); }
+    }
+
+    [Fact]
+    public void CachedCoefficients_RetargetRecomputes_MatchLegacy()
+    {
+        // 改目标后系数以新初始条件（当前值/当前速度）重算，后续历程与旧公式仍一致
+        const double zeta = 0.82, response = 0.5;
+        var s = IOSSpring.Create(zeta, response, from: 0, to: 100);
+        try
+        {
+            for (var i = 0; i < 20; i++) s.Tick(Dt);
+            var vBefore = s.Velocity;
+            s.Retarget(50);
+            var y0 = s.Value - 50;
+            s.Tick(Dt);
+            var exp = LegacyUnderdamped(zeta, response, from: y0 + 50, to: 50, v0: vBefore, t: Dt);
+            Assert.Equal(exp.Value, s.Value, 12);
+            Assert.Equal(exp.Vel, s.Velocity, 12);
+        }
+        finally { s.Stop(); }
+    }
+
+    [Fact]
+    public void CachedCoefficients_ConfigureMidFlight_MatchesLegacy()
+    {
+        // 运行中 Configure（参数变化）后系数随新参数重建，不使用旧系数
+        const double zeta0 = 0.82, response0 = 0.5;
+        var s = IOSSpring.Create(zeta0, response0, from: 0, to: 100);
+        try
+        {
+            for (var i = 0; i < 24; i++) s.Tick(Dt);
+            var vBefore = s.Velocity;
+            var y0 = s.Value;
+            s.Configure(0.97, 0.52);
+            s.Retarget(0);
+            s.Tick(Dt);
+            var zeta2 = 0.97; var resp2 = 0.52;
+            var exp = LegacyUnderdamped(zeta2, resp2, from: y0 + 0, to: 0, v0: vBefore, t: Dt);
+            Assert.Equal(exp.Value, s.Value, 12);
+            Assert.Equal(exp.Vel, s.Velocity, 12);
+        }
+        finally { s.Stop(); }
     }
 }

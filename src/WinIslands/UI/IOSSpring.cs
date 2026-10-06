@@ -43,6 +43,16 @@ public sealed class IOSSpring
     private double _elapsed;
     private double _y0;   // 初始偏移（相对当前 Target）
     private double _v0;   // 初始速度
+    // 2.2.9：求解系数只在 Start/Retarget（初始条件变化）时重算一次，Tick 逐帧只做衰变/三角，不再重复除法。
+    private double _cAlpha; // 欠阻尼 alpha = zeta * omega0
+    private double _cB;     // 欠阻尼 b = (v0 + alpha*y0)/omegaD
+    private double _cV1;    // 欠阻尼速度系数 (b*omegaD - a*alpha)
+    private double _cV2;    // 欠阻尼速度系数 (a*omegaD + b*alpha)
+    private double _oL1;    // 过阻尼 lambda1
+    private double _oL2;    // 过阻尼 lambda2
+    private double _oC1;    // 过阻尼 c1
+    private double _oC2;    // 过阻尼 c2
+    private double _kCrit;  // 临界阻尼 k = v0 + omega0*y0
 
     private Action<double>? _onUpdate;
     private Action? _onCompleted;
@@ -89,6 +99,7 @@ public sealed class IOSSpring
             Omega0 = 2 * Math.PI / response;
             OmegaD = 0;
         }
+        RebuildCoefficients(); // 2.2.9：参数变化后系数随新 ω₀/ζ 重建（运行中也立即生效）
     }
 
     /// <summary>设置逐帧回调与结束回调（可在 Start 之前或之后调用）。</summary>
@@ -107,6 +118,7 @@ public sealed class IOSSpring
         _elapsed = 0;
         _y0 = from - to;
         _v0 = initialVelocity;
+        RebuildCoefficients(); // 2.2.9：初始条件变化 → 重算解析解系数（一次性）
         UpdateEpsilon(Math.Abs(from - to));
         _notifyCompleted = false;
         IsActive = true;
@@ -125,6 +137,7 @@ public sealed class IOSSpring
         _elapsed = 0;
         _y0 = Value - to;
         _v0 = Velocity;
+        RebuildCoefficients(); // 2.2.9：改目标后初速变化 → 重算解析解系数（一次性）
         UpdateEpsilon(Math.Abs(Value - to));
         Target = to;
         _notifyCompleted = false;
@@ -203,44 +216,63 @@ public sealed class IOSSpring
         _velEps = Math.Max(0.05, _settleVelocityEpsilon * s);
     }
     /// <summary>阻尼简谐振荡器解析解：由初始偏移 y0、初速 v0 求 t 时刻的偏移与速度。</summary>
+    /// <summary>2.2.9：初始条件（_y0/_v0/参数）变化时重算各阻尼分支的解析解系数（纯数学，无 UI）。</summary>
+    private void RebuildCoefficients()
+    {
+        if (Zeta < 1.0 - 1e-9)
+        {
+            // 欠阻尼
+            _cAlpha = Zeta * Omega0;
+            _cB = (_v0 + _cAlpha * _y0) / OmegaD;
+            _cV1 = _cB * OmegaD - _y0 * _cAlpha;
+            _cV2 = _y0 * OmegaD + _cB * _cAlpha;
+        }
+        else if (Zeta > 1.0 + 1e-9)
+        {
+            // 过阻尼
+            var root = Math.Sqrt(Zeta * Zeta - 1);
+            _oL1 = Omega0 * (Zeta + root);
+            _oL2 = Omega0 * (Zeta - root);
+            _oC2 = (_v0 + _oL1 * _y0) / (_oL1 - _oL2);
+            _oC1 = _y0 - _oC2;
+        }
+        else
+        {
+            // 临界阻尼
+            _kCrit = _v0 + Omega0 * _y0;
+        }
+    }
+
+    /// <summary>阻尼简谐振荡器解析解：由初始偏移 _y0、初速 _v0 求 t 时刻的偏移与速度。</summary>
     private void Solve(double t)
     {
         if (Zeta < 1.0 - 1e-9)
         {
-            // 欠阻尼：y = e^(−ζω0t)·(A·cos(ωd·t) + B·sin(ωd·t))
-            var alpha = Zeta * Omega0;
-            var a = _y0;
-            var b = (_v0 + alpha * _y0) / OmegaD;
-            var decay = Math.Exp(-alpha * t);
+            // 欠阻尼：y = e^(-alpha·t)·(A·cos(ωd·t) + B·sin(ωd·t))
+            var decay = Math.Exp(-_cAlpha * t);
             var ct = Math.Cos(OmegaD * t);
             var st = Math.Sin(OmegaD * t);
-            var y = decay * (a * ct + b * st);
-            var v = decay * ((b * OmegaD - a * alpha) * ct - (a * OmegaD + b * alpha) * st);
+            var y = decay * (_y0 * ct + _cB * st);
+            var v = decay * (_cV1 * ct - _cV2 * st);
             Value = Target + y;
             Velocity = v;
         }
         else if (Zeta > 1.0 + 1e-9)
         {
-            // 过阻尼：y = C1·e^(−λ1·t) + C2·e^(−λ2·t)
-            var root = Math.Sqrt(Zeta * Zeta - 1);
-            var l1 = Omega0 * (Zeta + root);
-            var l2 = Omega0 * (Zeta - root);
-            var c2 = (_v0 + l1 * _y0) / (l1 - l2);
-            var c1 = _y0 - c2;
-            var e1 = Math.Exp(-l1 * t);
-            var e2 = Math.Exp(-l2 * t);
-            var y = c1 * e1 + c2 * e2;
-            var v = -l1 * c1 * e1 - l2 * c2 * e2;
+            // 过阻尼：y = C1·e^(-λ1·t) + C2·e^(-λ2·t)
+            var e1 = Math.Exp(-_oL1 * t);
+            var e2 = Math.Exp(-_oL2 * t);
+            var y = _oC1 * e1 + _oC2 * e2;
+            var v = -_oL1 * _oC1 * e1 - _oL2 * _oC2 * e2;
             Value = Target + y;
             Velocity = v;
         }
         else
         {
-            // 临界阻尼：y = e^(−ω0·t)·(y0 + (v0 + ω0·y0)·t)
-            var k = _v0 + Omega0 * _y0;
+            // 临界阻尼：y = e^(-ω0·t)·(y0 + (v0 + ω0·y0)·t)
             var decay = Math.Exp(-Omega0 * t);
-            var y = decay * (_y0 + k * t);
-            var v = decay * (_v0 - k * Omega0 * t);
+            var y = decay * (_y0 + _kCrit * t);
+            var v = decay * (_v0 - _kCrit * Omega0 * t);
             Value = Target + y;
             Velocity = v;
         }

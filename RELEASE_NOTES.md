@@ -1,3 +1,21 @@
+## WinIslands 2.2.9（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧解析解系数只计算一次**：IOSSpring 三种阻尼分支（欠/过/临界）的求解系数（alpha、b、速度系数、lambda、c1/c2、k）只在 Start/Retarget/Configure 时重算一次，逐帧 Tick 只做衰变/三角运算，移除每帧重复除法与根号，动画热路径更省 CPU、更稳定
+- **🎯 按断重算保持连续**：Retarget 后系数以「当前值 + 当前速度」为新初始条件重算，位置/速度连续（iOS 打断语义）；运行中 Configure 参数变化立即重建系数，不再可能使用旧系数导致跑偏
+- **🧪 回归测试**：新增与旧公式逐帧逐点一致性（欠阻尼/过阻尼/临界、Retarget 重算、Configure 中途）5 项测试，共 319 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.9 (Stable)
+### What's New
+
+- **⚡ Spring analytic-solution coefficients computed once per cycle**: IOSSpring's damping-branch coefficients (alpha, b, velocity coefficients, lambdas, c1/c2, k) are now rebuilt only on Start/Retarget/Configure - per-frame Tick does just decay/trig math, removing repeated division and sqrt from the animation hot path for lower CPU and steadier frames
+- **🎯 Continuous interruption**: Retarget rebuilds coefficients from (current value + current velocity) as the new initial conditions, preserving position/velocity continuity (iOS interruption semantics); a mid-flight Configure immediately rebuilds with the new parameters so stale coefficients can never drive the spring off course
+- **🧪 Regression**: 5 new tests verifying frame-by-frame pointwise equivalence with the legacy formulas (underdamped/overdamped/critical, Retarget recompute, mid-flight Configure) - 319 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.8（正式版 / Stable）
 ### 更新内容
 
