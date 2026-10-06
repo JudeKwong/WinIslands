@@ -297,9 +297,33 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// <summary>Snap parallax transforms back to neutral at settle.</summary>
     private void ResetContentParallax()
     {
-        if (ExpandedScale is null || ExpandedTranslate is null) return;
-        ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
-        ExpandedTranslate.Y = 0;
+        if (ExpandedScale is not null) ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
+        if (ExpandedTranslate is not null) ExpandedTranslate.Y = 0;
+        if (PillRowScale is not null) PillRowScale.ScaleX = PillRowScale.ScaleY = 1;
+        if (PillRowTranslate is not null) PillRowTranslate.Y = 0;
+        _pillParallaxWrote = false;
+    }
+
+    /// <summary>Pill-row iOS parallax (2.2.15): the compact pill row lifts away as the
+    /// card expands and drops back to rest while collapsing, driven by the same
+    /// fade-spring value as its own opacity (moves WITH the card, never pops on its
+    /// own timeline). Dedup-guarded so static frames do not rewrite transforms.</summary>
+    private double _lastPillScale = 1.0;   // dedup cache (2.2.15)
+    private double _lastPillY = 0.0;
+    private bool _pillParallaxWrote;
+
+    private void ApplyPillRowParallax(double v, bool expand)
+    {
+        if (PillRowScale is null || PillRowTranslate is null) return;
+        var (scale, y) = CrossFadeCurves.PillRowParallax(v, expand);
+        if (_pillParallaxWrote && Math.Abs(scale - _lastPillScale) < 0.0005 && Math.Abs(y - _lastPillY) < 0.05)
+            return; // Sub-pixel repeat: static frames skip render-transform invalidation
+        _pillParallaxWrote = true;
+        _lastPillScale = scale;
+        _lastPillY = y;
+        PillRowScale.ScaleX = scale;
+        PillRowScale.ScaleY = scale;
+        PillRowTranslate.Y = y;
     }
     private Storyboard? _positionStoryboard;   // 位置动画独占：连续重定位先停旧动画
     private HwndSource? _hwndSource;
@@ -2578,7 +2602,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardRSpring = new IOSSpring();
         _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
         _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
-        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); ApplyContentParallax(v, _expandedFadeIn); }, OnCardSpringSettled);
+        _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); ApplyContentParallax(v, _expandedFadeIn); ApplyPillRowParallax(v, _expandedFadeIn); }, OnCardSpringSettled);
         _cardRSpring.SetCallbacks(ApplyCardRadius, OnCardSpringSettled);
     }
 

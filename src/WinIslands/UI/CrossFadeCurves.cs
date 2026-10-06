@@ -96,6 +96,38 @@ public static class CrossFadeCurves
         return (cs, cy);
     }
 
+    /// <summary>Pill-row parallax (2.2.15): the compact pill row slides up and shrinks
+    /// slightly while handing off to the expanded content (expand), and drops back to
+    /// rest when the card collapses. Driven by the SAME fade-spring value as its own
+    /// opacity, so the pill text moves WITH the card - no extra pop, no separate
+    /// timeline. Returns (Scale, TranslateY); never NaN/Inf.</summary>
+    public const double PillRowParallaxScaleGone = 0.96; // scale at the "lifted away" pose
+    public const double PillRowParallaxYTo = -5.0;       // px, negative = slides upward
+    /// <summary>2.2.15: precomputed gain so the per-frame hot path never repeats a subtraction.</summary>
+    public const double PillRowParallaxScaleGain = 1.0 - PillRowParallaxScaleGone;
+
+    public static (double Scale, double TranslateY) PillRowParallax(double expandedOpacity, bool expand)
+    {
+        var v = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : 0.0;
+        double scale, y;
+        if (expand)
+        {
+            // v: 0 -> 1, the card grows and the pill lifts away: scale 1 -> 0.96, y 0 -> -5.
+            var q = SmoothStep(v);
+            scale = 1.0 - PillRowParallaxScaleGain * q;
+            y = PillRowParallaxYTo * q;
+        }
+        else
+        {
+            // The pill reappears at CollapsePillReappearAt from the lifted pose and drops
+            // back to rest (v -> 0): scale 0.96 -> 1, y -5 -> 0.
+            var q = SmoothStep(1.0 - Math.Clamp(v / CollapsePillReappearAt, 0.0, 1.0));
+            scale = PillRowParallaxScaleGone + PillRowParallaxScaleGain * q;
+            y = PillRowParallaxYTo * (1.0 - q);
+        }
+        return (scale, y);
+    }
+
     /// <summary>Smoothstep 缓动：0→1 平滑插值，两端零斜率（iOS 交叉淡入/淡出曲线）。</summary>
     public static double SmoothStep(double x)
     {

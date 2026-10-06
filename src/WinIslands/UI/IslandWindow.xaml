@@ -186,6 +186,12 @@
 
                 <!-- ═══ 胶囊行（始终可见）═══ -->
                 <Grid x:Name="PillRow" VerticalAlignment="Center">
+                    <Grid.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="PillRowScale" ScaleX="1" ScaleY="1"/>
+                            <TranslateTransform x:Name="PillRowTranslate" Y="0"/>
+                        </TransformGroup>
+                    </Grid.RenderTransform>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>

@@ -1,3 +1,21 @@
+## WinIslands 2.2.15（正式版 / Stable）
+### 更新内容
+
+- **🌀 胶囊行 iOS 滑出视差**：展开/收起时紧凑胶囊行随卡片形变轻微上移收缩、再落回原位（灵动岛「内容被推离」手感），由同一淡入弹簧驱动——胶囊文字跟随卡片移动，不再孤立弹出/消失
+- **🎯 亚像素去抖**：胶囊行视差写入带亚像素去抖，静止帧不再触发渲染变换失效，动画尾部与空闲时更省 CPU
+- **🧪 回归测试**：新增「展开滑出」「收起回落」「越界输入钳制」3 项测试，共 336 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.15 (Stable)
+### What's New
+
+- **🌀 Pill-row iOS parallax**: the compact pill row now lifts away (slides up slightly and shrinks) as the card expands, then drops back to rest when it collapses, matching the Dynamic Island "content pushed away" feel - driven by the same fade spring as its opacity, so the pill text moves WITH the card instead of popping in/out on its own timeline
+- **🎯 Sub-pixel dedup**: pill parallax writes are dedup-guarded so static frames skip render-transform invalidation (lower CPU at animation tails and idle)
+- **🧪 Regression**: 3 new tests (expand slide-out, collapse return-to-rest, out-of-range clamping) - 336 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.14（正式版 / Stable）
 ### 更新内容
 

@@ -234,4 +234,60 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(CrossFadeCurves.ExpandShapeResponseSec * CrossFadeCurves.ExpandContentFactor, exFade, 3);
         Assert.Equal(CrossFadeCurves.CollapseShapeResponseSec * CrossFadeCurves.CollapseContentFactor, coFade, 3);
     }
+
+    [Fact]
+    public void PillRowParallax_Expand_SlidesOutAndShrinks()
+    {
+        var (s0, y0) = CrossFadeCurves.PillRowParallax(0.0, expand: true);
+        Assert.Equal(1.0, s0, 6);
+        Assert.Equal(0.0, y0, 6);
+        var (s1, y1) = CrossFadeCurves.PillRowParallax(1.0, expand: true);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, s1, 6);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxYTo, y1, 6);
+        // monotonic: scale non-increasing and y non-increasing as the card grows
+        var prevS = 1.0;
+        var prevY = 0.0;
+        for (var i = 1; i <= 20; i++)
+        {
+            var v = i / 20.0;
+            var (s, y) = CrossFadeCurves.PillRowParallax(v, expand: true);
+            Assert.True(s <= prevS + 1e-9, "expand scale must not grow");
+            Assert.True(y <= prevY + 1e-9, "expand y must not go downward");
+            prevS = s;
+            prevY = y;
+        }
+    }
+
+    [Fact]
+    public void PillRowParallax_Collapse_ReturnsToRest()
+    {
+        var (s0, y0) = CrossFadeCurves.PillRowParallax(0.0, expand: false);
+        Assert.Equal(1.0, s0, 6);
+        Assert.Equal(0.0, y0, 6);
+        var (sG, yG) = CrossFadeCurves.PillRowParallax(1.0, expand: false);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, sG, 6);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxYTo, yG, 6);
+        // the pill reappears at CollapsePillReappearAt from the lifted pose
+        var (sM, yM) = CrossFadeCurves.PillRowParallax(CrossFadeCurves.CollapsePillReappearAt, expand: false);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, sM, 6);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxYTo, yM, 6);
+    }
+
+    [Fact]
+    public void PillRowParallax_ClampsOutOfRangeInputs()
+    {
+        foreach (var expand in new[] { true, false })
+        {
+            var (sa, ya) = CrossFadeCurves.PillRowParallax(-0.7, expand);
+            var (sb, yb) = CrossFadeCurves.PillRowParallax(1.7, expand);
+            var (sn, yn) = CrossFadeCurves.PillRowParallax(double.NaN, expand);
+            var (si, yi) = CrossFadeCurves.PillRowParallax(double.PositiveInfinity, expand);
+            foreach (var v in new[] { sa, sb, sn, si, ya, yb, yn, yi })
+                Assert.True(double.IsFinite(v), "pill parallax must stay finite");
+        }
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(double.NaN, true).Scale, 6);
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(double.NaN, false).Scale, 6);
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(-0.7, true).Scale, 6);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, CrossFadeCurves.PillRowParallax(1.7, true).Scale, 6);
+    }
 }
