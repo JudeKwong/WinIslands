@@ -95,4 +95,35 @@ public sealed class LyricEmphasisTests
         Assert.Equal(0.90, z2, 6);
         Assert.True(double.IsFinite(r2));
     }
+    // ── 2.3.1：渲染写入去重 ────────────────────────────────────────────
+    [Fact]
+    public void ShouldWriteScale_FirstWriteAlways()
+    {
+        // NaN（尚未写入）→ 必写，保证每段弹簧的首帧落盘
+        Assert.True(LyricEmphasis.ShouldWriteScale(1.0, double.NaN));
+    }
+
+    [Fact]
+    public void ShouldWriteScale_DuplicateSkipped()
+    {
+        // 同值 / 亚阈值变化 → 不写，收敛尾部不产生无效属性写入
+        Assert.False(LyricEmphasis.ShouldWriteScale(1.2, 1.2));
+        Assert.False(LyricEmphasis.ShouldWriteScale(1.2 + 0.0002, 1.2));
+    }
+
+    [Fact]
+    public void ShouldWriteScale_ThresholdReached()
+    {
+        // 达到阈值 → 写（差值取明显大于阈值的值，避免二进制浮点边界）
+        Assert.True(LyricEmphasis.ShouldWriteScale(1.2 + 0.002, 1.2));
+        Assert.True(LyricEmphasis.ShouldWriteScale(1.2 - 0.002, 1.2));
+    }
+
+    [Fact]
+    public void ShouldWriteScale_InvalidValueDropped()
+    {
+        // 非法值直接丢弃（引擎已兜底），绝不写入渲染
+        Assert.False(LyricEmphasis.ShouldWriteScale(double.NaN, 1.2));
+        Assert.False(LyricEmphasis.ShouldWriteScale(double.PositiveInfinity, 1.2));
+    }
 }

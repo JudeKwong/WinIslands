@@ -1,3 +1,19 @@
+## WinIslands 2.3.1（正式版 / Stable）
+### 更新内容
+
+- **✂️ 歌词强调渲染写入去重**：弹簧驱动的当前行缩放，在收敛尾部每帧变化仅为亚像素时不再重复写 RenderTransform——减少合成线程上的无效依赖属性变更与脏标记，动画更省 CPU，质感保持不变（首帧与最终落盘始终写入）
+- **🧪 回归测试**：新增渲染写入去重 4 项测试（首帧必写、同值/亚阈值跳过、达阈值写入、非法值丢弃），共 364 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.3.1 (Stable)
+### What's New
+
+- **✂️ Lyric-emphasis render write dedup**: when the spring-driven current-line scale changes by only sub-pixel amounts during the settle tail, the RenderTransform is no longer rewritten every frame - fewer invalid dependency-property changes and dirty marks on the composition thread, lower CPU with identical visual quality (first frame and final settle always land)
+- **🧪 Regression**: 4 new render-write-dedup tests (first write always, duplicate/sub-threshold skip, threshold reach, invalid value dropped) - 364 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.3.0（正式版 / Stable）
 ### 更新内容
 

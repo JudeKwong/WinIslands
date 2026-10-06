@@ -62,6 +62,8 @@ public static class LyricEmphasis
     public const double ExitZeta = 0.90;
     /// <summary>退出相对进入的响应时长比例：回落比涨起略快，节奏自然。</summary>
     private const double ExitResponseScale = 0.72;
+    /// <summary>渲染写入去重阈值（2.3.1）：缩放变化小于此值时不写 RenderTransform，弹簧收敛尾部不产生无效属性写入。</summary>
+    internal const double ScaleWriteEpsilon = 0.0005;
 
     /// <summary>由 UI 设置（DurationMs）换算「进入」弹簧参数（纯函数，便于单元测试）。</summary>
     internal static (double Zeta, double ResponseSeconds) ComputeEnterParams(double durationMs)
@@ -79,6 +81,14 @@ public static class LyricEmphasis
 
     private static double ClampDuration(double ms)
         => Math.Clamp(double.IsFinite(ms) ? ms : 240.0, 60.0, 900.0);
+
+    /// <summary>渲染写入去重判定（纯函数，可测）：NaN（尚未写入）必写；非法值丢弃；与上次写入的差达到阈值才写。</summary>
+    internal static bool ShouldWriteScale(double value, double lastWritten)
+    {
+        if (double.IsNaN(lastWritten)) return true;          // 首次写入
+        if (!double.IsFinite(value)) return false;           // 引擎已兜底，这里直接丢弃非法值
+        return Math.Abs(value - lastWritten) >= ScaleWriteEpsilon;
+    }
 
     /// <summary>按 基础字号/当前行字号 计算渲染缩放倍率（纯函数，便于单元测试）。</summary>
     internal static double ComputeTargetScale(double baseSize, double currentSize)
@@ -111,10 +121,19 @@ public static class LyricEmphasis
                 old.Stop();
             }
 
+            var lastWritten = double.NaN; // 2.3.1：每段弹簧独立的上次写入值（NaN = 尚未写入）
             state.Spring = IOSSpring.Create(
                 zeta, response,
                 from: from, to: target,
-                onUpdate: v => { scale.ScaleX = v; scale.ScaleY = v; },
+                onUpdate: v =>
+                {
+                    // 写入去重：收敛尾部每帧变化极小，跳过无效属性写入，
+                    // 减少合成线程上的依赖属性变更与脏标记；首次与完成写入总是落盘。
+                    if (!ShouldWriteScale(v, lastWritten)) return;
+                    lastWritten = v;
+                    scale.ScaleX = v;
+                    scale.ScaleY = v;
+                },
                 onCompleted: null,
                 initialVelocity: velocity);
         }
