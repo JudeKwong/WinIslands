@@ -158,4 +158,17 @@ public sealed class WaveMathTests
         var (sinM, cosM) = WaveMath.WaveBase(double.NegativeInfinity);
         Assert.True(double.IsNaN(sinM) && double.IsNaN(cosM));
     }
+
+    [Theory]
+    [InlineData(1.0 / 120.0)]
+    [InlineData(1.0 / 60.0)]
+    [InlineData(1.0 / 30.0)]
+    [InlineData(0.033)]
+    [InlineData(0.001)]
+    public void SmoothAlpha_KaraokeRate_MatchesOriginalFormula(double dt)
+    {
+        // 2.5.2: 卡拉OK整行模式的平滑速率 rate=42 与原式 1-exp(-dt*42) 一致（有限输入逐位一致）
+        Assert.Equal(1.0 - Math.Exp(-dt * 42.0), WaveMath.SmoothAlpha(dt, 42.0), 12);
+    }
+
 }

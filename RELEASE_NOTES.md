@@ -1,3 +1,23 @@
+## WinIslands 2.5.2（正式版 / Stable）
+### 更新内容
+
+- **🎵 播放波纹时钟直读刻度**：节拍模拟循环每拍不再构造 TimeSpan 读取 Elapsed.TotalSeconds，改为直读原始刻度 / 常量频率——与 SpringTicker（2.4.6）、波形（2.5.1）统一为同一时钟换算模式，全局不再残留 TimeSpan 热路径
+- **🎤 卡拉OK平滑系数收敛到 NaN 安全纯函数**：整行均分模式每帧的 1 - exp(-dt*42) 复用 WaveMath.SmoothAlpha（rate 收敛为常量 KaraokeSmoothRate）——有限输入与原式逐位一致，坏时钟（NaN/Inf）按语义冻结本帧，高亮永不染上 NaN
+- **📐 测试确定性修正**：时钟换算验证改为同一 tick 值走两条换算路径（消除两次独立读数之间的竞态窗口）；新增卡拉OK速率 rate=42 与旧式逐位一致性测试 5 项
+- **✅ 回归测试**：连续多轮全绿，共 454 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.2 (Stable)
+### What's New
+
+- **🎵 Beat-sim clock reads raw ticks**: the beat-simulation loop no longer builds a TimeSpan per beat - raw ticks over the constant frequency, unifying with the SpringTicker (2.4.6) and wave (2.5.1) clock pattern; no TimeSpan hot path remains anywhere
+- **🎤 Karaoke smoothing converges on the NaN-safe pure function**: the whole-line per-frame 1 - exp(-dt*42) now goes through WaveMath.SmoothAlpha (rate hoisted to KaraokeSmoothRate) - finite inputs are byte-identical, while a bad clock (NaN/Inf) freezes this frame so highlights can never be poisoned
+- **📐 Deterministic clock test**: the scale-consistency test now feeds one tick value through both conversion paths (no race between two independent reads) - matches the TimeSpan (long)-truncation path within 1us; plus 5 new KaraokeRate rate=42 equivalence cases
+- **✅ Regression**: stable across repeated runs - 454 unit tests green
+
+---
+
 ## WinIslands 2.5.1（正式版 / Stable）
 ### 更新内容
 

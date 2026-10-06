@@ -148,6 +148,8 @@ public class KaraokeTextBlock : TextBlock
     // 0.35s 内保持全额上限；0.35s→0.65s 线性渐缩到 0；0.65s 后完全冻结在最后确认位置。
     private const double StallGraceStartSeconds = 0.35;
     private const double StallFreezeSeconds = 0.65;
+    /// <summary>整行均分模式的指数平滑速率（2.5.2）：rate=42 在 60fps 下等效旧的 0.5 系数，120fps 自动适配；收敛到 WaveMath.SmoothAlpha NaN 安全实现。</summary>
+    private const double KaraokeSmoothRate = 42.0;
 
     public KaraokeTextBlock()
     {
@@ -478,7 +480,7 @@ public class KaraokeTextBlock : TextBlock
         var dtTick = KaraokeMath.ClampTickDelta(now - _lastTickTime); // 2.4.7: branch chain, no Math calls
         _lastTickTime = now;
         // 帧率无关指数平滑：rate=42 在 60fps 下等效于旧的 0.5 系数，120fps 下自动适配
-        var lerpAlpha = 1.0 - Math.Exp(-dtTick * 42.0);
+        var lerpAlpha = WaveMath.SmoothAlpha(dtTick, KaraokeSmoothRate); // 2.5.2: 复用 NaN 安全平滑纯函数（有限输入与原式一致，坏时钟冻结本帧）
         _currentFraction += (_targetFraction - _currentFraction) * lerpAlpha;
         if (Math.Abs(_currentFraction - _targetFraction) < 0.002)
         {

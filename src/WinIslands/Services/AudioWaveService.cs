@@ -155,7 +155,7 @@ public sealed class AudioWaveService : IDisposable
             {
                 if (_playing)
                 {
-                    var t = sw.Elapsed.TotalSeconds;
+                    var t = sw.ElapsedTicks / (double)Stopwatch.Frequency; // 2.5.2: 直读刻度，免 TimeSpan 构造（同 SpringTicker/WaveNow 模式）
                     if (t >= nextBeat)
                     {
                         nextBeat = t + beatLen * (0.6 + _rng.NextDouble() * 0.8); // 略不规整更自然

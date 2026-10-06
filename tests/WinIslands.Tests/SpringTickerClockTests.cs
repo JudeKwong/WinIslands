@@ -45,18 +45,18 @@ public sealed class SpringTickerClockTests
         Assert.InRange(ratio, 0.99, 1.01);
     }
     [Fact]
-    public void TicksScale_MatchesElapsedTotalSeconds()
+    public void TicksScale_MatchesTimeSpanConversion()
     {
-        // 2.5.1: wave clock now reads raw ticks (ElapsedTicks / Frequency) instead of
-        // constructing a TimeSpan per frame; the conversion must agree with
-        // Elapsed.TotalSeconds within double precision over a real elapsed window.
+        // 2.5.1/2.5.2: 直读刻度换算必须与 TimeSpan 构造路径一致——同一 tick 值
+        // 分别走「直接除以频率」与「(long)(ticks * TicksPerSecond/Frequency) → TotalSeconds」，
+        // 避免两个独立时钟读数之间的竞态；TimeSpan 路径按 100ns 刻度 (long) 截断，
+        // 直接除法（double）实际更精确，截断损失 ≤ 1e-7s。
         var sw = Stopwatch.StartNew();
         Thread.Sleep(25);
-        var fromTicks = sw.ElapsedTicks / (double)Stopwatch.Frequency;
-        var fromTimeSpan = sw.Elapsed.TotalSeconds;
+        var ticks = sw.ElapsedTicks;
+        var fromTicks = ticks / (double)Stopwatch.Frequency;
+        var fromTimeSpan = new TimeSpan((long)(ticks * ((double)TimeSpan.TicksPerSecond / Stopwatch.Frequency))).TotalSeconds;
         Assert.True(double.IsFinite(fromTicks) && fromTicks > 0);
-        // TimeSpan 路径内部按 100ns 刻度 (long) 截断，只保证约 1us 级一致；
-        // 直读刻度（double）实际更精确，这里验证两条路径不偏离即可。
         Assert.True(Math.Abs(fromTimeSpan - fromTicks) < 1e-6);
     }
 }
