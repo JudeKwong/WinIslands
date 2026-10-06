@@ -1,3 +1,19 @@
+## WinIslands 2.7.6（正式版 / Stable）
+### 更新内容
+
+- 🚀 展开/收起三条热路径的透明度钳制改用分支比较链：PillOpacity / ContentParallax / PillRowParallax 每帧对交叉淡入透明度做 Math.Clamp(x, 0, 1)（一次范围检查调用）；现改为双比较分支链（x < 0 ? 0 : x > 1 ? 1 : x），与 Math.Clamp 在全部 double 输入上逐位一致——NaN 落入 IsFinite 前置兜底分支、±Inf 钳到端点、±0 保持；展开/收起的姿态值与终值终态逐帧不变，每条曲线每帧各省一次范围检查调用
+- 🧪 测试：新增 2 项——① 16 位尾数 × 符号 × 指数全位宽扫描（低 48 位取 0/中点/全 1，65536×3 点）加 13 个特殊值，证明分支链与 Math.Clamp 逐位一致；② 三条淡入函数（PillOpacity / ContentParallax / PillRowParallax）在 [-2,2] 30001 点密集扫描 + NaN/±Inf 特殊值上与旧参考实现（Math.Clamp 版本）逐位一致；共 522 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.6 (Stable)
+### What's New
+
+- 🚀 The three cross-fade hot paths move their opacity clamp to branch chains: PillOpacity / ContentParallax / PillRowParallax clamp the fade input every frame via Math.Clamp(x, 0, 1) (one range-check call); each now uses a two-comparison branch chain (x < 0 ? 0 : x > 1 ? 1 : x) that is bit-identical to Math.Clamp for every double input - NaN falls into the IsFinite guard fallback, ±Inf clamp to the endpoints, ±0 preserved; pose values and terminal exits are unchanged frame by frame, saving one range-check call per frame per curve
+- 🧪 Tests: 2 new cases - (1) a full top-16-mantissa x sign x exponent bit sweep (low 48 bits run at 0 / midpoint / all-ones, 65536x3 points) plus 13 special values prove the branch chain is bit-identical to Math.Clamp; (2) the three fade functions (PillOpacity / ContentParallax / PillRowParallax) are bit-identical to the old Math.Clamp reference across a 30001-point sweep over [-2, 2] plus NaN/±Inf specials; 522 unit tests green
+
+---
+
 ## WinIslands 2.7.5（正式版 / Stable）
 ### 更新内容
 

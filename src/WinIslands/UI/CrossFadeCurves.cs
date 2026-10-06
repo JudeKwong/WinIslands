@@ -45,7 +45,7 @@ public static class CrossFadeCurves
     public static double PillOpacity(double expandedOpacity, bool expand)
     {
         // 非法输入（NaN/Inf）：按 0 兜底，胶囊行保持可见的最安全落点
-        var v = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : 0.0;
+        var v = double.IsFinite(expandedOpacity) ? (expandedOpacity < 0.0 ? 0.0 : expandedOpacity > 1.0 ? 1.0 : expandedOpacity) : 0.0;
         if (expand)
         {
             // v: 0→1，胶囊行在 v∈[0, 0.25] 内平滑淡出让位（SmoothStep：两端零斜率，iOS 交叉淡出手感）
@@ -111,7 +111,7 @@ public static class CrossFadeCurves
     /// </summary>
     public static (double Scale, double TranslateY) ContentParallax(double expandedOpacity, bool expand)
     {
-        var t = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+        var t = double.IsFinite(expandedOpacity) ? (expandedOpacity < 0.0 ? 0.0 : expandedOpacity > 1.0 ? 1.0 : expandedOpacity) : (expand ? 0.0 : 1.0);
         // 2.3.4: constant-time terminal exit - once the fade spring fully
         // arrives, the pose is exactly the rest pose; skip the easing math on
         // every tail frame (works with ShouldWriteParallax dedup so settled
@@ -144,7 +144,7 @@ public static class CrossFadeCurves
 
     public static (double Scale, double TranslateY) PillRowParallax(double expandedOpacity, bool expand)
     {
-        var v = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : 0.0;
+        var v = double.IsFinite(expandedOpacity) ? (expandedOpacity < 0.0 ? 0.0 : expandedOpacity > 1.0 ? 1.0 : expandedOpacity) : 0.0;
         // 2.3.4: constant-time terminal exit (expand fully lifted / collapse fully
         // at rest) - same tail-frame savings as ContentParallax.
         if (expand && v >= 1.0) return (PillRowParallaxScaleGone, PillRowParallaxYTo);

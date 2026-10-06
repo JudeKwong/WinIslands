@@ -484,4 +484,131 @@ public sealed class CrossFadeCurvesTests
         Assert.InRange(1.0 - p2, 0.0, 1e-3);
     }
 
+
+
+    [Fact]
+    public void InputClamp_BranchChain_BitIdenticalToMathClamp()
+    {
+        // 2.7.6: PillOpacity / ContentParallax / PillRowParallax now clamp their per-frame
+        // fade input with a two-comparison branch chain (x < 0 ? 0 : x > 1 ? 1 : x) instead
+        // of Math.Clamp(x, 0, 1). Math.Clamp's contract is exactly that chain (below min ->
+        // min, above max -> max, otherwise the value itself), so every double input - NaN
+        // (falls through both comparisons -> returned as-is) and +/-Inf (clamped to the
+        // endpoints) included - must map bit-identically.
+        static long Bits(double x) => BitConverter.DoubleToInt64Bits(x);
+        foreach (var x in new[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 2.0, 0.5
+        })
+        {
+            Assert.Equal(Bits(Math.Clamp(x, 0.0, 1.0)), Bits(x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x));
+        }
+        // Exhaustive sweep over the top 16 mantissa bits x sign x exponent, with the low 48
+        // bits run at 0, the midpoint and all-ones: every binade boundary, the subnormal
+        // range, signed zero, both infinities and NaN payloads are covered without
+        // enumerating all 2^64 patterns.
+        foreach (var low in new ulong[] { 0x0000000000000000UL, 0x8000000000000000UL, 0xFFFFFFFFFFFFFFFFUL })
+        {
+            for (ulong top = 0; top <= 0xFFFFUL; top++)
+            {
+                var x = BitConverter.Int64BitsToDouble(unchecked((long)((top << 48) | low)));
+                Assert.Equal(Bits(Math.Clamp(x, 0.0, 1.0)), Bits(x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x));
+            }
+        }
+        // Contract locks: +/-Inf clamp to endpoints, NaN passes through (matches Math.Clamp)
+        Assert.Equal(Bits(0.0), Bits(double.NegativeInfinity < 0.0 ? 0.0 : double.NegativeInfinity > 1.0 ? 1.0 : double.NegativeInfinity));
+        Assert.Equal(Bits(1.0), Bits(double.PositiveInfinity < 0.0 ? 0.0 : double.PositiveInfinity > 1.0 ? 1.0 : double.PositiveInfinity));
+        Assert.Equal(Bits(double.NaN), Bits(double.NaN < 0.0 ? 0.0 : double.NaN > 1.0 ? 1.0 : double.NaN));
+    }
+
+    [Fact]
+    public void FadeFunctions_BranchClamp_MatchesClampedReferenceBitForBit()
+    {
+        // 2.7.6: the three hot-path fades (PillOpacity / ContentParallax / PillRowParallax)
+        // must reproduce their pre-change reference (input clamped via Math.Clamp)
+        // bit-for-bit on every reachable input - the branch chain is a drop-in replacement
+        // across the whole double domain, so pose values, opacity and terminal exits are
+        // unchanged frame by frame.
+        static long B(double x) => BitConverter.DoubleToInt64Bits(x);
+        foreach (var expand in new[] { true, false })
+        {
+            for (var i = 0; i <= 30000; i++)
+            {
+                var v = -2.0 + 4.0 * i / 30000.0; // [-2, 2] incl. out-of-range tails
+                Assert.Equal(B(RefPillOpacity(v, expand)), B(CrossFadeCurves.PillOpacity(v, expand)));
+                var (rs, ry) = RefContentParallax(v, expand);
+                var (ns, ny) = CrossFadeCurves.ContentParallax(v, expand);
+                Assert.Equal(B(rs), B(ns));
+                Assert.Equal(B(ry), B(ny));
+                var (rps, rpy) = RefPillRowParallax(v, expand);
+                var (ps, py) = CrossFadeCurves.PillRowParallax(v, expand);
+                Assert.Equal(B(rps), B(ps));
+                Assert.Equal(B(rpy), B(py));
+            }
+        }
+        // specials (NaN/+-Inf) ride the IsFinite fallback branch in both old and new forms
+        foreach (var x in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            foreach (var expand in new[] { true, false })
+            {
+                Assert.Equal(B(RefPillOpacity(x, expand)), B(CrossFadeCurves.PillOpacity(x, expand)));
+                var (rs, ry) = RefContentParallax(x, expand);
+                var (ns, ny) = CrossFadeCurves.ContentParallax(x, expand);
+                Assert.Equal(B(rs), B(ns));
+                Assert.Equal(B(ry), B(ny));
+                var (rps, rpy) = RefPillRowParallax(x, expand);
+                var (ps, py) = CrossFadeCurves.PillRowParallax(x, expand);
+                Assert.Equal(B(rps), B(ps));
+                Assert.Equal(B(rpy), B(py));
+            }
+        }
+
+        static double RefPillOpacity(double v, bool expand)
+        {
+            v = double.IsFinite(v) ? Math.Clamp(v, 0.0, 1.0) : 0.0;
+            if (expand)
+            {
+                if (v >= CrossFadeCurves.ExpandPillExitAt) return 0.0;
+                return 1.0 - CrossFadeCurves.SmoothStep(v / CrossFadeCurves.ExpandPillExitAt);
+            }
+            if (v >= CrossFadeCurves.CollapsePillReappearAt) return 0.0;
+            return CrossFadeCurves.SmoothStep((CrossFadeCurves.CollapsePillReappearAt - v) / CrossFadeCurves.CollapsePillReappearAt);
+        }
+
+        static (double Scale, double TranslateY) RefContentParallax(double v, bool expand)
+        {
+            var t = double.IsFinite(v) ? Math.Clamp(v, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+            if (expand && t >= 1.0) return (1.0, 0.0);
+            if (!expand && t <= 0.0) return (CrossFadeCurves.CollapseParallaxScaleTo, 0.0);
+            var grow = expand ? CrossFadeCurves.EaseOutQuad(t) : 1.0 - CrossFadeCurves.EaseOutQuad(1.0 - t);
+            return expand
+                ? (CrossFadeCurves.ExpandParallaxScaleFrom + CrossFadeCurves.ExpandParallaxScaleGain * grow, 0.0)
+                : (CrossFadeCurves.CollapseParallaxScaleTo + CrossFadeCurves.CollapseParallaxScaleGain * grow, 0.0);
+        }
+
+        static (double Scale, double TranslateY) RefPillRowParallax(double v, bool expand)
+        {
+            v = double.IsFinite(v) ? Math.Clamp(v, 0.0, 1.0) : 0.0;
+            if (expand && v >= 1.0) return (CrossFadeCurves.PillRowParallaxScaleGone, CrossFadeCurves.PillRowParallaxYTo);
+            if (!expand && v <= 0.0) return (1.0, 0.0);
+            if (!expand && v >= CrossFadeCurves.CollapsePillReappearAt)
+                return (CrossFadeCurves.PillRowParallaxScaleGone, CrossFadeCurves.PillRowParallaxYTo);
+            double scale, y;
+            if (expand)
+            {
+                var q = CrossFadeCurves.SmoothStep(v);
+                scale = 1.0 - CrossFadeCurves.PillRowParallaxScaleGain * q;
+                y = CrossFadeCurves.PillRowParallaxYTo * q;
+            }
+            else
+            {
+                var q = CrossFadeCurves.SmoothStep(1.0 - v / CrossFadeCurves.CollapsePillReappearAt);
+                scale = CrossFadeCurves.PillRowParallaxScaleGone + CrossFadeCurves.PillRowParallaxScaleGain * q;
+                y = CrossFadeCurves.PillRowParallaxYTo * (1.0 - q);
+            }
+            return (scale, y);
+        }
+    }
 }
