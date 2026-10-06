@@ -197,4 +197,48 @@ public class KaraokeTimelineTests
             Assert.Equal(legacy, fast);
         }
     }
+
+    [Fact]
+    public void FillInverseDenoms_ReciprocalMatchesDivision()
+    {
+        // 2.2.11: inverse array equals 1/duration; multiply-by-inverse is equivalent to division (12-digit)
+        var denoms = new[] { 0.001, 0.1, 0.5, 1.2, 3.7 };
+        var scaled = new double[denoms.Length];
+        var inv = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledDenoms(denoms, 1.0, scaled);
+        KaraokeTextBlock.FillInverseDenoms(scaled, inv);
+        for (var i = 0; i < denoms.Length; i++)
+        {
+            Assert.Equal(1.0 / scaled[i], inv[i], 12);
+            Assert.True(double.IsFinite(inv[i]));
+            var pos = scaled[i] * 0.37;
+            Assert.Equal(pos / scaled[i], pos * inv[i], 12);
+        }
+    }
+
+    [Fact]
+    public void FillInverseDenoms_GuardsInvalid_NoNaNOrInf()
+    {
+        // 2.2.11: zero/negative/NaN/Inf durations fall back to the 0.001s base-length reciprocal 1000/s
+        var scaled = new[] { 0.0, -0.5, double.NaN, double.PositiveInfinity, 0.25 };
+        var inv = new double[scaled.Length];
+        KaraokeTextBlock.FillInverseDenoms(scaled, inv);
+        Assert.Equal(1000.0, inv[0], 12);
+        Assert.Equal(1000.0, inv[1], 12);
+        Assert.Equal(1000.0, inv[2], 12);
+        Assert.Equal(1000.0, inv[3], 12);
+        Assert.Equal(4.0, inv[4], 12);
+        foreach (var v in inv) Assert.True(double.IsFinite(v));
+    }
+
+    [Fact]
+    public void FillInverseDenoms_EmptyInputsNoThrow()
+    {
+        // 2.2.11: empty or mismatched arrays are safe no-ops
+        KaraokeTextBlock.FillInverseDenoms(Array.Empty<double>(), Array.Empty<double>());
+        var inv = new double[2];
+        KaraokeTextBlock.FillInverseDenoms(new[] { 0.1, 0.2, 0.3 }, inv);
+        Assert.Equal(10.0, inv[0], 12);
+        Assert.Equal(5.0, inv[1], 12);
+    }
 }

@@ -1,3 +1,21 @@
+## WinIslands 2.2.11（正式版 / Stable）
+### 更新内容
+
+- **⚡ 逐字卡拉OK除法→预计算倒数乘法**：每个正在过渡的字的填充速度从每帧一次浮点除法改为一次乘法（倒数在切歌/调速时预计算一次），高光流动更省 CPU、更顺畅
+- **🔄 非法值回退保护**：0/负/NaN/无穷时长的倒数回退 0.001s 基长对应的 1000/s，绝不产生 NaN/无穷填充速度
+- **🧪 回归测试**：新增倒数等价性、非法值防护、空数组安全 3 项测试，共 325 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.11 (Stable)
+### What's New
+
+- **⚡ Karaoke fill speed: division replaced by precomputed reciprocal multiply**: each transitioning word's fill rate now uses a single multiply per frame - the reciprocal is computed once per song/speed change, so the per-character light sweep costs less CPU and runs smoother
+- **🔄 Invalid-duration guard**: zero/negative/NaN/Inf durations map to the 0.001s base-length reciprocal (1000/s), so a fill speed can never become NaN or infinity
+- **🧪 Regression**: 3 new tests (reciprocal equivalence, invalid-value guards, empty-array safety) - 325 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.10（正式版 / Stable）
 ### 更新内容
 

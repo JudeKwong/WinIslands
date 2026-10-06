@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -90,7 +90,9 @@ public class KaraokeTextBlock : TextBlock
     private readonly List<Run> _wordRuns = new();
     private double[] _wordStarts = Array.Empty<double>();
     private double[] _wordDenoms = Array.Empty<double>();
-    private double[] _wordDensScaled = Array.Empty<double>();   // 2.2.8：速度倍率换算一次，逐帧不再做除法
+    private double[] _wordDensScaled = Array.Empty<double>();
+    private double[] _wordInvDensScaled = Array.Empty<double>(); // 2.2.11：递归倒数预计算，逐字过渡的除法改为一次乘法
+   // 2.2.8：速度倍率换算一次，逐帧不再做除法
     // 2.1.3：逐字渲染性能优化——已点亮/未点亮的字共享冻结画刷，只对「正在过渡」的字逐帧算色。
     // 每字用阶段标记（0=未点亮共享底刷、1=过渡中独立刷、2=已点亮共享高亮刷），
     // 仅在阶段切换或颜色字节变化时才写 Run.Foreground，避免每帧对整行做 Color.FromArgb + SmoothStep。
@@ -319,11 +321,13 @@ public class KaraokeTextBlock : TextBlock
             _wordStarts = new double[_words.Count];
             _wordDenoms = new double[_words.Count];
             _wordDensScaled = new double[_words.Count];
+            _wordInvDensScaled = new double[_words.Count];
             BuildWordTimeline(_words, _wordStarts, _wordDenoms);
         }
         // 2.2.8：速度倍率换算一次（切歌/调速时重建），逐帧渲染直接使用，不再逐字除法
         if (_wordDensScaled.Length == _wordDenoms.Length && _wordDenoms.Length > 0)
             FillScaledDenoms(_wordDenoms, _karaokeSpeedScale, _wordDensScaled);
+            FillInverseDenoms(_wordDensScaled, _wordInvDensScaled); // 2.2.11：同步重算倒数（切歌/调速时一次）
 
         if (_hasWords)
         {
@@ -521,7 +525,7 @@ public class KaraokeTextBlock : TextBlock
                 continue;
             }
             // 正在过渡：ease-in-out（起笔/收笔有加减速）+字间 lead 重叠
-            var raw = (pos - start) / _wordDensScaled[i];   // 2.2.8: 预换算的填充速度
+            var raw = (pos - start) * _wordInvDensScaled[i]; // 2.2.11：除法→预计算倒数乘法，减少每帧浮点除法   // 2.2.8: 预换算的填充速度
             // 2.2.3: 单调钳制——停滞感知回拉或暂停期间位置被冻结时，字填充只进不退，
             // 避免高亮“先冲出去、又被拉回来”的肉眼可见倒退。
             raw = ApplyMonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
@@ -698,6 +702,18 @@ public class KaraokeTextBlock : TextBlock
     }
 
     /// <summary>2.2.8：与 <see cref="NeedsAnimationFor"/> 完全等价的快速判定，使用预换算时间轴（纯函数）。</summary>
+    /// <summary>2.2.11：由预换算时长生成其倒数（1/d），渲染时把逐字除法换成一次乘法（纯函数，无 UI）。</summary>
+    internal static void FillInverseDenoms(double[] scaled, double[] inv)
+    {
+        var n = Math.Min(scaled.Length, inv.Length);
+        for (var i = 0; i < n; i++)
+        {
+            var d = scaled[i];
+            // 0.001s 基长对应 1000/s；非法值绝不产生 NaN/无穷倒数
+            inv[i] = double.IsFinite(d) && d > 0 ? 1.0 / d : 1000.0;
+        }
+    }
+
     internal static bool NeedsAnimationForScaled(double pos, double[] starts, double[] scaled)
     {
         for (var i = 0; i < starts.Length && i < scaled.Length; i++)
