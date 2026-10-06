@@ -94,6 +94,9 @@ public class KaraokeTextBlock : TextBlock
     // 每字用阶段标记（0=未点亮共享底刷、1=过渡中独立刷、2=已点亮共享高亮刷），
     // 仅在阶段切换或颜色字节变化时才写 Run.Foreground，避免每帧对整行做 Color.FromArgb + SmoothStep。
     private byte[] _wordPhase = Array.Empty<byte>();
+    // 2.2.3: 每个字在当前词汇过渡期间的最大填充进度（单调钳制）。
+    // 暂停/停滞感知窗口内墙钟前推被回拉时，正在过渡的字不后退，高亮稳定停在暂停时刻的样子。
+    private double[] _wordFillMax = Array.Empty<double>();
     private SolidColorBrush? _sharedHighlightBrush;
     private SolidColorBrush? _sharedBaseBrush;
     private System.Windows.Media.Color _sharedHlColor;
@@ -466,6 +469,8 @@ public class KaraokeTextBlock : TextBlock
             _renderedWords = _words;
             if (_wordPhase.Length != _wordRuns.Count) _wordPhase = new byte[_wordRuns.Count];
             else Array.Clear(_wordPhase, 0, _wordPhase.Length); // 重建后阶段归零（全部未点亮），避免旧阶段误导共享刷切换
+            if (_wordFillMax.Length != _wordRuns.Count) _wordFillMax = new double[_wordRuns.Count];
+            else Array.Clear(_wordFillMax, 0, _wordFillMax.Length); // 填充峰值随行重建复位
         }
 
         if (_colorsDirty)
@@ -513,6 +518,9 @@ public class KaraokeTextBlock : TextBlock
             }
             // 正在过渡：ease-in-out（起笔/收笔有加减速）+字间 lead 重叠
             var raw = (pos - start) / _wordDenoms[i] * speedScale;
+            // 2.2.3: 单调钳制——停滞感知回拉或暂停期间位置被冻结时，字填充只进不退，
+            // 避免高亮“先冲出去、又被拉回来”的肉眼可见倒退。
+            raw = ApplyMonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
             var frac = SmoothStep(raw);
             var c = System.Windows.Media.Color.FromArgb(
                 (byte)(bs.A + deltaA * frac),
@@ -629,6 +637,18 @@ public class KaraokeTextBlock : TextBlock
     {
         t = Math.Clamp(t, 0, 1);
         return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>单调填充钳制：raw 不允许比历史峰值更低（停滞回拉时冻结在峰值）。</summary>
+    internal static double ApplyMonotonicFill(double raw, double maxSeen, out double newMax)
+    {
+        if (raw < maxSeen)
+        {
+            newMax = maxSeen;
+            return maxSeen;
+        }
+        newMax = raw;
+        return raw;
     }
 
     private static System.Windows.Media.Color Lerp(System.Windows.Media.Color a, System.Windows.Media.Color b, double t)

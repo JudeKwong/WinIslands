@@ -1,3 +1,17 @@
+## WinIslands 2.2.3（正式版 / Stable）
+### 更新内容
+
+- **🎨 歌词高亮单调钳制（修复“先冲出去又被拉回来”）**：逐字歌词的填充进度现在只进不退——停滞感知窗口内墙钟前推被回拉、或暂停恢复后播放器位置暂时落后时，正在过渡的字冻结在已达峰值，暂停/退出重开等场景下高亮不再肉眼可见地倒退跳动
+- **🧪 回归测试**：新增填充单调性、停滞周期冻结等专项测试，共 291 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.2.3 (Stable)
+### What's New
+
+- **🎨 Monotonic karaoke fill (fix "rush then pull back")**: per-word fill progress now only moves forward - when the stall-aware window pulls the wall-clock lead back, or the player position lags right after resume, in-flight words freeze at the peak they already reached, so pausing/exiting can no longer visibly reverse the highlight
+- **🧪 Regression**: new fill monotonicity and stall-cycle freeze tests, 291 unit tests total, all green with zero warnings
+
+---
 ## WinIslands 2.2.2（正式版 / Stable）
 ### 更新内容
 
