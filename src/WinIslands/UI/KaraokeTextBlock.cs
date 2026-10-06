@@ -102,6 +102,9 @@ public class KaraokeTextBlock : TextBlock
     // 2.2.3: 每个字在当前词汇过渡期间的最大填充进度（单调钳制）。
     // 暂停/停滞感知窗口内墙钟前推被回拉时，正在过渡的字不后退，高亮稳定停在暂停时刻的样子。
     private double[] _wordFillMax = Array.Empty<double>();
+    // 2.3.6: 每个字自己的「过渡期」画刷缓存——跨句/跨行复用，连续换句不再反复分配 n 个 SolidColorBrush；
+    // 画刷颜色每帧在过渡分支里校正，共享刷与阶段逻辑不变。
+    private SolidColorBrush?[] _wordBrushes = Array.Empty<SolidColorBrush>();
     private SolidColorBrush? _sharedHighlightBrush;
     private SolidColorBrush? _sharedBaseBrush;
     private System.Windows.Media.Color _sharedHlColor;
@@ -493,6 +496,8 @@ public class KaraokeTextBlock : TextBlock
             else Array.Clear(_wordPhase, 0, _wordPhase.Length); // 重建后阶段归零（全部未点亮），避免旧阶段误导共享刷切换
             if (_wordFillMax.Length != _wordRuns.Count) _wordFillMax = new double[_wordRuns.Count];
             else Array.Clear(_wordFillMax, 0, _wordFillMax.Length); // 填充峰值随行重建复位
+            if (_wordBrushes.Length != _wordRuns.Count) _wordBrushes = new SolidColorBrush?[_wordRuns.Count];
+            // 长度一致时保留缓存画刷（只是新 Run 的 Foreground 尚未指向它们，进入过渡时重新指向并校色）
         }
 
         if (_colorsDirty)
@@ -515,10 +520,6 @@ public class KaraokeTextBlock : TextBlock
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
         // 句首第一个字不提前，保证换句时第一个字保持未点亮。
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
-        var deltaA = hl.A - bs.A;
-        var deltaR = hl.R - bs.R;
-        var deltaG = hl.G - bs.G;
-        var deltaB = hl.B - bs.B;
         var count = Math.Min(_wordRuns.Count, _words.Count);
         for (var i = 0; i < count; i++)
         {
@@ -544,14 +545,18 @@ public class KaraokeTextBlock : TextBlock
             raw = ApplyMonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
             var frac = SmoothStep(raw);
             var c = System.Windows.Media.Color.FromArgb(
-                (byte)(bs.A + deltaA * frac),
-                (byte)(bs.R + deltaR * frac),
-                (byte)(bs.G + deltaG * frac),
-                (byte)(bs.B + deltaB * frac));
+                KaraokeMath.BlendChannel(bs.A, hl.A, frac),
+                KaraokeMath.BlendChannel(bs.R, hl.R, frac),
+                KaraokeMath.BlendChannel(bs.G, hl.G, frac),
+                KaraokeMath.BlendChannel(bs.B, hl.B, frac));
             if (_wordPhase[i] != 1)
             {
-                // 进入过渡：从共享刷切换为独立刷（不可以改共享冻结刷）
-                run.Foreground = new SolidColorBrush(c);
+                // 进入过渡：从共享刷切换为独立刷（不可以改共享冻结刷）；
+                // 2.3.6: 复用每个字的缓存画刷，进入时先把颜色校正到当前混合值，避免首帧残留旧色
+                var cached = _wordBrushes[i];
+                if (cached is null) { cached = new SolidColorBrush(c); _wordBrushes[i] = cached; }
+                else cached.Color = c;
+                run.Foreground = cached;
                 _wordPhase[i] = 1;
             }
             else if (run.Foreground is SolidColorBrush brush)

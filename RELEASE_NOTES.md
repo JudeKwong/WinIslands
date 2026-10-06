@@ -1,3 +1,22 @@
+## WinIslands 2.3.6（正式版 / Stable）
+### 更新内容
+
+- **⚡ 卡拉OK过渡画刷跨行复用**：每个字首次进入过渡时分配一个独立画刷并缓存——旧实现每次换句都会对每个字重新分配 SolidColorBrush；现在画刷跨句复用，进入过渡时先校正到当前混合色——连续换句期间内存分配明显减少，歌词高亮帧节奏更稳、不卡顿
+- **🎨 颜色混合提取为纯函数**：过渡字每帧的底色→高亮色通道混合改为 KaraokeMath.BlendChannel——对非法进度（NaN/Infinity）按「未点亮」兜底、越界进度钳制到端点，杜绝旧实现 NaN 强转 byte 得到 0（黑色字节）的隐患——行为与原实现完全一致（中间值截断取整），更安全、可测试
+- **🧪 回归测试**：新增通道混合纯函数测试 7 项（端点/中点截断/越界钳制/非法进度/反向区间），共 399 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.6 (Stable)
+### What's New
+
+- **⚡ Karaoke transition brushes reused across lines**: each word now gets one cached per-word brush when it first enters a transition - the old code allocated a fresh SolidColorBrush for every word on every line change; cached brushes are re-pointed and colour-corrected on entry - allocations during continuous line changes drop sharply, steadier karaoke highlight pacing
+- **🎨 Colour blending extracted to a pure function**: the per-frame base-to-highlight channel blend now goes through KaraokeMath.BlendChannel - non-finite progress falls back to the unlit colour and out-of-range progress clamps to the endpoints, removing the old NaN-to-byte cast that produced black bytes (0) - identical output for valid inputs (mid-values truncate as before), safer and unit-testable
+- **🧪 Regression**: 7 new pure-function tests for the channel blend (endpoints, midpoint truncation, out-of-range clamping, non-finite fallback, reversed range) - 399 unit tests total, all green
+
+---
+
+
 ## WinIslands 2.3.5（正式版 / Stable）
 ### 更新内容
 
