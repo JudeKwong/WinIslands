@@ -1,3 +1,19 @@
+## WinIslands 2.5.9（正式版 / Stable）
+### 更新内容
+
+- **🎹 采样包络热路径精简为单次位掩码判定**：ComputeEnvelope 的浮点 PCM 路径每帧原需 IsNaN+IsInfinity 两次调用加上越界钳制共 3 组防御判断；现抽出纯函数 WaveMath.EnvelopeSample——IEEE 754 单精度指数位全 1 即 NaN/±Infinity，一次位掩码判定替代两次调用，有限样本取绝对值后钳制到 1；Int16 路径由构造保证 |s| ≤ 32768 无需再钳制。每个采样帧少 2 组浮点防御判断，数万次采样结果与原实现逐位一致
+- **🧪 测试**：新增 EnvelopeSample 4 项——NaN/±Inf 归零、越界钳 1、范围内幅值保持、全 32 位空间按素数步长 65,537 采样与原公式逐位等价扫描（DoubleToInt64Bits）；共 481 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.9 (Stable)
+### What's New
+
+- **🎹 Sample envelope hot path folded into a single bit-mask guard**: the float-PCM branch of ComputeEnvelope ran IsNaN + IsInfinity calls plus an out-of-range clamp per frame (3 guard groups); the new pure function WaveMath.EnvelopeSample classifies NaN/±Infinity with one IEEE-754 exponent-bit mask, takes abs and clamps finite samples to 1, and the Int16 branch needs no clamp since |s| ≤ 32768 by construction - two fewer float guard groups per sampled frame, bit-identical results across tens of thousands of samples
+- **🧪 Tests**: 4 new EnvelopeSample cases - NaN/±Infinity are silent, out-of-range clamps to 1, in-range magnitude preserved, and a 32-bit-space sweep (prime stride 65,537) compared bit-for-bit against the original formula via DoubleToInt64Bits; 481 unit tests green
+
+---
+
 ## WinIslands 2.5.8（正式版 / Stable）
 ### 更新内容
 

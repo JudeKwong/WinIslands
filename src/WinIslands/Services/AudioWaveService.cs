@@ -333,16 +333,15 @@ public sealed class AudioWaveService : IDisposable
             double v;
             if (isFloat)
             {
-                var x = BitConverter.ToSingle(bytes, idx);
-                if (float.IsNaN(x) || float.IsInfinity(x)) x = 0;
-                v = Math.Abs(x);
+                // 2.5.9：一次位掩码判定 NaN/Inf 并钳制，替代 IsNaN+IsInfinity+越界钳 3 次判断
+                v = WaveMath.EnvelopeSample(BitConverter.ToSingle(bytes, idx));
             }
             else
             {
+                // Int16 由构造保证 |s| ≤ 32768，无需再钳制
                 var s = BitConverter.ToInt16(bytes, idx);
                 v = Math.Abs(s / 32768.0);
             }
-            if (v > 1) v = 1;
             sumSq += v * v;
             nInWindow++;
             if (v > maxWinPeak) maxWinPeak = v;

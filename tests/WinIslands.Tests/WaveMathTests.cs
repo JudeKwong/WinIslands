@@ -230,4 +230,59 @@ public sealed class WaveMathTests
         }
     }
 
+
+    [Fact]
+    public void EnvelopeSample_NaNAndInfinity_AreSilent()
+    {
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(float.NaN));
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(float.PositiveInfinity));
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(float.NegativeInfinity));
+        // 各种 NaN 位型（静默/信号/负号）都归零
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(BitConverter.UInt32BitsToSingle(0x7FC00000u)));
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(BitConverter.UInt32BitsToSingle(0x7F800001u)));
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(BitConverter.UInt32BitsToSingle(0xFF800000u)));
+    }
+
+    [Fact]
+    public void EnvelopeSample_ClampsOverRangeToOne()
+    {
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(1.0f));
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(-1.0f));
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(2.0f));
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(-3.5f));
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(float.MaxValue));
+        Assert.Equal(1.0, WaveMath.EnvelopeSample(float.MinValue));
+    }
+
+    [Fact]
+    public void EnvelopeSample_PreservesInRangeMagnitude()
+    {
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(0.0f));
+        Assert.Equal(0.0, WaveMath.EnvelopeSample(-0.0f));
+        Assert.Equal(0.5, WaveMath.EnvelopeSample(0.5f));
+        Assert.Equal(0.25, WaveMath.EnvelopeSample(-0.25f));
+        Assert.Equal((double)float.Epsilon, WaveMath.EnvelopeSample(float.Epsilon));
+        Assert.Equal((double)float.Epsilon, WaveMath.EnvelopeSample(-float.Epsilon));
+    }
+
+    [Fact]
+    public void EnvelopeSample_SweepMatchesOriginalFormula()
+    {
+        // 全 32 位空间按大素数步长采样（NaN/Inf/非规格化/全幅值等区域都覆盖），
+        // 与原 IsNaN||IsInfinity 置 0 + 越界钳 1 的实现逐位比较（DoubleToInt64Bits）。
+        for (ulong i = 0; i <= uint.MaxValue; i += 65537ul)
+        {
+            var x = BitConverter.UInt32BitsToSingle((uint)i);
+            var expect = EnvelopeReference(x);
+            var actual = WaveMath.EnvelopeSample(x);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expect), BitConverter.DoubleToInt64Bits(actual));
+        }
+    }
+
+    private static double EnvelopeReference(float x)
+    {
+        if (float.IsNaN(x) || float.IsInfinity(x)) x = 0f;
+        var v = Math.Abs((double)x);
+        return v > 1.0 ? 1.0 : v;
+    }
 }

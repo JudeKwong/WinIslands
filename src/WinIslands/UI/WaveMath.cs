@@ -73,4 +73,17 @@ internal static class WaveMath
     /// </summary>
     internal static double WaveValue(double sinBase, double cosBase, (double Sin, double Cos) offset)
         => 0.5 + 0.5 * (sinBase * offset.Cos - cosBase * offset.Sin);
+
+    /// <summary>
+    /// 32 位浮点 PCM 样本 → 0..1 包络幅值（2.5.9）：IEEE 754 单精度指数位全 1 即 NaN/±Infinity，
+    /// 一次位掩码判定替代 IsNaN+IsInfinity 两次调用；有限样本取绝对值后钳制到 1，
+    /// 与原「IsNaN||IsInfinity 置 0、越界钳 1」逐位等价（见 WaveMathTests 全空间扫描）。
+    /// </summary>
+    internal static double EnvelopeSample(float x)
+    {
+        var bits = BitConverter.SingleToUInt32Bits(x);
+        if ((bits & 0x7F800000u) == 0x7F800000u) return 0.0; // 指数位全 1：NaN 或 ±Infinity
+        var v = Math.Abs((double)x);
+        return v > 1.0 ? 1.0 : v;
+    }
 }
