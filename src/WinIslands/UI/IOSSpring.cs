@@ -226,7 +226,12 @@ public sealed class IOSSpring
         // 2.2.16: settle against the tight tail window - the final snap is at
         // most 1/4 of the coarse epsilon (<= 0.125px for pixel spans), removing
         // the visible stopping jerk at the end of expand/collapse.
-        if (Math.Abs(value - Target) < _offsetEpsTail && Math.Abs(velocity) < _velEpsTail)
+        // 2.7.3: settle predicate uses a branch chain instead of two Math.Abs
+        // calls - (offset in (-eps, +eps)) && (|velocity| < eps) is boolean-
+        // identical to the abs form for every reachable input; NaN/+-Inf
+        // still never settle. One sign-mask + compare pair saved per tick.
+        var offset = value - Target;
+        if (offset < _offsetEpsTail && offset > -_offsetEpsTail && velocity < _velEpsTail && velocity > -_velEpsTail)
         {
             Complete();
             return;

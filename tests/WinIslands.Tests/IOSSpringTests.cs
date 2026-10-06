@@ -779,4 +779,70 @@ public sealed class IOSSpringTests
             }
         }
     }
+
+    [Fact]
+    public void SettlePredicate_BranchChain_MatchesAbsForm()
+    {
+        // 2.7.3: Tick's settle check replaced Math.Abs(value - Target) < eo &&
+        // Math.Abs(velocity) < ev with a branch chain (offset in (-eo, +eo) and
+        // velocity in (-ev, +ev)). For every reachable input the two booleans
+        // must agree exactly - including NaN/+-Inf which never settle, and the
+        // exact +/-epsilon tie boundaries.
+        double[] values = { double.NegativeInfinity, -1e9, -123.456, -1.0, -0.000125, 0.0, 0.000125, 1.0, 123.456, 1e9, double.PositiveInfinity, double.NaN };
+        double[] targets = { double.NegativeInfinity, -1e9, -0.5, 0.0, 0.5, 1e9, double.PositiveInfinity, double.NaN };
+        double[] velocities = { double.NegativeInfinity, -1000.0, -2.5, -0.00625, 0.0, 0.00625, 2.5, 1000.0, double.PositiveInfinity, double.NaN };
+        double[] offsetEps = { 0.000125, 0.5, 10.0 };
+        double[] velEps = { 0.00625, 2.5, 50.0 };
+        var checkedCount = 0;
+        foreach (var value in values)
+        foreach (var target in targets)
+        foreach (var velocity in velocities)
+        foreach (var eo in offsetEps)
+        foreach (var ev in velEps)
+        {
+            var diff = value - target;
+            var oldForm = Math.Abs(diff) < eo && Math.Abs(velocity) < ev;
+            var newForm = diff < eo && diff > -eo && velocity < ev && velocity > -ev;
+            Assert.Equal(oldForm, newForm);
+            checkedCount++;
+        }
+        Assert.True(checkedCount >= 12 * 8 * 10 * 3 * 3, "sweep matrix was truncated");
+    }
+
+    [Fact]
+    public void SettlePredicate_DenseSweep_MatchesAbsForm()
+    {
+        // 2.7.3: 30001-point randomized finite sweep plus exact boundary ties.
+        // value/velocity mirror Tick's real state (IsFinite pre-filtered), while
+        // target is left unconstrained (infinities/NaN mixed in) to lock semantics.
+        const double eo = 0.000125;
+        const double ev = 0.00625;
+        var rng = new Random(0x2E73);
+        for (var i = 0; i < 30001; i++)
+        {
+            var value = NextSigned(rng, 1e4);
+            var velocity = NextSigned(rng, 1e4);
+            var target = (i % 5) switch
+            {
+                0 => double.PositiveInfinity,
+                1 => double.NaN,
+                _ => NextSigned(rng, 1e4),
+            };
+            var diff = value - target;
+            Assert.Equal(Math.Abs(diff) < eo && Math.Abs(velocity) < ev,
+                         diff < eo && diff > -eo && velocity < ev && velocity > -ev);
+        }
+        // exact tie boundaries: diff == +/-eo or velocity == +/-ev must never settle
+        Assert.False(Math.Abs(-eo) < eo && 0 < ev && 0 > -ev, "offset == -eo must not settle");
+        Assert.False(Math.Abs(eo) < eo && 0 < ev && 0 > -ev, "offset == +eo must not settle");
+        Assert.False(0 < eo && 0 > -eo && Math.Abs(-ev) < ev, "velocity == -ev must not settle");
+        Assert.False(0 < eo && 0 > -eo && Math.Abs(ev) < ev, "velocity == +ev must not settle");
+        Assert.True(0 < eo && 0 > -eo && 0 < ev && 0 > -ev, "interior must settle");
+    }
+
+    private static double NextSigned(Random rng, double magnitude)
+    {
+        var v = rng.NextDouble() * magnitude;
+        return (rng.Next(2) == 0) ? -v : v;
+    }
 }

@@ -1,3 +1,19 @@
+## WinIslands 2.7.3（正式版 / Stable）
+### 更新内容
+
+- 🚀 收敛判定热路径去掉两个 Math.Abs 调用：IOSSpring.Tick 每帧对每个活跃弹簧都执行一次收敛判定（|value - Target| < ε 且 |velocity| < ε），原先先取绝对值再比较；现改为分支比较链（offset 落在 (-ε, +ε) 内且 velocity 落在 (-ε, +ε) 内），省去每个弹簧每次 Tick 的两组符号掩码 + 比较对。value/velocity 已在函数上方经 IsFinite 前置过滤，Target 可为任意有限值/±Inf/NaN，新式布尔结果与旧式在全部可达输入上完全一致，NaN/±Inf 依旧永不收敛，展开/收起动画的最终吸附行为不变
+- 🧪 测试：新增 2 项——特殊值 × ε 边界组合矩阵（12×8×10×3×3）验证分支链与 Math.Abs 式等价（含 ±ε 精确边界、NaN/±Inf）；有限域 30001 点随机密集扫描 + 5 组精确边界断言（diff == ±ε、velocity == ±ε 必须不收敛，内部必须收敛）；共 517 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.3 (Stable)
+### What's New
+
+- 🚀 Settle predicate hot path drops the two Math.Abs calls: IOSSpring.Tick runs its settle check (|value - Target| < ε and |velocity| < ε) once per active spring per frame, previously via two abs sign-mask + compare pairs; it now uses a branch chain (offset within (-ε, +ε) and velocity within (-ε, +ε)), saving both pairs per spring per tick. value/velocity are IsFinite pre-filtered above, Target may be any finite/±Inf/NaN - the boolean result is identical to the abs form on every reachable input, NaN/±Inf still never settle, and the final snap of expand/collapse behaves exactly as before
+- 🧪 Tests: 2 new cases - a special-value × epsilon-boundary combo matrix (12×8×10×3×3) proving the branch chain equals the Math.Abs form on every combination (exact ±ε ties, NaN/±Inf included), plus a 30001-point randomized finite-domain dense sweep with 5 exact boundary asserts (diff == ±ε and velocity == ±ε must not settle, interior must settle); 517 unit tests green
+
+---
+
 ## WinIslands 2.7.2（正式版 / Stable）
 ### 更新内容
 
