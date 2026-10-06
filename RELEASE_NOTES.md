@@ -1,3 +1,21 @@
+## WinIslands 2.4.5（正式版 / Stable）
+### 更新内容
+
+- **🎯 卡拉OK帧率上限缓存**：TickAnimation 每帧（逐字模式与整行均分模式）不再走三元判断 + AnimationFrameRate.Current 调用，改为直接读取随低功耗开关即时刷新的缓存帧率——歌词高亮热点的每帧路径再缩短一步
+- **🗄️ 字段升级为属性**：LowPowerModeOverride 改属性后，App 的任何赋值点自动同步缓存，设置即改即生效且语义不变（低功耗 60 FPS、常规跟随硬件帧率）
+- **✅ 回归测试**：新增缓存与开关联动、同值幂等测试 4 项，共 434 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.5 (Stable)
+### What's New
+
+- **🎯 Cached karaoke frame-rate ceiling**: TickAnimation (both per-word and whole-line modes) no longer evaluates the ternary + AnimationFrameRate.Current every frame - it reads a cached ceiling refreshed instantly when the low-power switch flips, shortening the per-frame lyrics-highlight hot path further
+- **🗄️ Field promoted to property**: LowPowerModeOverride is now a property, so every assignment site in the app refreshes the cache automatically with unchanged semantics (60 FPS under low-power, hardware target otherwise)
+- **✅ Regression**: 4 new cache/switch linkage and idempotency tests, 434 unit tests green
+
+---
+
 ## WinIslands 2.4.4（正式版 / Stable）
 ### 更新内容
 

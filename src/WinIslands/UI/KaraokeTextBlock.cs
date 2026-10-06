@@ -66,8 +66,24 @@ public class KaraokeTextBlock : TextBlock
         get => (bool)GetValue(EntranceFadeEnabledProperty);
         set => SetValue(EntranceFadeEnabledProperty, value);
     }
+    private static bool _lowPowerMode;
+    private static int _cachedFps = AnimationFrameRate.Current(lowPowerMode: false);
+
     /// <summary>低功耗模式（App 在设置变化时更新）：逐字卡拉OK推进降频至 60 FPS，减少动画时 CPU 占用。</summary>
-    public static bool LowPowerModeOverride;
+    public static bool LowPowerModeOverride
+    {
+        get => _lowPowerMode;
+        set
+        {
+            if (_lowPowerMode == value) return;
+            _lowPowerMode = value;
+            // 2.4.5：帧率上限缓存随低功耗开关即时刷新——TickAnimation 每帧不再走三元 + Current 调用
+            _cachedFps = value ? AnimationFrameRate.StandardForLowPower : AnimationFrameRate.Current(lowPowerMode: false);
+        }
+    }
+
+    /// <summary>2.4.5：当前生效的卡拉OK帧率上限（缓存值，供测试观察）。</summary>
+    internal static int CachedFrameFps => _cachedFps;
 
     private bool _renderingSubscribed;     // CompositionTarget.Rendering 已挂接
     private double _lastTickTime;          // 上一帧时间（秒），用于帧率无关平滑
@@ -431,9 +447,7 @@ public class KaraokeTextBlock : TextBlock
                 // 按真实时间插值（不乘速度倍率）：ViewModel 每 200ms 用真实播放位置校正一次，
                 // 若在此处乘倍率会产生「先超前、再被拉回」的每 200ms 回跳，看起来卡顿。
                 // 「高亮更快」改为在 RenderWords 内缩放每个字的进度（见 speedScale），效果相同但不回跳。
-                var fps = LowPowerModeOverride
-                    ? AnimationFrameRate.StandardForLowPower
-                    : AnimationFrameRate.Current(lowPowerMode: false);
+                var fps = _cachedFps; // 2.4.5：低功耗帧率上限已缓存
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
                 var elapsed = (double)(frameTicks - _posBaseTicks) / Stopwatch.Frequency;
                 var sinceUpdate = Math.Max(0.0, elapsed);
@@ -459,9 +473,7 @@ public class KaraokeTextBlock : TextBlock
         }
 
         // 整行均分模式：缓动逼近（差距大时走得快、接近时变慢）
-        var lineFps = LowPowerModeOverride
-            ? AnimationFrameRate.StandardForLowPower
-            : AnimationFrameRate.Current(lowPowerMode: false);
+        var lineFps = _cachedFps; // 2.4.5：低功耗帧率上限已缓存
         if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, lineFps)) return;
         var dtTick = Math.Min(0.05, Math.Max(0.001, now - _lastTickTime));
         _lastTickTime = now;
