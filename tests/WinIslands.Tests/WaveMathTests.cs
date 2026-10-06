@@ -87,4 +87,43 @@ public sealed class WaveMathTests
         Assert.True(double.IsNaN(WaveMath.EaseToward(double.NaN, 10.0, 0.5)));
     }
 
+    [Fact]
+    public void SmoothAlpha_ZeroDt_ReturnsZero()
+        => Assert.Equal(0.0, WaveMath.SmoothAlpha(0.0, 22.0), 12);
+
+    [Fact]
+    public void SmoothAlpha_PositiveDt_MonotonicIncreasing()
+    {
+        var prev = -1.0;
+        for (var i = 0; i <= 100; i++)
+        {
+            var dt = i / 1000.0; // 0..0.1
+            var a = WaveMath.SmoothAlpha(dt, 22.0);
+            Assert.True(a > prev, $"not monotonic at {dt}");
+            prev = a;
+        }
+        Assert.True(prev < 1.0);
+    }
+
+    [Fact]
+    public void SmoothAlpha_MatchesOriginalFormula()
+    {
+        // 与旧实现 1 - exp(-dt*rate) 逐点一致（有限输入）
+        for (var i = 1; i <= 50; i++)
+        {
+            var dt = i / 500.0;
+            Assert.Equal(1.0 - Math.Exp(-dt * 22.0), WaveMath.SmoothAlpha(dt, 22.0), 12);
+        }
+    }
+
+    [Fact]
+    public void SmoothAlpha_NonFinite_FreezesFrame()
+    {
+        // NaN/Inf 时钟：返回 0（本帧不动），绝不把 NaN 传进渲染
+        Assert.Equal(0.0, WaveMath.SmoothAlpha(double.NaN, 22.0), 9);
+        Assert.Equal(0.0, WaveMath.SmoothAlpha(double.PositiveInfinity, 22.0), 9);
+        Assert.Equal(0.0, WaveMath.SmoothAlpha(0.02, double.NaN), 9);
+        Assert.Equal(0.0, WaveMath.SmoothAlpha(0.02, double.PositiveInfinity), 9);
+    }
+
 }

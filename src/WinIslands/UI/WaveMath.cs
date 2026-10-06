@@ -34,4 +34,16 @@ internal static class WaveMath
         if (!double.IsFinite(current) || !double.IsFinite(target) || !double.IsFinite(alpha)) return current;
         return current + (target - current) * alpha;
     }
+
+    /// <summary>
+    /// Wave frame exponential smoothing factor (2.4.8): 1 - exp(-dt*rate).
+    /// Non-finite dt/rate (NaN/Inf) return 0 so a bad clock freezes this frame
+    /// instead of pushing NaN into bar/ring/particle transforms; finite inputs
+    /// keep the byte-identical formula.
+    /// </summary>
+    internal static double SmoothAlpha(double dt, double rate)
+    {
+        if (!double.IsFinite(dt) || !double.IsFinite(rate)) return 0.0;
+        return 1.0 - Math.Exp(-dt * rate);
+    }
 }

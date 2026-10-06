@@ -1,3 +1,21 @@
+## WinIslands 2.4.8（正式版 / Stable）
+### 更新内容
+
+- **⚡ 声波纹帧回调共用化钳制**：OnWaveFrame 每帧不再调用 Math.Min/Math.Max 两次区间钳制，改为与歌词共用 KaraokeMath.ClampTickDelta 分支链（[0.001, 0.05]）——每帧少两次范围检查调用，波纹跟随音频的电平平滑更省 CPU、帧更稳
+- **🛡️ 平滑系数抽成 NaN 安全纯函数**：指数平滑 alpha = 1 - exp(-dt*22) 收敛到 WaveMath.SmoothAlpha；有限输入与旧公式逐位一致，NaN/Inf 时钟返回 0（本帧冻结），坏时钟永远无法把 NaN 传染进条/环/粒子变换
+- **✅ 回归测试**：新增零间隔端点、单调递增、与原公式逐点一致、NaN/Inf 冻结测试 4 项，共 446 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.8 (Stable)
+### What's New
+
+- **⚡ Wave frame clamp unified with the lyrics path**: OnWaveFrame no longer pays Math.Min/Math.Max range checks per frame - it reuses the KaraokeMath.ClampTickDelta branch chain (bounds [0.001, 0.05]), dropping two range-check calls from the wave-smoothing hot path while staying byte-identical
+- **🛡️ Smoothing factor extracted as a NaN-safe pure function**: the exponential alpha 1 - exp(-dt*22) now lives in WaveMath.SmoothAlpha - finite inputs match the original formula exactly, while NaN/Inf clocks return 0 (freeze this frame) so a bad clock can never push NaN into bar/ring/particle transforms
+- **✅ Regression**: 4 new zero-endpoint/monotonic/formula-equivalence/NaN-freeze tests, 446 unit tests green
+
+---
+
 ## WinIslands 2.4.7（正式版 / Stable）
 ### 更新内容
 

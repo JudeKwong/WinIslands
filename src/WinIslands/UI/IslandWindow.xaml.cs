@@ -1974,12 +1974,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, _cachedWaveFps)) return;
             }
 
-            var dt = Math.Min(0.05, Math.Max(0.001, now - _lastWaveTime));
+            var dt = KaraokeMath.ClampTickDelta(now - _lastWaveTime); // 2.4.8: 与歌词共用同一化钳制（分支链，免 Math 调用）
             _lastWaveTime = now;
 
             var level = Math.Clamp(_vm.WaveLevel, 0, 1);
             var height = _cachedWaveHeight;
-            var alpha = 1.0 - Math.Exp(-dt * 22.0); // 帧率无关的指数平滑
+            var alpha = WaveMath.SmoothAlpha(dt, 22.0); // 帧率无关的指数平滑（2.4.8: NaN 安全纯函数）
             // 1.2.1 性能优化：只更新当前可见的波纹集合（展开=大波纹、紧凑=小波纹），
             // 隐藏面板每帧的 ScaleTransform 更新全部省掉，降低媒体播放时的 CPU 占用
             var expanded = _vm.IsExpanded;
