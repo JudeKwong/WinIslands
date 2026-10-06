@@ -171,4 +171,39 @@ public sealed class WaveMathTests
         Assert.Equal(1.0 - Math.Exp(-dt * 42.0), WaveMath.SmoothAlpha(dt, 42.0), 12);
     }
 
+
+    [Theory]
+    [InlineData(0.9, 32)]
+    [InlineData(1.3, 32)]
+    [InlineData(0.0, 1)]
+    [InlineData(2.5, 5)]
+    public void BuildWaveOffsets_MatchesSeparatedSinCos(double step, int count)
+    {
+        // v2.5.5: 打包相位偏移（Math.SinCos）与原分开 Math.Sin/Math.Cos 一致（15 位有效数字）
+        var offsets = WaveMath.BuildWaveOffsets(step, count);
+        Assert.Equal(count, offsets.Length);
+        for (var i = 0; i < count; i++)
+        {
+            Assert.Equal(Math.Sin(i * step), offsets[i].Sin, 14);
+            Assert.Equal(Math.Cos(i * step), offsets[i].Cos, 14);
+        }
+    }
+
+    [Theory]
+    [InlineData(0.3, -0.5)]
+    [InlineData(-0.9, 0.7)]
+    [InlineData(0.0, 0.0)]
+    [InlineData(1.0, 1.0)]
+    public void WaveValue_MatchesSeparatedFormula(double sinBase, double cosBase)
+    {
+        // v2.5.5: 打包读取的叠加值与原 0.5 + 0.5*(sinBase*cosOff - cosBase*sinOff) 一致
+        var offsets = WaveMath.BuildWaveOffsets(1.0, 13);
+        for (var i = 0; i < offsets.Length; i++)
+        {
+            var off = offsets[i];
+            var old = 0.5 + 0.5 * (sinBase * off.Cos - cosBase * off.Sin);
+            Assert.Equal(old, WaveMath.WaveValue(sinBase, cosBase, off), 14);
+        }
+    }
+
 }

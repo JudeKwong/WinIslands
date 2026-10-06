@@ -52,4 +52,25 @@ internal static class WaveMath
     /// 浮点结果与原分开调用的 Math.Sin / Math.Cos 一致（15 位有效数字内）。
     /// </summary>
     internal static (double Sin, double Cos) WaveBase(double t) => Math.SinCos(t * 6.0);
+    /// <summary>
+    /// 波形相位偏移表（2.5.5）：一次 Math.SinCos 生成打包数组（sin+cos 同元素），
+    /// 相比分开的 Sin/Cos 双数组：静态初始化三角调用减半、每帧每元素只读一次数组（一次边界检查）。
+    /// 每项与原 Math.Sin(i*step) / Math.Cos(i*step) 一致（15 位有效数字内）。
+    /// </summary>
+    internal static (double Sin, double Cos)[] BuildWaveOffsets(double step, int count)
+    {
+        var offsets = new (double Sin, double Cos)[count];
+        for (var i = 0; i < count; i++)
+        {
+            offsets[i] = Math.SinCos(i * step);
+        }
+        return offsets;
+    }
+
+    /// <summary>
+    /// 波形叠加值（2.5.5）：与原 0.5 + 0.5*(sinBase*cosOff - cosBase*sinOff) 完全等价，
+    /// 但偏移来自打包数组的单次读取（少一次数组索引/边界检查）。
+    /// </summary>
+    internal static double WaveValue(double sinBase, double cosBase, (double Sin, double Cos) offset)
+        => 0.5 + 0.5 * (sinBase * offset.Cos - cosBase * offset.Sin);
 }

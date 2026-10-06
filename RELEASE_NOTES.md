@@ -1,3 +1,21 @@
+## WinIslands 2.5.5（正式版 / Stable）
+### 更新内容
+
+- **🌊 波形相位偏移表打包为单数组**：声波纹条/频谱与粒子的相位偏移原来拆成 4 个 Sin/Cos 静态数组（静态初始化 128 次三角调用、逐帧每个元素要读两次数组）；现用 Math.SinCos 打包为 2 个 (Sin,Cos) 元组数组——静态初始化三角调用减半、每帧每元素只读一次数组（少一次边界检查），波形渲染热路径更省同时保持原曲线逐位一致
+- **🧮 波形叠加值抽为纯函数**：0.5 + 0.5*(sinBase*cosOff - cosBase*sinOff) 移入 WaveMath.WaveValue，打包读取路径与旧公式 15 位有效数字内一致，条/粒子两处热路径共用
+- **📐 测试**：新增打包偏移表与分开 Sin/Cos 一致性（2 组步长 × 4 组参数）与叠加值旧式等价（4 组）共 8 项；连续多轮全绿，共 464 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.5 (Stable)
+### What's New
+
+- **🌊 Wave phase offsets packed into one array**: bar/spectrum and particle phase offsets used to live in four separate Sin/Cos static arrays (128 trig calls at static init, two array reads per element per frame); they are now built with Math.SinCos into two (Sin, Cos) tuple arrays - static init halves the trig calls and the per-frame hot loop reads each element once (one bounds check instead of two), keeping the exact same curve
+- **🧮 Wave sum extracted as a pure function**: 0.5 + 0.5*(sinBase*cosOff - cosBase*sinOff) moves into WaveMath.WaveValue, shared by the bar and particle hot paths, matching the old separated formula within 15 significant digits
+- **📐 Tests**: 8 new cases - packed offsets vs separated Sin/Cos consistency (2 steps, 4 parameter sets) and wave-sum equivalence to the old formula (4 sets); stable across repeated runs - 464 unit tests green
+
+---
+
 ## WinIslands 2.5.4（正式版 / Stable）
 ### 更新内容
 

@@ -198,10 +198,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private ScaleTransform? _waveRingScaleCompact;
     private readonly List<TranslateTransform> _waveParticleTransformsExpanded = new();
     private readonly List<TranslateTransform> _waveParticleTransformsCompact = new();
-    private static readonly double[] WaveSin09 = Enumerable.Range(0, 32).Select(i => Math.Sin(i * 0.9)).ToArray();
-    private static readonly double[] WaveCos09 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 0.9)).ToArray();
-    private static readonly double[] WaveSin13 = Enumerable.Range(0, 32).Select(i => Math.Sin(i * 1.3)).ToArray();
-    private static readonly double[] WaveCos13 = Enumerable.Range(0, 32).Select(i => Math.Cos(i * 1.3)).ToArray();
+    // v2.5.5: 相位偏移打包为单数组（Math.SinCos 生成）——逐帧每元素一次数组读取、静态初始化三角调用减半
+    private static readonly (double Sin, double Cos)[] WaveOffsets09 = WaveMath.BuildWaveOffsets(0.9, 32);
+    private static readonly (double Sin, double Cos)[] WaveOffsets13 = WaveMath.BuildWaveOffsets(1.3, 32);
     private bool _animationSurfaceActive;
     private bool _cardLayoutRoundingBeforeAnimation = true;
     private bool _cardSnapsBeforeAnimation = true;
@@ -2028,7 +2027,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             double target;
             if (isPlaying)
             {
-                var wave = WaveValue(sinBase, cosBase, i, WaveSin09, WaveCos09);
+                var wave = WaveValue(sinBase, cosBase, i, WaveOffsets09);
                 if (bias > 0)
                     target = Math.Clamp(baseB + ampB * wave * (0.55 + 0.45 * i * invN), 0.05, 1.0);
                 else
@@ -2184,7 +2183,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             double target = 0;
             if (isPlaying)
             {
-                var wave = WaveValue(sinBase, cosBase, i, WaveSin13, WaveCos13);
+                var wave = WaveValue(sinBase, cosBase, i, WaveOffsets13);
                 target = -wave * amp;
             }
             if (!double.IsFinite(tr.Y)) { tr.Y = target; continue; }
@@ -2194,8 +2193,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private static double WaveValue(double sinBase, double cosBase, int index, double[] sinOffsets, double[] cosOffsets)
-        => 0.5 + 0.5 * (sinBase * cosOffsets[index] - cosBase * sinOffsets[index]);
+    private static double WaveValue(double sinBase, double cosBase, int index, (double Sin, double Cos)[] offsets)
+        => WaveMath.WaveValue(sinBase, cosBase, offsets[index]);
 
     private void ApplyCoverTint(bool forceRebuild = false)
     {
