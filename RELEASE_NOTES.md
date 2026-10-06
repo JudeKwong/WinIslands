@@ -1,3 +1,21 @@
+## WinIslands 2.4.2（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧帧节拍热路径重构**：Step 的防御门（NaN/时钟倒退）与挂起门（巨帧/断点恢复）合并为单一比较链，常见帧只命中一处分支；回退/重同步步长提升为编译期常量
+- **🛡 +Inf 时钟间距按挂起处理**：时钟源产生 +∞ 时与 >0.5s 巨帧同路径重建基线并回退重同步小步长（旧实现误判为普通帧只钳 1/60），彻底杜绝非有限值流入 EWMA 与弹簧积分
+- **🧪 回归测试**：新增 NaN 时钟不污染节奏、+Inf 巨帧等价挂起重同步测试 2 项，共 422 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.2 (Stable)
+### What's New
+
+- **⚡ Spring frame-clock hot path restructured**: the defensive gate (NaN / backward clock) and the suspend gate (huge frame / debugger resume) merge into a single comparison chain - the common frame hits one branch; fallback and resync steps are compile-time constants
+- **🛡 +Inf clock gaps treated as suspend**: an infinite gap now rebuilds the baseline and backs off to a small resync step like any >0.5s stall (the old gate clamped it into an ordinary 1/60 frame) - non-finite values can never reach the EWMA or the spring integrator
+- **🧪 Tests**: 2 new NaN / +Inf pacing tests, 422 unit tests green
+
+---
+
 ## WinIslands 2.4.1（正式版 / Stable）
 ### 更新内容
 

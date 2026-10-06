@@ -26,6 +26,10 @@ internal sealed class FrameClock
 
     /// <summary>2.3.8: 步长下限常量（1/240s），提前折叠除法。</summary>
     private const double MinFloorStepSeconds = 1.0 / 240.0;
+    /// <summary>2.4.2: 单帧防御回退步长（时钟倒退 / NaN 等非有限值）。</summary>
+    private const double DtFallbackSeconds = 1.0 / 60.0;
+    /// <summary>2.4.2: 挂起/巨帧恢复后的重同步小步长（与 WarmUpCap 同值，语义分离）。</summary>
+    private const double DtResyncSeconds = 1.0 / 120.0;
 
     /// <summary>重建帧节拍基线（新动画会话 / 系统恢复时调用）。</summary>
     public void ResetBaseline(double now)
@@ -49,16 +53,19 @@ internal sealed class FrameClock
 
         var dt = now - _lastSeconds;
         _lastSeconds = now;
-        // 防御：时钟倒退 / 非有限值 → 一小步，绝不产生负步长或巨步长
-        if (!double.IsFinite(dt) || dt <= 0) dt = 1.0 / 60.0;
-
-        // 挂起恢复 / 调试断点释放：帧间隔超过阈值 → 重建基线并回退到一小步。
-        // 旧实现只把单帧 dt 钳到 1/60，但平滑基线仍是挂起前的旧值；
-        // 2.2.7 直接重建基线，弹簧从恢复后的第一帧平滑起步、不积压回放。
+        // 2.4.2: 防御门与挂起门合并为单一链条（挂起阈值在前、非有限/非正回退 else-if 在后）——
+        // 常见帧只命中一处比较；+Inf 时钟间距视为彻底挂起，与 >0.5s 巨帧同路径重建基线、
+        // 回退到重同步小步长（旧实现把 +Inf 钳成 1/60 普通帧，属边界误判）；NaN/负数仍走防御小步。
         if (dt > SuspendGapSeconds)
         {
+            // 旧实现只把单帧 dt 钳到 1/60，但平滑基线仍是挂起前的旧值；
+            // 2.2.7 直接重建基线，弹簧从恢复后的第一帧平滑起步、不积压回放。
             ResetBaseline(now);
-            dt = 1.0 / 120.0;
+            dt = DtResyncSeconds;
+        }
+        else if (!double.IsFinite(dt) || dt <= 0)
+        {
+            dt = DtFallbackSeconds;
         }
 
         // 帧间隔平滑：偶发一帧卡顿（GC/合成器抖动）时弹簧步伐保持平顺 ——

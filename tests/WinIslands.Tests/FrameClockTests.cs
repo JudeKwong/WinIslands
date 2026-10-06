@@ -114,4 +114,36 @@ public sealed class FrameClockTests
         Assert.InRange(dtNext, Frame120 * 0.5, Frame120 * 2.0);
     }
 
+
+    [Fact]
+    public void NonFiniteInput_NeverCorruptsPacing()
+    {
+        // 2.4.2: a NaN clock input must fall back to the fixed small step and
+        // never leak NaN/Infinity into the EWMA or spring integrator; the very
+        // next normal frame resumes cadence.
+        var fc = New();
+        var dt = fc.Step(double.NaN, false);
+        Assert.True(dt > 0 && dt <= 1.0 / 30.0, string.Format("NaN clock returned {0}", dt));
+        var dt2 = fc.Step(1.0 / 120.0, false);
+        Assert.True(dt2 > 0 && dt2 <= 1.0 / 30.0, string.Format("post-NaN frame returned {0}", dt2));
+    }
+
+    [Fact]
+    public void InfinityGap_ResyncsBaselineLikeSuspend()
+    {
+        // 2.4.2: a +Inf clock gap is a total suspend - it takes the same path
+        // as a >0.5s huge frame (baseline rebuilt, small resync step) instead of
+        // being clamped into an ordinary 1/60 frame like the old gate.
+        var fc = New();
+        var now = 0.0;
+        for (var i = 0; i < 10; i++) { now += Frame120; fc.Step(now, false); }
+        var dt1 = fc.Step(double.PositiveInfinity, false);
+        Assert.InRange(dt1, 0.0001, 0.05);
+        // after an explicit baseline rebuild the next frame is back at 120fps pace
+        fc.ResetBaseline(now + Frame120);
+        var dt2 = fc.Step(now + Frame120 + Frame120, false);
+        Assert.InRange(dt2, Frame120 * 0.5, Frame120 * 2.0);
+    }
+
 }
+
