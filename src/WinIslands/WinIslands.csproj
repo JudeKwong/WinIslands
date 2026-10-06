@@ -12,10 +12,10 @@
     <RootNamespace>WinIslands</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\winislands.ico</ApplicationIcon>
-    <Version>2.4.2</Version>
-    <AssemblyVersion>2.4.2.0</AssemblyVersion>
-    <InformationalVersion>2.4.2</InformationalVersion>
-    <FileVersion>2.4.2.0</FileVersion>
+    <Version>2.4.3</Version>
+    <AssemblyVersion>2.4.3.0</AssemblyVersion>
+    <InformationalVersion>2.4.3</InformationalVersion>
+    <FileVersion>2.4.3.0</FileVersion>
     <Authors>WinIslands</Authors>
     <Product>WinIslands</Product>
     <Description>macOS-style Dynamic Island for Windows - media controls, lyrics and more.</Description>

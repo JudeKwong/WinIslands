@@ -49,6 +49,26 @@ public sealed class AnimationFrameRateTests
     }
 
     [Fact]
+    public void ShouldProcessFrame_NonFiniteClock_PassesThroughWithoutPollutingDeadline()
+    {
+        // 2.4.3: NaN/+Inf clock inputs must process the frame (return true)
+        // and leave the deadline untouched - otherwise +Inf would poison
+        // nextFrameSeconds forever and every later frame would be rejected,
+        // silently freezing karaoke/low-power pacing with no self-recovery.
+        var next = 1.0;
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(double.NaN, ref next, 120));
+        Assert.Equal(1.0, next, 9); // deadline not corrupted
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(double.PositiveInfinity, ref next, 120));
+        Assert.Equal(1.0, next, 9); // deadline still not corrupted
+        // a valid clock right after resumes normal pacing from the intact deadline
+        Assert.True(AnimationFrameRate.ShouldProcessFrame(1.0, ref next, 120));
+        Assert.Equal(1.0 + 1.0 / 120.0, next, 9);
+        // and steady-state throttling still rejects in-budget frames afterwards
+        Assert.False(AnimationFrameRate.ShouldProcessFrame(1.004, ref next, 120));
+    }
+
+
+    [Fact]
     public void LowPowerCeilingConstant_IsSixty()
         => Assert.Equal(60, AnimationFrameRate.StandardForLowPower);
 
@@ -77,3 +97,4 @@ public sealed class AnimationFrameRateTests
     }
 
 }
+

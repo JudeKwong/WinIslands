@@ -38,6 +38,11 @@ internal static class AnimationFrameRate
     /// </summary>
     public static bool ShouldProcessFrame(double nowSeconds, ref double nextFrameSeconds, int framesPerSecond)
     {
+        // 2.4.3: 非有限时钟输入绝不当成"正常帧"推进截止线——NaN/+Inf 直接放行本帧且
+        // 不写 nextFrameSeconds；否则 +Inf 会把截止线永久污染成 Inf，后续所有帧都被
+        // 判为"未到点"而 return false，卡拉OK/低功耗节拍从此停摆且无法自愈。
+        if (!double.IsFinite(nowSeconds)) return true;
+
         // 常见档位直接命中预计算常数，免去每帧的 Math.Clamp 与除法（2.3.7）。
         var interval = framesPerSecond switch
         {

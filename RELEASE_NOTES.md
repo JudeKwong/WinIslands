@@ -1,3 +1,19 @@
+## WinIslands 2.4.3（正式版 / Stable）
+### 更新内容
+
+- **🛡️ 非有限时钟帧截止防御**：ShouldProcessFrame 对 NaN / +∞ 时钟输入直接放行本帧且不推进帧截止线——旧实现里 +∞ 会把 nextFrameSeconds 永久污染成 ∞，此后每一帧都被判为「未到点」而拒绝，卡拉OK/低功耗节拍从此停摆且无法自愈；现在无效时钟瞬时透传、截止线完好，恢复后的下一帧立即回到正常节拍
+- **✅ 回归测试**：新增 NaN / +∞ 时钟透传与截止线不被污染测试 1 项，共 423 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.3 (Stable)
+### What's New
+
+- **🛡️ Non-finite clock frame-deadline guard**: ShouldProcessFrame now passes NaN / +∞ clock inputs straight through for this frame without advancing the deadline - previously an infinite clock polluted nextFrameSeconds forever and every later frame was rejected as “not due yet”, silently freezing karaoke/low-power pacing with no self-recovery; the deadline stays intact and the next valid frame resumes normal pacing immediately
+- **✅ Regression**: 1 new NaN / +∞ pass-through test, 423 unit tests green
+
+---
+
 ## WinIslands 2.4.2（正式版 / Stable）
 ### 更新内容
 
