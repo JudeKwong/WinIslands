@@ -286,8 +286,7 @@ public sealed class IOSSpring
             {
                 // 欠阻尼：y = e^(-alpha·t)·(A·cos(ωd·t) + B·sin(ωd·t))
                 var decay = Math.Exp(-_cAlpha * t);
-                var ct = Math.Cos(OmegaD * t);
-                var st = Math.Sin(OmegaD * t);
+                var (st, ct) = Math.SinCos(OmegaD * t); // 单条 FSINCOS 指令对，同参数只换算一次
                 var y = decay * (_y0 * ct + _cB * st);
                 var v = decay * (_cV1 * ct - _cV2 * st);
                 Value = Target + y;

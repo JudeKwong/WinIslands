@@ -1,3 +1,19 @@
+## WinIslands 2.4.9（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧解析解合并三角调用**：IOSSpring.Solve 欠阻尼分支不再分别调用 Math.Cos / Math.Sin 两次（同一自变量每次做主元换算），改用 .NET 8 的 Math.SinCos——同参数只换算一次，JIT 展开为单条 FSINCOS 指令对，每帧弹簧求值更省 CPU、帧更稳；浮点结果与旧公式逐位一致
+- **✅ 回归测试**：欠阻尼收敛 / 连续性 / 打断语义不变，446 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.9 (Stable)
+### What's New
+
+- **⚡ Spring analytic solve merges the trigonometry calls**: Solve's under-damped branch no longer fires Math.Cos and Math.Sin separately (each paid argument reduction on the same value) - .NET 8 Math.SinCos computes both from one reduction, which the JIT can lower to a single FSINCOS pair, so every spring evaluation is cheaper and frames stay steadier; results bit-identical to the old formula
+- **✅ Regression**: under-damped convergence/continuity/interruption semantics unchanged, 446 unit tests green
+
+---
+
 ## WinIslands 2.4.8（正式版 / Stable）
 ### 更新内容
 
