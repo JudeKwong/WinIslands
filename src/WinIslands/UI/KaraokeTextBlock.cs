@@ -622,7 +622,9 @@ public class KaraokeTextBlock : TextBlock
             return;
         }
 
-        var f = Math.Clamp(_currentFraction, 0, 1);
+        // 2.7.5: 分数钳制改用双比较分支链（同 2.6.8/2.6.9 家族），与 Math.Clamp(x,0,1) 在全部输入上逐位一致：
+        // NaN 原样透传、±Inf 钳到端点、±0 保持；整行均分每帧渲染少一次范围检查调用。
+        var f = _currentFraction < 0.0 ? 0.0 : _currentFraction > 1.0 ? 1.0 : _currentFraction;
         if (_colorsDirty)
         {
             _cachedHlColor = ToColor(HighlightBrush) ?? System.Windows.Media.Colors.White;

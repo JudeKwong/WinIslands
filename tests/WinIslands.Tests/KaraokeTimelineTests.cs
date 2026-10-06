@@ -466,4 +466,37 @@ public class KaraokeTimelineTests
     {
         var v = rng.NextDouble() * magnitude;
         return (rng.Next(2) == 0) ? -v : v;
+    }
+    [Fact]
+    public void FractionClamp_BranchChain_MatchesMathClamp()
+    {
+        // 2.7.5: 整行均分渲染的分数钳制 Math.Clamp(x, 0, 1) 改为双比较分支链
+        //（x < 0 ? 0 : x > 1 ? 1 : x）；该表达式必须在全部 double 输入上与 Math.Clamp
+        // 逐位一致——NaN 原样透传、±Inf 钳到端点、±0 保持。
+        var specials = new[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 0.5, double.Epsilon, -double.Epsilon,
+            double.MaxValue, double.MinValue, double.MaxValue / 2, -double.MaxValue / 2,
+        };
+        for (var i = 0; i < specials.Length; i++)
+        {
+            var x = specials[i];
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
+                BitConverter.DoubleToInt64Bits(x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x));
+        }
+        var rng = new Random(0x2E75);
+        for (var i = 0; i < 30001; i++)
+        {
+            var x = (i % 3) switch
+            {
+                0 => NextSigned(rng, 1e6),
+                1 => rng.NextDouble() * 2.0 - 0.5, // 跨越 [0,1] 边界内外
+                _ => rng.NextDouble() < 0.25 ? double.NaN : NextSigned(rng, 1e3),
+            };
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
+                BitConverter.DoubleToInt64Bits(x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x));
+        }
     }}

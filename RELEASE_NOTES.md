@@ -1,3 +1,19 @@
+## WinIslands 2.7.5（正式版 / Stable）
+### 更新内容
+
+- 🚀 整行均分歌词渲染的分数钳制改用分支比较链：KaraokeTextBlock.Render 每帧对 _currentFraction 做 Math.Clamp(x, 0, 1)（一次范围检查调用）；现改为双比较分支链（x < 0 ? 0 : x > 1 ? 1 : x），与 Math.Clamp 在全部 double 输入上逐位一致——NaN 原样透传、±Inf 钳到端点、±0 保持；整行均分每帧渲染少一次范围检查调用，歌词收尾/边界行为不变。
+- 🧪 测试：新增 1 项——14 个特殊值（NaN/±Inf/±0/极值/Epsilon 等）逐位对比 Math.Clamp 与分支链（DoubleToInt64Bits），另加 30001 点随机密集扫描（含跨越 [0,1] 边界内外与 NaN 混入）；共 520 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.5 (Stable)
+### What's New
+
+- 🚀 Whole-line karaoke render fraction clamp moves to a branch chain: KaraokeTextBlock.Render clamps _currentFraction every frame via Math.Clamp(x, 0, 1) (one range-check call); it now uses a two-comparison branch chain (x < 0 ? 0 : x > 1 ? 1 : x) that is bit-identical to Math.Clamp for every double input - NaN passes through, ±Inf clamp to the endpoints, ±0 preserved; the whole-line per-frame render saves one range-check call per frame with unchanged tail/boundary behavior
+- 🧪 Tests: 1 new case - 14 special values (NaN/±Inf/±0/extremes/Epsilon etc.) compared bitwise (DoubleToInt64Bits) plus a 30001-point randomized dense sweep (crossing inside/outside the [0,1] range, NaN mixed in); 520 unit tests green
+
+---
+
 ## WinIslands 2.7.4（正式版 / Stable）
 ### 更新内容
 
