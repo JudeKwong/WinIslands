@@ -1,3 +1,18 @@
+## WinIslands 2.7.1（正式版 / Stable）
+### 更新内容
+
+- 🚀 收起时胶囊行视差热路径去掉冗余 Math.Clamp 并加常量时间出口：PillRowParallax 折叠分支原先每帧都执行 SmoothStep(1.0 - Math.Clamp(v / CollapsePillReappearAt, 0.0, 1.0))（一次除法 + 一次范围检查 + 一次 SmoothStep）；v 已在函数开头被钳到 [0,1]，而 v ≥ CollapsePillReappearAt（0.5）时胶囊行仍完全处于抬起姿态，现先以常量时间出口直接返回抬起姿态（与 PillOpacity 的 v ≥ CollapsePillReappearAt 早退镜像，姿态值逐位一致），随后 v ∈ (0, 0.5) 段去掉内层 Clamp（SmoothStep 自带 [0,1] 钳制），折叠前段每帧省一次范围检查和一次 SmoothStep 求值，输出与旧式在全部可达输入上逐位一致（30001 点密集扫描验证）
+- 🧪 测试：新增 1 项——[-1, 2] 全域 30001 点密集扫描证明新式（常量时间出口 + 未钳制缓动路径）与旧式钳制公式逐位一致，NaN/−Inf/+Inf 特殊值行为锁定；共 513 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.1 (Stable)
+### What's New
+
+- 🚀 Collapse pill-row parallax hot path drops the redundant Math.Clamp and gains a constant-time exit: the PillRowParallax collapse branch used to run SmoothStep(1.0 - Math.Clamp(v / CollapsePillReappearAt, 0.0, 1.0)) every frame (one division + one range check + one SmoothStep); v is already clamped to [0,1] at the top of the function, and while v >= CollapsePillReappearAt (0.5) the pill row is still fully in its lifted pose, which is now returned directly through a constant-time exit (mirroring the PillOpacity early return at v >= CollapsePillReappearAt, bit-identical pose values); the eased v in (0, 0.5) region then drops the inner Clamp (SmoothStep clamps its own input), saving one range-check call and one SmoothStep evaluation per frame during the first half of the collapse - bit-identical output on every reachable input (30001-point dense-sweep verified)
+- 🧪 Tests: 1 new case - a 30001-point dense sweep over [-1, 2] proving the new form (constant-time exit + unclamped eased path) is bit-identical to the old clamped formula, plus NaN/-Inf/+Inf specials locked in; 513 unit tests green
+
+---
 ## WinIslands 2.7.0（正式版 / Stable）
 ### 更新内容
 

@@ -290,6 +290,31 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(-0.7, true).Scale, 6);
         Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, CrossFadeCurves.PillRowParallax(1.7, true).Scale, 6);
     }
+
+    [Fact]
+    public void PillRowParallax_Collapse_BitIdenticalToOldClampedFormula()
+    {
+        // 2.7.1: the constant-time exit (v >= CollapsePillReappearAt) plus the unclamped eased
+        // path must reproduce the old clamped formula bit-for-bit across the whole reachable
+        // domain of the collapse branch, including the boundary at CollapsePillReappearAt.
+        const double c = CrossFadeCurves.CollapsePillReappearAt;
+        for (var i = 0; i <= 30000; i++)
+        {
+            var v = -1.0 + 3.0 * i / 30000.0; // dense sweep over [-1, 2]
+            var qOld = CrossFadeCurves.SmoothStep(1.0 - Math.Clamp(v / c, 0.0, 1.0));
+            var oldPose = (CrossFadeCurves.PillRowParallaxScaleGone + CrossFadeCurves.PillRowParallaxScaleGain * qOld,
+                           CrossFadeCurves.PillRowParallaxYTo * (1.0 - qOld));
+            var (s, y) = CrossFadeCurves.PillRowParallax(v, expand: false);
+            Assert.Equal(oldPose.Item1, s);
+            Assert.Equal(oldPose.Item2, y);
+        }
+        // specials: NaN and +/-Inf all fall to v=0 (IsFinite guard) -> rest pose
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(double.NaN, false).Scale);
+        Assert.Equal(0.0, CrossFadeCurves.PillRowParallax(double.NaN, false).TranslateY);
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(double.NegativeInfinity, false).Scale);
+        Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(double.PositiveInfinity, false).Scale);
+        Assert.Equal(0.0, CrossFadeCurves.PillRowParallax(double.PositiveInfinity, false).TranslateY);
+    }
     [Fact]
     public void ParallaxDedup_FirstWriteAlwaysTrue_SubPixelRepeatFalse()
     {

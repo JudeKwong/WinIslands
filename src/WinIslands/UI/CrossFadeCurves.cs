@@ -147,6 +147,10 @@ public static class CrossFadeCurves
         // at rest) - same tail-frame savings as ContentParallax.
         if (expand && v >= 1.0) return (PillRowParallaxScaleGone, PillRowParallaxYTo);
         if (!expand && v <= 0.0) return (1.0, 0.0);
+        // 2.7.1: constant-time exit - while the pill is still fully lifted (v >= ReappearAt) its pose is exactly
+        // the lifted pose, so return it without the easing math (mirrors PillOpacity early return at
+        // v >= CollapsePillReappearAt; identical pose values, bit-for-bit).
+        if (!expand && v >= CollapsePillReappearAt) return (PillRowParallaxScaleGone, PillRowParallaxYTo);
         double scale, y;
         if (expand)
         {
@@ -159,7 +163,9 @@ public static class CrossFadeCurves
         {
             // The pill reappears at CollapsePillReappearAt from the lifted pose and drops
             // back to rest (v -> 0): scale 0.96 -> 1, y -5 -> 0.
-            var q = SmoothStep(1.0 - Math.Clamp(v / CollapsePillReappearAt, 0.0, 1.0));
+            // 2.7.1: inner Math.Clamp removed - after the constant-time exit above, v in (0, ReappearAt) so
+            // v / ReappearAt in (0, 1) and SmoothStep clamps its own input anyway (same family as 2.6.6/2.6.8/2.7.0).
+            var q = SmoothStep(1.0 - v / CollapsePillReappearAt);
             scale = PillRowParallaxScaleGone + PillRowParallaxScaleGain * q;
             y = PillRowParallaxYTo * (1.0 - q);
         }
