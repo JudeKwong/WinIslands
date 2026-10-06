@@ -1,3 +1,19 @@
+## WinIslands 2.3.7（正式版 / Stable）
+### 更新内容
+
+- **⚡ 帧率节流改用预计算常数档位**：30/60/120 FPS 的帧间隔改为编译期常量——ShouldProcessFrame 热路径不再每帧执行 Math.Clamp 与除法，直接命中 switch 常数——合成帧节流开销更低，动画帧节奏一致、更省 CPU
+- **🧪 回归测试**：新增帧间隔档位测试 6 项（30/60/120 常数间隔、非档位值回退、上下限钳制），共 405 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.7 (Stable)
+### What's New
+
+- **⚡ Frame throttle uses precomputed constant intervals**: the 30/60/120 FPS intervals are now compile-time constants - the ShouldProcessFrame hot path no longer runs Math.Clamp and a division every frame, hitting the switch constant directly - cheaper composite-frame throttling, identical frame pacing, lower CPU
+- **🧪 Regression**: 6 new frame-interval tests (30/60/120 constant pacing, unlisted-rate fallback, lower/upper clamp) - 405 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.6（正式版 / Stable）
 ### 更新内容
 

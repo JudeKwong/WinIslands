@@ -16,6 +16,11 @@ internal static class AnimationFrameRate
     public const int StandardForLowPower = 60;
     private static readonly int HardwareFrameRate = Resolve(RenderCapability.Tier);
 
+    /// <summary>内置帧率档位的预计算帧间隔（2.3.7）：把热路径里每帧的 Clamp + 除法换成常数。</summary>
+    private const double Interval30 = 1.0 / 30.0;
+    private const double Interval60 = 1.0 / 60.0;
+    private const double Interval120 = 1.0 / 120.0;
+
     public static int Current(bool lowPowerMode) => lowPowerMode ? Standard : HardwareFrameRate;
 
     /// <summary>显示器级帧率目标（不含低功耗降频），供音频采集 / 外部采样组件对齐发布节奏（2.1.8）。</summary>
@@ -33,8 +38,14 @@ internal static class AnimationFrameRate
     /// </summary>
     public static bool ShouldProcessFrame(double nowSeconds, ref double nextFrameSeconds, int framesPerSecond)
     {
-        var fps = Math.Clamp(framesPerSecond, 30, HighRefresh);
-        var interval = 1.0 / fps;
+        // 常见档位直接命中预计算常数，免去每帧的 Math.Clamp 与除法（2.3.7）。
+        var interval = framesPerSecond switch
+        {
+            30 => Interval30,
+            60 => Interval60,
+            120 => Interval120,
+            _ => 1.0 / Math.Clamp(framesPerSecond, 30, HighRefresh),
+        };
         if (nowSeconds + 0.0000001 < nextFrameSeconds) return false;
 
         // Resynchronize after sleep/suspend instead of trying to replay a large backlog.
