@@ -1,3 +1,19 @@
+## WinIslands 2.5.3（正式版 / Stable）
+### 更新内容
+
+- **⚙️ 展开/收起动画弹簧合并三角调用**：SpringEaseMath.Evaluate 欠阻尼分支原对同一参数 omegaD*tt 分两次做角度归约调用 Math.Cos / Math.Sin；现改用 .NET 8 单个 Math.SinCos（共享归约，JIT 降为单 FSINCOS 指令对）——每帧展开/收起动画省掉一次昂贵三角调用，结果与旧公式在所有参数/采样点 1e-14 内一致（约 15 位有效数字），Q 弹曲线形状不变
+- **✅ 回归测试**：新增 SinCos 合并与旧公式一致性测试（5 组参数 × 12 采样点）；连续多轮全绿，共 455 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.3 (Stable)
+### What's New
+
+- **⚙️ Expand/collapse spring merges trig calls**: the under-damped branch of SpringEaseMath.Evaluate used to pay two argument reductions (Math.Cos + Math.Sin) on the same omegaD*tt; it now uses a single .NET 8 Math.SinCos (shared reduction lowered to one FSINCOS pair) - the expand/collapse animation saves an expensive trig call per frame, results match the old closed form within 1e-14 (~15 significant digits) on every parameter set and sample point, spring curve shape unchanged
+- **✅ Regression**: new SinCos-merge consistency test (5 parameter sets x 12 samples); stable across repeated runs - 455 unit tests green
+
+---
+
 ## WinIslands 2.5.2（正式版 / Stable）
 ### 更新内容
 

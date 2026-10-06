@@ -69,4 +69,45 @@ public class SpringEaseTests
         Assert.InRange(SpringEaseMath.Evaluate(0.25, 12, 200, 1), 0.9, 1.02);
         Assert.Equal(1.0, SpringEaseMath.Evaluate(1.0, 12, 200, 1), 9);
     }
+
+    [Fact]
+    public void Evaluate_SinCosMerge_MatchesSeparatedTrigWithin15Digits()
+    {
+        // v2.5.3：欠阻尼分支改用单个 Math.SinCos（一个 FSINCOS 对），
+        // 结果与旧的分开 Cos/Sin 公式在所有参数/采样点上 1e-14 内一致（约 15 位有效数字）。
+        foreach (var (d, k, m) in new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (8.0, 240.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (14.0, 120.0, 2.0),
+        })
+        foreach (var tq in new[] { 0.0, 0.002, 0.01, 0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 0.8, 0.999, 1.0 })
+        {
+            var old = OldEvaluate(tq, d, k, m);
+            var fresh = SpringEaseMath.Evaluate(tq, d, k, m);
+            Assert.True(Math.Abs(old - fresh) <= 1e-14,
+                $"d={d} k={k} m={m} t={tq} old={old:R} fresh={fresh:R}");
+        }
+
+        static double OldEvaluate(double normalized, double damp, double stiffness, double mass)
+        {
+            var d0 = double.IsFinite(damp) && damp >= 0 ? damp : 12.0;
+            var k0 = double.IsFinite(stiffness) && stiffness > 0 ? stiffness : 200.0;
+            var m0 = double.IsFinite(mass) && mass > 0 ? mass : 1.0;
+            var t = Math.Clamp(normalized, 0.0, 1.0);
+            if (t <= 0.0) return 0.0;
+            if (t >= 1.0) return 1.0;
+            var tt = t * 1.7;
+            var omega0 = Math.Sqrt(k0 / m0);
+            var zeta = d0 / (2 * Math.Sqrt(k0 * m0));
+            var z2 = 1 - zeta * zeta;
+            var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
+            var decay = Math.Exp(-zeta * omega0 * tt);
+            var v = 1 - decay * (Math.Cos(omegaD * tt) + (zeta * omega0 / omegaD) * Math.Sin(omegaD * tt));
+            return v < 0 ? 0 : v;
+        }
+    }
+
 }

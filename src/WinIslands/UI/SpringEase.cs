@@ -91,7 +91,8 @@ internal static class SpringEaseMath
         var z2 = 1 - zeta * zeta;
         var omegaD = omega0 * Math.Sqrt(z2 > 0 ? z2 : 0.0001);
         var decay = Math.Exp(-zeta * omega0 * tt);
-        var v = 1 - decay * (Math.Cos(omegaD * tt) + (zeta * omega0 / omegaD) * Math.Sin(omegaD * tt));
+        var (st, ct) = Math.SinCos(omegaD * tt);
+        var v = 1 - decay * (ct + (zeta * omega0 / omegaD) * st);
         return v < 0 ? 0 : v;
     }
 }
