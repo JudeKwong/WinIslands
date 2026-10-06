@@ -179,4 +179,70 @@ public sealed class KaraokeMathTests
             }
         }
     }
+
+    [Fact]
+    public void BlendColor_DenseFractionSweep_MatchesWholeLineLerpFormula()
+    {
+        // 2.6.0: the whole-line (non-TTML) karaoke path used to carry its own
+        // 4-channel Lerp; it now shares KaraokeMath.BlendColor. This dense sweep
+        // (257 fractions per pair) locks byte-level equivalence with the old
+        // truncating per-channel formula so the dedup cannot drift visually.
+        var pairs = new[]
+        {
+            (Kc(0, 0, 0, 0), Kc(255, 255, 255, 255)),
+            (Kc(10, 20, 30, 40), Kc(250, 240, 230, 220)),
+            (Kc(200, 100, 50, 25), Kc(5, 155, 205, 250)),
+        };
+        foreach (var (from, to) in pairs)
+        {
+            for (var k = 0; k <= 256; k++)
+            {
+                var f = k / 256.0;
+                var expected = Color.FromArgb(
+                    (byte)(from.A + (to.A - from.A) * f),
+                    (byte)(from.R + (to.R - from.R) * f),
+                    (byte)(from.G + (to.G - from.G) * f),
+                    (byte)(from.B + (to.B - from.B) * f));
+                Assert.Equal(expected, KaraokeMath.BlendColor(from, to, f));
+            }
+        }
+    }
+
+    [Fact]
+    public void BlendColor_NonFinite_WholeLinePathFallsBackToBase()
+    {
+        // 2.6.0: the old whole-line Lerp had no finiteness guard - a NaN blink
+        // would cast to byte 0 (black flash). The shared BlendColor guards all
+        // four channels at once: NaN/Infinity fall back to the base color.
+        var from = Kc(30, 60, 120, 240);
+        var to = Kc(250, 240, 230, 220);
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.NaN));
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.PositiveInfinity));
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.NegativeInfinity));
+    }
+
+    [Fact]
+    public void BlendColor_DenseSweep_StaysWithinChannelRange()
+    {
+        // 2.6.0: interpolation invariant - every channel of the blended color
+        // stays within [min(from,to), max(from,to)] for every dense fraction,
+        // for both forward and reversed color pairs (no overshoot bytes).
+        var pairs = new[]
+        {
+            (Kc(0, 0, 0, 0), Kc(255, 255, 255, 255)),
+            (Kc(250, 240, 230, 220), Kc(10, 20, 30, 40)),
+            (Kc(77, 88, 99, 111), Kc(200, 10, 130, 99)),
+        };
+        foreach (var (from, to) in pairs)
+        {
+            for (var k = 0; k <= 256; k++)
+            {
+                var c = KaraokeMath.BlendColor(from, to, k / 256.0);
+                Assert.InRange(c.A, Math.Min(from.A, to.A), Math.Max(from.A, to.A));
+                Assert.InRange(c.R, Math.Min(from.R, to.R), Math.Max(from.R, to.R));
+                Assert.InRange(c.G, Math.Min(from.G, to.G), Math.Max(from.G, to.G));
+                Assert.InRange(c.B, Math.Min(from.B, to.B), Math.Max(from.B, to.B));
+            }
+        }
+    }
 }

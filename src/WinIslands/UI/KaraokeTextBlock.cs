@@ -655,7 +655,7 @@ public class KaraokeTextBlock : TextBlock
         }
 
         if (!ColorEqual(_litBrush!.Color, hl)) _litBrush.Color = hl;
-        var blendColor = litChars < len ? Lerp(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
+        var blendColor = litChars < len ? KaraokeMath.BlendColor(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
         if (!ColorEqual(_blendBrush!.Color, blendColor)) _blendBrush.Color = blendColor;
         if (!ColorEqual(_restBrush!.Color, bs)) _restBrush.Color = bs;
     }
@@ -665,14 +665,6 @@ public class KaraokeTextBlock : TextBlock
         => NeedsAnimationForScaled(pos, _wordStarts, _wordDensScaled);   // 2.2.8: 使用预换算时间轴
 
     private static System.Windows.Media.SolidColorBrush Frozen(System.Windows.Media.SolidColorBrush b) { b.Freeze(); return b; }
-
-    /// <summary>ease-in-out 缓动（smoothstep）：起笔慢→中段快→收笔慢，配合字间交叉过渡实现丝滑连贯的逐字推进。</summary>
-    private static System.Windows.Media.Color Lerp(System.Windows.Media.Color a, System.Windows.Media.Color b, double t)
-        => System.Windows.Media.Color.FromArgb(
-            (byte)(a.A + (b.A - a.A) * t),
-            (byte)(a.R + (b.R - a.R) * t),
-            (byte)(a.G + (b.G - a.G) * t),
-            (byte)(a.B + (b.B - a.B) * t));
 
     private static System.Windows.Media.Color? ToColor(Brush? brush)
         => (brush as SolidColorBrush)?.Color;

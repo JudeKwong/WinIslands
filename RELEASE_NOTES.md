@@ -1,3 +1,19 @@
+## WinIslands 2.6.0（正式版 / Stable）
+### 更新内容
+
+- **🎼 整行卡拉OK过渡并入统一混色防护**：整行歌词模式原先还保留着一份与逐字路径重复的 Lerp 私有实现（每通道独立 (byte) 截断），且没有 NaN/±Inf 防护——异常进度值会被直接强转成 byte 0 造成黑闪；现在删除重复实现，调用点统一走 KaraokeMath.BlendColor：一次有限性检查 + 一次范围钳制后 4 个 ARGB 通道一趟混完，逐字节结果与旧 Lerp 逐通道公式完全一致（端点精确、中间截断取整、越界钳制、NaN/±Inf 落回底色），整行与逐字两条路径共用同一份混色内核
+- **🧪 测试**：新增 3 项——BlendColor 对 3 色对 × 257 分数与整行旧 Lerp 公式逐字节等价扫描、非有限进度落入底色、密集扫描通道始终在 0–255；共 484 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.0 (Stable)
+### What's New
+
+- **🎼 Whole-line karaoke transition folded into the shared guarded blend**: the whole-line mode still carried its own private Lerp (per-channel (byte) truncation) duplicating the per-character path, with no NaN/±Infinity guard - a non-finite progress value was cast straight to byte 0, flashing the blended region black; the duplicate is removed and the call site now routes through KaraokeMath.BlendColor, which does one finiteness check + one range clamp and mixes all four ARGB channels in a single pass. Byte-identical to the old per-channel formula (exact endpoints, truncated mid-points, out-of-range clamps, NaN/±Infinity falls back to the base color), so both whole-line and per-character karaoke share one blending kernel
+- **🧪 Tests**: 3 new cases - a byte-for-byte equivalence sweep of BlendColor vs the whole-line Lerp formula (3 color pairs x 257 fractions), non-finite progress falls back to base, and a dense sweep proving every channel stays in 0-255; 484 unit tests green
+
+---
+
 ## WinIslands 2.5.9（正式版 / Stable）
 ### 更新内容
 
