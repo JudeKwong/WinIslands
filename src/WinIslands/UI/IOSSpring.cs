@@ -53,6 +53,12 @@ public sealed class IOSSpring
     private double _oC1;    // 过阻尼 c1
     private double _oC2;    // 过阻尼 c2
     private double _kCrit;  // 临界阻尼 k = v0 + omega0*y0
+    // 2.4.1: 阻尼分支在系数重建时缓存为 int 模式——Solve（每活跃弹簧每帧）按 switch 直接命中，
+    // 不再逐帧执行两次 Zeta 双精度比较与常数减法。
+    private int _solveMode; // 0 = 欠阻尼, 1 = 过阻尼, 2 = 临界
+    private const int ModeUnder = 0;
+    private const int ModeOver = 1;
+    private const int ModeCritical = 2;
 
     private Action<double>? _onUpdate;
     private Action? _onCompleted;
@@ -247,6 +253,7 @@ public sealed class IOSSpring
         if (Zeta < 1.0 - 1e-9)
         {
             // 欠阻尼
+            _solveMode = ModeUnder;
             _cAlpha = Zeta * Omega0;
             _cB = (_v0 + _cAlpha * _y0) / OmegaD;
             _cV1 = _cB * OmegaD - _y0 * _cAlpha;
@@ -255,6 +262,7 @@ public sealed class IOSSpring
         else if (Zeta > 1.0 + 1e-9)
         {
             // 过阻尼
+            _solveMode = ModeOver;
             var root = Math.Sqrt(Zeta * Zeta - 1);
             _oL1 = Omega0 * (Zeta + root);
             _oL2 = Omega0 * (Zeta - root);
@@ -264,6 +272,7 @@ public sealed class IOSSpring
         else
         {
             // 临界阻尼
+            _solveMode = ModeCritical;
             _kCrit = _v0 + Omega0 * _y0;
         }
     }
@@ -271,35 +280,41 @@ public sealed class IOSSpring
     /// <summary>阻尼简谐振荡器解析解：由初始偏移 _y0、初速 _v0 求 t 时刻的偏移与速度。</summary>
     private void Solve(double t)
     {
-        if (Zeta < 1.0 - 1e-9)
+        switch (_solveMode)
         {
-            // 欠阻尼：y = e^(-alpha·t)·(A·cos(ωd·t) + B·sin(ωd·t))
-            var decay = Math.Exp(-_cAlpha * t);
-            var ct = Math.Cos(OmegaD * t);
-            var st = Math.Sin(OmegaD * t);
-            var y = decay * (_y0 * ct + _cB * st);
-            var v = decay * (_cV1 * ct - _cV2 * st);
-            Value = Target + y;
-            Velocity = v;
-        }
-        else if (Zeta > 1.0 + 1e-9)
-        {
-            // 过阻尼：y = C1·e^(-λ1·t) + C2·e^(-λ2·t)
-            var e1 = Math.Exp(-_oL1 * t);
-            var e2 = Math.Exp(-_oL2 * t);
-            var y = _oC1 * e1 + _oC2 * e2;
-            var v = -_oL1 * _oC1 * e1 - _oL2 * _oC2 * e2;
-            Value = Target + y;
-            Velocity = v;
-        }
-        else
-        {
-            // 临界阻尼：y = e^(-ω0·t)·(y0 + (v0 + ω0·y0)·t)
-            var decay = Math.Exp(-Omega0 * t);
-            var y = decay * (_y0 + _kCrit * t);
-            var v = decay * (_v0 - _kCrit * Omega0 * t);
-            Value = Target + y;
-            Velocity = v;
+            case ModeUnder:
+            {
+                // 欠阻尼：y = e^(-alpha·t)·(A·cos(ωd·t) + B·sin(ωd·t))
+                var decay = Math.Exp(-_cAlpha * t);
+                var ct = Math.Cos(OmegaD * t);
+                var st = Math.Sin(OmegaD * t);
+                var y = decay * (_y0 * ct + _cB * st);
+                var v = decay * (_cV1 * ct - _cV2 * st);
+                Value = Target + y;
+                Velocity = v;
+                break;
+            }
+            case ModeOver:
+            {
+                // 过阻尼：y = C1·e^(-λ1·t) + C2·e^(-λ2·t)
+                var e1 = Math.Exp(-_oL1 * t);
+                var e2 = Math.Exp(-_oL2 * t);
+                var y = _oC1 * e1 + _oC2 * e2;
+                var v = -_oL1 * _oC1 * e1 - _oL2 * _oC2 * e2;
+                Value = Target + y;
+                Velocity = v;
+                break;
+            }
+            default:
+            {
+                // 临界阻尼：y = e^(-ω0·t)·(y0 + (v0 + ω0·y0)·t)
+                var decay = Math.Exp(-Omega0 * t);
+                var y = decay * (_y0 + _kCrit * t);
+                var v = decay * (_v0 - _kCrit * Omega0 * t);
+                Value = Target + y;
+                Velocity = v;
+                break;
+            }
         }
     }
 }
@@ -364,3 +379,4 @@ public static class SpringTicker
             _active[i].Tick(dt);
     }
 }
+

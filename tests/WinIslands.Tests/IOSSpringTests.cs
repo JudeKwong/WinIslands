@@ -567,4 +567,42 @@ public sealed class IOSSpringTests
         exact.Complete();
     }
 
+
+    [Fact]
+    public void Tick_SwitchBranches_AllModesConverge()
+    {
+        // 2.4.1: Solve() now dispatches through the cached int branch mode
+        // (under/critical/over) instead of two Zeta comparisons per frame.
+        // Every branch must still settle exactly on target.
+        foreach (var zeta in new double[] { 0.6, 1.0, 1.4 })
+        {
+            var s = IOSSpring.Create(zeta, 0.5, from: 0, to: 100);
+            Drain(s, 2.0);
+            Assert.False(s.IsActive, $"zeta={zeta} still active");
+            Assert.Equal(100, s.Value, 6);
+        }
+    }
+
+    [Fact]
+    public void Configure_ReclassifiesBranch_OverdampedSettlesNoOvershoot()
+    {
+        // 2.4.1: Configure() rebuilds coefficients and must also reclassify the
+        // cached branch. Reconfiguring an active under-damped spring to
+        // over-damped must remove the overshoot and still land on target.
+        var s = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        s.Tick(Dt); // start moving under-damped
+        var before = s.Value;
+        s.Configure(1.5, 0.5); // reclassify to over-damped mid-flight
+        double maxVal = before;
+        for (var i = 0; i < 600 && s.IsActive; i++)
+        {
+            s.Tick(Dt);
+            maxVal = Math.Max(maxVal, s.Value);
+        }
+        Assert.False(s.IsActive);
+        Assert.True(maxVal <= 100.0001, $"overshoot after reclassify: {maxVal}");
+        Assert.Equal(100, s.Value, 6);
+    }
+
 }
+

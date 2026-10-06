@@ -1,3 +1,21 @@
+## WinIslands 2.4.1（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧阻尼分支热路径缓存**：把欠阻尼/过阻尼/临界阻尼的解析解分类在 Start/Retarget/Configure 重建系数时一次性缓存为 int 模式，Solve 每帧用 switch 直接命中对应分支，省去逐帧两次 Zeta 双精度比较与常数减法，展开/收起动画每帧更省 CPU、更稳
+- **🔄 重配置即时重分类**：动画中途修改阻尼参数会立刻重算分支缓存（如欠阻尼→过阻尼后不再回弹），行为与旧版一致但路径更直接
+- **🧪 回归测试**：新增三分支收敛与重分类无过冲测试 2 项，共 420 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.1 (Stable)
+### What's New
+
+- **⚡ Cached spring damping branch**: the under/critical/over-damped classification is resolved once when coefficients are rebuilt (Start / Retarget / Configure) and cached as an int mode; Solve() hits the exact analytic branch via switch every frame - two Zeta comparisons and a constant subtraction are gone from the per-frame hot path
+- **🔄 Reclassification on reconfigure**: changing damping mid-flight re-classifies the cached branch immediately (e.g. under to over removes the overshoot) - same behaviour, more direct path
+- **🧪 Tests**: 2 new branch convergence / reclassification coverage, 420 unit tests green
+
+---
+
 ## WinIslands 2.4.0（正式版 / Stable）
 ### 更新内容
 
