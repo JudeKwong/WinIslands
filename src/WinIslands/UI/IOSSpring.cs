@@ -193,8 +193,14 @@ public sealed class IOSSpring
         _elapsed += Math.Min(dt, 0.1);
         Solve(_elapsed);
 
+        // 2.3.4: read Value/Velocity once per frame - the settle check and the
+        // update callback used to re-read the auto-properties (2 + 1 accesses),
+        // every frame on every active spring. Same behavior, fewer loads.
+        var value = Value;
+        var velocity = Velocity;
+
         // 数值防护：任何 NaN/Inf 都不允许进入 UI 回调或收敛判定，静默停止避免污染扩散
-        if (!double.IsFinite(Value) || !double.IsFinite(Velocity))
+        if (!double.IsFinite(value) || !double.IsFinite(velocity))
         {
             Value = double.IsFinite(Target) ? Target : 0;
             Velocity = 0;
@@ -207,12 +213,12 @@ public sealed class IOSSpring
         // 2.2.16: settle against the tight tail window - the final snap is at
         // most 1/4 of the coarse epsilon (<= 0.125px for pixel spans), removing
         // the visible stopping jerk at the end of expand/collapse.
-        if (Math.Abs(Value - Target) < _offsetEpsTail && Math.Abs(Velocity) < _velEpsTail)
+        if (Math.Abs(value - Target) < _offsetEpsTail && Math.Abs(velocity) < _velEpsTail)
         {
             Complete();
             return;
         }
-        try { _onUpdate?.Invoke(Value); } catch { /* 单帧回调异常不影响引擎 */ }
+        try { _onUpdate?.Invoke(value); } catch { /* 单帧回调异常不影响引擎 */ }
     }
 
     /// <summary>按当前运动跨度更新收敛阈值（2.0.8）。</summary>

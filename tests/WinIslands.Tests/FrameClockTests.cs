@@ -98,4 +98,20 @@ public sealed class FrameClockTests
         var dt2 = fc.Step(0.20 + 1.0 / 120.0, false);
         Assert.True(dt2 > 0 && dt2 <= 1.0 / 30.0, string.Format("second step out of range: {0}", dt2));
     }
+
+    [Fact]
+    public void LagSpike_IsClamped_NextFrameResumesCadence()
+    {
+        // 2.3.4: a single laggy frame (~33ms) is smoothed by the EWMA + max-step
+        // clamp - it must not replay in one jump, and the very next frame returns
+        // to the 120fps cadence.
+        var fc = New();
+        var now = 0.0;
+        for (var i = 0; i < 10; i++) { now += Frame120; fc.Step(now, false); }
+        var dtLag = fc.Step(now + Frame120 * 4.0, false); // one 4x-laggy frame
+        Assert.True(dtLag > 0 && dtLag <= Frame120 * 3.0, string.Format("lag frame must be clamped, got {0}", dtLag));
+        var dtNext = fc.Step(now + Frame120 * 4.0 + Frame120, false);
+        Assert.InRange(dtNext, Frame120 * 0.5, Frame120 * 2.0);
+    }
+
 }

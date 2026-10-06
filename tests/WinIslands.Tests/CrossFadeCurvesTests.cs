@@ -372,4 +372,40 @@ public sealed class CrossFadeCurvesTests
         }
     }
 
+
+    [Fact]
+    public void Parallax_TerminalExit_MatchesEasedPoseExactly()
+    {
+        // 2.3.4: constant-time terminal exits must equal the eased curves' final
+        // values exactly - no discontinuity at the settle point.
+        var (se, ye) = CrossFadeCurves.ContentParallax(1.0, expand: true);
+        Assert.Equal(1.0, se, 12);
+        Assert.Equal(0.0, ye, 12);
+        var (sc, yc) = CrossFadeCurves.ContentParallax(0.0, expand: false);
+        Assert.Equal(CrossFadeCurves.CollapseParallaxScaleTo, sc, 12);
+        Assert.Equal(0.0, yc, 12);
+        var (pe, pye) = CrossFadeCurves.PillRowParallax(1.0, expand: true);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, pe, 12);
+        Assert.Equal(CrossFadeCurves.PillRowParallaxYTo, pye, 12);
+        var (pc, pyc) = CrossFadeCurves.PillRowParallax(0.0, expand: false);
+        Assert.Equal(1.0, pc, 12);
+        Assert.Equal(0.0, pyc, 12);
+    }
+
+    [Fact]
+    public void Parallax_JustBelowTerminal_IsContinuousWithTerminal()
+    {
+        // 2.3.4: the eased value one step below each terminal exit must be a hair
+        // away from the constant-time result (continuous, no jump at the cutover).
+        const double step = 1e-6;
+        var (s1, _) = CrossFadeCurves.ContentParallax(1.0 - step, expand: true);
+        Assert.InRange(1.0 - s1, 0.0, 1e-3);
+        var (s2, _) = CrossFadeCurves.ContentParallax(0.0 + step, expand: false);
+        Assert.InRange(s2 - CrossFadeCurves.CollapseParallaxScaleTo, 0.0, 1e-3);
+        var (p1, _) = CrossFadeCurves.PillRowParallax(1.0 - step, expand: true);
+        Assert.InRange(p1 - CrossFadeCurves.PillRowParallaxScaleGone, 0.0, 1e-3);
+        var (p2, _) = CrossFadeCurves.PillRowParallax(0.0 + step, expand: false);
+        Assert.InRange(1.0 - p2, 0.0, 1e-3);
+    }
+
 }

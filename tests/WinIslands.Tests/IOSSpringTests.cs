@@ -535,4 +535,19 @@ public sealed class IOSSpringTests
         var tailOffset = s.SettleOffsetTolerance;
         Assert.True(snap <= tailOffset + 0.01, $"snap {snap} exceeds tail bound {tailOffset + 0.01}");
     }
+
+    [Fact]
+    public void Tick_SettlesOnTarget_AndCallbackLandsOnFinalValue()
+    {
+        // 2.3.4: after the local-variable refactor Tick() must still deliver the
+        // solved value to the update callback every frame and settle exactly on
+        // target - same observable behavior, fewer per-frame property loads.
+        double last = -1.0;
+        var s = IOSSpring.Create(0.90, 0.4, from: 0, to: 50, onUpdate: v => last = v);
+        for (var i = 0; i < 600 && s.IsActive; i++) s.Tick(Dt);
+        Assert.False(s.IsActive);
+        Assert.Equal(50, s.Value, 3);
+        Assert.Equal(50, last, 3); // final update callback lands on target
+    }
+
 }

@@ -112,6 +112,12 @@ public static class CrossFadeCurves
     public static (double Scale, double TranslateY) ContentParallax(double expandedOpacity, bool expand)
     {
         var t = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+        // 2.3.4: constant-time terminal exit - once the fade spring fully
+        // arrives, the pose is exactly the rest pose; skip the easing math on
+        // every tail frame (works with ShouldWriteParallax dedup so settled
+        // frames stop touching render transforms entirely).
+        if (expand && t >= 1.0) return (1.0, 0.0);
+        if (!expand && t <= 0.0) return (CollapseParallaxScaleTo, 0.0);
         // iOS 节奏：生长用二次缓出（起步快、收尾缓），收拢用缓入（先缓后快），
         // 内容随卡片形变始终非线性推进，避免线性淡入/缩放的“机械感”。
         var grow = expand ? EaseOutQuad(t) : 1.0 - EaseOutQuad(1.0 - t);
@@ -137,6 +143,10 @@ public static class CrossFadeCurves
     public static (double Scale, double TranslateY) PillRowParallax(double expandedOpacity, bool expand)
     {
         var v = double.IsFinite(expandedOpacity) ? Math.Clamp(expandedOpacity, 0.0, 1.0) : 0.0;
+        // 2.3.4: constant-time terminal exit (expand fully lifted / collapse fully
+        // at rest) - same tail-frame savings as ContentParallax.
+        if (expand && v >= 1.0) return (PillRowParallaxScaleGone, PillRowParallaxYTo);
+        if (!expand && v <= 0.0) return (1.0, 0.0);
         double scale, y;
         if (expand)
         {

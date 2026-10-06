@@ -71,7 +71,7 @@ internal sealed class FrameClock
         }
         else
         {
-            _smoothDt = _smoothDt * 0.85 + dt * 0.15;
+            _smoothDt += (dt - _smoothDt) * 0.15; // 2.3.4: one fewer multiply-add per compositor frame (identical EWMA)
         }
         var maxStep = Math.Max(1.0 / 240.0, _smoothDt * 1.5);
         if (dt > maxStep) dt = maxStep;

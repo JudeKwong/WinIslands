@@ -1,3 +1,21 @@
+## WinIslands 2.3.4（正式版 / Stable）
+### 更新内容
+
+- **⚡ 动画帧循环微优化**：弹簧帧驱动进一步精简——帧间隔平滑（EWMA）改为一次融合乘加，每个弹簧每帧只读取一次位置/速度——每帧的浮点运算与内存访问更少，展开/收起动画与歌词强调的帧开销更低、更省 CPU
+- **✨ 视差终态常量时间退出**：展开/收起的视差位姿（内容生长、胶囊行举升）在弹簧完全到位后直接落定精确终值，不再逐帧重复计算缓动——动画收敛尾部提前进入静止，收官干净利落、无抖动
+- **🧪 回归测试**：新增 4 项测试（滞后帧钳制、收敛回调终值、视差终态一致性/连续性），共 382 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.4 (Stable)
+### What's New
+
+- **⚡ Frame-loop micro-optimizations**: the spring frame driver is leaner - the EWMA frame-interval smoothing is now a single fused multiply-add and each spring reads its position/velocity once per frame - fewer float ops and loads per active spring per compositor frame, lower animation overhead for expand/collapse and lyric emphasis
+- **✨ Constant-time terminal exits for parallax**: once the shape/fade springs fully arrive, the parallax poses (content grow, pill-row lift) snap directly to their exact final values instead of recomputing easing every tail frame - the settle is clean, render transforms stop being touched, no end-of-animation jitter
+- **🧪 Regression**: 4 new tests (lag-frame clamp, settle callback final value, parallax terminal equality/continuity) - 382 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.3（正式版 / Stable）
 ### 更新内容
 
