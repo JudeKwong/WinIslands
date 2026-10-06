@@ -16,6 +16,14 @@ internal sealed class FrameClock
     /// <summary>一帧超过该秒数视为“挂起/调试断点/合成器冻结”恢复：直接重建基线，不再回放积压。</summary>
     private const double SuspendGapSeconds = 0.5;
 
+    /// <summary>2.2.19: cold-start pacing - the first step after ResetBaseline
+    /// (fresh animation session; a compositor hiccup right at expand/collapse
+    /// kick-off) is capped at this small fixed step so a slow first frame can
+    /// never make the spring jump once. The EWMA baseline is seeded from the
+    /// paced step (matching how iOS CoreAnimation starts its first frame from
+    /// a known pose).</summary>
+    private const double WarmUpCapSeconds = 1.0 / 120.0;
+
     /// <summary>重建帧节拍基线（新动画会话 / 系统恢复时调用）。</summary>
     public void ResetBaseline(double now)
     {
@@ -53,8 +61,18 @@ internal sealed class FrameClock
         // 帧间隔平滑：偶发一帧卡顿（GC/合成器抖动）时弹簧步伐保持平顺 ——
         // iOS 的 CoreAnimation 由渲染服务统一调度，单帧抖动不会让动画跳一下；
         // 对真实帧间隔做指数移动平均（EWMA），并限制单帧步长不超过均值的 1.5 倍。
-        if (_smoothDt <= 0) _smoothDt = dt;
-        else _smoothDt = _smoothDt * 0.85 + dt * 0.15;
+        // 2.2.19: ResetBaseline 之后的第一帧若偏慢（合成器刚挂接 / 渲染钩子起步），
+        // 先限幅到固定小步（WarmUpCapSeconds），再以此为种子建立 EWMA 基线；
+        // 之后节奏照常爬升，动画开头轻柔起步、绝不“冲一下”。
+        if (_smoothDt <= 0)
+        {
+            if (dt > WarmUpCapSeconds) dt = WarmUpCapSeconds;
+            _smoothDt = dt;
+        }
+        else
+        {
+            _smoothDt = _smoothDt * 0.85 + dt * 0.15;
+        }
         var maxStep = Math.Max(1.0 / 240.0, _smoothDt * 1.5);
         if (dt > maxStep) dt = maxStep;
         return dt;

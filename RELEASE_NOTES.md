@@ -1,3 +1,21 @@
+## WinIslands 2.2.19（正式版 / Stable）
+### 更新内容
+
+- **🎬 冷启动首帧限幅**（参考 GitHub 上 iOS 动画项目的节奏细节）：动画启动后的第一帧若因合成器抖动 / 渲染钩子刚挂接而偏慢，旧逻辑把整段墙钟差值原样喂给弹簧，造成「开头突然冲一下」；现在首帧步长被限制为固定小步（1/120 秒），随后正常爬升到节奏——动画一开始就轻柔起步、不冲不跳，与 iOS CoreAnimation「第一帧从已知姿态开始」一致
+- **🧮 平滑基线种子化**：首帧限幅后由限幅值建立 EWMA 平滑基线，后续帧继续原有指数移动平均平滑，不掉帧、不积压回放
+- **✅ 回归测试**：新增「冷启动首帧被限幅无突发、次帧节奏恢复」1 项测试，共 346 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.19 (Stable)
+### What's New
+
+- **🎬 Cold-start first-frame pacing** (a pacing detail learned from iOS animation projects on GitHub): when the first frame after an animation kick-off is slow (compositor hiccup / fresh render hook), the old logic fed the raw wall-clock gap to the spring, causing a one-frame burst; now the first step is capped to a small fixed step (1/120 s) and the cadence ramps up normally - animations start gently, the way iOS CoreAnimation starts its first frame from a known pose
+- **🧮 Smoothing-baseline seeding**: after the first-frame cap, the EWMA baseline is seeded from the paced step so subsequent frames keep the existing moving-average smoothing without backlog replay
+- **✅ Regression**: 1 new test (cold-start first step is paced without burst; next frame resumes cadence) - 346 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.18（正式版 / Stable）
 ### 更新内容
 

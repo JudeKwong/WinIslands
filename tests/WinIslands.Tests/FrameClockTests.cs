@@ -85,4 +85,17 @@ public sealed class FrameClockTests
         var dt = fc.Step(now, false);
         Assert.InRange(dt, Frame120 * 0.5, Frame120 * 2.0);
     }
+    [Fact]
+    public void FirstStep_AfterColdStart_IsPaced_NoBurst()
+    {
+        // 2.2.19: a slow first frame (compositor hiccup right at animation
+        // kick-off) must not make the spring jump once - the first step is
+        // paced to a small fixed step, never the raw wall-clock gap.
+        var fc = New();
+        var dt = fc.Step(0.20, false); // 200ms gap on the very first frame
+        Assert.True(dt > 0 && dt <= 1.0 / 60.0, string.Format("first step must be paced, got {0}", dt));
+        // the cadence ramps back up on the next frame (no backlog replay)
+        var dt2 = fc.Step(0.20 + 1.0 / 120.0, false);
+        Assert.True(dt2 > 0 && dt2 <= 1.0 / 30.0, string.Format("second step out of range: {0}", dt2));
+    }
 }
