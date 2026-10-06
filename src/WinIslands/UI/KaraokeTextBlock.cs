@@ -558,11 +558,7 @@ public class KaraokeTextBlock : TextBlock
             // 避免高亮“先冲出去、又被拉回来”的肉眼可见倒退。
             raw = KaraokeMath.MonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
             var frac = KaraokeMath.SmoothStep(raw);
-            var c = System.Windows.Media.Color.FromArgb(
-                KaraokeMath.BlendChannel(bs.A, hl.A, frac),
-                KaraokeMath.BlendChannel(bs.R, hl.R, frac),
-                KaraokeMath.BlendChannel(bs.G, hl.G, frac),
-                KaraokeMath.BlendChannel(bs.B, hl.B, frac));
+            var c = KaraokeMath.BlendColor(bs, hl, frac); // 2.5.8: single-pass ARGB blend
             if (_wordPhase[i] != 1)
             {
                 // 进入过渡：从共享刷切换为独立刷（不可以改共享冻结刷）；

@@ -1,3 +1,19 @@
+## WinIslands 2.5.8（正式版 / Stable）
+### 更新内容
+
+- **🎨 逐字卡拉OK过渡热路径合并为单次整色混色**：RenderWords 每帧对正在过渡的字执行 4 次 BlendChannel + Color.FromArgb（每通道独立做有限性检查与范围钳制）；现在抽出 KaraokeMath.BlendColor——一次有限性检查 + 一次范围钳制后 4 个 ARGB 通道一趟混完，过渡字每帧少 3 组浮点防御判断，逐字节结果与逐通道组合完全一致（端点精确、中间截断取整、越界钳制、NaN/±Inf 按未点亮兜底）
+- **🧪 测试**：新增 BlendColor 与逐通道组合的逐字节等价扫描（3 组颜色对 × 13 个进度采样，含 0/1 端点、中间截断、越界、NaN/±Inf）与端点精确判定；连续多轮全绿，共 477 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.8 (Stable)
+### What's New
+
+- **🎨 Per-character karaoke transition blend folded into one call**: RenderWords blended each transitioning word with 4x BlendChannel + Color.FromArgb per frame (every channel re-ran its own finiteness check and range clamps); the new KaraokeMath.BlendColor does one finiteness check + one range clamp and mixes all four ARGB channels in a single pass - three fewer float guard groups per transitioning word per frame, byte-identical to the per-channel composition (exact endpoints, truncated mid-points, out-of-range clamps, NaN/Infinity falls back to unlit)
+- **🧪 Tests**: new byte-for-byte equivalence sweep between BlendColor and the old per-channel composition (3 color pairs x 13 fraction samples: exact endpoints, truncated mid-points, out-of-range clamps, NaN/Infinity fallback) plus exact endpoint cases; stable across repeated runs - 477 unit tests green
+
+---
+
 ## WinIslands 2.5.7（正式版 / Stable）
 ### 更新内容
 

@@ -1,4 +1,5 @@
-﻿using WinIslands.UI;
+﻿using System.Windows.Media;
+using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -113,5 +114,69 @@ public sealed class KaraokeMathTests
         Assert.True(double.IsNaN(KaraokeMath.ClampTickDelta(double.NaN)));
         Assert.Equal(0.05, KaraokeMath.ClampTickDelta(double.PositiveInfinity), 12);
         Assert.Equal(0.001, KaraokeMath.ClampTickDelta(double.NegativeInfinity), 12);
+    }
+
+    // 2.5.8: BlendColor single-pass whole-color blend (per-character karaoke hot path)
+    // must stay byte-identical to the per-channel BlendChannel composition.
+    private static Color Kc(byte a, byte r, byte g, byte b) => Color.FromArgb(a, r, g, b);
+
+    [Fact]
+    public void BlendColor_Endpoints_Exact()
+    {
+        var from = Kc(10, 20, 30, 40);
+        var to = Kc(250, 240, 230, 220);
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, 0.0));
+        Assert.Equal(to, KaraokeMath.BlendColor(from, to, 1.0));
+    }
+
+    [Fact]
+    public void BlendColor_HalfWay_TruncatesPerChannel()
+    {
+        var from = Kc(10, 20, 30, 40);
+        var to = Kc(250, 240, 230, 220);
+        Assert.Equal(Kc(130, 130, 130, 130), KaraokeMath.BlendColor(from, to, 0.5));
+    }
+
+    [Fact]
+    public void BlendColor_OutOfRange_ClampsLikePerChannel()
+    {
+        var from = Kc(10, 20, 30, 40);
+        var to = Kc(250, 240, 230, 220);
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, -0.5));
+        Assert.Equal(to, KaraokeMath.BlendColor(from, to, 1.5));
+    }
+
+    [Fact]
+    public void BlendColor_NonFinite_FallsBackToFrom()
+    {
+        var from = Kc(10, 20, 30, 40);
+        var to = Kc(250, 240, 230, 220);
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.NaN));
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.PositiveInfinity));
+        Assert.Equal(from, KaraokeMath.BlendColor(from, to, double.NegativeInfinity));
+    }
+
+    [Fact]
+    public void BlendColor_MatchesPerChannel_AcrossSweep()
+    {
+        var pairs = new[]
+        {
+            (Kc(0, 0, 0, 0), Kc(255, 255, 255, 255)),
+            (Kc(10, 20, 30, 40), Kc(250, 240, 230, 220)),
+            (Kc(200, 100, 50, 25), Kc(5, 155, 205, 250)),
+        };
+        var fracs = new[] { 0.0, 0.001, 0.05, 0.25, 0.37, 0.5, 0.63, 0.73, 0.99, 0.999, 1.0, -1.0, 2.0 };
+        foreach (var (from, to) in pairs)
+        {
+            foreach (var f in fracs)
+            {
+                var expected = Color.FromArgb(
+                    KaraokeMath.BlendChannel(from.A, to.A, f),
+                    KaraokeMath.BlendChannel(from.R, to.R, f),
+                    KaraokeMath.BlendChannel(from.G, to.G, f),
+                    KaraokeMath.BlendChannel(from.B, to.B, f));
+                Assert.Equal(expected, KaraokeMath.BlendColor(from, to, f));
+            }
+        }
     }
 }

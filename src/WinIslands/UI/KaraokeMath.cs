@@ -22,6 +22,25 @@ internal static class KaraokeMath
     }
 
     /// <summary>
+    /// Blend a whole ARGB color (2.5.8): one finiteness check + one range
+    /// clamp for all four channels in a single pass, replacing the old 4x
+    /// BlendChannel + Color.FromArgb composition on the per-character karaoke
+    /// transition hot path. Byte-identical to the per-channel composition
+    /// (exact endpoints, truncated mid-points, out-of-range clamps, NaN/KInf
+    /// falls back to `from`).
+    /// </summary>
+    internal static System.Windows.Media.Color BlendColor(System.Windows.Media.Color from, System.Windows.Media.Color to, double frac)
+    {
+        if (!double.IsFinite(frac) || frac <= 0.0) return from;
+        if (frac >= 1.0) return to;
+        return System.Windows.Media.Color.FromArgb(
+            (byte)(from.A + (to.A - from.A) * frac),
+            (byte)(from.R + (to.R - from.R) * frac),
+            (byte)(from.G + (to.G - from.G) * frac),
+            (byte)(from.B + (to.B - from.B) * frac));
+    }
+
+    /// <summary>
     /// Monotonic fill clamp (2.4.0): raw is never allowed to be lower than the historical peak -
     /// during stall fallback or frozen pauses the highlight only advances, never regresses,
     /// eliminating visible "over-shoot then pull-back" jumps. Non-finite values (NaN/Infinity)
