@@ -1,3 +1,21 @@
+## WinIslands 2.2.20（正式版 / Stable）
+### 更新内容
+
+- **🎞️ iOS 舒缓跑马灯**（对照 Apple Music 标题滚动节奏）：超长文本滚动从「匀速 + 仅首次停顿」改为「每循环停顿 → 缓入加速 → 匀速巡航 → 缓出减速 → 无缝循环」——每个循环都从停顿开始，起步轻柔加速、收尾平滑减速，全程非线性，不再有匀速机械感
+- **🧮 时间线数学抽离**：跑马灯参数与时间线计算抽成纯数值模块 MarqueeMath（含参数消毒），WPF 关键帧只负责渲染，行为可用单元测试锁定
+- **✅ 回归测试**：新增跑马灯时间线数学 5 项测试（非法输入兜底、短超宽无负段、长文本巡航/缓入缓出均衡、段和一致、巡航速度线性），共 351 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.20 (Stable)
+### What's New
+
+- **🎞️ iOS-style eased marquee** (matching Apple Music's title-scroll cadence): overflowing text now scrolls with "hold at start of every cycle → ease-in acceleration → constant-speed cruise → ease-out deceleration → seamless loop" instead of a constant-speed, first-delay-only drift - every cycle begins with a fresh pause, starts gently, decelerates into the reset, fully non-linear, no mechanical feel
+- **🧮 Timeline math extracted**: marquee parameters and timeline computation moved into a pure numeric module MarqueeMath (with input sanitization); WPF keyframes only render, so the behavior is locked down by unit tests
+- **✅ Regression**: 5 new marquee timeline tests (invalid-input fallback, no negative segments, long-text ramp/cruise balance, segments sum to total, constant cruise speed) - 351 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.19（正式版 / Stable）
 ### 更新内容
 

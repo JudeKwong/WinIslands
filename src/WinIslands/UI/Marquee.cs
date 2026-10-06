@@ -10,7 +10,8 @@ using Brushes = System.Windows.Media.Brushes;
 namespace WinIslands.UI;
 
 /// <summary>
-/// 跑马灯附加属性：文本超宽时自动横向无缝滚动（先停顿再滚动，匀速流畅，不截断）。
+/// 跑马灯附加属性：文本超宽时自动横向无缝滚动（每循环先停顿，再缓入加速、
+/// 匀速巡航、缓出减速，最后无缝循环——iOS 舒缓节奏，不截断）。
 /// 应用于 TextBlock / KaraokeTextBlock。用法：local:Marquee.IsEnabled="True"。
 /// 文本宽度用 FormattedText 测量（不换行，KarokeTextBlock 按 KaraokeText 全文测宽），
 /// 滚到文本完全移出可视区后无缝跳回开头，视觉无跳变。纯本地渲染，不联网。
@@ -28,9 +29,7 @@ public static class Marquee
     public static void SetPause(DependencyObject o, bool v) => o.SetValue(PauseProperty, v);
     public static bool GetPause(DependencyObject o) => (bool)o.GetValue(PauseProperty);
 
-    private const double SpeedPxPerSec = 42;    // 滚动速度（像素/秒）
-    private const double GapPx = 28;            // 首尾循环间隙
-    private const double InitialDelaySec = 1.0; // 首次停顿（秒）
+    // 2.2.20: 跑马灯参数与时间线计算已抽到 MarqueeMath（纯数值，便于单元测试）。
 
     /// <summary>低功耗/降频时的跑马灯帧率上限开关（2.2.5）：与逐字卡拉OK/歌词强调一致，由设置即时同步。</summary>
     public static bool LowPowerModeOverride;
@@ -129,18 +128,39 @@ public static class Marquee
                 return;
             }
 
-            var distance = textW + GapPx; // 滚到文本完全移出可视区（含间隙）后无缝跳回
-            var dur = TimeSpan.FromSeconds(distance / SpeedPxPerSec);
-            var anim = new DoubleAnimation(0, -distance, dur)
+            // 2.2.20: iOS 舒缓跑马灯 —— 每个循环都从停顿开始（不再只有首次停顿），
+            // 起步缓入加速、中段匀速巡航、收尾缓出减速，然后无缝回到起点。
+            var distance = MarqueeMath.ScrollRange(textW); // 文本完全移出可视区（含间隙）后无缝跳回
+            var spec = MarqueeMath.BuildSpec(textW);
+            var kfAnim = new DoubleAnimationUsingKeyFrames
             {
-                BeginTime = TimeSpan.FromSeconds(InitialDelaySec),
                 RepeatBehavior = RepeatBehavior.Forever,
             };
-            AnimationFrameRate.Apply(anim, LowPowerModeOverride); // 2.2.5：低功耗模式下同样限帧 60 FPS
+            kfAnim.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            // 每循环开头停顿（文字可见，与 Apple Music 标题「先停再滚」一致）
+            kfAnim.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(spec.StartHoldSec))));
+            var rampEnd = spec.StartHoldSec + spec.RampSec;
+            // 缓入：从静止轻柔加速
+            kfAnim.KeyFrames.Add(new EasingDoubleKeyFrame(-spec.RampDist, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(rampEnd)))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn },
+            });
+            if (spec.CruiseSec > 0)
+            {
+                // 中段匀速巡航（短文本可直接从缓入进入缓出）
+                kfAnim.KeyFrames.Add(new LinearDoubleKeyFrame(-(distance - spec.RampDist),
+                    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(rampEnd + spec.CruiseSec))));
+            }
+            // 缓出：收尾平滑减速，停稳后无缝循环（文本已完全移出可视区，跳回不可见）
+            kfAnim.KeyFrames.Add(new EasingDoubleKeyFrame(-distance, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(spec.TotalForwardSec)))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            });
+            AnimationFrameRate.Apply(kfAnim, LowPowerModeOverride); // 2.2.5：低功耗模式下同样限帧 60 FPS
             state.Text = text;
             state.ViewWidth = viewW;
             state.Running = true;
-            tt.BeginAnimation(TranslateTransform.XProperty, anim);
+            tt.BeginAnimation(TranslateTransform.XProperty, kfAnim);
         }
         catch
         {
@@ -167,3 +187,45 @@ public static class Marquee
         return ft.WidthIncludingTrailingWhitespace;
     }
 }
+
+
+    /// <summary>
+    /// 2.2.20: 跑马灯时间线规格（纯数值，便于单元测试）。
+    /// </summary>
+    internal readonly record struct MarqueeSpec(
+        double StartHoldSec,
+        double RampSec,
+        double RampDist,
+        double CruiseSec,
+        double TotalForwardSec);
+
+    /// <summary>
+    /// 2.2.20: iOS 舒缓跑马灯数学（从 Marquee 抽出，纯逻辑便于测试）：
+    /// 超长文本每循环「停顿 → 缓入加速 → 匀速巡航 → 缓出减速 → 无缝循环」。
+    /// </summary>
+    internal static class MarqueeMath
+    {
+        public const double GapPx = 28;            // 首尾循环间隙
+        public const double SpeedPxPerSec = 42;    // 巡航速度（像素/秒）
+        public const double StartHoldSec = 1.2;    // 每循环开头停顿（秒）—— iOS 标题「先停再滚」
+        public const double RampSec = 0.5;         // 缓入/缓出各占时长（秒）
+        public const double RampPortion = 0.10;    // 缓入/缓出各占滚动距离的比例
+
+        /// <summary>滚动总距离：文本完全移出可视区（含间隙）后无缝跳回。</summary>
+        public static double ScrollRange(double textWidth)
+        {
+            var w = double.IsFinite(textWidth) && textWidth > 0 ? textWidth : 0.0;
+            return Math.Max(1.0, w + GapPx);
+        }
+
+        /// <summary>构建每循环的时间线规格：段和一致、永不为 NaN/Inf。</summary>
+        public static MarqueeSpec BuildSpec(double textWidth)
+        {
+            var range = ScrollRange(textWidth);
+            var cruise = Math.Max(0.0, range * (1.0 - 2.0 * RampPortion)); // 短文本时巡航可为 0
+            var rampDist = (range - cruise) / 2.0;
+            var cruiseSec = cruise / SpeedPxPerSec;
+            var total = StartHoldSec + RampSec * 2.0 + cruiseSec;
+            return new MarqueeSpec(StartHoldSec, RampSec, rampDist, cruiseSec, total);
+        }
+    }
