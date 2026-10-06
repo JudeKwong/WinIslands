@@ -657,7 +657,7 @@ public class KaraokeTextBlock : TextBlock
         }
 
         if (!ColorEqual(_litBrush!.Color, hl)) _litBrush.Color = hl;
-        var blendColor = litChars < len ? KaraokeMath.BlendColor(bs, hl, Math.Clamp(blend, 0, 1)) : bs;
+        var blendColor = litChars < len ? KaraokeMath.BlendColor(bs, hl, blend) : bs;
         if (!ColorEqual(_blendBrush!.Color, blendColor)) _blendBrush.Color = blendColor;
         if (!ColorEqual(_restBrush!.Color, bs)) _restBrush.Color = bs;
     }

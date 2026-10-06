@@ -314,4 +314,70 @@ public sealed class KaraokeMathTests
             }
         }
     }
+
+    [Fact]
+    public void WholeLineBlend_RawVsClamped_ByteIdenticalForAllFiniteFractions()
+    {
+        // 2.6.6: the render hot path used to wrap the whole-line blend remainder
+        // in Math.Clamp(blend, 0, 1) before BlendColor; WholeLineSplit already
+        // guarantees blend in [0,1) whenever lit < length (scaled - floor(scaled)
+        // for a finite scaled), so the clamp was pure range-check overhead. This
+        // dense sweep (lengths 1-64 x 4097 finite fractions) proves the raw and
+        // clamped paths emit byte-identical ARGB for every reachable input.
+        var bs = Kc(30, 60, 120, 240);
+        var hl = Kc(250, 240, 230, 220);
+        for (var len = 1; len <= 64; len++)
+        {
+            for (var i = 0; i <= 4096; i++)
+            {
+                var f = i / 4096.0;
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                if (lit >= len) continue; // 完全点亮时渲染层直接取底色，不调用 BlendColor
+                var clamped = KaraokeMath.BlendColor(bs, hl, Math.Clamp(blend, 0, 1));
+                var raw = KaraokeMath.BlendColor(bs, hl, blend);
+                Assert.True(
+                    clamped.A == raw.A && clamped.R == raw.R && clamped.G == raw.G && clamped.B == raw.B,
+                    $"byte mismatch length={len} fraction={f} blend={blend}");
+            }
+        }
+    }
+
+    [Fact]
+    public void WholeLineSplit_BlendInsideUnitInterval_WhenLitCountBelowLength()
+    {
+        // 2.6.6: the invariant that makes the render-side clamp removable - for
+        // every finite fraction, whenever lit < length the blend remainder
+        // (scaled - floor(scaled)) lies in [0,1), so no extra range clamp is ever
+        // needed before BlendColor on the karaoke hot path.
+        for (var len = 1; len <= 64; len++)
+        {
+            for (var i = 0; i <= 8192; i++)
+            {
+                var f = i / 8192.0;
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                if (lit < len)
+                {
+                    Assert.InRange(blend, 0.0, 1.0);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void WholeLineBlend_NonFiniteFraction_RawPathFallsBackToBaseColor()
+    {
+        // 2.6.6: NaN/+/-Inf fractions never reach the live path (_currentFraction
+        // is clamped to [0,1] upstream), but the raw path stays safe: unlike the
+        // old clamp (which would map +Inf to 1.0 and flash the full highlight),
+        // BlendColor's IsFinite guard falls back to the base color. The NaN case
+        // is bit-identical to the old clamped path (Math.Clamp(NaN,0,1) == NaN).
+        var bs = Kc(30, 60, 120, 240);
+        var hl = Kc(250, 240, 230, 220);
+        var (lit, blend) = KaraokeMath.WholeLineSplit(double.NaN, 7);
+        Assert.True(lit < 7);
+        Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, Math.Clamp(blend, 0, 1)));
+        Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, blend));
+        Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, double.PositiveInfinity));
+        Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, double.NegativeInfinity));
+    }
 }

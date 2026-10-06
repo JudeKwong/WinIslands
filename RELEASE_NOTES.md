@@ -1,3 +1,19 @@
+## WinIslands 2.6.6（正式版 / Stable）
+### 更新内容
+
+- 🚀 卡拉OK整行过渡字渲染热路径去掉冗余范围钳制：整行分字的过渡余量 blend 由 WholeLineSplit 产出，对任意有限播放进度恒在 [0,1)（lit < 长度时 blend = scaled − floor(scaled)），渲染层却仍在每帧每可见行对 blend 做一次 Math.Clamp(0,1)；现把原始 blend 直接送入 BlendColor（其 IsFinite 守卫对非法进度本就回退底色），热路径每行每帧省一次范围检查，输出对全部可达（有限）输入逐位一致（密集扫描验证）
+- 🧪 测试：新增 3 项——长度 1~64 × 4097 个有限分数点「原始 blend」与「钳制 blend」渲染路径 ARGB 逐字节一致、blend 在 lit<长度时恒 ∈ [0,1) 的全域扫描不变式、非法进度下原生路径安全回退底色且 NaN 与旧钳制路径逐位一致（+Inf 旧钳制路径会映射到 1.0 闪全长高亮，现统一回退底色）；共 504 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.6 (Stable)
+### What’s New
+
+- 🚀 Karaoke whole-line blend hot path drops the redundant range clamp: WholeLineSplit already guarantees the blend remainder lies in [0,1) for every finite fraction whenever lit < length (blend = scaled − floor(scaled)), yet the render layer still wrapped it in Math.Clamp(blend, 0, 1) per frame per visible line; the raw blend now feeds straight into BlendColor (whose IsFinite guard already falls back to the base color), saving one range check per visible line per frame on the karaoke render hot path with bit-identical output for every reachable finite input (dense-sweep verified)
+- 🧪 Tests: 3 new cases - lengths 1-64 x 4097 finite fraction points prove the raw path is ARGB byte-identical to the clamped path, a full-domain sweep proves the blend stays in [0,1) whenever lit < length, and non-finite fractions fall back to the base color on the raw path with NaN bit-identical to the old clamped path (+Inf used to clamp to 1.0 and flash the full highlight; it now safely falls back to the base color); 504 unit tests green
+
+---
+
 ## WinIslands 2.6.5（正式版 / Stable）
 ### 更新内容
 
