@@ -152,4 +152,49 @@ public class KaraokeTimelineTests
         var r4 = KaraokeTextBlock.ApplyMonotonicFill(0.55, max, out max); // 追平并前进
         Assert.Equal(0.55, r4, 9);
     }
+
+    [Fact]
+    public void FillScaledDenoms_ScalesDurations()
+    {
+        // 2.2.8: scaled = denom / speed, computed once instead of per frame
+        var denoms = new double[] { 0.2, 0.3, 0.05 };
+        var scaled = new double[3];
+        KaraokeTextBlock.FillScaledDenoms(denoms, 1.5, scaled);
+        Assert.Equal(0.2 / 1.5, scaled[0], 9);
+        Assert.Equal(0.3 / 1.5, scaled[1], 9);
+        Assert.Equal(0.05 / 1.5, scaled[2], 9);
+    }
+
+    [Fact]
+    public void FillScaledDenoms_GuardsNonPositive()
+    {
+        // 2.2.8: NaN / zero / negative denominators fall back to a positive base
+        var denoms = new double[] { 0.0, -1.0, double.NaN, double.PositiveInfinity };
+        var scaled = new double[4];
+        KaraokeTextBlock.FillScaledDenoms(denoms, 2.0, scaled);
+        foreach (var s in scaled) Assert.True(s > 0 && double.IsFinite(s), $"bad scaled {s}");
+    }
+
+    [Fact]
+    public void NeedsAnimationForScaled_MatchesLegacy()
+    {
+        // 2.2.8: the precomputed fast path is mathematically identical to the legacy scan
+        var words = new[]
+        {
+            new TtmlWord("A", 1.0, 1.5),
+            new TtmlWord("B", 1.6, 2.0),
+            new TtmlWord("C", 2.0, 2.0),
+        };
+        var starts = new double[3];
+        var denoms = new double[3];
+        KaraokeTextBlock.BuildWordTimeline(words, starts, denoms);
+        var scaled = new double[3];
+        KaraokeTextBlock.FillScaledDenoms(denoms, 1.0, scaled);
+        for (var pos = 0.0; pos < 3.0; pos += 0.013)
+        {
+            var legacy = KaraokeTextBlock.NeedsAnimationFor(pos, starts, denoms, 1.0);
+            var fast = KaraokeTextBlock.NeedsAnimationForScaled(pos, starts, scaled);
+            Assert.Equal(legacy, fast);
+        }
+    }
 }

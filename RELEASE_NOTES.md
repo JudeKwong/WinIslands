@@ -1,3 +1,23 @@
+## WinIslands 2.2.8（正式版 / Stable）
+### 更新内容
+
+- **⚡ 卡拉OK逐字高亮渲染热路径预计算**：速度倍率换算从「每帧逐字除法」改为「切歌/调速时一次换算」，逐帧渲染直接复用预换算时间轴，避免运行期浮点除法，逐字与整句高亮判定更省电、更跟手
+- **🔁 高亮判定与渲染完全同源**：新增 NeedsAnimationForScaled 快速路径，与渲染共用同一套预换算时间轴（含字间 lead 预亮），杼绝「判定用旧轴、渲染用新轴」导致的高亮跳变
+- **🛡️ 数值守卫**：FillScaledDenoms 对 NaN / 零 / 负数分母回退 0.001 基长，任何异常输入都不会产生负时长或无穷大
+- **🧪 回归测试**：新增预换算时长缩放、非法值守卫、快速判定与旧实现逐点等价 3 项测试，共 314 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.8 (Stable)
+### What's New
+
+- **⚡ Karaoke per-character highlight render hot path precomputed**: the speed-scale conversion moved out of the per-frame per-word division into a one-time pass when the song/speed changes, so the render loop reuses a pre-scaled timeline - fewer runtime divisions, smoother and lighter per-character illumination
+- **🔁 Highlight decision and render share the same timeline**: new NeedsAnimationForScaled fast path is mathematically identical to the legacy scan and uses the same pre-scaled timeline (including the inter-word lead pre-light), eliminating any decision/render axis mismatch jumps
+- **🛡️ Numeric guards**: FillScaledDenoms falls back to a 0.001s base length for NaN/zero/negative denominators, so no invalid input can create negative or infinite durations
+- **🧪 Regression**: 3 new tests (scaled duration math, invalid-input guards, fast-path vs legacy pointwise equivalence) - 314 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.7（正式版 / Stable）
 ### 更新内容
 

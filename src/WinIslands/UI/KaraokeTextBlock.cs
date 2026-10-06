@@ -90,6 +90,7 @@ public class KaraokeTextBlock : TextBlock
     private readonly List<Run> _wordRuns = new();
     private double[] _wordStarts = Array.Empty<double>();
     private double[] _wordDenoms = Array.Empty<double>();
+    private double[] _wordDensScaled = Array.Empty<double>();   // 2.2.8：速度倍率换算一次，逐帧不再做除法
     // 2.1.3：逐字渲染性能优化——已点亮/未点亮的字共享冻结画刷，只对「正在过渡」的字逐帧算色。
     // 每字用阶段标记（0=未点亮共享底刷、1=过渡中独立刷、2=已点亮共享高亮刷），
     // 仅在阶段切换或颜色字节变化时才写 Run.Foreground，避免每帧对整行做 Color.FromArgb + SmoothStep。
@@ -317,8 +318,12 @@ public class KaraokeTextBlock : TextBlock
             _wordRuns.Clear();
             _wordStarts = new double[_words.Count];
             _wordDenoms = new double[_words.Count];
+            _wordDensScaled = new double[_words.Count];
             BuildWordTimeline(_words, _wordStarts, _wordDenoms);
         }
+        // 2.2.8：速度倍率换算一次（切歌/调速时重建），逐帧渲染直接使用，不再逐字除法
+        if (_wordDensScaled.Length == _wordDenoms.Length && _wordDenoms.Length > 0)
+            FillScaledDenoms(_wordDenoms, _karaokeSpeedScale, _wordDensScaled);
 
         if (_hasWords)
         {
@@ -493,7 +498,6 @@ public class KaraokeTextBlock : TextBlock
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
         // 句首第一个字不提前，保证换句时第一个字保持未点亮。
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
-        var speedScale = _karaokeSpeedScale;
         var deltaA = hl.A - bs.A;
         var deltaR = hl.R - bs.R;
         var deltaG = hl.G - bs.G;
@@ -504,7 +508,7 @@ public class KaraokeTextBlock : TextBlock
             // 2.1.3：先按词阶段分支——已点亮/未点亮的字直接切共享冻结刷（且仅在阶段切换时才写），
             // 不再每帧对全行计算 SmoothStep + Color.FromArgb；只有正在过渡的 1~2 个字才逐帧混色。
             var start = _wordStarts[i];
-            var end = start + _wordDenoms[i] / speedScale;
+            var end = start + _wordDensScaled[i];   // 2.2.8: 预换算的时间轴终点
             var run = _wordRuns[i];
             if (pos >= end)
             {
@@ -517,7 +521,7 @@ public class KaraokeTextBlock : TextBlock
                 continue;
             }
             // 正在过渡：ease-in-out（起笔/收笔有加减速）+字间 lead 重叠
-            var raw = (pos - start) / _wordDenoms[i] * speedScale;
+            var raw = (pos - start) / _wordDensScaled[i];   // 2.2.8: 预换算的填充速度
             // 2.2.3: 单调钳制——停滞感知回拉或暂停期间位置被冻结时，字填充只进不退，
             // 避免高亮“先冲出去、又被拉回来”的肉眼可见倒退。
             raw = ApplyMonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
@@ -628,7 +632,7 @@ public class KaraokeTextBlock : TextBlock
 
     /// <summary>播放位置是否落在本句某个字的起止区间内（该行是否处于正在点亮的状态）。</summary>
     private bool NeedsAnimation(double pos)
-        => NeedsAnimationFor(pos, _wordStarts, _wordDenoms, _karaokeSpeedScale);
+        => NeedsAnimationForScaled(pos, _wordStarts, _wordDensScaled);   // 2.2.8: 使用预换算时间轴
 
     private static System.Windows.Media.SolidColorBrush Frozen(System.Windows.Media.SolidColorBrush b) { b.Freeze(); return b; }
 
@@ -681,6 +685,29 @@ public class KaraokeTextBlock : TextBlock
     }
 
     /// <summary>与 <see cref="RenderWords"/> 完全一致的点亮区间判定：某位置下该行是否仍处于逐字点亮中（含字间 lead 预亮区间）。</summary>
+    /// <summary>2.2.8：将字间时长按卡拉OK速度倍率换算一次（纯函数；非法值回退 0.001 基长）。</summary>
+    internal static void FillScaledDenoms(double[] denoms, double scale, double[] scaled)
+    {
+        var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
+        var n = Math.Min(denoms.Length, scaled.Length);
+        for (var i = 0; i < n; i++)
+        {
+            var d = denoms[i];
+            scaled[i] = (double.IsFinite(d) && d > 0 ? d : 0.001) / s;
+        }
+    }
+
+    /// <summary>2.2.8：与 <see cref="NeedsAnimationFor"/> 完全等价的快速判定，使用预换算时间轴（纯函数）。</summary>
+    internal static bool NeedsAnimationForScaled(double pos, double[] starts, double[] scaled)
+    {
+        for (var i = 0; i < starts.Length && i < scaled.Length; i++)
+        {
+            if (pos < starts[i]) continue;                      // 尚未开始（含 lead 前）：静态即可
+            if (pos - starts[i] < scaled[i]) return true;       // 仍在点亮：需要动画
+        }
+        return false;
+    }
+
     internal static bool NeedsAnimationFor(double pos, double[] starts, double[] denoms, double speed)
     {
         for (var i = 0; i < starts.Length && i < denoms.Length; i++)
