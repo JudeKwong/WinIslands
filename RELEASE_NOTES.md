@@ -1,3 +1,19 @@
+## WinIslands 2.7.4（正式版 / Stable）
+### 更新内容
+
+- 🚀 整行均分歌词的收敛判定改用分支比较链：KaraokeTextBlock 的两处收敛检查（|current - target| < 0.002——属性更新路径与整行均分模式每帧路径）原先各用一次 Math.Abs（符号掩码 + 比较对）；现改为差值局部变量 + 双边界分支链（delta 落在 (-0.002, +0.002) 内才判定已收敛），target 已由 Math.Clamp(HighlightFraction, 0, 1) 保证落在 [0,1]，current 与 lerpAlpha 的有限性由上方 SmoothAlpha/KaraokeMath 防御保证，NaN/±Inf 差值依旧永不收敛，卡拉OK动画「最后一帧吸附」行为逐点不变；整行均分每帧路径少一组取绝对值符号掩码 + 比较对。
+- 🧪 测试：新增 2 项——13 × 13 特殊值全配对组合矩阵（NaN/±Inf/±0/极值/Epsilon 等）逐对验证分支链与 Math.Abs 式布尔一致（含 ±0.002 精确边界与内部点断言）；有限域 30000 对随机密集扫描（含贴近边界差值、NaN 混入）+ 指数步长边界局部扫描（±0.002 两侧 2^-54…2^-10 步长各 ±3 点）；共 519 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.4 (Stable)
+### What's New
+
+- 🚀 Whole-line karaoke converge checks move to branch chains: the two settle checks in KaraokeTextBlock (|current - target| < 0.002 - one on the property-update path, one on the whole-line per-frame path) each used one Math.Abs (sign-mask + compare pair); they now use a difference local plus a two-sided branch chain (settled only when delta lies in (-0.002, +0.002)). Target is already clamped to [0,1] by Math.Clamp(HighlightFraction, 0, 1) and current/lerpAlpha finiteness is guarded upstream by SmoothAlpha/KaraokeMath, so NaN/±Inf deltas still never settle and the karaoke animation's final-frame snap is unchanged point by point - the per-frame whole-line path saves one sign-mask + compare pair per frame
+- 🧪 Tests: 2 new cases - a 13 x 13 special-value full-pairing combo matrix (NaN/±Inf/±0/extremes/Epsilon) proving the branch chain is pointwise boolean-identical to the Math.Abs form (plus exact ±0.002 tie and interior asserts), and a 30000-pair randomized finite-domain dense sweep (boundary-adjacent deltas, NaN mixed in) with an exponential-step boundary scan (±0.002 ± k·2^-54…2^-10, k = -3..3); 519 unit tests green
+
+---
+
 ## WinIslands 2.7.3（正式版 / Stable）
 ### 更新内容
 

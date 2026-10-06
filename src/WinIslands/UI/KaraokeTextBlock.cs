@@ -406,7 +406,10 @@ public class KaraokeTextBlock : TextBlock
             return;
         }
 
-        if (Math.Abs(_currentFraction - _targetFraction) < 0.002)
+        // 2.7.4: 属性更新路径的收敛判定改用分支比较链（差值局部变量 + 双边界），
+        // 与 Math.Abs 式在全部输入上布尔一致（NaN/±Inf 差值永不收敛）。
+        var fractionDelta = _currentFraction - _targetFraction;
+        if (fractionDelta < 0.002 && fractionDelta > -0.002)
         {
             _currentFraction = _targetFraction;
             StopAnimation();
@@ -484,7 +487,10 @@ public class KaraokeTextBlock : TextBlock
         // 帧率无关指数平滑：rate=42 在 60fps 下等效于旧的 0.5 系数，120fps 下自动适配
         var lerpAlpha = WaveMath.SmoothAlpha(dtTick, KaraokeSmoothRate); // 2.5.2: 复用 NaN 安全平滑纯函数（有限输入与原式一致，坏时钟冻结本帧）
         _currentFraction += (_targetFraction - _currentFraction) * lerpAlpha;
-        if (Math.Abs(_currentFraction - _targetFraction) < 0.002)
+        // 2.7.4: 整行均分模式每帧收敛判定同用分支比较链（布尔结果与 Math.Abs 式一致），
+        // 每帧少一组取绝对值符号掩码 + 比较对；NaN/±Inf 差值依旧永不收敛。
+        var fractionDelta = _currentFraction - _targetFraction;
+        if (fractionDelta < 0.002 && fractionDelta > -0.002)
         {
             _currentFraction = _targetFraction;
             StopAnimation();

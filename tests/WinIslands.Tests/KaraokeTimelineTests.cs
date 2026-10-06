@@ -394,4 +394,76 @@ public class KaraokeTimelineTests
         Assert.Equal(2.0 + 0.2, ends[1], 12);
     }
 
-}
+
+    [Fact]
+    public void FractionSettlePredicate_BranchChain_MatchesAbsForm()
+    {
+        // 2.7.4: KaraokeTextBlock 整行均分模式的收敛判定（Math.Abs(current - target) < 0.002）
+        // 改为分支比较链（delta 落在 (-0.002, +0.002) 内才收敛）；必须在全部输入上与
+        // Math.Abs 式布尔逐点一致——含 NaN/±Inf（永不收敛）与 ±0.002 精确边界（永不收敛）。
+        const double eps = 0.002;
+        var specials = new[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, double.MaxValue, double.MinValue,
+            double.Epsilon, -double.Epsilon, double.MaxValue / 2, -double.MaxValue / 2,
+        };
+        for (var i = 0; i < specials.Length; i++)
+        {
+            for (var j = 0; j < specials.Length; j++)
+            {
+                var delta = specials[i] - specials[j];
+                Assert.Equal(Math.Abs(delta) < eps, delta < eps && delta > -eps);
+            }
+        }
+        // 精确边界：|delta| == ±eps 永不收敛；内部点收敛（用变量避免 CS1718 同变量比较警告）
+        var tiePlus = eps;
+        Assert.False(tiePlus < eps && tiePlus > -eps, "delta == +eps must not settle");
+        Assert.Equal(Math.Abs(tiePlus) < eps, tiePlus < eps && tiePlus > -eps);
+        var tieMinus = -eps;
+        Assert.False(tieMinus < eps && tieMinus > -eps, "delta == -eps must not settle");
+        Assert.Equal(Math.Abs(tieMinus) < eps, tieMinus < eps && tieMinus > -eps);
+        var inside = eps * 0.5;
+        Assert.True(inside < eps && inside > -eps, "interior must settle");
+        Assert.Equal(Math.Abs(inside) < eps, inside < eps && inside > -eps);
+    }
+
+    [Fact]
+    public void FractionSettlePredicate_DenseSweep_MatchesAbsForm()
+    {
+        // 2.7.4: 有限域随机密集扫描 + 指数步长边界局部扫描，证明分支链与 Math.Abs 式
+        // 在贴近 ±0.002 边界、跨数量级与 NaN 混入等每个可达输入上布尔完全一致。
+        const double eps = 0.002;
+        var rng = new Random(0x2E74);
+        for (var i = 0; i < 30000; i++)
+        {
+            var current = NextSigned(rng, 1e4);
+            var target = (i % 4) switch
+            {
+                0 => NextSigned(rng, 1e4),
+                1 => current + NextSigned(rng, eps * 2), // 贴近边界的差值
+                2 => current,
+                _ => rng.NextDouble() < 0.5 ? double.NaN : NextSigned(rng, 1e4),
+            };
+            var delta = current - target;
+            Assert.Equal(Math.Abs(delta) < eps, delta < eps && delta > -eps);
+        }
+        for (var scale = -54; scale <= -10; scale++)
+        {
+            var step = Math.Pow(2.0, scale);
+            for (var sign = -1.0; sign <= 1.0; sign += 2.0)
+            {
+                for (var k = -3; k <= 3; k++)
+                {
+                    var delta = sign * (eps + k * step);
+                    Assert.Equal(Math.Abs(delta) < eps, delta < eps && delta > -eps);
+                }
+            }
+        }
+    }
+
+    private static double NextSigned(Random rng, double magnitude)
+    {
+        var v = rng.NextDouble() * magnitude;
+        return (rng.Next(2) == 0) ? -v : v;
+    }}
