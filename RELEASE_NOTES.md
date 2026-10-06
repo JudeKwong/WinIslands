@@ -1,3 +1,17 @@
+## WinIslands 2.2.4（正式版 / Stable）
+### 更新内容
+
+- **🛡️ 弹簧缓动数学加固（杜绝 NaN / 无穷 / 收尾跳变）**：iOS 风格弹簧解析解新增内部安全层——非法参数（NaN、0、负数）自动回退到稳妥默认值，输出全程有界连续、永不产生 NaN 或无穷；Ease(0) 精确为 0、Ease(1) 精确为 1，动画收尾不再“差最后一点突然跳一下”
+- **🧪 回归测试**：新增端点精确归位、非法参数消毒、全区间永不为 NaN/Inf、曲线形状单调等专项测试，共 302 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.2.4 (Stable)
+### What's New
+
+- **🛡️ Hardened spring easing math (no NaN / Infinity / end-jump)**: the iOS-style analytic spring now ships an internal safety layer - invalid parameters (NaN, zero, negative) fall back to sane defaults, every output stays bounded and continuous and can never be NaN or Infinity; Ease(0) is exactly 0 and Ease(1) is exactly 1, so animations settle without a final micro-jump
+- **🧪 Regression**: new targeted tests for exact endpoint settling, invalid-parameter sanitization, never-NaN/Inf over the whole domain and curve-shape monotonicity - 302 unit tests total, all green with zero warnings
+
+---
 ## WinIslands 2.2.3（正式版 / Stable）
 ### 更新内容
 
