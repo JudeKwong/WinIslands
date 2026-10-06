@@ -1,3 +1,21 @@
+## WinIslands 2.2.10（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧驱动器去重改为 O(1)**：SpringTicker 新增 HashSet 去重索引，Add 判重从逐项线性扫描（List.Contains）改为哈希一次命中，动画高频创建/打断弹簧时更省 CPU、更稳帧
+- **🔄 索引与有序表同生命周期**：Remove 同步移除哈希索引，重复 Add 不会产生重复条目，最后一个弹簧归零后照常拆除渲染钩子（空闲 CPU≈0）
+- **🧪 回归测试**：新增「重复 Add 仅计一次」「移除后重新 Add」「多弹簧同步移除」3 项测试，共 322 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.10 (Stable)
+### What's New
+
+- **⚡ O(1) spring-driver dedup**: SpringTicker keeps a HashSet membership index beside the ordered list, so Add's duplicate check is a single hash lookup instead of a linear scan - springs created and interrupted at morph frequency cost less CPU and hold steadier frames
+- **🔄 Index and ordered list share one lifetime**: Remove keeps the hash index in sync, duplicate Adds can never double-count, and the render hook is still detached when the last spring settles (idle CPU ≈ 0)
+- **🧪 Regression**: 3 new tests (duplicate Add counts once, re-Add after Remove, multi-spring simultaneous removal) - 322 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.9（正式版 / Stable）
 ### 更新内容
 

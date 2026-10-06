@@ -286,6 +286,7 @@ public sealed class IOSSpring
 public static class SpringTicker
 {
     private static readonly List<IOSSpring> _active = new();
+    private static readonly HashSet<IOSSpring> _seen = new(); // 2.2.10：去重索引（O(1) 判重），与 _active 同生命周期，避免 List.Contains 线性扫描
     private static readonly Stopwatch _clock = Stopwatch.StartNew();
     private static readonly FrameClock _frameClock = new();  // 2.2.7：帧节拍状态机（平滑/降频/挂起重同步）
     private static bool _hooked;
@@ -302,12 +303,13 @@ public static class SpringTicker
             CompositionTarget.Rendering += OnRendering;
             _hooked = true;
         }
-        if (!_active.Contains(spring)) _active.Add(spring);
+        if (_seen.Add(spring)) _active.Add(spring); // 2.2.10：O(1) 去重判定
     }
 
     internal static void Remove(IOSSpring spring)
     {
         _active.Remove(spring);
+        _seen.Remove(spring); // 2.2.10：索引同步移除，避免残留孤儿记录
         if (_active.Count == 0 && _hooked)
         {
             CompositionTarget.Rendering -= OnRendering;

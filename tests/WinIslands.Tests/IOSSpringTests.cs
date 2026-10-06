@@ -418,4 +418,60 @@ public sealed class IOSSpringTests
         }
         finally { s.Stop(); }
     }
+
+    [Fact]
+    public void Ticker_DuplicateAdd_NoDoubleCount()
+    {
+        // 2.2.10：Add 去重为 O(1)（HashSet 索引），重复 Add 不产生重复条目
+        var s = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        try
+        {
+            SpringTicker.Add(s);
+            SpringTicker.Add(s);
+            SpringTicker.Add(s);
+            Assert.Equal(1, SpringTicker.ActiveCount);
+        }
+        finally { s.Complete(); }
+        Assert.Equal(0, SpringTicker.ActiveCount);
+    }
+
+    [Fact]
+    public void Ticker_RemoveThenReadd_CountsOnce()
+    {
+        // 2.2.10：移除后重新 Add，索引与有序表保持同步，不会残留孤儿记录
+        var s = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        try
+        {
+            SpringTicker.Remove(s);
+            Assert.Equal(0, SpringTicker.ActiveCount);
+            SpringTicker.Add(s);
+            Assert.Equal(1, SpringTicker.ActiveCount);
+        }
+        finally { s.Complete(); }
+        Assert.Equal(0, SpringTicker.ActiveCount);
+    }
+
+    [Fact]
+    public void Ticker_MultipleSprings_RemoveKeepsOthers()
+    {
+        // 2.2.10：多弹簧同时活跃时，单个移除不影响其他；全部归零后拆除渲染钩子
+        var a = IOSSpring.Create(0.82, 0.5, from: 0, to: 1);
+        var b = IOSSpring.Create(1.0, 0.3, from: 0, to: 2);
+        var c = IOSSpring.Create(0.9, 0.4, from: 0, to: 3);
+        try
+        {
+            Assert.Equal(3, SpringTicker.ActiveCount);
+            SpringTicker.Remove(b);
+            Assert.Equal(2, SpringTicker.ActiveCount);
+            SpringTicker.Add(b);
+            Assert.Equal(3, SpringTicker.ActiveCount);
+        }
+        finally
+        {
+            a.Stop();
+            b.Stop();
+            c.Complete();
+        }
+        Assert.Equal(0, SpringTicker.ActiveCount);
+    }
 }
