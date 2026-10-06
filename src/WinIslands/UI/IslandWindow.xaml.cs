@@ -3143,6 +3143,31 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _lyricsScrollQueued;
     private IOSSpring? _lyricsScrollSpring;   // 歌词滚动弹簧：临界阻尼，重定向保持速度连续（2.0.6）
     private double _lyricsScrollTarget;
+    /// <summary>上次实际写入 ScrollViewer 的偏移（NaN = 尚未写入）；帧回调与 Settled 落位共用（2.3.3）。</summary>
+    private double _lyricsScrollLastWritten = double.NaN;
+    /// <summary>滚动写入去重阈值（DIP）：亚像素变化不写，减少 ScrollViewer 布局开销（2.3.3）。</summary>
+    internal const double ScrollWriteEpsilon = 0.25;
+
+    /// <summary>计算歌词行居中的目标滚动偏移（纯函数，可测）：视口相对坐标 + 当前偏移 = 内容坐标，
+    /// 再减去半个视口、加上半个行高使当前句居中；双向钳制到 [0, maxOffset]，非法输入兜底 0。</summary>
+    internal static double ComputeLyricsScrollTarget(double offset, double relY, double viewportH, double lineH, double maxOffset)
+    {
+        if (!double.IsFinite(offset) || !double.IsFinite(relY) || !double.IsFinite(viewportH) ||
+            !double.IsFinite(lineH) || !double.IsFinite(maxOffset))
+            return 0.0;                                            // 非法输入兜底：不产生 NaN/无限
+        if (viewportH <= 0 || lineH < 0 || maxOffset < 0)
+            return 0.0;                                            // 无有效滚动态：停在顶部
+        var target = offset + relY - viewportH / 2 + lineH / 2;
+        return Math.Clamp(target, 0.0, maxOffset);                 // 双向钳制：底部不超出 ScrollableHeight
+    }
+
+    /// <summary>滚动写入去重判定（纯函数，可测）：NaN（尚未写入）必写；非法值丢弃；与上次写入的差达到阈值才写。</summary>
+    internal static bool ShouldWriteScrollOffset(double value, double lastWritten)
+    {
+        if (double.IsNaN(lastWritten)) return true;                // 首次写入
+        if (!double.IsFinite(value)) return false;                 // 引擎已兜底，直接丢弃非法值
+        return Math.Abs(value - lastWritten) >= ScrollWriteEpsilon;
+    }
     private void QueueLyricsScroll(int index)
     {
         if (!IsLoaded || !IsVisible || !_vm.IsExpanded) return;
@@ -3167,9 +3192,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         var viewer = LyricsScroll;
         var relY = container.TransformToAncestor(viewer).Transform(new Point(0, 0)).Y;
-        // 视口相对坐标 + 当前偏移 = 内容坐标；再减去半个视口/加上半个行高使当前句居中
-        var target = viewer.VerticalOffset + relY - viewer.ViewportHeight / 2 + container.ActualHeight / 2;
-        target = Math.Max(0, target);
+        // 2.3.3：纯函数计算目标偏移并双向钳制到 [0, ScrollableHeight]——
+        // 旧实现只有下界，最后一句会请求超出滚动范围的位置，歌词无法精确落位。
+        var target = ComputeLyricsScrollTarget(
+            viewer.VerticalOffset, relY, viewer.ViewportHeight, container.ActualHeight,
+            Math.Max(0, viewer.ScrollableHeight));
 
         // 目标与当前十分接近：直接落位，不再启动画（避免高频切句时抖动）
         if (Math.Abs(target - viewer.VerticalOffset) < 0.5)
@@ -3203,6 +3230,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 StopLyricsScroll();
                 return;
             }
+            // 2.3.3：亚像素去重——收敛尾部的微小变化不再触发 ScrollViewer 布局写；
+            // 最终精确落位由 OnLyricsScrollSettled 完成，视觉不受影响。
+            if (!ShouldWriteScrollOffset(v, _lyricsScrollLastWritten)) return;
+            _lyricsScrollLastWritten = v;
             LyricsScroll.ScrollToVerticalOffset(v);
         }, OnLyricsScrollSettled);
     }
@@ -3212,6 +3243,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (_lyricsScrollSpring?.IsActive == true) return;
         if (!IsLoaded || !IsVisible || !_vm.IsExpanded || LyricsScroll is null || LyricsList.Items.Count == 0) return;
+        _lyricsScrollLastWritten = _lyricsScrollTarget;            // 记录最终落位，避免后续去重误判
         LyricsScroll.ScrollToVerticalOffset(_lyricsScrollTarget);
     }
 

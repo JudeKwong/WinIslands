@@ -1,3 +1,21 @@
+## WinIslands 2.3.3（正式版 / Stable）
+### 更新内容
+
+- **🎼 歌词自动滚动精确落位**：滚动目标改为双向钳制到实际可滚动范围——旧实现只有下界，切到最后一句时会请求超出滚动范围的位置，歌词无法精确居中；现在每句都精确落在视口中央，首句/末句不再越界
+- **⚡ 滚动写入亚像素去重**：歌词滚动弹簧收敛尾部的微小变化不再重复写入 ScrollViewer（0.25px 阈值）——减少每帧布局开销，CPU 更低，视觉完全一致（首帧与最终落位始终写入）
+- **🧪 回归测试**：新增歌词滚动纯函数测试 9 项（居中公式、顶部/底部钳制、非法输入兜底；写入去重首写/阈值/非法值），共 378 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.3 (Stable)
+### What's New
+
+- **🎼 Lyrics auto-scroll now lands precisely**: the scroll target is bidirectionally clamped to the real scrollable range - the old code only clamped the lower bound, so the final line requested an offset beyond the scrollable height and could not center; every line now lands exactly in the viewport center, first/last lines never overshoot
+- **⚡ Sub-pixel scroll-write dedup**: tiny changes in the lyric-scroll spring's settle tail no longer re-write the ScrollViewer (0.25px epsilon) - less per-frame layout work, lower CPU, identical visuals (first frame and final settle always land)
+- **🧪 Regression**: 9 new pure-function tests for the lyric-scroll helpers (centering math, top/bottom clamping, invalid-input fallback; write-dedup first-write/threshold/invalid) - 378 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.2（正式版 / Stable）
 ### 更新内容
 
