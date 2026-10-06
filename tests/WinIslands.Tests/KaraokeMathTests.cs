@@ -92,4 +92,26 @@ public sealed class KaraokeMathTests
         }
         Assert.Equal(1.0, prev, 12);
     }
+
+    [Fact]
+    public void ClampTickDelta_WithinRange_PassesThrough() => Assert.Equal(0.02, KaraokeMath.ClampTickDelta(0.02), 12);
+
+    [Fact]
+    public void ClampTickDelta_BelowFloor_ClampsToFloor() => Assert.Equal(0.001, KaraokeMath.ClampTickDelta(-5.0), 12);
+
+    [Fact]
+    public void ClampTickDelta_AboveCeiling_ClampsToCeiling() => Assert.Equal(0.05, KaraokeMath.ClampTickDelta(0.5), 12);
+
+    [Fact]
+    public void ClampTickDelta_BoundaryValues_Unaffected() {
+        Assert.Equal(0.001, KaraokeMath.ClampTickDelta(0.001), 12);
+        Assert.Equal(0.05, KaraokeMath.ClampTickDelta(0.05), 12);
+    }
+
+    [Fact]
+    public void ClampTickDelta_NonFinite_MatchesOldMathSemantics() {
+        Assert.True(double.IsNaN(KaraokeMath.ClampTickDelta(double.NaN)));
+        Assert.Equal(0.05, KaraokeMath.ClampTickDelta(double.PositiveInfinity), 12);
+        Assert.Equal(0.001, KaraokeMath.ClampTickDelta(double.NegativeInfinity), 12);
+    }
 }

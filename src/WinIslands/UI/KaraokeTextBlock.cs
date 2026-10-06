@@ -475,7 +475,7 @@ public class KaraokeTextBlock : TextBlock
         // 整行均分模式：缓动逼近（差距大时走得快、接近时变慢）
         var lineFps = _cachedFps; // 2.4.5：低功耗帧率上限已缓存
         if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, lineFps)) return;
-        var dtTick = Math.Min(0.05, Math.Max(0.001, now - _lastTickTime));
+        var dtTick = KaraokeMath.ClampTickDelta(now - _lastTickTime); // 2.4.7: branch chain, no Math calls
         _lastTickTime = now;
         // 帧率无关指数平滑：rate=42 在 60fps 下等效于旧的 0.5 系数，120fps 下自动适配
         var lerpAlpha = 1.0 - Math.Exp(-dtTick * 42.0);

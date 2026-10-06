@@ -1,3 +1,21 @@
+## WinIslands 2.4.7（正式版 / Stable）
+### 更新内容
+
+- **⚡ 卡拉OK整行时间步长钳制改分支**：TickAnimation 整行均分模式的每帧热路径不再调用 Math.Min/Math.Max 两次区间钳制，改用两条比较的分支链（KaraokeMath.ClampTickDelta）——每帧少两次范围检查调用，60/120fps 下歌词高亮更省 CPU、帧更稳
+- **🔄 纯函数抽取**：钳制逻辑收敛到 KaraokeMath.ClampTickDelta，语义与旧表达式逐位一致（NaN 原样传播、±∞ 钳到上下限），便于单元测试与复用
+- **✅ 回归测试**：新增区间内直通、下限/上限钳制、边界值、NaN/±∞ 语义测试 5 项，共 442 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.7 (Stable)
+### What's New
+
+- **⚡ Karaoke whole-line tick clamp hoisted to a branch chain**: the per-frame hot path in TickAnimation's whole-line mode no longer pays two Math.Min/Math.Max range checks - a two-comparison branch chain (KaraokeMath.ClampTickDelta) bounds the inter-frame delta to [0.001, 0.05] instead, keeping lyrics highlights lighter on CPU and steadier at 60/120fps
+- **🔄 Pure-function extraction**: the clamp now lives in KaraokeMath.ClampTickDelta with byte-identical semantics to the old expression (NaN propagates, +/-Inf clamp to the bounds) and is directly unit-testable
+- **✅ Regression**: 5 new pass-through/floor/ceiling/boundary/NaN-semantics tests, 442 unit tests green
+
+---
+
 ## WinIslands 2.4.6（正式版 / Stable）
 ### 更新内容
 

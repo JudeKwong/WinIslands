@@ -52,4 +52,17 @@ internal static class KaraokeMath
         t = Math.Clamp(t, 0, 1);
         return t * t * (3 - 2 * t);
     }
+
+    /// <summary>
+    /// Whole-line karaoke tick clamp (2.4.7): bounds the inter-frame delta to
+    /// [0.001, 0.05] with a two-comparison branch chain instead of Math.Min/Math.Max,
+    /// so the 60/120fps hot path pays two compares rather than two range-check calls.
+    /// Semantics byte-identical to the old expression (NaN propagates, +/-Inf clamp).
+    /// </summary>
+    internal static double ClampTickDelta(double rawDt)
+    {
+        if (rawDt > 0.05) return 0.05;
+        if (rawDt < 0.001) return 0.001;
+        return rawDt;
+    }
 }
