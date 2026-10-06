@@ -1,3 +1,19 @@
+## WinIslands 2.3.2（正式版 / Stable）
+### 更新内容
+
+- **🎼 歌词强调改为「归一化进度弹簧」**：缩放与不透明度现在由同一个 iOS 物理弹簧驱动（弹簧只驱动 0→1 进度，两个属性走统一线性映射）——切行打断时位置与速度天然连续；删除了独立的固定时长淡入淡出 Storyboard，文字不再「额外弹出」，透明度与放大完全同步丝滑
+- **🧪 回归测试**：新增进度映射 5 项测试（未强调/强调端点、中间线性、越界钳制、非法输入兜底），共 369 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.3.2 (Stable)
+### What's New
+
+- **🎼 Lyric emphasis now runs on a normalized-progress spring**: scale and opacity are both driven by one iOS physics spring (the spring only animates a 0→1 progress, both properties share one uniform linear mapping) - line-change interruptions stay continuous in position and velocity by construction; the independent fixed-duration fade Storyboards were removed, so text never 'pops in' separately and opacity transitions fully in sync with the grow
+- **🧪 Regression**: 5 new progress-mapping tests (base/emphasis endpoints, mid linear, clamping, invalid fallback) - 369 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.3.1（正式版 / Stable）
 ### 更新内容
 

@@ -126,4 +126,52 @@ public sealed class LyricEmphasisTests
         Assert.False(LyricEmphasis.ShouldWriteScale(double.NaN, 1.2));
         Assert.False(LyricEmphasis.ShouldWriteScale(double.PositiveInfinity, 1.2));
     }
+    // ── 2.3.2：归一化进度映射（缩放 + 不透明度统一由同一个弹簧驱动） ──
+    [Fact]
+    public void MapProgress_Zero_BaseState()
+    {
+        // p=0 → 未强调：scale=1.0, opacity=0.28
+        var (scale, opacity) = LyricEmphasis.MapProgress(0.0, 1.23);
+        Assert.Equal(1.0, scale, 6);
+        Assert.Equal(0.28, opacity, 6);
+    }
+
+    [Fact]
+    public void MapProgress_One_FullEmphasis()
+    {
+        // p=1 → 强调完成：scale=targetScale, opacity=1.0
+        var (scale, opacity) = LyricEmphasis.MapProgress(1.0, 1.23);
+        Assert.Equal(1.23, scale, 6);
+        Assert.Equal(1.0, opacity, 6);
+    }
+
+    [Fact]
+    public void MapProgress_Mid_Linear()
+    {
+        // p=0.5, target=1.2 → scale=1.1, opacity=0.64（均匀线性，打断时值连续）
+        var (scale, opacity) = LyricEmphasis.MapProgress(0.5, 1.2);
+        Assert.Equal(1.1, scale, 6);
+        Assert.Equal(0.64, opacity, 6);
+    }
+
+    [Fact]
+    public void MapProgress_Clamped()
+    {
+        // 越界进度钳制到 [0,1]
+        var (sLo, _) = LyricEmphasis.MapProgress(-2, 1.2);
+        Assert.Equal(1.0, sLo, 6);
+        var (sHi, _) = LyricEmphasis.MapProgress(3, 1.2);
+        Assert.Equal(1.2, sHi, 6);
+    }
+
+    [Fact]
+    public void MapProgress_InvalidFallsBack()
+    {
+        // NaN 进度 → 0；非法 targetScale → 1.18 兜底，绝不产生 NaN
+        var (s1, o1) = LyricEmphasis.MapProgress(double.NaN, 1.2);
+        Assert.Equal(1.0, s1, 6);
+        Assert.Equal(0.28, o1, 6);
+        var (s2, _) = LyricEmphasis.MapProgress(1.0, double.PositiveInfinity);
+        Assert.Equal(1.18, s2, 6);
+    }
 }

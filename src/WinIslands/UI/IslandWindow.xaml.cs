@@ -1471,30 +1471,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             style.Setters.Add(new Setter(TextBlock.MarginProperty, margin));
             style.Setters.Add(new Setter(TextBlock.LineHeightProperty, lineHeight));
             style.Setters.Add(new Setter(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight));
-            style.Setters.Add(new Setter(TextBlock.OpacityProperty, 0.28));
+            style.Setters.Add(new Setter(TextBlock.OpacityProperty, LyricEmphasis.OpacityBase)); // 2.3.2：与渲染映射常量保持一致
             style.Setters.Add(new Setter(TextBlock.RenderTransformOriginProperty, new Point(0.5, 0.5)));
             style.Setters.Add(new Setter(LyricEmphasis.TargetScaleProperty, targetScale));
             style.Setters.Add(new Setter(LyricEmphasis.DurationMsProperty, emphasisMs));
 
-            var inSb = new Storyboard();
-            var fadeIn = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 14, Stiffness = 180, Mass = 1 } };
-            Storyboard.SetTargetProperty(fadeIn, new PropertyPath(TextBlock.OpacityProperty));
-            inSb.Children.Add(fadeIn);
-
-            var outSb = new Storyboard();
-            var fadeOut = new DoubleAnimation { To = 0.28, Duration = TimeSpan.FromMilliseconds(220), EasingFunction = new SoftSpringEase { Damping = 16, Stiffness = 160, Mass = 1 } };
-            Storyboard.SetTargetProperty(fadeOut, new PropertyPath(TextBlock.OpacityProperty));
-            outSb.Children.Add(fadeOut);
-
+            // 2.3.2：不透明度已由 LyricEmphasis 的归一化进度弹簧统一驱动（与缩放完全同步），
+            // 此处不再追加固定时长的淡入淡出 Storyboard，避免文字"额外弹出"与双重动画。
             var trigger = new DataTrigger
             {
                 Binding = new System.Windows.Data.Binding(nameof(LyricLineViewModel.IsCurrent)) { Mode = BindingMode.OneWay },
                 Value = true,
             };
-            AnimationFrameRate.Apply(inSb, _settings.Current.LowPowerMode);
-            AnimationFrameRate.Apply(outSb, _settings.Current.LowPowerMode);
-            trigger.EnterActions.Add(new BeginStoryboard { Storyboard = inSb });
-            trigger.ExitActions.Add(new BeginStoryboard { Storyboard = outSb });
             trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
             trigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, highlightBrush));
             trigger.Setters.Add(new Setter(LyricEmphasis.IsCurrentProperty, true));

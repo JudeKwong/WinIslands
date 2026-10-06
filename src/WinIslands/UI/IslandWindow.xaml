@@ -114,28 +114,8 @@
             <Setter Property="karaoke:LyricEmphasis.DurationMs" Value="240"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                    <DataTrigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard Timeline.DesiredFrameRate="120">
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.22">
-                                    <DoubleAnimation.EasingFunction>
-                                        <CubicEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </DataTrigger.EnterActions>
-                    <DataTrigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard Timeline.DesiredFrameRate="120">
-                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.28" Duration="0:0:0.22">
-                                    <DoubleAnimation.EasingFunction>
-                                        <CubicEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </DataTrigger.ExitActions>
+                    <!-- 2.3.2: opacity is driven by the LyricEmphasis normalized-progress spring (sync with scale);
+                         the fixed-duration fade Storyboards were removed so the text never pops in separately -->
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="Foreground" Value="{Binding ExpandedLyricHighlightBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
                     <Setter Property="karaoke:LyricEmphasis.IsCurrent" Value="True"/>

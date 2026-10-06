@@ -21,6 +21,10 @@ namespace WinIslands.UI;
 ///   - 物理收敛、不抢时长：动画一直跑到自然静止，结尾没有硬切/跳变；
 ///   - 切行打断时以当前位移 + 当前速度作为新一段的初始条件，位置与速度连续、不跳变；
 ///   - 进入（轻 Q 弹）与退出（果断无回弹）使用两组 UIKit 风格参数，由纯函数换算。
+///
+/// 2.3.2：改为「归一化进度弹簧」——弹簧只驱动 0→1 的进度，缩放与不透明度由同一个
+/// 线性映射推导（进入/退出共享公式），切行打断时位置与速度天然连续，且透明度过渡
+/// 与缩放完全同步（不再有独立固定时长的淡入淡出 Storyboard，文字不"额外弹出"）。
 /// </summary>
 public static class LyricEmphasis
 {
@@ -64,6 +68,10 @@ public static class LyricEmphasis
     private const double ExitResponseScale = 0.72;
     /// <summary>渲染写入去重阈值（2.3.1）：缩放变化小于此值时不写 RenderTransform，弹簧收敛尾部不产生无效属性写入。</summary>
     internal const double ScaleWriteEpsilon = 0.0005;
+    /// <summary>非当前歌词行的基准不透明度（与 XAML/代码 style 中的 Opacity 0.28 保持一致）。</summary>
+    internal const double OpacityBase = 0.28;
+    /// <summary>当前歌词行的目标不透明度。</summary>
+    internal const double OpacityCurrent = 1.0;
 
     /// <summary>由 UI 设置（DurationMs）换算「进入」弹簧参数（纯函数，便于单元测试）。</summary>
     internal static (double Zeta, double ResponseSeconds) ComputeEnterParams(double durationMs)
@@ -90,6 +98,16 @@ public static class LyricEmphasis
         return Math.Abs(value - lastWritten) >= ScaleWriteEpsilon;
     }
 
+    /// <summary>归一化进度 → (缩放, 不透明度) 的统一线性映射（纯函数，可测）：进入/退出共用，打断时数值连续。</summary>
+    internal static (double Scale, double Opacity) MapProgress(double progress, double targetScale)
+    {
+        var p = Math.Clamp(double.IsFinite(progress) ? progress : 0.0, 0.0, 1.0);
+        var ts = Math.Clamp(double.IsFinite(targetScale) ? targetScale : 1.18, 1.0, 1.5);
+        var scale = 1.0 + (ts - 1.0) * p;
+        var opacity = OpacityBase + (OpacityCurrent - OpacityBase) * p;
+        return (scale, opacity);
+    }
+
     /// <summary>按 基础字号/当前行字号 计算渲染缩放倍率（纯函数，便于单元测试）。</summary>
     internal static double ComputeTargetScale(double baseSize, double currentSize)
     {
@@ -105,34 +123,41 @@ public static class LyricEmphasis
         {
             var state = GetState(fe);
             var scale = state.Scale!;
-            var target = (bool)e.NewValue ? ReadTargetScale(fe) : 1.0;
-            var (zeta, response) = (bool)e.NewValue
+            var isEnter = (bool)e.NewValue;
+            var targetScale = ReadTargetScale(fe);
+            // 2.3.2：弹簧驱动归一化进度（enter→1.0，exit→0.0），缩放与不透明度由同一映射推导。
+            var targetProgress = isEnter ? 1.0 : 0.0;
+            var (zeta, response) = isEnter
                 ? ComputeEnterParams(ReadDuration(fe))
                 : ComputeExitParams(ReadDuration(fe));
 
-            // iOS 打断语义：以旧弹簧的当前位移 + 当前速度作为新一段的初始条件，
+            // iOS 打断语义：以旧弹簧的当前进度 + 当前速度作为新一段的初始条件，
             // 位置与速度都不跳变；旧弹簧从合成帧队列摘除（保留当前值作为起点）。
-            var from = scale.ScaleX;
+            var fromProgress = isEnter ? 0.0 : 1.0;
             var velocity = 0.0;
             if (state.Spring is { IsActive: true } old)
             {
-                from = old.Value;
+                fromProgress = old.Value;
                 velocity = old.Velocity;
                 old.Stop();
             }
 
-            var lastWritten = double.NaN; // 2.3.1：每段弹簧独立的上次写入值（NaN = 尚未写入）
+            var lastScale = double.NaN; // 2.3.1：每段弹簧独立的上次写入值（NaN = 尚未写入）
             state.Spring = IOSSpring.Create(
                 zeta, response,
-                from: from, to: target,
-                onUpdate: v =>
+                from: fromProgress, to: targetProgress,
+                onUpdate: p =>
                 {
+                    // 统一线性映射：进入/退出共用公式，打断时值连续（2.3.2）
+                    var s = 1.0 + (targetScale - 1.0) * p;
+                    var o = OpacityBase + (OpacityCurrent - OpacityBase) * p;
                     // 写入去重：收敛尾部每帧变化极小，跳过无效属性写入，
                     // 减少合成线程上的依赖属性变更与脏标记；首次与完成写入总是落盘。
-                    if (!ShouldWriteScale(v, lastWritten)) return;
-                    lastWritten = v;
-                    scale.ScaleX = v;
-                    scale.ScaleY = v;
+                    if (!ShouldWriteScale(s, lastScale)) return;
+                    lastScale = s;
+                    scale.ScaleX = s;
+                    scale.ScaleY = s;
+                    fe.Opacity = o;
                 },
                 onCompleted: null,
                 initialVelocity: velocity);
