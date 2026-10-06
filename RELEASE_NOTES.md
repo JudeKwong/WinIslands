@@ -1,3 +1,19 @@
+## WinIslands 2.7.7（正式版 / Stable）
+### 更新内容
+
+- 🚀 卡片尺寸收敛判定改用差分双边界分支链：紧凑动画的三处收敛检查（AnimateCompactSize 动画分支 / AnimateCompactSize Storyboard 空分支 / AnimateCompactSizeSpring）原先各用两次 Math.Abs(target - current)（符号掩码 + 比较对）判定是否命中目标尺寸；现改为单次求差 + 双边界分支链（d < eps && d > -eps，收敛容差 0.5），与 Math.Abs 式判定在全部 double 输入上布尔一致——NaN/±Inf 差值依旧永不收敛，尺寸动画「最后一帧吸附」行为逐点不变；每帧省 6 次绝对值符号掩码 + 比较对
+- 🧪 测试：新增 3 项——① 14×14 特殊值全配对组合矩阵（NaN/±Inf/±0/极值/Epsilon/边界 0.5 等）× 4 档容差逐对验证分支链与 Math.Abs 式布尔一致；② [-2,2] 201×201 密集网格 × 4 档容差随机扫描（含贴近边界差值与 NaN 混入）；③ ±eps 精确边界（恰好等于 ±0.5 不算接近）/ 紧邻内侧 / NaN / ±Inf 断言；共 525 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.7 (Stable)
+### What's New
+
+- 🚀 Card size convergence checks move to difference-based two-boundary branch chains: the three convergence checks in the compact-size animations (AnimateCompactSize animation branch / AnimateCompactSize storyboard-null branch / AnimateCompactSizeSpring) each used two Math.Abs(target - current) calls (sign-mask plus compare pair) to decide whether the target size is reached; each now computes the difference once and tests two boundaries (d < eps && d > -eps, tolerance 0.5), boolean-identical to the Math.Abs form for every double input - NaN/±Inf deltas still never converge, so the "last-frame snap" behavior is bitwise unchanged; 6 sign-mask-plus-compare pairs are saved per frame
+- 🧪 Tests: 3 new cases - (1) a 14x14 full special-value pairing matrix (NaN/±Inf/±0/extremes/Epsilon/0.5 boundary etc.) across 4 epsilon tiers proving the branch chain is boolean-identical to the Math.Abs formulation; (2) a 201x201 dense grid over [-2, 2] across 4 epsilon tiers with boundary-adjacent deltas and NaN mixed in; (3) exact ±eps boundary assertions (exactly ±0.5 does not count as near) / just-inside values / NaN / ±Inf; 525 unit tests green
+
+---
+
 ## WinIslands 2.7.6（正式版 / Stable）
 ### 更新内容
 

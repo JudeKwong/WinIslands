@@ -1611,13 +1611,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         EnsureWindowSizeFits(targetWidth); // 先扩宽窗口，避免卡片动画期间超出窗口被裁切
         UpdateCompactContentWidth(targetWidth);
         if (_currentStoryboard is not null && _compactAnimationValid
-            && Math.Abs(targetWidth - _compactAnimationWidth) < 0.5
-            && Math.Abs(targetHeight - _compactAnimationHeight) < 0.5)
+            && ToleranceMath.NearWithin(targetWidth, _compactAnimationWidth, 0.5)
+            && ToleranceMath.NearWithin(targetHeight, _compactAnimationHeight, 0.5))
             return;
 
         if (_currentStoryboard is null
-            && Math.Abs(Card.ActualWidth - targetWidth) < 0.5
-            && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
+            && ToleranceMath.NearWithin(Card.ActualWidth, targetWidth, 0.5)
+            && ToleranceMath.NearWithin(Card.ActualHeight, targetHeight, 0.5))
         {
             Card.Width = targetWidth;
             Card.Height = targetHeight;
@@ -2866,7 +2866,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _cardTargetH = targetHeight;
             return;
         }
-        if (Math.Abs(Card.ActualWidth - targetWidth) < 0.5 && Math.Abs(Card.ActualHeight - targetHeight) < 0.5)
+        if (ToleranceMath.NearWithin(Card.ActualWidth, targetWidth, 0.5)
+            && ToleranceMath.NearWithin(Card.ActualHeight, targetHeight, 0.5))
         {
             Card.Width = targetWidth;
             Card.Height = targetHeight;
