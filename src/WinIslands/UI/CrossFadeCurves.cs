@@ -166,10 +166,11 @@ public static class CrossFadeCurves
         return (scale, y);
     }
 
-    /// <summary>Smoothstep 缓动：0→1 平滑插值，两端零斜率（iOS 交叉淡入/淡出曲线）。</summary>
+    /// <summary>Smoothstep 缓动：0→1 平滑插值，两端零斜率（iOS 交叉淡入/淡出曲线）。2.6.8 起用与 Math.Clamp 逐位一致的分支链钳制。</summary>
     public static double SmoothStep(double x)
     {
-        x = Math.Clamp(x, 0.0, 1.0);
+        if (x < 0.0) x = 0.0;
+        else if (x > 1.0) x = 1.0;
         return x * x * (3.0 - 2.0 * x);
     }
 

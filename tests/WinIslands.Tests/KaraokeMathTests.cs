@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+﻿﻿using System.Windows.Media;
 using WinIslands.UI;
 
 namespace WinIslands.Tests;
@@ -81,6 +81,39 @@ public sealed class KaraokeMathTests
         Assert.Equal(0.0, KaraokeMath.SmoothStep(-0.5), 12);
         Assert.Equal(1.0, KaraokeMath.SmoothStep(1.5), 12);
         Assert.Equal(double.NaN, KaraokeMath.SmoothStep(double.NaN)); // NaN propagates (BlendChannel then falls back to unlit)
+    }
+
+    [Fact]
+    public void SmoothStep_ClampBranchChain_BitIdenticalToMathClamp()
+    {
+        // 2.6.8: SmoothStep now clamps [0,1] with a two-comparison branch chain
+        // instead of Math.Clamp(t,0,1), saving one range-check call per transition
+        // character per frame. For every t the two forms select the same branch
+        // value: NaN and +/-Inf fall through to the original value in both, so the
+        // outputs are bit-identical (DoubleToInt64Bits dense-sweep verified below).
+        var specials = new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            -1e308, -0.0, 0.0, 1.0 - 1e-16, 1.0, 1.0 + 1e-16, 1e308 };
+        foreach (var s in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(SmoothStepOldClamp(s)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.SmoothStep(s)));
+        }
+        var rng = new Random(268);
+        for (var i = 0; i < 30000; i++)
+        {
+            // sweep the whole domain including both out-of-range tails
+            var r = rng.NextDouble() * 4.0 - 1.5;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(SmoothStepOldClamp(r)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.SmoothStep(r)));
+        }
+    }
+
+    private static double SmoothStepOldClamp(double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return t * t * (3 - 2 * t);
     }
 
     [Fact]

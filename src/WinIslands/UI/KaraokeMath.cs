@@ -65,10 +65,13 @@ internal static class KaraokeMath
 
     /// <summary>ease-in-out (smoothstep, 2.4.0): slow start - fast middle - slow end,
     /// combined with per-word cross-fade for silky continuous per-character advance.
-    /// Input is clamped to [0,1] first (bit-identical to the old behavior).</summary>
+    /// Input is clamped to [0,1] first via a two-comparison branch chain (2.6.8),
+    /// bit-identical to the old Math.Clamp(t,0,1) on every branch (NaN and +/-Inf
+    /// fall through to the original value exactly as before).</summary>
     internal static double SmoothStep(double t)
     {
-        t = Math.Clamp(t, 0, 1);
+        if (t < 0.0) t = 0.0;
+        else if (t > 1.0) t = 1.0;
         return t * t * (3 - 2 * t);
     }
 

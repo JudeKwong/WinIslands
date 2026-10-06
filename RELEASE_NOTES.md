@@ -1,3 +1,19 @@
+## WinIslands 2.6.8（正式版 / Stable）
+### 更新内容
+
+- 🚀 卡拉OK过渡字平滑步进钳制改分支链：SmoothStep 原先在每帧每个过渡字都调用 Math.Clamp(t,0,1)（一次范围检查调用），现改为与 ClampTickDelta 相同的双比较分支链（if/else-if，NaN 与 ±Inf 仍按原式落到原值），每个过渡字每帧省一次范围检查调用，输出与旧式在全部可达输入上逐位一致（DoubleToInt64Bits 密集扫描验证）
+- 🧪 测试：新增 1 项——NaN/±Inf/特殊值 × 全域 30000 点密集扫描，验证分支链钳制与 Math.Clamp 旧式逐位一致；共 509 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.8 (Stable)
+### What's New
+
+- 🚀 Karaoke transition-word smoothstep clamp switched to a branch chain: SmoothStep used to call Math.Clamp(t,0,1) per transition character per frame (one range-check call); it now uses the same two-comparison branch chain as ClampTickDelta (if/else-if, NaN and +/-Inf fall through to the original value exactly like Math.Clamp), saving one range-check call per transition character per frame with bit-identical output on every reachable input (DoubleToInt64Bits dense-sweep verified)
+- 🧪 Tests: 1 new case - special values (NaN, +/-Inf, -1e308, -0.0, 0.0, 1-1e-16, 1+1e-16, 1e308) plus a 30000-point dense sweep across the whole domain prove the branch-chain clamp is bit-identical to the old Math.Clamp form; 509 unit tests green
+
+---
+
 ## WinIslands 2.6.7（正式版 / Stable）
 ### 更新内容
 
