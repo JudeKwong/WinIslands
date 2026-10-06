@@ -339,7 +339,7 @@ public static class SpringTicker
     {
         if (!_hooked)
         {
-            _frameClock.ResetBaseline(_clock.Elapsed.TotalSeconds); // 新的动画会话：重建平滑基线
+            _frameClock.ResetBaseline(CurrentSeconds()); // 新的动画会话：重建平滑基线
             CompositionTarget.Rendering += OnRendering;
             _hooked = true;
         }
@@ -358,7 +358,7 @@ public static class SpringTicker
     }
 
     /// <summary>系统挂起/恢复后由应用层调用：立即重建帧节拍基线，动画从恢复后的第一帧平滑起步、不巨跳。</summary>
-    public static void ResetBaseline() => _frameClock.ResetBaseline(_clock.Elapsed.TotalSeconds);
+    public static void ResetBaseline() => _frameClock.ResetBaseline(CurrentSeconds());
 
     /// <summary>立即完成所有活跃弹簧（窗口关闭时清理）。</summary>
     public static void CompleteAll()
@@ -367,11 +367,17 @@ public static class SpringTicker
         foreach (var s in all) s.Complete();
     }
 
+    /// <summary>
+    /// 2.4.6：秒值由原始刻度与常量频率直接换算——避免每帧构造 TimeSpan（Elapsed.TotalSeconds），
+    /// 渲染热点每帧只少一次结构体构造与两级属性解引用。
+    /// </summary>
+    internal static double CurrentSeconds() => _clock.ElapsedTicks / (double)Stopwatch.Frequency;
+
     private static void OnRendering(object? sender, EventArgs e)
     {
         if (_active.Count == 0) return;
         // 2.2.7：帧间隔状态机收敛到 FrameClock（EWMA 平滑 / 低功耗 60FPS 降频 / 挂起巨帧自动重同步）
-        var dt = _frameClock.Step(_clock.Elapsed.TotalSeconds, CapAt60Fps);
+        var dt = _frameClock.Step(CurrentSeconds(), CapAt60Fps);
         if (dt <= 0) return; // 低功耗降频跳过本帧
 
         // 倒序遍历，允许 Tick 内部 Complete 摘除

@@ -1,3 +1,21 @@
+## WinIslands 2.4.6（正式版 / Stable）
+### 更新内容
+
+- **⏱️ 弹簧驱动时钟直读**：SpringTicker 渲染循环（及挂接/重建基线路径）不再每帧构造 TimeSpan 读取 Elapsed.TotalSeconds，改为直接读原始刻度并除以常量频率——每次渲染回调少一次结构体构造与两级属性解引用，多弹簧复合帧更省
+- **🧵️ 换算收敛为单点**：CurrentSeconds() 统一承载「刻度→秒」换算，Add / ResetBaseline / OnRendering 三处路径一致，行为不变
+- **✅ 回归测试**：新增时钟有限非负、单调推进、刻度比例一致性测试 3 项，共 437 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.6 (Stable)
+### What's New
+
+- **⏱️ Spring-drive clock read straight from ticks**: the SpringTicker render loop (plus hook/reset paths) no longer constructs a TimeSpan per frame via Elapsed.TotalSeconds - it reads the raw tick count and divides by the constant frequency, dropping one struct allocation and two property dereferences from every render callback (multi-spring composite frames)
+- **🧵️ Single conversion point**: CurrentSeconds() now owns the ticks-to-seconds conversion, shared by Add / ResetBaseline / OnRendering with unchanged behaviour
+- **✅ Regression**: 3 new finite/non-negative, monotonic advance, and scale-consistency tests, 437 unit tests green
+
+---
+
 ## WinIslands 2.4.5（正式版 / Stable）
 ### 更新内容
 
