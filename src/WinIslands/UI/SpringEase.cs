@@ -147,11 +147,13 @@ internal static class SpringEaseMath
     /// <summary>
     /// 2.6.7：预计算系数求值快路径（逐帧热路径）。调用方保证 c 由 Prepare 产出；
     /// t 仍按原式钳制到 [0,1]、端点精确归位，中途保留 Q 弹过冲；对任意 t 与旧逐帧
-    /// 公式逐位一致（t=0→0、t=1→1；NaN/±Inf 经 Math.Clamp 后与原路径一致）。
+    /// 公式逐位一致（t=0→0、t=1→1；2.6.9 起钳制改用与 Math.Clamp 逐位一致的双比较分支链，NaN/±Inf 仍与原路径一致）。
     /// </summary>
     public static double EvaluatePrepared(in SpringCoeffs c, double normalized)
     {
-        var t = Math.Clamp(normalized, 0.0, 1.0);
+        var t = normalized;
+        if (t < 0.0) t = 0.0;
+        else if (t > 1.0) t = 1.0; // 2.6.9: 分支链钳制，与 Math.Clamp 逐位一致
         if (t <= 0.0) return 0.0;
         if (t >= 1.0) return 1.0;
         var tt = t * 1.7;

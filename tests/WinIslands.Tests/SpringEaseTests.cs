@@ -225,6 +225,58 @@ public class SpringEaseTests
     }
 
     [Fact]
+    public void Prepared_ClampBranchChain_BitIdenticalToOldMathClamp()
+    {
+        // 2.6.9: EvaluatePrepared switched from Math.Clamp(normalized,0,1) to
+        // the same two-comparison branch chain used by the karaoke SmoothStep,
+        // saving one range-check call per active spring Ease per frame. Both
+        // forms select the same branch for every t (NaN and +/-Inf fall through
+        // to the original value), so outputs stay bit-identical (DoubleToInt64Bits
+        // dense-sweep verified below).
+        var combos = new[]
+        {
+            (12.0, 200.0, 1.0),
+            (16.0, 150.0, 1.0),
+            (0.0, 200.0, 1.0),
+            (120.0, 1200.0, 8.0),
+            (35.0, 90.0, 0.25),
+        };
+        var specials = new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            -1e308, -0.0, 0.0, 1.0 - 1e-16, 1.0, 1.0 + 1e-16, 1e308 };
+        foreach (var (d, k, m) in combos)
+        {
+            var c = SpringEaseMath.Prepare(d, k, m);
+            foreach (var s in specials)
+            {
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(EvaluatePreparedOldMathClamp(c, s)),
+                    BitConverter.DoubleToInt64Bits(SpringEaseMath.EvaluatePrepared(c, s)));
+            }
+            var rng = new Random(269);
+            for (var i = 0; i < 30000; i++)
+            {
+                // sweep the whole domain including both out-of-range tails
+                var r = rng.NextDouble() * 4.0 - 1.5;
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(EvaluatePreparedOldMathClamp(c, r)),
+                    BitConverter.DoubleToInt64Bits(SpringEaseMath.EvaluatePrepared(c, r)));
+            }
+        }
+    }
+
+    private static double EvaluatePreparedOldMathClamp(in SpringEaseMath.SpringCoeffs c, double normalized)
+    {
+        var t = Math.Clamp(normalized, 0.0, 1.0);
+        if (t <= 0.0) return 0.0;
+        if (t >= 1.0) return 1.0;
+        var tt = t * 1.7;
+        var decay = Math.Exp(c.NegZetaOmega0 * tt);
+        var (st, ct) = Math.SinCos(c.OmegaD * tt);
+        var v = 1 - decay * (ct + c.RatioZetaOmega0OverOmegaD * st);
+        return v < 0 ? 0 : v;
+    }
+
+    [Fact]
     public void Prepare_CoefficientFolding_BitIdenticalToOldDerivation()
     {
         // 2.6.7: the folded coefficients must be bit-identical to the old inline

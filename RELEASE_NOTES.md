@@ -1,3 +1,19 @@
+## WinIslands 2.6.9（正式版 / Stable）
+### 更新内容
+
+- 🚀 弹簧预计算求值快路径去掉逐帧 Math.Clamp：EvaluatePrepared 在过去每帧对每个活跃弹簧的 Ease 调用都要先做一次 Math.Clamp(normalized,0,1)（范围检查调用），现改为与 2.6.8 SmoothStep 相同的双比较分支链（if/else-if，NaN 与 ±Inf 仍按原式落到原值），每个活跃弹簧每帧省一次范围检查调用，输出与旧式在所有输入上逐位一致（DoubleToInt64Bits 密集扫描验证）
+- 🧪 测试：新增 1 项——5 组消毒参数 ×（NaN/±Inf/特殊值 + 全域 30000 点密集扫描，含越界尾部）验证 EvaluatePrepared 分支链钳制与旧 Math.Clamp 式逐位一致；共 510 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.9 (Stable)
+### What's New
+
+- 🚀 Spring prepared-evaluation hot path drops the per-frame Math.Clamp: EvaluatePrepared used to run Math.Clamp(normalized,0,1) once per active spring Ease per frame (one range-check call); it now uses the same two-comparison branch chain as the 2.6.8 SmoothStep (if/else-if, NaN and +/-Inf fall through to the original value exactly as before), saving one range-check call per active spring Ease per frame with bit-identical output for every input (DoubleToInt64Bits dense-sweep verified)
+- 🧪 Tests: 1 new case - 5 sanitized param sets x (NaN, +/-Inf, specials plus a 30000-point dense sweep across the whole domain including out-of-range tails) prove EvaluatePrepared's branch-chain clamp is bit-identical to the old Math.Clamp form; 510 unit tests green
+
+---
+
 ## WinIslands 2.6.8（正式版 / Stable）
 ### 更新内容
 
