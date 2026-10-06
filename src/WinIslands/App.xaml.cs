@@ -39,6 +39,7 @@ public partial class App : Application
     private ScreenCaptureMonitor? _screenCapture;
     private FullScreenMonitor? _fullScreenMonitor;
     private SessionSwitchEventHandler? _sessionSwitchHandler;   // 锁屏自动隐藏：SessionSwitch 订阅句柄
+    private PowerModeChangedEventHandler? _powerModeHandler;   // 2.2.7 系统挂起/恢复：动画时钟重同步句柄
     private readonly DispatcherTimer _themeScheduleTimer = new() { Interval = TimeSpan.FromSeconds(30) }; // 定时明暗切换：每 30 秒检查一次
     private readonly DispatcherTimer _stateSaveTimer = new() { Interval = TimeSpan.FromSeconds(30) }; // 周期性保存状态（崩溃恢复）
     private bool? _lastScheduledDark;   // 上次应用的定时深色状态，避免无变化时重复 Apply
@@ -519,6 +520,17 @@ AppPaths.EnsureDirectories();
         SystemEvents.SessionSwitch += _sessionSwitchHandler;
 
         // ── 多显示器 DPI/分辨率变化动态适配：显示器插拔或分辨率/DPI 变化时重建窗口 ──
+        // ── 2.2.7 系统挂起/恢复：重建动画时钟基线 ──
+        // 挂起期间渲染钩子停止，恢复瞬间 Stopwatch 与首帧间隔会出现巨帧；
+        // 恢复时立即重置弹簧节拍器基线，动画从恢复后的第一帧平滑起步、不跳变。
+        _powerModeHandler = (_, e) =>
+        {
+            if (e.Mode != PowerModes.Resume) return;
+            try { SpringTicker.ResetBaseline(); }
+            catch (Exception ex) { AppLogger.Error("PowerModeChanged resume resync failed", ex); }
+        };
+        SystemEvents.PowerModeChanged += _powerModeHandler;
+
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) =>
         {
             Dispatcher.BeginInvoke(new Action(() =>
@@ -956,6 +968,8 @@ AppPaths.EnsureDirectories();
             _singleInstance?.Dispose();
             if (_sessionSwitchHandler is not null)
                 SystemEvents.SessionSwitch -= _sessionSwitchHandler;
+            if (_powerModeHandler is not null)
+                SystemEvents.PowerModeChanged -= _powerModeHandler;
             _themeScheduleTimer.Stop();
             _stateSaveTimer.Stop();
             _miniPlayer?.Close();

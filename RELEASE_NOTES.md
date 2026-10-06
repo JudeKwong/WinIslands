@@ -1,3 +1,21 @@
+## WinIslands 2.2.7（正式版 / Stable）
+### 更新内容
+
+- **🔄 系统挂起/恢复动画时钟自动重同步**：新增独立的帧节拍器 FrameClock——挂起、调试断点等巨帧恢复时不再把旧基线带入，弹簧从恢复后的第一帧平滑起步、不积压回放、不跳变
+- **🔧 SpringTicker 重构为帧节拍状态机**：帧间隔平滑（EWMA）、低功耗 60 FPS 降频、巨帧重同步统一收敛到纯逻辑 FrameClock，渲染钩子更精简，动画帧步长更稳定
+- **🧪 回归测试**：新增 FrameClock 专项测试（正常 120fps 节奏、低功耗 60fps 降频、挂起巨帧重同步、时钟倒退/基线重置防护），共 311 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.7 (Stable)
+### What's New
+
+- **🔄 Automatic animation-clock resync on system suspend/resume**: a new standalone FrameClock frame-pacing state machine detects huge idle gaps (sleep, debugger breaks) and rebuilds the timing baseline, so springs resume from the first post-resume frame with a small clean step - no backlog replay, no jump
+- **🔧 SpringTicker refactored onto the frame-pacing state machine**: EWMA frame smoothing, low-power 60 FPS capping and gap resync are consolidated into pure, unit-testable FrameClock logic; the single render hook is leaner and frame steps are steadier
+- **🧪 Regression**: new FrameClock tests (120fps cadence, 60fps low-power cap, huge-gap resync, backwards-clock and baseline-reset guards) - 311 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.6（正式版 / Stable）
 ### 更新内容
 

@@ -255,10 +255,8 @@ public static class SpringTicker
 {
     private static readonly List<IOSSpring> _active = new();
     private static readonly Stopwatch _clock = Stopwatch.StartNew();
-    private static double _lastSeconds;
-    private static double _smoothDt;   // 帧间隔指数移动平均（秒），掉帧时弹簧步伐平滑用
+    private static readonly FrameClock _frameClock = new();  // 2.2.7：帧节拍状态机（平滑/降频/挂起重同步）
     private static bool _hooked;
-    private static double _nextFrameTime;  // 低功耗降频的帧截止时刻（2.3.0）
     /// <summary>低功耗模式：将弹簧动画帧率上限降至 60 FPS（App 在设置变化时更新）。</summary>
     public static bool CapAt60Fps;
 
@@ -268,9 +266,7 @@ public static class SpringTicker
     {
         if (!_hooked)
         {
-            _lastSeconds = _clock.Elapsed.TotalSeconds;
-            _smoothDt = 0; // 新的动画会话：清除上次帧间隔统计，重建平滑基线
-            _nextFrameTime = _lastSeconds;
+            _frameClock.ResetBaseline(_clock.Elapsed.TotalSeconds); // 新的动画会话：重建平滑基线
             CompositionTarget.Rendering += OnRendering;
             _hooked = true;
         }
@@ -287,6 +283,9 @@ public static class SpringTicker
         }
     }
 
+    /// <summary>系统挂起/恢复后由应用层调用：立即重建帧节拍基线，动画从恢复后的第一帧平滑起步、不巨跳。</summary>
+    public static void ResetBaseline() => _frameClock.ResetBaseline(_clock.Elapsed.TotalSeconds);
+
     /// <summary>立即完成所有活跃弹簧（窗口关闭时清理）。</summary>
     public static void CompleteAll()
     {
@@ -297,25 +296,9 @@ public static class SpringTicker
     private static void OnRendering(object? sender, EventArgs e)
     {
         if (_active.Count == 0) return;
-        var now = _clock.Elapsed.TotalSeconds;
-        if (CapAt60Fps && !AnimationFrameRate.ShouldProcessFrame(now, ref _nextFrameTime, AnimationFrameRate.StandardForLowPower))
-        {
-            _lastSeconds = now; // 跳过的帧也推进基准，避免恢复后 dt 巨帧
-            return;
-        }
-        var dt = now - _lastSeconds;
-        _lastSeconds = now;
-        // 防止挂起恢复/调试断点造成巨帧跳变
-        if (dt <= 0 || dt > 0.1) dt = 1.0 / 60.0;
-
-        // 帧间隔平滑（2.0.6）：偶发一帧卡顿（GC/合成器抖动）时弹簧步伐保持平顺。
-        // iOS 的 CoreAnimation 由渲染服务统一调度，单帧抖动不会让动画跳一下；
-        // 这里对真实帧间隔做指数移动平均（EWMA），并限制单帧步长不超过均值的 1.5 倍，
-        // 掉帧瞬间弹簧仍按近似节奏推进，视觉上连续不突跳。
-        if (_smoothDt <= 0) _smoothDt = dt;
-        else _smoothDt = _smoothDt * 0.85 + dt * 0.15;
-        var maxStep = Math.Max(1.0 / 240.0, _smoothDt * 1.5);
-        if (dt > maxStep) dt = maxStep;
+        // 2.2.7：帧间隔状态机收敛到 FrameClock（EWMA 平滑 / 低功耗 60FPS 降频 / 挂起巨帧自动重同步）
+        var dt = _frameClock.Step(_clock.Elapsed.TotalSeconds, CapAt60Fps);
+        if (dt <= 0) return; // 低功耗降频跳过本帧
 
         // 倒序遍历，允许 Tick 内部 Complete 摘除
         for (var i = _active.Count - 1; i >= 0; i--)
