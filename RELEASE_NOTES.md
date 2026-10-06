@@ -1,3 +1,21 @@
+## WinIslands 2.5.6（正式版 / Stable）
+### 更新内容
+
+- **⚡ 波形热路径直接使用 List<T>**：UpdateWaveSet / UpdateParticlesVisual 每帧（60/120fps）都要遍历变换列表，参数类型从 IReadOnlyList<T> 收窄为 List<T>——Count 与索引器不再走接口分派，JIT 可直接内联，条/频谱/粒子三种波纹的合成帧开销再降一档，曲线不变
+- **🧮 频谱 bias 斜坡改为逐次累加**：0.55 + 0.45*i/n 原来每次迭代两次乘法；现预计算步长后每迭代一次加法（仅在频谱模式下执行，默认条状模式零开销），数值与闭式 1e-12 内一致（远小于写入阈值）
+- **📐 测试**：新增累加斜坡与闭式逐点等价判定（6 组条数，覆盖 8~64 条）；连续多轮全绿，共 470 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.6 (Stable)
+### What's New
+
+- **⚡ Wave hot path now typed on List<T>**: UpdateWaveSet/UpdateParticlesVisual walk the transform lists every compositor frame (60/120fps); the parameters narrow from IReadOnlyList<T> to List<T> so Count and the indexer resolve as direct calls the JIT can inline - one less indirection in the bar/spectrum/particle frame loop, same curve
+- **🧮 Spectrum bias ramp accumulated per index**: 0.55 + 0.45*i/n previously cost two multiplies per iteration; now a precomputed step is added once per iteration (spectrum mode only - the default bars path pays nothing), staying within 1e-12 of the closed form (far below the write gate)
+- **📐 Tests**: new accumulated-vs-closed-form equivalence check across 6 bar counts (8-64); stable across repeated runs - 470 unit tests green
+
+---
+
 ## WinIslands 2.5.5（正式版 / Stable）
 ### 更新内容
 

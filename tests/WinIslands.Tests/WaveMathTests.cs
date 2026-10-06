@@ -206,4 +206,28 @@ public sealed class WaveMathTests
         }
     }
 
+    [Theory]
+    [InlineData(8)]
+    [InlineData(12)]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(48)]
+    [InlineData(64)]
+    public void BiasRamp_AccumulatedMatchesClosedForm(int n)
+    {
+        // v2.5.6: 频谱 bias 斜坡改为每迭代累加（ramp += 0.45/n），
+        // 与原 0.55 + 0.45*i/n 闭式逐点等价：累加误差被 1e-12 界住，
+        // 远小于写入阈值（ScaleEpsilon=4e-4），视觉与数值均无差异。
+        var invN = 1.0 / n;
+        var rampStep = 0.45 * invN;
+        var accumulated = 0.55;
+        for (var i = 0; i < n; i++)
+        {
+            var closed = 0.55 + 0.45 * i * invN;
+            Assert.True(Math.Abs(accumulated - closed) < 1e-12,
+                $"n={n} i={i}: accumulated={accumulated:R} closed={closed:R}");
+            accumulated += rampStep;
+        }
+    }
+
 }

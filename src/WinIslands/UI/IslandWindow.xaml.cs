@@ -2008,7 +2008,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void UpdateWaveSet(IReadOnlyList<ScaleTransform> bars, double level, double t, double alpha, double height, double bias = 0)
+    private void UpdateWaveSet(List<ScaleTransform> bars, double level, double t, double alpha, double height, double bias = 0)
     {
         var n = bars.Count;
         if (n == 0) return;
@@ -2021,6 +2021,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var ampB = (0.14 + 0.66 * level) * height;   // bias（谱状）模式的振幅系数
         var baseB = 0.05 * height;
         var minClamp = bias > 0 ? 0.05 : 0.08;
+        // 2.5.6: bias 斜坡预计算——每迭代一次加法替代两次乘法（0.55+0.45*i/n），默认 Bars 路径不执行
+        var rampStep = 0.45 * invN;
+        var ramp = 0.55;
         for (var i = 0; i < n; i++)
         {
             var sc = bars[i];
@@ -2029,7 +2032,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveOffsets09);
                 if (bias > 0)
-                    target = Math.Clamp(baseB + ampB * wave * (0.55 + 0.45 * i * invN), 0.05, 1.0);
+                    target = Math.Clamp(baseB + ampB * wave * ramp, 0.05, 1.0);
                 else
                     target = Math.Clamp(baseA + ampA * wave, 0.08, 1.0);
             }
@@ -2037,6 +2040,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             {
                 target = minClamp;
             }
+            if (bias > 0) ramp += rampStep;
             // 2.3.5: 亚像素写入去重——单帧位移量小于阈值时跳过属性写入，
             // 歌曲节拍飘动的微小蠕动不再每秒触发合成线程的脏标记，视觉不变但帧节奏更稳
             if (!double.IsFinite(sc.ScaleY)) { sc.ScaleY = target; continue; }
@@ -2170,7 +2174,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ring.ScaleY = next;
     }
 
-    private void UpdateParticlesVisual(IReadOnlyList<TranslateTransform> parts, double level, double t, double alpha, double maxY)
+    private void UpdateParticlesVisual(List<TranslateTransform> parts, double level, double t, double alpha, double maxY)
     {
         var n = parts.Count;
         if (n == 0) return;
