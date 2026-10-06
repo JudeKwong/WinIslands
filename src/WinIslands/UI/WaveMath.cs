@@ -27,4 +27,11 @@ internal static class WaveMath
         if (!double.IsFinite(target) || !double.IsFinite(alpha)) return false;
         return Math.Abs((target - current) * alpha) >= epsilon;
     }
+
+    /// <summary>指数平滑的下一帧值（纯函数，2.3.9）：current + (target-current)*alpha；任一输入非法时保持当前值不变。</summary>
+    internal static double EaseToward(double current, double target, double alpha)
+    {
+        if (!double.IsFinite(current) || !double.IsFinite(target) || !double.IsFinite(alpha)) return current;
+        return current + (target - current) * alpha;
+    }
 }

@@ -69,4 +69,22 @@ public sealed class WaveMathTests
     {
         Assert.Equal(expected, WaveMath.ShouldWriteEased(current, target, alpha, WaveMath.ScaleEpsilon));
     }
+
+    [Theory]
+    [InlineData(0.0, 100.0, 0.5, 50.0)]
+    [InlineData(0.0, 100.0, 1.0, 100.0)]
+    [InlineData(10.0, 100.0, 0.0, 10.0)]
+    [InlineData(-10.0, 10.0, 0.25, -5.0)]
+    public void EaseToward_BlendsTowardTarget(double current, double target, double alpha, double expected)
+        => Assert.Equal(expected, WaveMath.EaseToward(current, target, alpha), 9);
+
+    [Fact]
+    public void EaseToward_NonFiniteInput_KeepsCurrent()
+    {
+        // 任一输入非法：保持当前值不变，绝不把 NaN/Inf 写进渲染
+        Assert.Equal(5.0, WaveMath.EaseToward(5.0, double.NaN, 0.5), 9);
+        Assert.Equal(5.0, WaveMath.EaseToward(5.0, 10.0, double.PositiveInfinity), 9);
+        Assert.True(double.IsNaN(WaveMath.EaseToward(double.NaN, 10.0, 0.5)));
+    }
+
 }

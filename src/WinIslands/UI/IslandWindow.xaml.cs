@@ -187,6 +187,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private string? _appliedWaveStyle;
     private double _cachedWaveHeight = 1.0;
     private int _cachedWaveFps = 120;                 // 当前波形帧率目标
+    private bool _cachedWaveLowPower;                 // 2.3.9: 当前波形低功耗开关（OnWaveFrame 热路径直接读取，免每帧 setting 属性访问）
     private readonly System.Diagnostics.Stopwatch _waveClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<ScaleTransform> _waveBarsExpanded = new();
     private readonly List<ScaleTransform> _waveBarsCompact = new();
@@ -1878,6 +1879,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ApplyWaveStyleVisibility();
         var lowPower = _settings.Current.LowPowerMode;
         _cachedWaveFps = AnimationFrameRate.Current(lowPower);
+        _cachedWaveLowPower = lowPower; // 2.3.9: 同步到缓存，供 OnWaveFrame 每帧直接读取
         // 三态：关闭 / 普通（CompositionTarget.Rendering 跟随显示器）/ 低功耗定时器（~120fps）
         var wantTimer = on && lowPower;
         var wantComposition = on && !lowPower;
@@ -1939,7 +1941,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 return;
             }
             var now = _waveClock.Elapsed.TotalSeconds;
-            if (!_settings.Current.LowPowerMode)
+            if (!_cachedWaveLowPower)
             {
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, _cachedWaveFps)) return;
             }
@@ -2132,8 +2134,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (!double.IsFinite(ring.ScaleX)) { ring.ScaleX = target; ring.ScaleY = target; return; }
         // 2.3.5: 亚像素写入去重（同 UpdateWaveSet）
         if (!WaveMath.ShouldWriteEased(ring.ScaleX, target, alpha, WaveMath.ScaleEpsilon)) return;
-        ring.ScaleX += (target - ring.ScaleX) * alpha;
-        ring.ScaleY = ring.ScaleX;
+        // 2.3.9: 一次求值写入两个轴，不再把刚写入的 ScaleX 读回给 ScaleY
+        var next = WaveMath.EaseToward(ring.ScaleX, target, alpha);
+        ring.ScaleX = next;
+        ring.ScaleY = next;
     }
 
     private void UpdateParticlesVisual(IReadOnlyList<TranslateTransform> parts, double level, double t, double alpha, double maxY)

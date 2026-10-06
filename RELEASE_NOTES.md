@@ -1,3 +1,21 @@
+## WinIslands 2.3.9（正式版 / Stable）
+### 更新内容
+
+- **⚡ 声波纹帧循环去属性访问**：OnWaveFrame 每帧不再访问 _settings.Current.LowPowerMode，改为读取 RefreshWave 同步的低功耗缓存标志——媒体播放时的波形合成帧少一次设置对象属性链读取
+- **⚡ 环形波纹一次求值双轴写入**：环形波纹的 ScaleX 缓动提取为 WaveMath.EaseToward 纯函数，一次求值后同时写入 ScaleX/ScaleY，不再把刚写入的值读回给另一轴
+- **🧪 回归测试**：新增 EaseToward 纯函数测试 5 项（中点/整步/零步/负向/非法输入保持），共 411 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.9 (Stable)
+### What's New
+
+- **⚡ Wave frame loop drops per-frame settings access**: OnWaveFrame no longer reads _settings.Current.LowPowerMode every frame - it uses a low-power flag cached by RefreshWave - one fewer settings property-chain load per wave composite frame during media playback
+- **⚡ Ring visual eased once, written to both axes**: the ring easing moved into a pure WaveMath.EaseToward helper - the next scale is computed once and written to ScaleX/ScaleY, avoiding a read-back of the value just written
+- **🧪 Regression**: 5 new EaseToward tests (midpoint, full step, zero step, negative, non-finite keeps current) - 411 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.8（正式版 / Stable）
 ### 更新内容
 
