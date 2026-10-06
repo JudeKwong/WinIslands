@@ -56,6 +56,10 @@ public sealed class IOSSpring
     private double _cVOver1; // 2.6.1: 过阻尼速度系数 -lambda1*C1（重建时预计算）
     private double _cVOver2; // 2.6.1: 过阻尼速度系数 -lambda2*C2（重建时预计算）
     private double _cVCrit;  // 2.6.1: 临界阻尼速度系数 k*omega0（重建时预计算）
+    private double _cNegAlpha; // 2.6.3: 欠阻尼 -alpha（重建时预计算，(-a)·t ≡ -(a·t) 逐位一致）
+    private double _cNegL1;    // 2.6.3: 过阻尼 -lambda1（重建时预计算）
+    private double _cNegL2;    // 2.6.3: 过阻尼 -lambda2（重建时预计算）
+    private double _cNegOmega; // 2.6.3: 临界阻尼 -omega0（重建时预计算）
     // 2.4.1: 阻尼分支在系数重建时缓存为 int 模式——Solve（每活跃弹簧每帧）按 switch 直接命中，
     // 不再逐帧执行两次 Zeta 双精度比较与常数减法。
     private int _solveMode; // 0 = 欠阻尼, 1 = 过阻尼, 2 = 临界
@@ -258,6 +262,7 @@ public sealed class IOSSpring
             // 欠阻尼
             _solveMode = ModeUnder;
             _cAlpha = Zeta * Omega0;
+            _cNegAlpha = -_cAlpha; // 2.6.3: 衰减指数取负折叠到重建时
             _cB = (_v0 + _cAlpha * _y0) / OmegaD;
             _cV1 = _cB * OmegaD - _y0 * _cAlpha;
             _cV2 = _y0 * OmegaD + _cB * _cAlpha;
@@ -273,13 +278,15 @@ public sealed class IOSSpring
             _oC1 = _y0 - _oC2;
             _cVOver1 = -_oL1 * _oC1; // 2.6.1: 速度系数预计算，Solve 每帧少 2 次乘法
             _cVOver2 = -_oL2 * _oC2;
+            _cNegL1 = -_oL1; _cNegL2 = -_oL2; // 2.6.3: 指数取负折叠到重建时
         }
         else
         {
             // 临界阻尼
             _solveMode = ModeCritical;
             _kCrit = _v0 + Omega0 * _y0;
-            _cVCrit = _kCrit * Omega0; // 2.6.1: 速度系数预计算，Solve 每帧少 1 次乘法
+            _cVCrit = _kCrit * Omega0;
+            _cNegOmega = -Omega0; // 2.6.3: 衰减指数取负折叠到重建时
         }
     }
 
@@ -291,7 +298,7 @@ public sealed class IOSSpring
             case ModeUnder:
             {
                 // 欠阻尼：y = e^(-alpha·t)·(A·cos(ωd·t) + B·sin(ωd·t))
-                var decay = Math.Exp(-_cAlpha * t);
+                var decay = Math.Exp(_cNegAlpha * t);           // 2.6.3: -alpha 折叠到重建时（(-a)·t ≡ -(a·t) 逐位一致）
                 var (st, ct) = Math.SinCos(OmegaD * t); // 单条 FSINCOS 指令对，同参数只换算一次
                 var y = decay * (_y0 * ct + _cB * st);
                 var v = decay * (_cV1 * ct - _cV2 * st);
@@ -302,8 +309,8 @@ public sealed class IOSSpring
             case ModeOver:
             {
                 // 过阻尼：y = C1·e^(-λ1·t) + C2·e^(-λ2·t)
-                var e1 = Math.Exp(-_oL1 * t);
-                var e2 = Math.Exp(-_oL2 * t);
+                var e1 = Math.Exp(_cNegL1 * t);              // 2.6.3: -lambda1 折叠到重建时
+                var e2 = Math.Exp(_cNegL2 * t);              // 2.6.3: -lambda2 折叠到重建时
                 var y = _oC1 * e1 + _oC2 * e2;
                 var v = _cVOver1 * e1 + _cVOver2 * e2; // 2.6.1: 系数重建时预计算（vcoef2 已带符号，相加与旧公式逐位一致）
                 Value = Target + y;
@@ -313,7 +320,7 @@ public sealed class IOSSpring
             default:
             {
                 // 临界阻尼：y = e^(-ω0·t)·(y0 + (v0 + ω0·y0)·t)
-                var decay = Math.Exp(-Omega0 * t);
+                var decay = Math.Exp(_cNegOmega * t);        // 2.6.3: -omega0 折叠到重建时
                 var y = decay * (_y0 + _kCrit * t);
                 var v = decay * (_v0 - _cVCrit * t); // 2.6.1: 系数重建时预计算，逐位与旧公式一致
                 Value = Target + y;

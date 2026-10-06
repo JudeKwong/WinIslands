@@ -626,6 +626,17 @@ public sealed class IOSSpringTests
         return (oC1 * e1 + oC2 * e2, -oL1 * oC1 * e1 - oL2 * oC2 * e2);
     }
 
+    private static (double y, double v) OldUnderdamped(double omega0, double omegaD, double zeta, double y0, double v0, double t)
+    {
+        var alpha = zeta * omega0;
+        var b = (v0 + alpha * y0) / omegaD;
+        var decay = Math.Exp(-alpha * t);
+        var (st, ct) = Math.SinCos(omegaD * t);
+        var y = decay * (y0 * ct + b * st);
+        var v = decay * ((b * omegaD - y0 * alpha) * ct - (y0 * omegaD + b * alpha) * st);
+        return (y, v);
+    }
+
     private static (double y, double v) OldCritical(double omega0, double y0, double v0, double t)
     {
         var k = v0 + omega0 * y0;
@@ -707,6 +718,65 @@ public sealed class IOSSpringTests
             }
         }
     }
+    [Fact]
+    public void Underdamped_FoldedNegCoefficients_BitIdenticalToOldFormula()
+    {
+        // 2.6.3: 欠抑制 exp(-alpha*t) 的取负折叠到重建时（_cNegAlpha），与旧逐帧 -_cAlpha*t 逐位一致
+        const double zeta = 0.82, resp = 0.45;
+        const double from = 0, to = 120, v0 = 240;
+        var s = IOSSpring.Create(zeta, resp, from: from, to: to, initialVelocity: v0);
+        s.Stop(); // 摘离驱动器，直接驱动私有 Solve
+        var y0 = from - to;
+        var ts = new[] { 1e-4, 1e-3, 1.0 / 120, 1.0 / 60, 0.03, 0.1, 0.3, 0.8, 2.0 };
+        foreach (var t in ts)
+        {
+            InvokeSolve(s, t);
+            var (ey, ev) = OldUnderdamped(s.Omega0, s.OmegaD, s.Zeta, y0, v0, t);
+            Assert.Equal(Bits(to + ey), Bits(s.Value));
+            Assert.Equal(Bits(ev), Bits(s.Velocity));
+        }
+    }
 
+    [Fact]
+    public void NegatedCoefficientMultiplication_IsBitIdenticalToNegatedProduct()
+    {
+        // 2.6.3: IEEE 754 符号位独立——(-a)·t ≡ -(a·t) 逐位一致，负号折叠不改变任何结果
+        var rnd = new Random(20261006);
+        for (var i = 0; i < 5000; i++)
+        {
+            var a = rnd.NextDouble() * 200 - 100;
+            var t = rnd.NextDouble() * 0.5;
+            Assert.Equal(Bits(-(a * t)), Bits(-a * t));
+        }
+        Assert.Equal(Bits(-(0.0 * 1.5)), Bits(-0.0 * 1.5));
+        Assert.Equal(Bits(-(double.PositiveInfinity * 2)), Bits(-double.PositiveInfinity * 2));
+    }
+
+    [Fact]
+    public void SolveDenseSweep_Underdamped_EquivalentToOldFormula()
+    {
+        // 2.6.3: 密集扫描欠抑制——折叠取负后与旧公式在整个收敛区间逐位一致
+        var cases = new (double zeta, double resp, double from, double to, double v0)[]
+        {
+            (0.9, 0.5, 0, 340, 0),
+            (0.82, 0.45, 0, 120, 240),
+            (0.6, 0.3, -80, 80, 800),
+            (0.983, 0.25, 1, 0, -0.3),
+            (0.2, 0.7, 50, 10, -50),
+        };
+        foreach (var (zeta, resp, from, to, v0) in cases)
+        {
+            var s = IOSSpring.Create(zeta, resp, from: from, to: to, initialVelocity: v0);
+            s.Stop();
+            var y0 = from - to;
+            var step = 0.0017; // 非整步长扫收敛区间
+            for (var t = 0.0001; t <= 4.0; t += step)
+            {
+                InvokeSolve(s, t);
+                var (ey, ev) = OldUnderdamped(s.Omega0, s.OmegaD, s.Zeta, y0, v0, t);
+                Assert.Equal(Bits(to + ey), Bits(s.Value));
+                Assert.Equal(Bits(ev), Bits(s.Velocity));
+            }
+        }
+    }
 }
-

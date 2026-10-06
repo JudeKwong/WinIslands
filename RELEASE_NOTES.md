@@ -1,3 +1,19 @@
+## WinIslands 2.6.3（正式版 / Stable）
+### 更新内容
+
+- 🚀 春簧解析解负号系数预计算：三种阻尼分支的衰减指数参数（欠阻尼 -alpha、过阻尼 -λ1/-λ2、临界 -ω0）原为每帧在 Solve 热路径现场取负后乘以 t；现随系数重建一次性预计算，每个活跃弹簧每帧省 1~3 次符号翻转，输出与旧逐帧公式逐位一致（DoubleToInt64Bits：IEEE 754 符号位独立，(-a)·t ≡ -(a·t)）
+- 🧪 测试：新增 3 项——欠阻尼折叠后与旧公式 9 个时间点逐位等价、纯数学属性验证 5000 组随机 (-a)·t ≡ -(a·t) 及特殊值、欠阻尼 5 组参数×非整步长密集扫描整个收敛区间逐位一致；共 494 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.3 (Stable)
+### What’s New
+
+- 🚀 Spring analytic-solution negated coefficients precomputed: the decay-exponent parameters of all three damping branches (under-damped -alpha, over-damped -λ1/-λ2, critical -ω0) were negated and multiplied by t on the Solve hot path every frame; the negation is now folded into the coefficient rebuild, saving 1-3 sign flips per active spring per frame with bit-identical output (DoubleToInt64Bits - IEEE 754 keeps the sign bit independent, so (-a)·t ≡ -(a·t))
+- 🧪 Tests: 3 new cases - under-damped folded form bit-equal to the old formula at 9 time points, a pure-math property check of 5000 random (-a)·t ≡ -(a·t) pairs plus special values, and a dense non-integer-step sweep of 5 under-damped parameter sets across the whole convergence window; 494 unit tests green
+
+---
+
 ## WinIslands 2.6.2（正式版 / Stable）
 ### 更新内容
 
