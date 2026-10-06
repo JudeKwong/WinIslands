@@ -180,4 +180,35 @@ public sealed class CrossFadeCurvesTests
         Assert.InRange(CrossFadeCurves.ExpandParallaxScaleFrom, 0.95, 1.0);
         Assert.InRange(CrossFadeCurves.CollapseParallaxScaleTo, 0.95, 1.0);
     }
+
+    [Fact]
+    public void SpringResponseConstants_iOSRhythm()
+    {
+        // 2.2.6: shape-spring base responses are now pure constants - expand 0.66s /
+        // collapse 0.56s / compact 0.50s, slower and smoother (iOS liquid morph rhythm);
+        // collapse faster than expand, compact resize fastest, clear hierarchy.
+        var ex = CrossFadeCurves.ExpandShapeResponseSec;
+        var co = CrossFadeCurves.CollapseShapeResponseSec;
+        var cp = CrossFadeCurves.CompactShapeResponseSec;
+        Assert.InRange(ex, 0.60, 0.72);
+        Assert.InRange(co, 0.50, 0.62);
+        Assert.InRange(cp, 0.44, 0.56);
+        Assert.True(co < ex, "collapse should be faster than expand");
+        Assert.True(cp < co, "compact resize should be fastest");
+        // collapse ~= expand * 0.86 (reuse the established rhythm ratio)
+        Assert.InRange(co / ex, 0.80, 0.90);
+    }
+
+    [Fact]
+    public void FadeResponse_NewConstants_TrailsAndLeads()
+    {
+        // 2.2.6: with the new base response constants - expand content fade trails the
+        // shape, collapse content fade leads the shape
+        var exFade = CrossFadeCurves.FadeResponse(CrossFadeCurves.ExpandShapeResponseSec, expand: true);
+        var coFade = CrossFadeCurves.FadeResponse(CrossFadeCurves.CollapseShapeResponseSec, expand: false);
+        Assert.True(exFade > CrossFadeCurves.ExpandShapeResponseSec);
+        Assert.True(coFade < CrossFadeCurves.CollapseShapeResponseSec);
+        Assert.Equal(CrossFadeCurves.ExpandShapeResponseSec * CrossFadeCurves.ExpandContentFactor, exFade, 3);
+        Assert.Equal(CrossFadeCurves.CollapseShapeResponseSec * CrossFadeCurves.CollapseContentFactor, coFade, 3);
+    }
 }

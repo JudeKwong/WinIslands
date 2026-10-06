@@ -19,6 +19,15 @@ public static class CrossFadeCurves
     /// <summary>收起时内容淡出的响应系数：&lt;1 表示先于形变淡出（内容退场后再收拢，底部行不被剪断）。</summary>
     public const double CollapseContentFactor = 0.76;
 
+    /// <summary>展开时卡片形变弹簧的基础响应时长（秒）：0.66s 略慢于历史值，形状缓缓生长、内容跟随后浮现（iOS 液态形变节奏）。</summary>
+    public const double ExpandShapeResponseSec = 0.66;
+
+    /// <summary>收起时卡片形变弹簧的基础响应时长（秒）：0.56s 略慢于历史值，收尾柔和不赶（仍快于展开约 15%，回收更利落）。</summary>
+    public const double CollapseShapeResponseSec = 0.56;
+
+    /// <summary>紧凑态内容变化（切歌/封面/推送）时卡片尺寸弹簧的基础响应时长（秒）：0.50s 平缓过渡，不跳变。</summary>
+    public const double CompactShapeResponseSec = 0.50;
+
     /// <summary>内容透明度弹簧的响应时长（秒）：由卡片形变响应时长换算。</summary>
     public static double FadeResponse(double shapeResponse, bool expand)
     {

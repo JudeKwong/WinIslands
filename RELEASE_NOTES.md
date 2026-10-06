@@ -1,3 +1,20 @@
+## WinIslands 2.2.6（正式版 / Stable）
+### 更新内容
+
+- **🎬 iOS 液态形变节奏再校准：展开/收起更慢更丝滑**：卡片形变弹簧的基础响应从 0.62s/0.52s 微调到 0.66s/0.56s（各放慢约 6~8%），形状生长与收拢更从容、更有呼吸感，文字随卡片缓缓浮现/隐去，不再有“赶”的感觉；紧凑态内容变化（切歌/封面更新/推送）的尺寸弹簧同步放慢到 0.50s，灵动岛在内容切换时平缓伸缩、不跳变
+- **🔧 弹簧参数集中化**：展开/收起/紧凑三组形变响应时长统一收进 CrossFadeCurves 纯函数常量，便于后续微调与回归测试
+- **🧪 回归测试**：新增形变响应节奏（收起≈展开×0.86、紧凑最快）、内容淡入滞后/超前关系等专项测试，共 306 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.6 (Stable)
+### What's New
+
+- **🎬 iOS liquid morph rhythm re-tuned: expand/collapse slower & smoother**: the card shape springs base response is nudged from 0.62s/0.52s to 0.66s/0.56s (~6-8% slower each way), so the shape grows and retreats more calmly with natural breathing room, and text emerges/recedes gently with the card - no more rushed feel; the compact-resize spring (track change/artwork update/push) is also eased to 0.50s, so the island stretches and contracts fluidly on content switches
+- **🔧 Spring parameters centralized**: expand/collapse/compact shape responses now live as pure constants in CrossFadeCurves for easier tuning and regression coverage
+- **🧪 Regression**: new tests for the morph rhythm (collapse ≈ expand × 0.86, compact fastest, fade trails/leads shape) - 306 unit tests total, all green with zero warnings
+
+---
 ## WinIslands 2.2.5（正式版 / Stable）
 ### 更新内容
 

@@ -2625,7 +2625,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     /// <summary>
     /// iOS 真弹簧展开/收起（默认 Spring 动效）：
-    /// 尺寸用欠阻尼/近临界弹簧（展开 ζ=0.86 轻微 Q 弹、收起 ζ=0.97 无回弹，响应 0.62s/0.52s 慢而自然），
+    /// 尺寸用欠阻尼/近临界弹簧（展开 ζ=0.86 轻微 Q 弹、收起 ζ=0.97 无回弹，响应 0.66s/0.56s 慢而自然），
     /// 透明度用临界阻尼弹簧，且与尺寸共用同一帧循环——内容随卡片生长/收拢自然浮现/隐去，
     /// 文字不再"额外弹出"。动画可中途打断：以当前值+速度连续改目标（iOS 打断语义）。
     /// </summary>
@@ -2638,10 +2638,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 用户时长调节：默认 700ms ↔ response≈0.5s；低功耗模式整体加快
         var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
         var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
-        // 展开：轻微 Q 弹（ζ=0.86，过冲约 0.5%，只有 1-2px 的轻回弹），响应 0.62s 更慢更自然；
-        // 收起：近临界（ζ=0.97 几乎无回弹），响应 0.52s 收尾柔和。
+        // 展开：轻微 Q 弹（ζ=0.86，过冲约 0.5%，只有 1-2px 的轻回弹），响应 0.66s 更慢更自然；
+        // 收起：近临界（ζ=0.97 几乎无回弹），响应 0.56s 收尾柔和。
         var zeta = expand ? 0.86 : 0.97;
-        var response = (expand ? 0.62 : 0.52) * durScale * lm;
+        var response = (expand ? CrossFadeCurves.ExpandShapeResponseSec : CrossFadeCurves.CollapseShapeResponseSec) * durScale * lm;
 
         // 清除可能残留的独立缩放/位移动画与交错状态，让内容只随卡片动
         ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
@@ -2775,7 +2775,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             // 欠阻尼参数产生不必要的过冲（2.1.5）。
             var durScale2 = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
             var lm2 = _settings.Current.LowPowerMode ? 0.65 : 1.0;
-            var resp2 = 0.46 * durScale2 * lm2;
+            var resp2 = CrossFadeCurves.CompactShapeResponseSec * durScale2 * lm2;
             if (_cardWSpring?.IsActive == true) { _cardWSpring.Configure(0.96, resp2); _cardWSpring.Retarget(targetWidth); }
             if (_cardHSpring?.IsActive == true) { _cardHSpring.Configure(0.96, resp2); _cardHSpring.Retarget(targetHeight); }
             if (_cardRSpring?.IsActive == true) { _cardRSpring.Configure(0.97, resp2 * 0.85); _cardRSpring.Retarget(ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius)); }
@@ -2797,7 +2797,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardTargetH = targetHeight;
         var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
         var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
-        var response = 0.46 * durScale * lm; // 紧凑尺寸调整略放慢，贴合自然手感
+        var response = CrossFadeCurves.CompactShapeResponseSec * durScale * lm; // 紧凑尺寸调整略放慢，贴合自然手感
         _cardWSpring!.Configure(0.96, response);
         _cardWSpring.Start(ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth), targetWidth);
         _cardHSpring!.Configure(0.96, response);
