@@ -349,7 +349,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private LinearGradientBrush? _tintBrush;               // 封面取色渐变（缓存，避免每帧重建 GC）
     private GradientStop? _tintStop0;
     private GradientStop? _tintStop1;
-    private DateTime _tintPhaseUtc;
+    private long _tintPhaseTicks;
     // 封面取色缓存：避免展开/收起时重复采样同一封面
     private ImageSource? _lastSampledArtwork;
     private System.Windows.Media.Color? _lastSampledColor;                        // 呼吸相位起点
@@ -2243,7 +2243,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _glassAnimSb?.Stop();
             _glassAnimSb = null;
             if (GlassLayer is not null) GlassLayer.Opacity = 0;
-            _tintPhaseUtc = DateTime.UtcNow;
+            _tintPhaseTicks = System.Diagnostics.Stopwatch.GetTimestamp();
             SubscribeTintRendering(true);
         }
         catch
@@ -2278,7 +2278,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         var c = _tintCoverColor;
         if (c is null) { SubscribeTintRendering(false); return; }
-        var t = (DateTime.UtcNow - _tintPhaseUtc).TotalSeconds;
+        var t = (double)(System.Diagnostics.Stopwatch.GetTimestamp() - _tintPhaseTicks) / System.Diagnostics.Stopwatch.Frequency;
         var alpha = 0.85 + 0.06 * (0.5 + 0.5 * Math.Sin(t * 0.35)); // 0.85..0.97 慢周期
         var a = (byte)Math.Round(alpha * 255);
         if (_tintStop0.Color.A != a)

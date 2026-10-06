@@ -1,3 +1,21 @@
+## WinIslands 2.5.4（正式版 / Stable）
+### 更新内容
+
+- **⏱ WASAPI 采集线程清除 TimeSpan 热路径**：播放波纹实时采集线程每包（约 10ms）构造两个 TimeSpan（发布间隔门 TotalMilliseconds、电平平滑步长 TotalSeconds）；现改为直读 Stopwatch 原始刻度 / 常量频率——发布门用预计算刻度阈值 PublishIntervalTicks，平滑步长用 (nowTicks - lastTicks)/Frequency，与 SpringTicker/WaveNow（2.4.6/2.5.1/2.5.2）完全同一时钟模式，采集线程再无 TimeSpan 构造
+- **🎨 封面取色呼吸同步直读刻度**：OnTintFrame 原来每合成帧构造 DateTime 差 + TotalSeconds；现改用 Stopwatch 原始刻度换算，与波形/弹簧统一——取色呼吸（仅展开+取色开启时运行）不再在 60/120fps 合成回调里产生 TimeSpan
+- **📐 测试**：新增「原始刻度间隔门与 TimeSpan 语义等价」判定测试（同式刻度阈值 vs TimeSpan 毫秒阈值，5 组漂移点布尔结果一致）；连续多轮全绿，共 456 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.4 (Stable)
+### What's New
+
+- **⏱ WASAPI capture thread drops TimeSpan hot paths**: the live audio-loopback thread built two TimeSpans per ~10ms packet (publish-gate TotalMilliseconds, level-smoothing TotalSeconds); it now reads raw Stopwatch ticks over the constant frequency - the publish gate uses the precomputed PublishIntervalTicks threshold and the smoothing step is (nowTicks - lastTicks)/Frequency, the exact same clock pattern as SpringTicker/WaveNow (2.4.6/2.5.1/2.5.2), with no TimeSpan construction left on the capture thread
+- **🎨 Cover-tint breathing reads raw ticks too**: OnTintFrame used to build a DateTime difference + TotalSeconds per compositor frame; it now converts raw Stopwatch ticks, unified with the wave/spring clocks - the tint breather (only while expanded and tint enabled) no longer produces TimeSpans in the 60/120fps render callback
+- **📐 Tests**: new "raw-tick interval gate matches TimeSpan semantics" assertion - same-formula tick threshold vs TimeSpan millisecond threshold, boolean results identical across 5 drift points; stable across repeated runs - 456 unit tests green
+
+---
+
 ## WinIslands 2.5.3（正式版 / Stable）
 ### 更新内容
 

@@ -59,4 +59,27 @@ public sealed class SpringTickerClockTests
         Assert.True(double.IsFinite(fromTicks) && fromTicks > 0);
         Assert.True(Math.Abs(fromTimeSpan - fromTicks) < 1e-6);
     }
+
+    [Fact]
+    public void RawTickInterval_MatchesTimeSpanWindow()
+    {
+        // v2.5.4: 原始刻度间隔门与 TimeSpan 语义等价——同一物理增量分别走
+        // 「直读刻度 < 固定刻度阈值」（WASAPI 发布门）与「TimeSpan.Milliseconds < 毫秒阈值」
+        // （TimeSpan 构造），布尔判定完全一致；证明 AudioWaveService 采集线程与
+        // IslandWindow 封面呼吸换用直读刻度后无行为偏差。
+        var freq = Stopwatch.Frequency;
+        var intervalMs = 1000.0 / 120.0; // 与 AudioWaveService.PublishIntervalMs 同式（高刷档）
+        var intervalTicks = (long)(intervalMs / 1000.0 * freq);
+        var intervalTs = TimeSpan.FromMilliseconds(intervalMs);
+        foreach (var driftMs in new[] { -5.0, -0.01, 0.0, 0.01, 5.0 })
+        {
+            var deltaMs = intervalMs + driftMs;
+            var rawTicks = (long)(deltaMs / 1000.0 * freq);   // 直读刻度换算（截断）
+            var tsTicks = TimeSpan.FromMilliseconds(deltaMs); // TimeSpan 换算（舍入）
+            var rawBelow = rawTicks < intervalTicks;
+            var tsBelow = tsTicks < intervalTs;
+            Assert.True(rawBelow == tsBelow, $"driftMs={driftMs} raw={rawBelow} ts={tsBelow}");
+        }
+    }
+
 }

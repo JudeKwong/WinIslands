@@ -39,11 +39,13 @@ public sealed class AudioWaveService : IDisposable
     private readonly Random _rng = new();
     private volatile bool _syncEnabled = true;   // 跟随音乐节奏：true=真实音频采集，false=节拍模拟
     private double _sensitivity = 1.0;       // 灵敏度倍率（0.2~3.0），用 Volatile 读写保证跨线程可见
-    private DateTime _lastUpdate = DateTime.UtcNow;
+    private long _lastUpdateTicks = Stopwatch.GetTimestamp();
     // 2.1.8：发布频率跟随显示器刷新率（120Hz 屏约 8.3ms 一次、60Hz 屏 16ms），与 UI 合成帧对齐，
     // 波纹在高刷屏上不再以 60Hz 跳变；低功耗模式 UI 端以 60Hz 轮询，发布更快无副作用。
     private static readonly double PublishIntervalMs = 1000.0 / Math.Max(60, AnimationFrameRate.DisplayTarget);
-    private DateTime _lastPublish = DateTime.UtcNow;
+    // v2.5.4: 发布门用原始刻度阈值（直读刻度 / 常量频率），与 UI 端 SpringTicker/WaveNow 同一时钟模式，免 TimeSpan 构造
+    private static readonly long PublishIntervalTicks = (long)(PublishIntervalMs / 1000.0 * Stopwatch.Frequency);
+    private long _lastPublishTicks = Stopwatch.GetTimestamp();
 
     /// <summary>当前波纹强度（0..1），UI 每帧轮询。</summary>
     public double Level => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _levelBits));
@@ -251,13 +253,13 @@ public sealed class AudioWaveService : IDisposable
 
                     // WASAPI 数据包到达间隔约 10ms，而 UI 目标 60Hz（约 16ms 发布一次）：
                     // 若距上次发布不足 16ms 则直接释放缓冲并继续，避免波纹发布频率超过 60Hz 上限。
-                    var nowUtc = DateTime.UtcNow;
-                    if ((nowUtc - _lastPublish).TotalMilliseconds < PublishIntervalMs)
+                    var publishTicks = Stopwatch.GetTimestamp();
+                    if (publishTicks - _lastPublishTicks < PublishIntervalTicks)
                     {
                         cap.ReleaseBuffer(frames);
                         continue;
                     }
-                    _lastPublish = nowUtc;
+                    _lastPublishTicks = publishTicks;
 
                     var totalBytes = (int)(frames * blockAlign);
                     totalBytes = Math.Min(totalBytes, 1 << 20); // prevent abnormal oversized packets
@@ -270,9 +272,9 @@ public sealed class AudioWaveService : IDisposable
                         released = true;
 
                         double raw = ComputeEnvelope(bytes, fmt, channels, step, totalBytes) * Volatile.Read(ref _sensitivity);
-                        var now = DateTime.UtcNow;
-                        var dt = (now - _lastUpdate).TotalSeconds;
-                        _lastUpdate = now;
+                        var nowTicks = Stopwatch.GetTimestamp();
+                        var dt = (double)(nowTicks - _lastUpdateTicks) / Stopwatch.Frequency;
+                        _lastUpdateTicks = nowTicks;
                         if (dt <= 0 || dt > 0.25) dt = 0.02;
                         var tau = raw >= _level ? 0.025 : 0.14;
                         var alpha = 1.0 - Math.Exp(-dt / tau);
