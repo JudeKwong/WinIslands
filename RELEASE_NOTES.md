@@ -1,3 +1,19 @@
+## WinIslands 2.7.0（正式版 / Stable）
+### 更新内容
+
+- 🚀 卡拉OK停滞冻结外推上限去掉内层冗余钳制：StallAwareLead 仅在 0.35s < 距最近更新 < 0.65s 的收窄窗口内做线性内插，前置两个早退分支（<0.35s 返全额、≥0.65s 归零）已保证窗口内 f 严格落在 (0,1)，渲染层却仍在每帧调用 Math.Max(0.0, Math.Min(1.0, f)) 做两次范围检查；现把 f 直接乘入 fullLead（与 2.6.8/2.6.9 的 SmoothStep/EvaluatePrepared、2.6.6 的 blend 钳制去除同族），每个停滞检查帧省一次范围检查调用，输出在全部可达输入上逐位一致（4097 点密集扫描验证）
+- 🧪 测试：新增 2 项——内窗 (0.35, 0.65) 4097 点密集扫描证明新式输出与旧式钳制公式逐位一致且等于未钳制公式；非有限边界行为锁定（−Inf 归全额、+Inf 归零、NaN 语义保持一致）；共 512 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.0 (Stable)
+### What's New
+
+- 🚀 Karaoke stall-freeze extrapolation lead drops the redundant inner clamp: StallAwareLead only runs its linear interpolation inside the 0.35s < time-since-last-update < 0.65s narrowing window, where the two early-return branches (<0.35s returns full lead, >=0.65s returns 0) already guarantee f lies strictly in (0,1), yet the render path still wrapped it in Math.Max(0.0, Math.Min(1.0, f)) (two range-check calls) every frame; f now feeds straight into fullLead (same family as the 2.6.8/2.6.9 SmoothStep/EvaluatePrepared and 2.6.6 blend clamp removals), saving one range-check call per stall-check frame with bit-identical output on every reachable input (4097-point dense-sweep verified)
+- 🧪 Tests: 2 new cases - a 4097-point dense sweep inside the (0.35, 0.65) window proving the new output is bit-identical to the old clamped formula and exactly equal to the unclamped formula, plus a non-finite boundary case locking in -Inf -> full lead, +Inf -> 0 and unchanged NaN semantics; 512 unit tests green
+
+---
+
 ## WinIslands 2.6.9（正式版 / Stable）
 ### 更新内容
 

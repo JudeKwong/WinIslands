@@ -788,6 +788,8 @@ public class KaraokeTextBlock : TextBlock
         if (sinceLastUpdate <= StallGraceStartSeconds) return fullLead;
         if (sinceLastUpdate >= StallFreezeSeconds) return 0.0;
         var f = (StallFreezeSeconds - sinceLastUpdate) / (StallFreezeSeconds - StallGraceStartSeconds);
-        return fullLead * Math.Max(0.0, Math.Min(1.0, f));
+        // 2.7.0: 分支前置判断保证 grace < since < freeze 时 f ∈ (0,1)，去掉每帧一次的 Math.Min/Math.Max
+        // 范围检查（与 2.6.6 blend / 2.6.8-2.6.9 SmoothStep 同类改动），输出在位级别与旧式钳制一致。
+        return fullLead * f;
     }
 }

@@ -115,6 +115,33 @@ public class KaraokeTimelineTests
     }
 
     [Fact]
+    public void StallAwareLead_InnerWindow_RawFactorMatch()
+    {
+        // 2.7.0: 内层分支 (grace < since < freeze) 去掉 Math.Min/Math.Max 钳制后，
+        // 输出必须与旧式 fullLead * Math.Max(0.0, Math.Min(1.0, f)) 完全一致（逐位）。
+        const double grace = 0.35, freeze = 0.65, fullLead = 0.5;
+        const int steps = 4096;
+        for (var i = 0; i <= steps; i++)
+        {
+            var since = grace + (freeze - grace) * (i + 0.5) / (steps + 1.0); // 严格开区间内
+            var f = (freeze - since) / (freeze - grace);
+            var expected = fullLead * Math.Max(0.0, Math.Min(1.0, f));
+            var actual = KaraokeTextBlock.StallAwareLead(since, fullLead);
+            Assert.Equal(expected, actual); // 二进制相等
+            Assert.Equal(fullLead * f, actual); // 与未钳制公式一致
+        }
+    }
+
+    [Fact]
+    public void StallAwareLead_NonFiniteBoundaryBehavior()
+    {
+        // 早退分支策略不变：-Inf 归全额、+Inf 归零；NaN 落入内层公式，NaN 语义保持一致
+        Assert.Equal(0.5, KaraokeTextBlock.StallAwareLead(double.NegativeInfinity, 0.5));
+        Assert.Equal(0.0, KaraokeTextBlock.StallAwareLead(double.PositiveInfinity, 0.5));
+        Assert.True(double.IsNaN(KaraokeTextBlock.StallAwareLead(double.NaN, 0.5)));
+    }
+
+    [Fact]
     public void ClampWallClockLead_RespectsProvidedCap()
     {
         Assert.Equal(100.2, KaraokeTextBlock.ClampWallClockLead(100.0, 0.2, 0.3), 6);
