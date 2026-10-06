@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using WinIslands.UI;
+using WinIslands.Services;
 
 namespace WinIslands.Tests;
 
@@ -79,6 +80,37 @@ public sealed class SpringTickerClockTests
             var rawBelow = rawTicks < intervalTicks;
             var tsBelow = tsTicks < intervalTs;
             Assert.True(rawBelow == tsBelow, $"driftMs={driftMs} raw={rawBelow} ts={tsBelow}");
+        }
+    }
+
+    [Fact]
+    public void IntervalMsToTicks_MatchesClosedFormula()
+    {
+        // v2.5.7: IntervalMsToTicks 必须与闭式 (long)(ms/1000*freq) 逐点一致（锁定截断换算，防后续改动漂移）
+        var freq = Stopwatch.Frequency;
+        double[] samples = { 0.1, 1.0, 1000.0 / 120.0, 1000.0 / 60.0, 7.0, 16.666666666666668 };
+        foreach (var ms in samples)
+        {
+            var t = AudioWaveService.IntervalMsToTicks(ms);
+            Assert.Equal((long)(ms / 1000.0 * freq), t);
+            Assert.True(t > 0, $"ms={ms}");
+        }
+    }
+
+    [Fact]
+    public void IntervalTicks_RawGateAgreesWithTimeSpanAcrossSweep()
+    {
+        // v2.5.7: 间隔门两侧 ±1ms、每 0.01ms 采样（201 点）——原始刻度截断门与 TimeSpan 构造函数
+        // 逐点一致，锁定发布间隔分母换算无漂移（旧测试仅 5 个漂移点）
+        var intervalMs = 1000.0 / 120.0;
+        var intervalTicks = AudioWaveService.IntervalMsToTicks(intervalMs);
+        var intervalTs = TimeSpan.FromMilliseconds(intervalMs);
+        for (var k = -100; k <= 100; k++)
+        {
+            var deltaMs = intervalMs + k * 0.01;
+            var rawBelow = AudioWaveService.IntervalMsToTicks(deltaMs) < intervalTicks;
+            var tsBelow = TimeSpan.FromMilliseconds(deltaMs) < intervalTs;
+            Assert.True(rawBelow == tsBelow, $"drift={k * 0.01:F2}ms raw={rawBelow} ts={tsBelow}");
         }
     }
 

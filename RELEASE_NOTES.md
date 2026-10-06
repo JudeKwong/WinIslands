@@ -1,3 +1,19 @@
+## WinIslands 2.5.7（正式版 / Stable）
+### 更新内容
+
+- **🧭 发布间隔换算收敛为单条公式**：AudioWaveService 的 PublishIntervalTicks 原来直接内联 (long)(ms/1000*freq)；现抽为内部函数 IntervalMsToTicks，采集线程与测试共用同一换算，杜绝两处独立取整漂移，WASAPI/模拟波纹发布门语义不变
+- **📐 测试**：新增「换算与闭式逐点一致」（6 组毫秒值与真实 Stopwatch 频率）与「原始刻度门 vs TimeSpan 门全区间扫描」（±1ms、每 0.01ms 共 201 点逐点一致，替换原 5 点抽样）；连续多轮全绿，共 472 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.7 (Stable)
+### What's New
+
+- **🧭 Publish-interval conversion folded into one function**: AudioWaveService.PublishIntervalTicks used to inline (long)(ms/1000*freq); it now goes through IntervalMsToTicks, shared by the capture thread and the tests - the truncation semantics live in exactly one formula, leaving the WASAPI/simulated wave publish gate unchanged
+- **📐 Tests**: new closed-form equivalence for the conversion (6 ms samples against the live Stopwatch frequency) plus a full -1..+1ms sweep at 0.01ms steps (201 points) proving the raw-tick gate and TimeSpan gate agree point-by-point (replacing the old 5-point sample); stable across repeated runs - 472 unit tests green
+
+---
+
 ## WinIslands 2.5.6（正式版 / Stable）
 ### 更新内容
 

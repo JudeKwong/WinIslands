@@ -44,8 +44,11 @@ public sealed class AudioWaveService : IDisposable
     // 波纹在高刷屏上不再以 60Hz 跳变；低功耗模式 UI 端以 60Hz 轮询，发布更快无副作用。
     private static readonly double PublishIntervalMs = 1000.0 / Math.Max(60, AnimationFrameRate.DisplayTarget);
     // v2.5.4: 发布门用原始刻度阈值（直读刻度 / 常量频率），与 UI 端 SpringTicker/WaveNow 同一时钟模式，免 TimeSpan 构造
-    private static readonly long PublishIntervalTicks = (long)(PublishIntervalMs / 1000.0 * Stopwatch.Frequency);
+    // v2.5.7: 毫秒 → 原始刻度换算收敛为单条内部函数（IntervalMsToTicks），采集线程与单元测试共用同一公式，杜绝两处换算漂移
+    private static readonly long PublishIntervalTicks = IntervalMsToTicks(PublishIntervalMs);
     private long _lastPublishTicks = Stopwatch.GetTimestamp();
+    /// <summary>发布间隔换算（v2.5.7）：毫秒 → 原始 Stopwatch 刻度，截断语义；与 TimeSpan 舍入路径差 ≤1 刻度（测试锁定）。</summary>
+    internal static long IntervalMsToTicks(double ms) => (long)(ms / 1000.0 * Stopwatch.Frequency);
 
     /// <summary>当前波纹强度（0..1），UI 每帧轮询。</summary>
     public double Level => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _levelBits));
