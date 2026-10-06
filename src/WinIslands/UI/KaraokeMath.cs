@@ -84,4 +84,22 @@ internal static class KaraokeMath
         if (rawDt < 0.001) return 0.001;
         return rawDt;
     }
+
+    /// <summary>
+    /// Whole-line karaoke character split (2.6.4): given the already-clamped
+    /// highlight fraction and the string length, split it into the fully-lit
+    /// character count and the in-between blend remainder. The old code
+    /// multiplied fraction*length twice per frame per visible line (once as the
+    /// Math.Floor input, once for the blend remainder); this helper computes
+    /// the scaled position exactly once and reuses it, so every output is
+    /// bit-identical to the old formula (same expression order, verified with
+    /// DoubleToInt64Bits over a dense sweep).
+    /// </summary>
+    internal static (int LitChars, double Blend) WholeLineSplit(double fraction, int length)
+    {
+        var scaled = fraction * length; // 旧代码此处重复计算 fraction*length（Floor 输入一次、blend 余数一次）
+        var lit = Math.Min((int)Math.Floor(scaled), length);
+        var blend = lit >= length ? 1.0 : scaled - lit;
+        return (lit, blend);
+    }
 }

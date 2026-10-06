@@ -245,4 +245,73 @@ public sealed class KaraokeMathTests
             }
         }
     }
+
+    [Fact]
+    public void WholeLineSplit_DenseSweep_BitIdenticalToOldFormula()
+    {
+        // 2.6.4: the new helper computes fraction*length once and reuses it for
+        // both the Floor input and the blend remainder; the old inline code
+        // multiplied twice. Every output must be bit-identical (same expression).
+        for (var len = 1; len <= 24; len++)
+        {
+            for (var i = 0; i <= 2000; i++)
+            {
+                var f = i / 2000.0;
+                var oldLit = Math.Min((int)Math.Floor(f * len), len);
+                var oldBlend = f * len - oldLit;
+                if (oldLit >= len) oldBlend = 1;
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                Assert.Equal(oldLit, lit);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oldBlend), BitConverter.DoubleToInt64Bits(blend));
+            }
+        }
+    }
+
+    [Fact]
+    public void WholeLineSplit_Endpoints_Exact()
+    {
+        var (lit0, blend0) = KaraokeMath.WholeLineSplit(0.0, 9);
+        Assert.Equal(0, lit0);
+        Assert.Equal(BitConverter.DoubleToInt64Bits(0.0), BitConverter.DoubleToInt64Bits(blend0));
+        var (lit1, blend1) = KaraokeMath.WholeLineSplit(1.0, 9);
+        Assert.Equal(9, lit1);
+        Assert.Equal(BitConverter.DoubleToInt64Bits(1.0), BitConverter.DoubleToInt64Bits(blend1));
+    }
+
+    [Fact]
+    public void WholeLineSplit_NonFiniteFraction_MatchesOldFormula()
+    {
+        // NaN / +-Inf are never produced by the clamped _currentFraction in the
+        // live path; the helper must still stay byte-identical to the old inline
+        // expression for the same inputs on the same runtime.
+        foreach (var f in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            const int len = 7;
+            var oldLit = Math.Min((int)Math.Floor(f * len), len);
+            var oldBlend = f * len - oldLit;
+            if (oldLit >= len) oldBlend = 1;
+            var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+            Assert.Equal(oldLit, lit);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(oldBlend), BitConverter.DoubleToInt64Bits(blend));
+        }
+    }
+
+    [Fact]
+    public void WholeLineSplit_ZeroOrNegativeLength_MatchesOldFormula()
+    {
+        // The live call site never passes length <= 0 (empty text returns early),
+        // but the helper must remain a faithful projection of the old expression.
+        foreach (var len in new[] { 0, -1, -5 })
+        {
+            foreach (var f in new[] { 0.0, 0.3, 1.0, double.NaN })
+            {
+                var oldLit = Math.Min((int)Math.Floor(f * len), len);
+                var oldBlend = f * len - oldLit;
+                if (oldLit >= len) oldBlend = 1;
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                Assert.Equal(oldLit, lit);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oldBlend), BitConverter.DoubleToInt64Bits(blend));
+            }
+        }
+    }
 }

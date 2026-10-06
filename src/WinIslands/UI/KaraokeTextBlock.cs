@@ -627,10 +627,10 @@ public class KaraokeTextBlock : TextBlock
         var bs = _cachedBaseColor;
 
         // 按字符着色（而非二维渐变）：换行时高亮按阅读顺序从左到右逐行流动
+        // 2.6.4：单次乘法完成「已点亮字数 + 过渡余量」拆分（旧代码 fraction*length
+        // 每帧算两次：Math.Floor 输入一次、blend 余数一次），KaraokeMath.WholeLineSplit 为等价纯函数。
         var len = text.Length;
-        var litChars = Math.Min((int)Math.Floor(f * len), len);
-        var blend = f * len - litChars;
-        if (litChars >= len) blend = 1;
+        var (litChars, blend) = KaraokeMath.WholeLineSplit(f, len);
 
         if (_litRun is null || !string.Equals(_lastText, text, StringComparison.Ordinal))
         {

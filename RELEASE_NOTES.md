@@ -1,3 +1,19 @@
+## WinIslands 2.6.4（正式版 / Stable）
+### 更新内容
+
+- 🚀 整行卡拉OK分字计算折叠：整行高亮每帧每可见行要把 fraction×length 乘两次（一次作 Math.Floor 输入、一次作过渡余量）；现新增纯函数 KaraokeMath.WholeLineSplit，一次乘法同时产出「已点亮字数 + 过渡余量」并复用，输出与旧公式逐位一致（DoubleToInt64Bits 密集扫描验证，表达式顺序完全相同）
+- 🧪 测试：新增 4 项——长度 1~24 × 2000 个分数点逐位一致、端点精确、非有限分数与旧公式等价、零/负长度安全等价；共 498 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.4 (Stable)
+### What’s New
+
+- 🚀 Whole-line karaoke split folded to a single multiply: the whole-line highlight recomputed fraction×length twice per frame per visible line (once as the Math.Floor input, once for the blend remainder); a new pure function KaraokeMath.WholeLineSplit now computes the scaled position once and reuses it for both the lit-count and the blend, bit-identical to the old formula (DoubleToInt64Bits verified over a dense sweep, same expression order)
+- 🧪 Tests: 4 new cases - lengths 1-24 x 2000 fraction points bit-identical, exact endpoints, non-finite fractions equivalent to the old formula, and zero/negative lengths safe and equivalent; 498 unit tests green
+
+---
+
 ## WinIslands 2.6.3（正式版 / Stable）
 ### 更新内容
 
