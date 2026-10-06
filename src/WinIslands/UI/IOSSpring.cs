@@ -53,6 +53,9 @@ public sealed class IOSSpring
     private double _oC1;    // 过阻尼 c1
     private double _oC2;    // 过阻尼 c2
     private double _kCrit;  // 临界阻尼 k = v0 + omega0*y0
+    private double _cVOver1; // 2.6.1: 过阻尼速度系数 -lambda1*C1（重建时预计算）
+    private double _cVOver2; // 2.6.1: 过阻尼速度系数 -lambda2*C2（重建时预计算）
+    private double _cVCrit;  // 2.6.1: 临界阻尼速度系数 k*omega0（重建时预计算）
     // 2.4.1: 阻尼分支在系数重建时缓存为 int 模式——Solve（每活跃弹簧每帧）按 switch 直接命中，
     // 不再逐帧执行两次 Zeta 双精度比较与常数减法。
     private int _solveMode; // 0 = 欠阻尼, 1 = 过阻尼, 2 = 临界
@@ -268,12 +271,15 @@ public sealed class IOSSpring
             _oL2 = Omega0 * (Zeta - root);
             _oC2 = (_v0 + _oL1 * _y0) / (_oL1 - _oL2);
             _oC1 = _y0 - _oC2;
+            _cVOver1 = -_oL1 * _oC1; // 2.6.1: 速度系数预计算，Solve 每帧少 2 次乘法
+            _cVOver2 = -_oL2 * _oC2;
         }
         else
         {
             // 临界阻尼
             _solveMode = ModeCritical;
             _kCrit = _v0 + Omega0 * _y0;
+            _cVCrit = _kCrit * Omega0; // 2.6.1: 速度系数预计算，Solve 每帧少 1 次乘法
         }
     }
 
@@ -299,7 +305,7 @@ public sealed class IOSSpring
                 var e1 = Math.Exp(-_oL1 * t);
                 var e2 = Math.Exp(-_oL2 * t);
                 var y = _oC1 * e1 + _oC2 * e2;
-                var v = -_oL1 * _oC1 * e1 - _oL2 * _oC2 * e2;
+                var v = _cVOver1 * e1 + _cVOver2 * e2; // 2.6.1: 系数重建时预计算（vcoef2 已带符号，相加与旧公式逐位一致）
                 Value = Target + y;
                 Velocity = v;
                 break;
@@ -309,7 +315,7 @@ public sealed class IOSSpring
                 // 临界阻尼：y = e^(-ω0·t)·(y0 + (v0 + ω0·y0)·t)
                 var decay = Math.Exp(-Omega0 * t);
                 var y = decay * (_y0 + _kCrit * t);
-                var v = decay * (_v0 - _kCrit * Omega0 * t);
+                var v = decay * (_v0 - _cVCrit * t); // 2.6.1: 系数重建时预计算，逐位与旧公式一致
                 Value = Target + y;
                 Velocity = v;
                 break;

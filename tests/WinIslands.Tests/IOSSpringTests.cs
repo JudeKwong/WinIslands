@@ -604,5 +604,109 @@ public sealed class IOSSpringTests
         Assert.Equal(100, s.Value, 6);
     }
 
+    // 2.6.1: 过阻尼/临界阻尼速度系数折叠到重建时——与旧逐帧公式逐位等价（DoubleToInt64Bits）
+    private static readonly System.Reflection.MethodInfo SolveMethod =
+        typeof(IOSSpring).GetMethod("Solve", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+        ?? throw new System.MissingMethodException("Solve");
+
+    private static void InvokeSolve(IOSSpring s, double t)
+        => SolveMethod.Invoke(s, new object[] { t });
+
+    private static long Bits(double x) => BitConverter.DoubleToInt64Bits(x);
+
+    private static (double y, double v) OldOverdamped(double omega0, double zeta, double y0, double v0, double t)
+    {
+        var root = Math.Sqrt(zeta * zeta - 1);
+        var oL1 = omega0 * (zeta + root);
+        var oL2 = omega0 * (zeta - root);
+        var oC2 = (v0 + oL1 * y0) / (oL1 - oL2);
+        var oC1 = y0 - oC2;
+        var e1 = Math.Exp(-oL1 * t);
+        var e2 = Math.Exp(-oL2 * t);
+        return (oC1 * e1 + oC2 * e2, -oL1 * oC1 * e1 - oL2 * oC2 * e2);
+    }
+
+    private static (double y, double v) OldCritical(double omega0, double y0, double v0, double t)
+    {
+        var k = v0 + omega0 * y0;
+        var decay = Math.Exp(-omega0 * t);
+        return (decay * (y0 + k * t), decay * (v0 - k * omega0 * t));
+    }
+
+    [Fact]
+    public void Overdamped_FoldedVelocityCoefficients_BitIdenticalToOldFormula()
+    {
+        // ζ=1.3 / resp 0.35s / 大跨度 + 反向初速：覆盖 λ1≠λ2 双模态，多个 t 逐位比较
+        const double zeta = 1.3, resp = 0.35;
+        const double from = 120, to = 200, v0 = -500;
+        var s = IOSSpring.Create(zeta, resp, from: from, to: to, initialVelocity: v0);
+        s.Stop(); // 摘离驱动器，直接驱动私有 Solve
+        var y0 = from - to;
+        var ts = new[] { 1e-4, 1e-3, 1.0 / 60, 0.05, 0.25, 1.0, 2.5 };
+        foreach (var t in ts)
+        {
+            InvokeSolve(s, t);
+            var (ey, ev) = OldOverdamped(s.Omega0, zeta, y0, v0, t);
+            Assert.Equal(Bits(to + ey), Bits(s.Value));
+            Assert.Equal(Bits(ev), Bits(s.Velocity));
+        }
+    }
+
+    [Fact]
+    public void CriticalDamped_FoldedVelocityCoefficients_BitIdenticalToOldFormula()
+    {
+        // 临界阻尼：速度 = decay·(v0 − k·ω0·t)，折叠 k·ω0 后逐位一致
+        const double zeta = 1.0, resp = 0.4;
+        const double from = 0, to = 1, v0 = 60;
+        var s = IOSSpring.Create(zeta, resp, from: from, to: to, initialVelocity: v0);
+        s.Stop();
+        var y0 = from - to;
+        var ts = new[] { 0.0002, 1.0 / 120, 0.02, 0.1, 0.4, 1.2, 3.5 };
+        foreach (var t in ts)
+        {
+            InvokeSolve(s, t);
+            var (ey, ev) = OldCritical(s.Omega0, y0, v0, t);
+            Assert.Equal(Bits(to + ey), Bits(s.Value));
+            Assert.Equal(Bits(ev), Bits(s.Velocity));
+        }
+    }
+
+    [Fact]
+    public void SolveDenseSweep_OverAndCritical_EquivalentToOldFormula()
+    {
+        // 密集扫描：多组 ζ/响应/初速，t 按非整步长扫过整个收敛区间，逐位比较位移与速度
+        var cases = new (double zeta, double resp, double from, double to, double v0)[]
+        {
+            (1.1, 0.5, 0, 340, 0),
+            (1.3, 0.35, 120, 200, -500),
+            (1.9, 0.08, -80, 80, 800),
+            (2.0, 0.6, 1, 0, -0.3),
+        };
+        foreach (var (zeta, resp, from, to, v0) in cases)
+        {
+            var s = IOSSpring.Create(zeta, resp, from: from, to: to, initialVelocity: v0);
+            s.Stop();
+            var y0 = from - to;
+            var step = 0.0017; // 非整步长扫收敛区间
+            for (var t = 0.0001; t <= 4.0; t += step)
+            {
+                InvokeSolve(s, t);
+                var (ey, ev) = OldOverdamped(s.Omega0, zeta, y0, v0, t);
+                Assert.Equal(Bits(to + ey), Bits(s.Value));
+                Assert.Equal(Bits(ev), Bits(s.Velocity));
+            }
+            // 同参临界阻尼单独扫
+            var sc = IOSSpring.Create(1.0, resp, from: from, to: to, initialVelocity: v0);
+            sc.Stop();
+            for (var t = 0.0001; t <= 4.0; t += step)
+            {
+                InvokeSolve(sc, t);
+                var (ey, ev) = OldCritical(sc.Omega0, y0, v0, t);
+                Assert.Equal(Bits(to + ey), Bits(sc.Value));
+                Assert.Equal(Bits(ev), Bits(sc.Velocity));
+            }
+        }
+    }
+
 }
 

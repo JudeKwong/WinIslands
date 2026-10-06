@@ -1,3 +1,19 @@
+## WinIslands 2.6.1（正式版 / Stable）
+### 更新内容
+
+- 🚀 弹簧速度系数折叠至重建时预计算：过阻尼分支速度 = −λ1·C1·e1 − λ2·C2·e2、临界阻尼 = decay·(v0 − k·ω0·t)，原实现每帧对每个活跃弹簧现场计算 −λ1·C1、−λ2·C2、k·ω0（2~3 次双精度乘法）；现在随系数重建一次性预计算缓存，Solve 热路径每帧少 2~3 次乘法，输出与旧逐帧公式逐位一致（DoubleToInt64Bits）
+- 🧪 测试：新增 3 项——过阻尼/临界阻尼各 7 个时间点与旧公式逐位等价、4 组 ζ/响应/初速 × 非整步长密集扫描整个收敛区间位移与速度逐位一致；共 487 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.1 (Stable)
+### What’s New
+
+- 🚀 Spring velocity coefficients folded to rebuild time: the over-damped branch computed velocity as -λ1·C1·e1 - λ2·C2·e2 and critical damping as decay·(v0 - k·ω0·t), re-deriving -λ1·C1, -λ2·C2 and k·ω0 on every Solve call (2-3 double multiplies per active spring per frame); the coefficients are now precomputed once when the spring is rebuilt, so the Solve hot path saves 2-3 multiplies per frame while output stays bit-identical to the old per-frame formula (DoubleToInt64Bits verified)
+- 🧪 Tests: 3 new cases - over/critical damping bit-identical to the old formula at 7 time points each, plus a dense sweep (4 zeta/response/initial-velocity combos x non-integer step across the whole convergence window) comparing displacement and velocity bit-for-bit; 487 unit tests green
+
+---
+
 ## WinIslands 2.6.0（正式版 / Stable）
 ### 更新内容
 
