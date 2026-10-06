@@ -1,3 +1,19 @@
+## WinIslands 2.7.8（正式版 / Stable）
+### 更新内容
+
+- 🚀 声波纹单元区间钳制改用双比较分支链：播放波纹两条热路径——模拟节拍循环每帧（按显示器刷新率推进）与 WASAPI 环回 10ms 包络窗——原先各调 Math.Clamp(x, 0, 1)（一次范围检查调用）把电平钳到 [0,1]；现统一走 WaveMath.ClampUnit（x < 0 ? 0 : x > 1 ? 1 : x），与 Math.Clamp 在全部 double 输入上逐位一致——NaN 透传、±Inf 钳到端点、±0 保持，波纹姿态逐帧不变；模拟节拍每帧省一次调用、WASAPI 包络每窗省两次调用
+- 🧪 测试：新增 3 项——① 15 个特殊值（NaN/±Inf/±0/极值/Epsilon/边界内外）逐位对比 Math.Clamp 与 ClampUnit（DoubleToInt64Bits）；② [-3,3] 100001 点密集扫描 + 指数极端值（1e±300/Epsilon 邻域）逐位一致；③ 边界断言（[0,1] 内原样、越界钳端点、NaN/±Inf、-0.0 保号）；共 528 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.8 (Stable)
+### What's New
+
+- 🚀 Audio-wave unit-interval clamp moves to a two-comparison branch chain: both wave hot paths - the simulated-beat loop every frame (advanced at the display refresh rate) and the WASAPI loopback 10ms envelope window - clamped the level into [0,1] via Math.Clamp(x, 0, 1) (one range-check call each); both now go through WaveMath.ClampUnit (x < 0 ? 0 : x > 1 ? 1 : x), bit-identical to Math.Clamp for every double input - NaN passes through, ±Inf clamp to the endpoints, ±0 preserved, so the wave pose is unchanged frame by frame; the sim loop saves one call per frame and the WASAPI envelope saves two per window
+- 🧪 Tests: 3 new cases - (1) 15 special values (NaN/±Inf/±0/extremes/Epsilon/inside-and-outside boundaries) compared bitwise (DoubleToInt64Bits) against Math.Clamp; (2) a 100001-point dense sweep over [-3, 3] plus exponential extremes (1e±300/Epsilon neighbourhood) bit-identical; (3) boundary asserts (values inside [0,1] pass through, outside clamp to endpoints, NaN/±Inf, -0.0 keeps its sign); 528 unit tests green
+
+---
+
 ## WinIslands 2.7.7（正式版 / Stable）
 ### 更新内容
 

@@ -168,7 +168,7 @@ public sealed class AudioWaveService : IDisposable
                     }
                     pulse *= 0.965;                                                // 指数衰减回落
                     var noise = 0.10 + 0.05 * Math.Sin(t * 13.0) + 0.035 * Math.Sin(t * 31.0);
-                    _level = Math.Clamp(pulse * (0.55 + 0.45 * noise) * Volatile.Read(ref _sensitivity), 0, 1);
+                    _level = WaveMath.ClampUnit(pulse * (0.55 + 0.45 * noise) * Volatile.Read(ref _sensitivity));
                     PublishLevel(_level);
                 }
                 else
@@ -362,8 +362,8 @@ public sealed class AudioWaveService : IDisposable
         }
 
         // RMS 为主 + 窗内峰值补充瞬态；sqrt 感知压缩让中低音量也有起伏
-        var level = Math.Sqrt(Math.Clamp(maxRms * 1.25, 0, 1));
-        return Math.Clamp(level * 0.88 + maxWinPeak * 0.12, 0, 1);
+        var level = Math.Sqrt(WaveMath.ClampUnit(maxRms * 1.25));
+        return WaveMath.ClampUnit(level * 0.88 + maxWinPeak * 0.12);
     }
 
     private void PublishLevel(double value) => Interlocked.Exchange(ref _levelBits, BitConverter.DoubleToInt64Bits(value));

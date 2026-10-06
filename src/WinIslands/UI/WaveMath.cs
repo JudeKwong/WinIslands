@@ -86,4 +86,10 @@ internal static class WaveMath
         var v = Math.Abs((double)x);
         return v > 1.0 ? 1.0 : v;
     }
+    /// <summary>
+    /// 单元区间钳制（2.7.8）：x &lt; 0 ? 0 : x &gt; 1 ? 1 : x 双比较分支链，
+    /// 与 Math.Clamp(x, 0, 1) 在全部 double 输入上逐位一致——NaN 透传、±Inf 钳到端点、±0 保持；
+    /// 声波纹热路径（模拟节拍每帧、WASAPI 10ms 包络窗）各省一次范围检查调用。
+    /// </summary>
+    internal static double ClampUnit(double x) => x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x;
 }

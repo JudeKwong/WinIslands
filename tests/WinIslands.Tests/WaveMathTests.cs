@@ -285,4 +285,55 @@ public sealed class WaveMathTests
         var v = Math.Abs((double)x);
         return v > 1.0 ? 1.0 : v;
     }
+
+    /// <summary>2.7.8：单元区间钳制 ClampUnit 与 Math.Clamp(x, 0, 1) 逐位一致（全部 double 输入）。</summary>
+    [Fact]
+    public void ClampUnit_Specials_BitIdenticalToMathClamp()
+    {
+        // 特殊值：NaN/±Inf/±0/极值/Epsilon/边界内外
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, -2.0
+        };
+        foreach (var x in specials)
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
+                BitConverter.DoubleToInt64Bits(WaveMath.ClampUnit(x)));
+    }
+
+    /// <summary>2.7.8：[-3, 3] 100001 点密集扫描 + 指数极端值，逐位一致。</summary>
+    [Fact]
+    public void ClampUnit_DenseSweep_BitIdenticalToMathClamp()
+    {
+        for (var i = 0; i <= 100000; i++)
+        {
+            var x = -3.0 + 6.0 * i / 100000.0;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
+                BitConverter.DoubleToInt64Bits(WaveMath.ClampUnit(x)));
+        }
+        var extremes = new[] { 1e300, -1e300, 1e-300, -1e-300, 0.9999999999999999, 1.0000000000000002 };
+        foreach (var x in extremes)
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
+                BitConverter.DoubleToInt64Bits(WaveMath.ClampUnit(x)));
+    }
+
+    /// <summary>2.7.8：边界断言——[0,1] 内原样、外钳端点、NaN/±Inf、-0.0 保号。</summary>
+    [Fact]
+    public void ClampUnit_Boundaries_Exact()
+    {
+        Assert.Equal(0.5, WaveMath.ClampUnit(0.5));
+        Assert.Equal(1.0, WaveMath.ClampUnit(1.0));
+        Assert.Equal(1.0, WaveMath.ClampUnit(1.0000000000000001));
+        Assert.Equal(0.0, WaveMath.ClampUnit(-0.0000000000000001));
+        Assert.Equal(0.0, WaveMath.ClampUnit(-2.5));
+        Assert.Equal(1.0, WaveMath.ClampUnit(2.5));
+        Assert.Equal(0.0, WaveMath.ClampUnit(double.NegativeInfinity));
+        Assert.Equal(1.0, WaveMath.ClampUnit(double.PositiveInfinity));
+        Assert.True(double.IsNaN(WaveMath.ClampUnit(double.NaN)));
+        Assert.Equal(BitConverter.DoubleToInt64Bits(-0.0), BitConverter.DoubleToInt64Bits(WaveMath.ClampUnit(-0.0)));
+    }
 }
