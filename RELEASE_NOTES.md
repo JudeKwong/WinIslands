@@ -1,3 +1,19 @@
+## WinIslands 2.6.2（正式版 / Stable）
+### 更新内容
+
+- 🚀 卡拉OK逐字时间轴终点预计算：逐字高亮的时间轴终点（start + scaled）原为每字每帧现场加法计算；现随“换句/调速”重建时在同一趟遍历中预计算到终点数组，渲染热路径每字每帧免去一次加法，输出与旧逐字粘贴表达式逐位一致（DoubleToInt64Bits）
+- 🧪 测试：新增 4 项——单趟结果与旧两步填充逐位等价且 ends=starts+scaled 逐位一致、非法时长回退全数组有限、非有限 start 与旧公式相同传播、空/长度不匹配安全无操作；共 491 项单元测试全部通过
+
+---
+
+## WinIslands 2.6.2 (Stable)
+### What’s New
+
+- 🚀 Karaoke per-character timeline ends precomputed: the per-character highlight endpoint (start + scaled) was recomputed as an addition on the render hot path every frame; it is now precomputed into an ends array during the same rebuild pass on line/rate changes, so per-frame rendering saves one addition per character while output stays bit-identical to the old inline expression (DoubleToInt64Bits verified)
+- 🧪 Tests: 4 new cases - single-pass output bit-equal to the old two-step fill with ends[i]==starts[i]+scaled[i] bit-identical, invalid durations fall back with all-finite arrays, non-finite starts propagate exactly like the old formula, and empty/length-mismatched inputs are safe no-ops; 491 unit tests green
+
+---
+
 ## WinIslands 2.6.1（正式版 / Stable）
 ### 更新内容
 

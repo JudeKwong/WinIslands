@@ -293,4 +293,78 @@ public class KaraokeTimelineTests
         Assert.Equal(10.0, inv[0], 12);
         Assert.Equal(5.0, inv[1], 12);
     }
+    [Fact]
+    public void FillScaledInverseEnds_SinglePassEqualsExistingAndEndsAdd()
+    {
+        // 2.6.2: scaled/inv 与 FillScaledAndInverse 输出逐位一致；ends[i] == starts[i] + scaled[i] 逐位一致
+        var denoms = new[] { 0.001, 0.1, 0.5, 1.2, 3.7, 0.05 };
+        var starts = new[] { 1.0, 1.5, -2.25, 10.0, 0.125, 4.0 };
+        const double scale = 1.25;
+        var scaledA = new double[denoms.Length];
+        var invA = new double[denoms.Length];
+        var scaledB = new double[denoms.Length];
+        var invB = new double[denoms.Length];
+        var ends = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledAndInverse(denoms, scale, scaledA, invA);
+        KaraokeTextBlock.FillScaledInverseEnds(denoms, starts, scale, scaledB, invB, ends);
+        for (var i = 0; i < denoms.Length; i++)
+        {
+            Assert.Equal(BitConverter.DoubleToInt64Bits(scaledA[i]), BitConverter.DoubleToInt64Bits(scaledB[i]));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(invA[i]), BitConverter.DoubleToInt64Bits(invB[i]));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(starts[i] + scaledB[i]), BitConverter.DoubleToInt64Bits(ends[i]));
+        }
+    }
+
+    [Fact]
+    public void FillScaledInverseEnds_GuardsInvalidDenoms_AllFinite()
+    {
+        // 2.6.2: invalid durations fall back to the 0.001/s base; finite starts keep ends finite
+        var denoms = new[] { 0.0, -0.5, double.NaN, double.PositiveInfinity, 0.25 };
+        var starts = new[] { -3.0, 0.0, 1.5, 10.0, 2.5 };
+        const double scale = 2.0;
+        var scaled = new double[denoms.Length];
+        var inv = new double[denoms.Length];
+        var ends = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledInverseEnds(denoms, starts, scale, scaled, inv, ends);
+        for (var i = 0; i < denoms.Length; i++)
+        {
+            Assert.True(scaled[i] > 0 && double.IsFinite(scaled[i]), "bad scaled " + scaled[i]);
+            Assert.True(double.IsFinite(inv[i]) && inv[i] > 0, "bad inv " + inv[i]);
+            Assert.True(double.IsFinite(ends[i]), "bad end " + ends[i]);
+        }
+        Assert.Equal(0.001 / scale, scaled[0], 12);
+        Assert.Equal(scale / 0.001, inv[0], 12);
+    }
+
+    [Fact]
+    public void FillScaledInverseEnds_NonFiniteStartPropagatesLikeOldFormula()
+    {
+        // 2.6.2: NaN/Inf starts propagate into ends exactly like the old start + scaled[i] expression
+        var denoms = new[] { 0.2, 0.3 };
+        var starts = new[] { double.NaN, double.PositiveInfinity };
+        var scaled = new double[2];
+        var inv = new double[2];
+        var ends = new double[2];
+        KaraokeTextBlock.FillScaledInverseEnds(denoms, starts, 1.0, scaled, inv, ends);
+        Assert.Equal(BitConverter.DoubleToInt64Bits(starts[0] + scaled[0]), BitConverter.DoubleToInt64Bits(ends[0]));
+        Assert.Equal(BitConverter.DoubleToInt64Bits(starts[1] + scaled[1]), BitConverter.DoubleToInt64Bits(ends[1]));
+    }
+
+    [Fact]
+    public void FillScaledInverseEnds_EmptyAndMismatchedNoThrow()
+    {
+        // 2.6.2: empty or length-mismatched arrays are safe no-ops / bounded writes
+        KaraokeTextBlock.FillScaledInverseEnds(Array.Empty<double>(), Array.Empty<double>(), 1.0, Array.Empty<double>(), Array.Empty<double>(), Array.Empty<double>());
+        var starts = new[] { 1.0, 2.0, 3.0 };
+        var denoms = new[] { 0.1, 0.2, 0.3 };
+        var scaled = new double[2];
+        var inv = new double[2];
+        var ends = new double[2];
+        KaraokeTextBlock.FillScaledInverseEnds(denoms, starts, 1.0, scaled, inv, ends);
+        Assert.Equal(10.0, inv[0], 12);
+        Assert.Equal(5.0, inv[1], 12);
+        Assert.Equal(1.0 + 0.1, ends[0], 12);
+        Assert.Equal(2.0 + 0.2, ends[1], 12);
+    }
+
 }

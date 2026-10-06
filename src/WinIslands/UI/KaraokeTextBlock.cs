@@ -108,6 +108,7 @@ public class KaraokeTextBlock : TextBlock
     private double[] _wordDenoms = Array.Empty<double>();
     private double[] _wordDensScaled = Array.Empty<double>();
     private double[] _wordInvDensScaled = Array.Empty<double>(); // 2.2.11
+    private double[] _wordEnds = Array.Empty<double>();                // 2.6.2：时间轴终点（重建时预计算 start+scaled，渲染热路径免每帧加法）
     private bool _timelineDirty = true;                  // 2.2.13：时间轴脏标记——仅在换句/调速时重建 scaled+inverse，属性高频刷新不再整数组遍历
     private double _lastKaraokeSpeedScale = 1.0;         // 2.2.13：上次重建时的速度倍率，用于检测「调速」触发单次重建：递归倒数预计算，逐字过渡的除法改为一次乘法
    // 2.2.8：速度倍率换算一次，逐帧不再做除法
@@ -345,6 +346,7 @@ public class KaraokeTextBlock : TextBlock
             _wordDenoms = new double[_words.Count];
             _wordDensScaled = new double[_words.Count];
             _wordInvDensScaled = new double[_words.Count];
+            _wordEnds = new double[_words.Count];
             BuildWordTimeline(_words, _wordStarts, _wordDenoms);
             _timelineDirty = true; // 2.2.13：换句/切歌 → 时间轴必须重建
         }
@@ -354,10 +356,10 @@ public class KaraokeTextBlock : TextBlock
             _timelineDirty = true; // 2.2.13：调速 → 按新倍率一次性重建
         }
         // 2.2.13：scaled 时长与其倒数在「换句/调速」时单次遍历重建（等价原两步填充但只扫一遍），
-        // 逐帧渲染直接使用；属性高频刷新（HighlightFraction 等）不再触发整数组遍历。
+        // 2.6.2：时间轴终点（start+scaled）在同一趟重建中预计算；逐帧渲染直接读终点数组，免去每字一次加法。
         if (_timelineDirty && _wordDensScaled.Length == _wordDenoms.Length && _wordDenoms.Length > 0)
         {
-            FillScaledAndInverse(_wordDenoms, _karaokeSpeedScale, _wordDensScaled, _wordInvDensScaled);
+            FillScaledInverseEnds(_wordDenoms, _wordStarts, _karaokeSpeedScale, _wordDensScaled, _wordInvDensScaled, _wordEnds);
             _timelineDirty = false;
         }
 
@@ -540,7 +542,7 @@ public class KaraokeTextBlock : TextBlock
             // 2.1.3：先按词阶段分支——已点亮/未点亮的字直接切共享冻结刷（且仅在阶段切换时才写），
             // 不再每帧对全行计算 SmoothStep + Color.FromArgb；只有正在过渡的 1~2 个字才逐帧混色。
             var start = _wordStarts[i];
-            var end = start + _wordDensScaled[i];   // 2.2.8: 预换算的时间轴终点
+            var end = _wordEnds[i];            // 2.6.2：终点在重建时预计算（等价 start + _wordDensScaled[i]，逐位一致）
             var run = _wordRuns[i];
             if (pos >= end)
             {
@@ -727,6 +729,22 @@ public class KaraokeTextBlock : TextBlock
             var scaledVal = (double.IsFinite(d) && d > 0 ? d : 0.001) / s;
             scaled[i] = scaledVal;
             inv[i] = double.IsFinite(scaledVal) && scaledVal > 0 ? 1.0 / scaledVal : 1000.0;
+        }
+    }
+
+    /// <summary>2.6.2：单次遍历同时计算「scaled 时长」「其倒数」与「时间轴终点」——等价于 FillScaledAndInverse 再加 ends[i]=starts[i]+scaled[i]，
+    /// 渲染热路径直接读终点数组，每帧逐字免去一次加法；非法时长回退 0.001/s 基长，终点与旧渲染表达式逐位一致。</summary>
+    internal static void FillScaledInverseEnds(double[] denoms, double[] starts, double scale, double[] scaled, double[] inv, double[] ends)
+    {
+        var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
+        var n = Math.Min(denoms.Length, Math.Min(starts.Length, Math.Min(scaled.Length, Math.Min(inv.Length, ends.Length))));
+        for (var i = 0; i < n; i++)
+        {
+            var d = denoms[i];
+            var scaledVal = (double.IsFinite(d) && d > 0 ? d : 0.001) / s;
+            scaled[i] = scaledVal;
+            inv[i] = double.IsFinite(scaledVal) && scaledVal > 0 ? 1.0 / scaledVal : 1000.0;
+            ends[i] = starts[i] + scaledVal; // 与旧渲染表达式 start + _wordDensScaled[i] 逐位一致
         }
     }
 
