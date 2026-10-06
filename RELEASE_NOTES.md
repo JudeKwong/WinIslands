@@ -1,3 +1,21 @@
+## WinIslands 2.4.0（正式版 / Stable）
+### 更新内容
+
+- **⚡ 卡拉OK单调填充与平滑缓动提取为纯函数**：逐字高亮的「停滞回拉只进不退」单调钳制与 SmoothStep 缓动移入 KaraokeMath——词过渡渲染逻辑更清晰、更易测试，行为与原实现完全一致
+- **🛡 非有限值防护**：MonotonicFill 对 NaN/±Infinity 冻结在历史峰值，绝不把 NaN 写进状态数组（旧实现可能让 NaN 永久残留，导致后续高亮消失）
+- **🧪 回归测试**：新增单调填充/SmoothStep 纯函数测试 7 项（单调不回退、停滞窗口冻结、非有限值防护、端点/中点/四分之一、越界钳制、100 点单调采样），共 418 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.0 (Stable)
+### What's New
+
+- **⚡ Karaoke monotonic fill + smoothstep moved to pure functions**: the "advance-only, never regress" per-word fill clamp and the ease-in-out smoothstep now live in KaraokeMath - cleaner, testable word-transition math, behaviour identical to the old implementation
+- **🛡 Non-finite guard**: MonotonicFill freezes at the historical peak for NaN/±Infinity so NaN can never poison the fill-state array (previously a NaN could linger and make highlights disappear)
+- **🧪 Regression**: 7 new pure-function tests (never-regresses, stall-cycle freeze, non-finite freeze with clean state, endpoints/midpoint, quarter-point, out-of-range clamp, 100-sample monotonic sweep) - 418 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.9（正式版 / Stable）
 ### 更新内容
 

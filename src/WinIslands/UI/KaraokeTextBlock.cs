@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -542,8 +542,8 @@ public class KaraokeTextBlock : TextBlock
             var raw = (pos - start) * _wordInvDensScaled[i]; // 2.2.11：除法→预计算倒数乘法，减少每帧浮点除法   // 2.2.8: 预换算的填充速度
             // 2.2.3: 单调钳制——停滞感知回拉或暂停期间位置被冻结时，字填充只进不退，
             // 避免高亮“先冲出去、又被拉回来”的肉眼可见倒退。
-            raw = ApplyMonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
-            var frac = SmoothStep(raw);
+            raw = KaraokeMath.MonotonicFill(raw, _wordFillMax[i], out _wordFillMax[i]);
+            var frac = KaraokeMath.SmoothStep(raw);
             var c = System.Windows.Media.Color.FromArgb(
                 KaraokeMath.BlendChannel(bs.A, hl.A, frac),
                 KaraokeMath.BlendChannel(bs.R, hl.R, frac),
@@ -657,24 +657,6 @@ public class KaraokeTextBlock : TextBlock
     private static System.Windows.Media.SolidColorBrush Frozen(System.Windows.Media.SolidColorBrush b) { b.Freeze(); return b; }
 
     /// <summary>ease-in-out 缓动（smoothstep）：起笔慢→中段快→收笔慢，配合字间交叉过渡实现丝滑连贯的逐字推进。</summary>
-    private static double SmoothStep(double t)
-    {
-        t = Math.Clamp(t, 0, 1);
-        return t * t * (3 - 2 * t);
-    }
-
-    /// <summary>单调填充钳制：raw 不允许比历史峰值更低（停滞回拉时冻结在峰值）。</summary>
-    internal static double ApplyMonotonicFill(double raw, double maxSeen, out double newMax)
-    {
-        if (raw < maxSeen)
-        {
-            newMax = maxSeen;
-            return maxSeen;
-        }
-        newMax = raw;
-        return raw;
-    }
-
     private static System.Windows.Media.Color Lerp(System.Windows.Media.Color a, System.Windows.Media.Color b, double t)
         => System.Windows.Media.Color.FromArgb(
             (byte)(a.A + (b.A - a.A) * t),
@@ -692,6 +674,7 @@ public class KaraokeTextBlock : TextBlock
     // ── 时间轴纯函数（与渲染共用同一套 lead 校正数组，供单元测试直接验证）──
 
     /// <summary>按字间交叉过渡 lead 建立逐字时间轴（与 RenderWords 完全同源，含“句首第一字不提前”规则）。</summary>
+
     internal static void BuildWordTimeline(IReadOnlyList<TtmlWord> words, double[] starts, double[] denoms)
     {
         for (var i = 0; i < words.Count; i++)

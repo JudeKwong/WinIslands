@@ -1,4 +1,4 @@
-using WinIslands.Services;
+﻿using WinIslands.Services;
 using WinIslands.UI;
 
 namespace WinIslands.Tests;
@@ -130,7 +130,7 @@ public class KaraokeTimelineTests
         var last = -1.0;
         foreach (var v in seq)
         {
-            var r = KaraokeTextBlock.ApplyMonotonicFill(v, max, out max);
+            var r = KaraokeMath.MonotonicFill(v, max, out max);
             Assert.True(r >= last - 1e-12, $"fill regressed at {v}");
             Assert.Equal(max, r, 9);
             last = r;
@@ -143,13 +143,13 @@ public class KaraokeTimelineTests
     {
         // 模拟：正常播放推进到 0.42 → 停滞窗口回拉 → 冻结 → 恢复后播放器位置仍落后 → 高亮不得倒退
         double max = 0;
-        var r1 = KaraokeTextBlock.ApplyMonotonicFill(0.42, max, out max);
+        var r1 = KaraokeMath.MonotonicFill(0.42, max, out max);
         Assert.Equal(0.42, r1, 9);
-        var r2 = KaraokeTextBlock.ApplyMonotonicFill(0.38, max, out max); // 回拉
+        var r2 = KaraokeMath.MonotonicFill(0.38, max, out max); // 回拉
         Assert.Equal(0.42, r2, 9);
-        var r3 = KaraokeTextBlock.ApplyMonotonicFill(0.40, max, out max); // 恢复但落后
+        var r3 = KaraokeMath.MonotonicFill(0.40, max, out max); // 恢复但落后
         Assert.Equal(0.42, r3, 9);
-        var r4 = KaraokeTextBlock.ApplyMonotonicFill(0.55, max, out max); // 追平并前进
+        var r4 = KaraokeMath.MonotonicFill(0.55, max, out max); // 追平并前进
         Assert.Equal(0.55, r4, 9);
     }
 

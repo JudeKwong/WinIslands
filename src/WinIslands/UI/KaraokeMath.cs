@@ -20,4 +20,36 @@ internal static class KaraokeMath
         if (frac >= 1.0) return to;
         return (byte)(from + (to - from) * frac);
     }
+
+    /// <summary>
+    /// Monotonic fill clamp (2.4.0): raw is never allowed to be lower than the historical peak -
+    /// during stall fallback or frozen pauses the highlight only advances, never regresses,
+    /// eliminating visible "over-shoot then pull-back" jumps. Non-finite values (NaN/Infinity)
+    /// freeze at the peak so NaN never poisons the state array (old code could leave NaN in
+    /// _wordFillMax permanently, making later highlights disappear).
+    /// </summary>
+    internal static double MonotonicFill(double raw, double maxSeen, out double newMax)
+    {
+        if (!double.IsFinite(raw))
+        {
+            newMax = maxSeen;
+            return maxSeen;
+        }
+        if (raw < maxSeen)
+        {
+            newMax = maxSeen;
+            return maxSeen;
+        }
+        newMax = raw;
+        return raw;
+    }
+
+    /// <summary>ease-in-out (smoothstep, 2.4.0): slow start - fast middle - slow end,
+    /// combined with per-word cross-fade for silky continuous per-character advance.
+    /// Input is clamped to [0,1] first (bit-identical to the old behavior).</summary>
+    internal static double SmoothStep(double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
 }

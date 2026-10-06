@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -28,4 +28,68 @@ public sealed class KaraokeMathTests
 
     [Fact]
     public void BlendChannel_ReversedRange_StillLinear() => Assert.Equal(150, KaraokeMath.BlendChannel(200, 100, 0.5)); // 200-50=150
+
+    [Fact]
+    public void MonotonicFill_NeverRegresses() {
+        double max = 0;
+        var seq = new[] { 0.1, 0.3, 0.25, 0.4, 0.39, 0.5, 0.05 };
+        var last = -1.0;
+        foreach (var v in seq) {
+            var r = KaraokeMath.MonotonicFill(v, max, out max);
+            Assert.True(r >= last - 1e-12, $"fill regressed at {v}");
+            Assert.Equal(max, r, 9);
+            last = r;
+        }
+        Assert.Equal(0.5, max, 9);
+    }
+
+    [Fact]
+    public void MonotonicFill_FreezeDuringStallCycle() {
+        double max = 0;
+        Assert.Equal(0.42, KaraokeMath.MonotonicFill(0.42, max, out max), 9);
+        Assert.Equal(0.42, KaraokeMath.MonotonicFill(0.38, max, out max), 9); // pull-back freezes
+        Assert.Equal(0.42, KaraokeMath.MonotonicFill(0.40, max, out max), 9); // resume but still behind
+        Assert.Equal(0.55, KaraokeMath.MonotonicFill(0.55, max, out max), 9); // catch up and advance
+    }
+
+    [Fact]
+    public void MonotonicFill_NonFinite_FreezeAtPeakAndNeverPolluteState() {
+        double max = 0.3;
+        Assert.Equal(0.3, KaraokeMath.MonotonicFill(double.NaN, max, out max), 9);
+        Assert.Equal(0.3, KaraokeMath.MonotonicFill(double.PositiveInfinity, max, out max), 9);
+        Assert.Equal(0.3, KaraokeMath.MonotonicFill(double.NegativeInfinity, max, out max), 9);
+        Assert.Equal(0.3, max, 9); // state stays finite & clean
+        Assert.Equal(0.4, KaraokeMath.MonotonicFill(0.4, max, out max), 9); // still advances afterwards
+    }
+
+    [Fact]
+    public void SmoothStep_EndpointsAndMidpoint() {
+        Assert.Equal(0.0, KaraokeMath.SmoothStep(0.0), 12);
+        Assert.Equal(1.0, KaraokeMath.SmoothStep(1.0), 12);
+        Assert.Equal(0.5, KaraokeMath.SmoothStep(0.5), 12); // 0.5^2*(3-1) = 0.5
+    }
+
+    [Fact]
+    public void SmoothStep_QuarterPoint() {
+        // 0.25^2 * (3 - 0.5) = 0.0625 * 2.5 = 0.15625
+        Assert.Equal(0.15625, KaraokeMath.SmoothStep(0.25), 12);
+    }
+
+    [Fact]
+    public void SmoothStep_ClampsOutOfRange() {
+        Assert.Equal(0.0, KaraokeMath.SmoothStep(-0.5), 12);
+        Assert.Equal(1.0, KaraokeMath.SmoothStep(1.5), 12);
+        Assert.Equal(double.NaN, KaraokeMath.SmoothStep(double.NaN)); // NaN propagates (BlendChannel then falls back to unlit)
+    }
+
+    [Fact]
+    public void SmoothStep_MonotonicAcrossSample() {
+        var prev = 0.0;
+        for (var i = 0; i <= 100; i++) {
+            var v = KaraokeMath.SmoothStep(i / 100.0);
+            Assert.True(v >= prev - 1e-12, $"not monotonic at {i}");
+            prev = v;
+        }
+        Assert.Equal(1.0, prev, 12);
+    }
 }
