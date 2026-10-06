@@ -1,3 +1,22 @@
+## WinIslands 2.3.5（正式版 / Stable）
+### 更新内容
+
+- **⚡ 歌词卡拉OK逐帧单次时钟读取**：每渲染帧只读一次单调时钟——整行均分分支不再二次读取 Elapsed，动画起点换算也统一走刻度——逐字高亮的时间基准完全一致，观感不变但每帧时钟调用更少、帧节奏更稳
+- **⚡ 声波纹渲染写入去重与循环不变量提升**：音乐声波纹（条形/谱/环/粒子）每帧不再重复写入亚像素以下的微小变化（缩放阈值 0.04%、位移阈值 0.05 DIP）——减少合成线程的依赖属性变更与脏标记；同时把振幅系数、基准线、i/n 逆数等不变量提出循环外，每帧少 n-1 次乘加与一次除法——视觉完全一致，CPU 更低、动画更连贯
+- **🧪 回归测试**：新增声波纹纯函数测试 10 项（阈值内外/边界/零差/非法输入/亚像素），共 392 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.5 (Stable)
+### What's New
+
+- **⚡ Karaoke clock read once per rendered frame**: the lyric karaoke renderer now reads the monotonic clock exactly once per frame - the whole-line equal-split branch no longer re-reads Elapsed, and animation start offsets convert via ticks - the per-character highlight timing base is fully consistent, identical visuals with fewer clock calls per frame and steadier frame pacing
+- **⚡ Wave-render write dedup and loop-invariant hoisting**: the music waveform (bars/spectrum/ring/particles) no longer re-writes sub-pixel micro-changes every frame (0.04% scale epsilon, 0.05 DIP offset epsilon) - fewer dependency-property changes and dirty marks on the composition thread; amplitude factors, baselines and the i/n reciprocal are hoisted out of the loop, saving n-1 multiply-adds and one division per frame - identical visuals, lower CPU, smoother animation
+- **🧪 Regression**: 10 new pure-function tests for the waveform helpers (inside/outside epsilon, boundary, zero-delta, invalid input, sub-pixel) - 392 unit tests total, all green
+
+---
+
+
 ## WinIslands 2.3.4（正式版 / Stable）
 ### 更新内容
 

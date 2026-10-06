@@ -399,7 +399,7 @@ public class KaraokeTextBlock : TextBlock
     {
         if (_renderingSubscribed || !IsVisible) return;
         _renderingSubscribed = true;
-        _lastTickTime = _tickClock.Elapsed.TotalSeconds;
+        _lastTickTime = (double)_tickClock.ElapsedTicks / Stopwatch.Frequency;
         _nextKaraokeFrameTime = _lastTickTime;
         CompositionTarget.Rendering += OnRenderingFrame;
     }
@@ -416,6 +416,10 @@ public class KaraokeTextBlock : TextBlock
 
     private void TickAnimation()
     {
+        // 2.3.5: 每渲染帧只读一次单调时钟（Stopwatch.ElapsedTicks），
+        // 秒值与墙钟外推都由同一刻度推导 —— 每帧少一次 QueryPerformanceCounter/除法，歌词高亮热点的时钟开销降低
+        var frameTicks = _tickClock.ElapsedTicks;
+        var now = (double)frameTicks / Stopwatch.Frequency;
         if (_hasWords)
         {
             if (IsPlaying)
@@ -424,12 +428,11 @@ public class KaraokeTextBlock : TextBlock
                 // 按真实时间插值（不乘速度倍率）：ViewModel 每 200ms 用真实播放位置校正一次，
                 // 若在此处乘倍率会产生「先超前、再被拉回」的每 200ms 回跳，看起来卡顿。
                 // 「高亮更快」改为在 RenderWords 内缩放每个字的进度（见 speedScale），效果相同但不回跳。
-                var now = _tickClock.Elapsed.TotalSeconds;
                 var fps = LowPowerModeOverride
                     ? AnimationFrameRate.StandardForLowPower
                     : AnimationFrameRate.Current(lowPowerMode: false);
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
-                var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
+                var elapsed = (double)(frameTicks - _posBaseTicks) / Stopwatch.Frequency;
                 var sinceUpdate = Math.Max(0.0, elapsed);
                 if (sinceUpdate >= StallFreezeSeconds)
                 {
@@ -453,13 +456,12 @@ public class KaraokeTextBlock : TextBlock
         }
 
         // 整行均分模式：缓动逼近（差距大时走得快、接近时变慢）
-        var nowTick = _tickClock.Elapsed.TotalSeconds;
         var lineFps = LowPowerModeOverride
             ? AnimationFrameRate.StandardForLowPower
             : AnimationFrameRate.Current(lowPowerMode: false);
-        if (!AnimationFrameRate.ShouldProcessFrame(nowTick, ref _nextKaraokeFrameTime, lineFps)) return;
-        var dtTick = Math.Min(0.05, Math.Max(0.001, nowTick - _lastTickTime));
-        _lastTickTime = nowTick;
+        if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, lineFps)) return;
+        var dtTick = Math.Min(0.05, Math.Max(0.001, now - _lastTickTime));
+        _lastTickTime = now;
         // 帧率无关指数平滑：rate=42 在 60fps 下等效于旧的 0.5 系数，120fps 下自动适配
         var lerpAlpha = 1.0 - Math.Exp(-dtTick * 42.0);
         _currentFraction += (_targetFraction - _currentFraction) * lerpAlpha;

@@ -1978,9 +1978,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void UpdateWaveSet(IReadOnlyList<ScaleTransform> bars, double level, double t, double alpha, double height, double bias = 0)
     {
         var n = bars.Count;
+        if (n == 0) return;
         var sinBase = Math.Sin(t * 6.0);
         var cosBase = Math.Cos(t * 6.0);
         var isPlaying = _vm.IsPlaying;
+        // 2.3.5: 循环不变量提升到循环外（每帧少 n-1 次乘加）；i/n 改用预计算倒数乘法代替除法
+        var invN = 1.0 / n;
+        var ampA = (0.12 + 0.72 * level) * height;   // 非 bias 模式的振幅系数（含高度）
+        var baseA = 0.10 * height;
+        var ampB = (0.14 + 0.66 * level) * height;   // bias（谱状）模式的振幅系数
+        var baseB = 0.05 * height;
+        var minClamp = bias > 0 ? 0.05 : 0.08;
         for (var i = 0; i < n; i++)
         {
             var sc = bars[i];
@@ -1989,15 +1997,19 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveSin09, WaveCos09);
                 if (bias > 0)
-                    target = Math.Clamp((0.05 + (0.14 + 0.66 * level) * wave * (0.55 + 0.45 * (double)i / n)) * height, 0.05, 1.0);
+                    target = Math.Clamp(baseB + ampB * wave * (0.55 + 0.45 * i * invN), 0.05, 1.0);
                 else
-                    target = Math.Clamp((0.10 + (0.12 + 0.72 * level) * wave) * height, 0.08, 1.0);
+                    target = Math.Clamp(baseA + ampA * wave, 0.08, 1.0);
             }
             else
             {
-                target = bias > 0 ? 0.05 : 0.08;
+                target = minClamp;
             }
-            sc.ScaleY += (target - sc.ScaleY) * alpha;
+            // 2.3.5: 亚像素写入去重——单帧位移量小于阈值时跳过属性写入，
+            // 歌曲节拍飘动的微小蠕动不再每秒触发合成线程的脏标记，视觉不变但帧节奏更稳
+            if (!double.IsFinite(sc.ScaleY)) { sc.ScaleY = target; continue; }
+            if (WaveMath.ShouldWriteEased(sc.ScaleY, target, alpha, WaveMath.ScaleEpsilon))
+                sc.ScaleY += (target - sc.ScaleY) * alpha;
         }
     }
 
@@ -2117,6 +2129,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var wave = 0.5 + 0.5 * Math.Sin(t * 6.0);
             target = 1.0 + 0.24 * level * wave;
         }
+        if (!double.IsFinite(ring.ScaleX)) { ring.ScaleX = target; ring.ScaleY = target; return; }
+        // 2.3.5: 亚像素写入去重（同 UpdateWaveSet）
+        if (!WaveMath.ShouldWriteEased(ring.ScaleX, target, alpha, WaveMath.ScaleEpsilon)) return;
         ring.ScaleX += (target - ring.ScaleX) * alpha;
         ring.ScaleY = ring.ScaleX;
     }
@@ -2124,9 +2139,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void UpdateParticlesVisual(IReadOnlyList<TranslateTransform> parts, double level, double t, double alpha, double maxY)
     {
         var n = parts.Count;
+        if (n == 0) return;
         var sinBase = Math.Sin(t * 6.0);
         var cosBase = Math.Cos(t * 6.0);
         var isPlaying = _vm.IsPlaying;
+        var amp = level * maxY; // 2.3.5: 循环不变量提升
         for (var i = 0; i < n; i++)
         {
             var tr = parts[i];
@@ -2134,9 +2151,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             if (isPlaying)
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveSin13, WaveCos13);
-                target = -wave * level * maxY;
+                target = -wave * amp;
             }
-            tr.Y += (target - tr.Y) * alpha;
+            if (!double.IsFinite(tr.Y)) { tr.Y = target; continue; }
+            // 2.3.5: 亚像素写入去重（同 UpdateWaveSet，位移门限 OffsetEpsilon）
+            if (WaveMath.ShouldWriteEased(tr.Y, target, alpha, WaveMath.OffsetEpsilon))
+                tr.Y += (target - tr.Y) * alpha;
         }
     }
 
