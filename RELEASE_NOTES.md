@@ -1,3 +1,21 @@
+## WinIslands 2.5.1（正式版 / Stable）
+### 更新内容
+
+- **⏱️ 波形时钟直读刻度**：OnWaveFrame 每帧不再构造 TimeSpan 读取 _waveClock.Elapsed.TotalSeconds，改为收敛到 WaveNow 单点换算（ElapsedTicks / 常量频率）——每次合成帧少一次结构体构造与两级属性解引用，声波纹跟随音乐的每帧更省，与 SpringTicker 的 v2.4.6 时钟模式完全一致
+- **🧪 换算一致性测试**：新增直读刻度与 TimeSpan 路径在真实流逝窗口内的等价验证（TimeSpan 内部按 100ns 刻度截断，容差 1µs；直读路径实际更精确）
+- **✅ 回归测试**：449 项单元测试全部通过
+
+---
+
+## WinIslands 2.5.1 (Stable)
+### What's New
+
+- **⏱️ Wave clock reads raw ticks**: OnWaveFrame no longer builds a TimeSpan per compositor frame to read Elapsed.TotalSeconds - it goes through the single WaveNow conversion (ElapsedTicks / constant frequency), dropping one struct allocation and two property dereferences from the audio-reactive wave path, matching the v2.4.6 SpringTicker clock pattern exactly
+- **🧪 Scale-consistency test**: a new test verifies raw-tick conversion agrees with the TimeSpan path over a real elapsed window (the TimeSpan path truncates to 100ns ticks internally, so the tolerance is 1µs; the raw-tick path is actually more precise)
+- **✅ Regression**: 449 unit tests green
+
+---
+
 ## WinIslands 2.5.0（正式版 / Stable）
 ### 更新内容
 

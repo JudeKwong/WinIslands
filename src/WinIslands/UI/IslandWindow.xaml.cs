@@ -1916,7 +1916,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (wantTimer != isTimer || wantComposition != isComposition)
         {
             StopWaveRender();
-            _nextWaveFrameTime = _waveClock.Elapsed.TotalSeconds;
+            _nextWaveFrameTime = WaveNow(_waveClock); // 2.5.1: 直读刻度，免 TimeSpan 结构体构造
             if (wantTimer)
             {
                 _waveRendering = true;
@@ -1955,6 +1955,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         CompositionTarget.Rendering -= OnWaveFrame;
     }
     /// <summary>合成帧回调：按帧间隔指数平滑，随真实音频电平起伏，动画连贯不卡顿。</summary>
+    /// <summary>波形时钟秒值（2.5.1）：直读原始刻度 / 常量频率——比 Elapsed.TotalSeconds 少一次
+    /// TimeSpan 结构体构造与两级属性解引用，与 SpringTicker.CurrentSeconds 同一换算模式。</summary>
+    private static double WaveNow(System.Diagnostics.Stopwatch sw) => sw.ElapsedTicks / (double)System.Diagnostics.Stopwatch.Frequency;
+
     private void OnWaveFrame(object? sender, EventArgs e)
     {
         try
@@ -1968,7 +1972,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 RefreshWave();
                 return;
             }
-            var now = _waveClock.Elapsed.TotalSeconds;
+            var now = WaveNow(_waveClock); // 2.5.1: 直读刻度（同 SpringTicker.CurrentSeconds 换算模式）
             if (!_cachedWaveLowPower)
             {
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextWaveFrameTime, _cachedWaveFps)) return;

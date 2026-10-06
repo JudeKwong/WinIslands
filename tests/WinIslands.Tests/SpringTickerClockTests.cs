@@ -44,4 +44,19 @@ public sealed class SpringTickerClockTests
         var ratio = ((s2 - s1) * Stopwatch.Frequency) / dtTicks;
         Assert.InRange(ratio, 0.99, 1.01);
     }
+    [Fact]
+    public void TicksScale_MatchesElapsedTotalSeconds()
+    {
+        // 2.5.1: wave clock now reads raw ticks (ElapsedTicks / Frequency) instead of
+        // constructing a TimeSpan per frame; the conversion must agree with
+        // Elapsed.TotalSeconds within double precision over a real elapsed window.
+        var sw = Stopwatch.StartNew();
+        Thread.Sleep(25);
+        var fromTicks = sw.ElapsedTicks / (double)Stopwatch.Frequency;
+        var fromTimeSpan = sw.Elapsed.TotalSeconds;
+        Assert.True(double.IsFinite(fromTicks) && fromTicks > 0);
+        // TimeSpan 路径内部按 100ns 刻度 (long) 截断，只保证约 1us 级一致；
+        // 直读刻度（double）实际更精确，这里验证两条路径不偏离即可。
+        Assert.True(Math.Abs(fromTimeSpan - fromTicks) < 1e-6);
+    }
 }
