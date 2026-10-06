@@ -49,7 +49,7 @@ public static class CrossFadeCurves
         if (expand)
         {
             // v: 0→1，胶囊行在 v∈[0, 0.25] 内平滑淡出让位（SmoothStep：两端零斜率，iOS 交叉淡出手感）
-            return 1.0 - SmoothStep(Math.Clamp(v / 0.25, 0.0, 1.0));
+            return 1.0 - SmoothStep(Math.Clamp(v / ExpandPillExitAt, 0.0, 1.0));
         }
         // 收起：v 由 1→0，胶囊行在 v∈[0.5, 0] 内平滑淡入（SmoothStep：与内容淡出重叠交叉，不线性硬切）
         // 2.2.14: use the shared CollapsePillReappearAt constant so the pill-reintroduce point can never drift from its single definition
@@ -59,6 +59,30 @@ public static class CrossFadeCurves
     // Reappear window constant shared by PillOpacity (collapse) so mid-flight
     // retargets (expand -> collapse) keep the pill row visible continuously.
     public const double CollapsePillReappearAt = 0.5;
+    /// <summary>2.2.17: pill-exit window (expand) - the compact pill row finishes
+    /// handing off to the expanded content by 25% of the fade, named to mirror
+    /// CollapsePillReappearAt so the whole curve family stays constants-driven.</summary>
+    public const double ExpandPillExitAt = 0.25;
+
+    /// <summary>2.2.17: sub-pixel write-dedup thresholds shared by content + pill
+    /// parallax. Poses that differ by less than these are visually identical, so
+    /// the renderer skips transform invalidation on static/tail frames.</summary>
+    public const double ParallaxScaleEps = 0.0005;
+    public const double ParallaxYEps = 0.05;
+
+    /// <summary>2.2.17: returns true when the new parallax pose should be written.
+    /// Sub-pixel repeats return false and leave the cached pose untouched; the
+    /// first call always writes (transforms may not start at identity).</summary>
+    public static bool ShouldWriteParallax(ref bool wrote, ref double lastScale,
+        ref double lastY, double scale, double y)
+    {
+        if (wrote && Math.Abs(scale - lastScale) < ParallaxScaleEps && Math.Abs(y - lastY) < ParallaxYEps)
+            return false;
+        wrote = true;
+        lastScale = scale;
+        lastY = y;
+        return true;
+    }
 
     /// <summary>Expand: content starts slightly smaller, growing into place（极轻微中心生长，消除文字缩放跳动感）。</summary>
     public const double ExpandParallaxScaleFrom = 0.965;

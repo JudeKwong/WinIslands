@@ -290,4 +290,44 @@ public sealed class CrossFadeCurvesTests
         Assert.Equal(1.0, CrossFadeCurves.PillRowParallax(-0.7, true).Scale, 6);
         Assert.Equal(CrossFadeCurves.PillRowParallaxScaleGone, CrossFadeCurves.PillRowParallax(1.7, true).Scale, 6);
     }
+    [Fact]
+    public void ParallaxDedup_FirstWriteAlwaysTrue_SubPixelRepeatFalse()
+    {
+        // 2.2.17: first call always writes; exact or sub-threshold repeats are
+        // skipped; any change above the thresholds writes again.
+        var wrote = false;
+        double lastScale = 1.0, lastY = 0.0;
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.0, 0.0));
+        Assert.False(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.0, 0.0));
+        Assert.False(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.0002, 0.02));
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.001, 0.0));
+        Assert.False(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.001, 0.0));
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.001, 0.1));
+    }
+
+    [Fact]
+    public void ParallaxDedup_SkipKeepsLastWrittenPose()
+    {
+        // 2.2.17: a skipped repeat must not mutate the cached pose, so a later
+        // large delta still compares against the last WRITTEN values.
+        var wrote = false;
+        double lastScale = 1.0, lastY = 0.0;
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 0.965, -5.0));
+        Assert.False(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 0.9651, -5.01));
+        Assert.Equal(0.965, lastScale, 9);
+        Assert.Equal(-5.0, lastY, 9);
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.0, 0.0));
+    }
+
+    [Fact]
+    public void PillOpacity_ExpandExitAtBoundary_ZeroAtFullExit()
+    {
+        // 2.2.17: ExpandPillExitAt is the named 0.25 window; pill opacity is exactly
+        // 0 at the boundary, > 0 and monotonically decreasing inside the window.
+        Assert.Equal(0.25, CrossFadeCurves.ExpandPillExitAt, 12);
+        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(CrossFadeCurves.ExpandPillExitAt, true), 12);
+        Assert.True(CrossFadeCurves.PillOpacity(0.1, true) > 0.0);
+        Assert.True(CrossFadeCurves.PillOpacity(0.0, true) > CrossFadeCurves.PillOpacity(0.1, true));
+    }
+
 }

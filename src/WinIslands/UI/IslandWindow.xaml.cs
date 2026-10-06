@@ -285,10 +285,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// while expanding and gently retreats while collapsing - matching the card morph
     /// instead of statically fading in/out.
     /// </summary>
+    private double _lastContentScale = 1.0;  // dedup cache (2.2.17)
+    private double _lastContentY = 0.0;
+    private bool _contentParallaxWrote;
+
     private void ApplyContentParallax(double v, bool expand)
     {
         if (ExpandedScale is null || ExpandedTranslate is null) return;
         var (scale, y) = CrossFadeCurves.ContentParallax(v, expand);
+        // 2.2.17: shared sub-pixel dedup - the content pose used to be rewritten
+        // every frame (even the constant-zero Y), forcing render-transform
+        // invalidation at rest. Static/tail frames now skip the write entirely.
+        if (!CrossFadeCurves.ShouldWriteParallax(ref _contentParallaxWrote,
+                ref _lastContentScale, ref _lastContentY, scale, y))
+            return;
         ExpandedScale.ScaleX = scale;
         ExpandedScale.ScaleY = scale;
         ExpandedTranslate.Y = y;
@@ -302,6 +312,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (PillRowScale is not null) PillRowScale.ScaleX = PillRowScale.ScaleY = 1;
         if (PillRowTranslate is not null) PillRowTranslate.Y = 0;
         _pillParallaxWrote = false;
+        _lastPillScale = 1;
+        _lastPillY = 0;
+        _contentParallaxWrote = false;
+        _lastContentScale = 1;
+        _lastContentY = 0;
     }
 
     /// <summary>Pill-row iOS parallax (2.2.15): the compact pill row lifts away as the
@@ -316,11 +331,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (PillRowScale is null || PillRowTranslate is null) return;
         var (scale, y) = CrossFadeCurves.PillRowParallax(v, expand);
-        if (_pillParallaxWrote && Math.Abs(scale - _lastPillScale) < 0.0005 && Math.Abs(y - _lastPillY) < 0.05)
-            return; // Sub-pixel repeat: static frames skip render-transform invalidation
-        _pillParallaxWrote = true;
-        _lastPillScale = scale;
-        _lastPillY = y;
+        // 2.2.17: shared sub-pixel dedup (same thresholds as content parallax).
+        if (!CrossFadeCurves.ShouldWriteParallax(ref _pillParallaxWrote,
+                ref _lastPillScale, ref _lastPillY, scale, y))
+            return;
         PillRowScale.ScaleX = scale;
         PillRowScale.ScaleY = scale;
         PillRowTranslate.Y = y;

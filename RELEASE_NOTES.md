@@ -1,3 +1,21 @@
+## WinIslands 2.2.17（正式版 / Stable）
+### 更新内容
+
+- **📊 内容视差去抖**：2.2.15 的亚像素写去抖只覆盖胶囊行，展开内容层每帧仍无条件重写 RenderTransform（连恒为 0 的纵向偏移也照写）；2.2.17 把去抖判定抽成共享纯函数 ShouldWriteParallax，内容层与胶囊行共用同一套阈值——动画收尾与静止帧不再触发渲染变换失效，120fps 热路径更省 CPU
+- **🔧 展开胶囊退场点常量化**：PillOpacity 展开分支的内联 0.25 提升为命名常量 ExpandPillExitAt，与收起侧 CollapsePillReappearAt 对称，曲线族全部常量驱动、不再有游离字面量
+- **🧪 回归测试**：新增「首次必写+亚像素重复跳过」「跳过不污染缓存姿态」「退场边界=0 且窗口内单调」3 项测试，共 342 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.17 (Stable)
+### What's New
+
+- **📊 Content-parallax write dedup**: 2.2.15 added sub-pixel write dedup for the pill row only - the expanded content layer was still rewriting its render transform every frame (even the always-zero Y). 2.2.17 extracts the dedup decision into a shared pure helper (ShouldWriteParallax) used by BOTH layers with the same thresholds, so animation tails and static frames no longer invalidate render transforms; the 120fps hot path gets cheaper
+- **🔧 Expand pill-exit point is now a named constant**: the inline 0.25 in PillOpacity (expand) becomes ExpandPillExitAt, symmetric with CollapsePillReappearAt on the collapse side - the whole curve family is constants-driven with no stray literals
+- **🧪 Regression**: 3 new tests (first write always lands + sub-pixel repeats skip, skips never pollute the cached pose, exit boundary = 0 with in-window monotonicity) - 342 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.16（正式版 / Stable）
 ### 更新内容
 
