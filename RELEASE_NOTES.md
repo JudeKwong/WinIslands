@@ -1,3 +1,18 @@
+## WinIslands 2.7.2（正式版 / Stable）
+### 更新内容
+
+- 🚀 内容视差热路径改走无钳制二次缓出快速路径：ContentParallax 原先每帧对透明度做两次 Math.Clamp（展开分支 EaseOutQuad(t)、收拢分支 EaseOutQuad(1.0 - t)），而 t 已在函数开头被钳到 [0,1]（NaN/±Inf 也走同一前置分流）；现抽出 EaseOutQuadUnit——仅限输入已保证 ∈ [0,1] 的无钳制版本，直接返回 t * (2.0 - t)，两处缓动求值各省一次范围检查调用，公共 EaseOutQuad 的“越界钳制”契约保持不动，输出在全部可达输入上逐位一致（[0,1] 全域 30001 点逐位扫描 + ContentParallax 整体在 [-0.5, 1.5] 含越界尾部 30001 点逐位对照，双重验证）
+- 🧪 测试：新增 2 项——EaseOutQuadUnit 与公共钳制版 EaseOutQuad 在 [0,1] 全域 30001 点逐位一致；ContentParallax 全程走无钳制路径后与公共钳制参考实现在 [-0.5, 1.5]（含越界尾部及 NaN/±Inf 特殊值）30001 点逐位一致；共 515 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.2 (Stable)
+### What's New
+
+- 🚀 Content-parallax hot path moves to an unclamped quadratic ease-out fast path: ContentParallax used to run Math.Clamp twice per frame (EaseOutQuad(t) on expand, EaseOutQuad(1.0 - t) on collapse) even though t is already clamped to [0,1] at the top of the function (NaN/±Inf ride the same upfront branch); the new EaseOutQuadUnit - the unclamped variant that must only be called with input already in [0,1] - returns t * (2.0 - t) directly, saving one range-check call on each eased evaluation per frame, while the public clamped EaseOutQuad contract stays untouched; output is bit-identical on every reachable input (double-verified: 30001-point bitwise sweep of EaseOutQuadUnit vs the clamped public EaseOutQuad across [0,1], plus a 30001-point bitwise comparison of the whole ContentParallax against the clamped reference over [-0.5, 1.5] including out-of-range tails)
+- 🧪 Tests: 2 new cases - EaseOutQuadUnit is bit-identical to the public clamped EaseOutQuad over 30001 points across [0,1]; the whole ContentParallax on the unclamped path matches the clamped reference bit-for-bit over 30001 points across [-0.5, 1.5] (out-of-range tails plus NaN/±Inf specials included); 515 unit tests green
+---
+
 ## WinIslands 2.7.1（正式版 / Stable）
 ### 更新内容
 

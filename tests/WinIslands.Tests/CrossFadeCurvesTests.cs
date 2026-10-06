@@ -136,6 +136,57 @@ public sealed class CrossFadeCurvesTests
     }
 
     [Fact]
+    public void EaseOutQuadUnit_BitIdenticalToClampedOnUnitInterval()
+    {
+        // 2.7.2: EaseOutQuadUnit (unclamped fast path) must be bit-identical to the
+        // public clamped EaseOutQuad across the whole [0,1] unit interval, which is
+        // exactly the domain ContentParallax guarantees before calling it.
+        for (var i = 0; i <= 30000; i++)
+        {
+            var t = i / 30000.0;
+            Assert.Equal(CrossFadeCurves.EaseOutQuad(t), CrossFadeCurves.EaseOutQuadUnit(t));
+        }
+        Assert.Equal(0.75, CrossFadeCurves.EaseOutQuadUnit(0.5), 9);
+    }
+
+    [Fact]
+    public void ContentParallax_UnitEasingMatchesClampedReference()
+    {
+        // 2.7.2: ContentParallax now routes through EaseOutQuadUnit; the whole function
+        // (including its own input clamp and terminal exits) must stay bit-identical to
+        // a reference implementation that uses the public clamped EaseOutQuad.
+        static double RefEase(double t, bool expand)
+        {
+            t = double.IsFinite(t) ? Math.Clamp(t, 0.0, 1.0) : (expand ? 0.0 : 1.0);
+            if (expand && t >= 1.0) return 1.0;                    // rest pose scale 1.0
+            if (!expand && t <= 0.0) return CrossFadeCurves.CollapseParallaxScaleTo;
+            var grow = expand ? CrossFadeCurves.EaseOutQuad(t) : 1.0 - CrossFadeCurves.EaseOutQuad(1.0 - t);
+            return expand
+                ? CrossFadeCurves.ExpandParallaxScaleFrom + CrossFadeCurves.ExpandParallaxScaleGain * grow
+                : CrossFadeCurves.CollapseParallaxScaleTo + CrossFadeCurves.CollapseParallaxScaleGain * grow;
+        }
+        foreach (var expand in new[] { true, false })
+        {
+            for (var i = 0; i <= 30000; i++)
+            {
+                var v = -0.5 + 2.0 * i / 30000.0; // [-0.5, 1.5] incl. out-of-range tails
+                var (s, y) = CrossFadeCurves.ContentParallax(v, expand);
+                Assert.Equal(RefEase(v, expand), s);
+                Assert.Equal(0.0, y);
+            }
+        }
+        // specials ride the same non-finite input branch as before: +Inf/NaN map to the
+        // start/rest pose of the active direction, exactly as the clamped reference
+        // does (expand: t=0 -> StartScale; collapse: t=1 -> rest scale 1.0)
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, CrossFadeCurves.ContentParallax(double.NaN, true).Scale);
+        Assert.Equal(1.0, CrossFadeCurves.ContentParallax(double.NaN, false).Scale);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, CrossFadeCurves.ContentParallax(double.PositiveInfinity, true).Scale);
+        Assert.Equal(1.0, CrossFadeCurves.ContentParallax(double.PositiveInfinity, false).Scale);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, CrossFadeCurves.ContentParallax(double.NegativeInfinity, true).Scale);
+        Assert.Equal(1.0, CrossFadeCurves.ContentParallax(double.NegativeInfinity, false).Scale);
+    }
+
+    [Fact]
     public void Parallax_Expand_ScaleMonotonicAndEased()
     {
         // 2.1.7：内容生长按 EaseOutQuad 非线性推进（起步快、收尾缓），且随透明度严格单调增

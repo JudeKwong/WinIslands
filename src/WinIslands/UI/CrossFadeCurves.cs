@@ -120,7 +120,9 @@ public static class CrossFadeCurves
         if (!expand && t <= 0.0) return (CollapseParallaxScaleTo, 0.0);
         // iOS 节奏：生长用二次缓出（起步快、收尾缓），收拢用缓入（先缓后快），
         // 内容随卡片形变始终非线性推进，避免线性淡入/缩放的“机械感”。
-        var grow = expand ? EaseOutQuad(t) : 1.0 - EaseOutQuad(1.0 - t);
+        // 2.7.2: EaseOutQuadUnit is the unclamped fast path - t is already in [0,1] (clamped above),
+        // saving two Math.Clamp range-check calls per frame with bit-identical output.
+        var grow = expand ? EaseOutQuadUnit(t) : 1.0 - EaseOutQuadUnit(1.0 - t);
         if (expand)
         {
             var scale = ExpandParallaxScaleFrom + ExpandParallaxScaleGain * grow; // 2.2.14: precomputed gain
@@ -186,4 +188,9 @@ public static class CrossFadeCurves
         t = Math.Clamp(t, 0.0, 1.0);
         return t * (2.0 - t);
     }
+
+    /// <summary>2.7.2: EaseOutQuad 的无钳制快速路径——仅限输入已保证 ∈ [0,1] 时调用
+    /// （ContentParallax 已在函数开头把透明度钳到 [0,1]），与公共 EaseOutQuad 在 [0,1]
+    /// 输入上逐位一致，热路径每帧省两次 Math.Clamp 范围检查（同族：2.6.6/2.6.8/2.7.0/2.7.1）。</summary>
+    internal static double EaseOutQuadUnit(double t) => t * (2.0 - t);
 }
