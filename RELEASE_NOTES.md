@@ -1,3 +1,21 @@
+## WinIslands 2.4.4（正式版 / Stable）
+### 更新内容
+
+- **🚀 动画时长 / 低功耗缩放缓存**：展开收起、紧凑尺寸、位置移动、歌词滚动等所有动画启动点不再逐次读取设置对象属性链并执行 Math.Clamp 与除法，改为经 Settings.Changed 事件同步刷新的缓存常量（durScale / lowPowerMp / baseMs）——设置即改即生效，动画启动路径更短更快
+- **🗠️ 纯函数提取**：常量换算抽为 ComputeAnimationConstants 纯函数，语义与原实现逐字节一致（时长 Clamp 300~1400、默认 700↔×1.0、低功耗 ×0.65）
+- **✅ 回归测试**：新增边界 Clamp、默认/上下限、低功耗开关测试 7 项，共 430 项单元测试全部通过
+
+---
+
+## WinIslands 2.4.4 (Stable)
+### What's New
+
+- **🚀 Cached animation duration / low-power scales**: every animation launch point (expand/collapse, compact resize, position move, lyrics scroll) now reads cached constants (durScale / lowPowerMp / baseMs) refreshed through the Settings.Changed event instead of walking the settings property chain with Math.Clamp + division each time - settings still apply instantly, animation launch paths got shorter and faster
+- **🗠️ Extracted pure function**: constant derivation moved to ComputeAnimationConstants with byte-identical semantics (duration clamped 300-1400, default 700 maps to x1.0, low-power x0.65)
+- **✅ Regression**: 7 new clamp/boundary/low-power switch tests, 430 unit tests green
+
+---
+
 ## WinIslands 2.4.3（正式版 / Stable）
 ### 更新内容
 

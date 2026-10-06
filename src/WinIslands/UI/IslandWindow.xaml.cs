@@ -385,6 +385,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private string? _cachedLyricBaseHex, _cachedLyricHLHex;
     private bool _lyricBrushDark;
 
+    // 2.4.4：动画时长 / 低功耗缩放缓存——设置变更时经 Changed 事件刷新，
+    // 展开/收起、尺寸、位置、歌词滚动等动画启动点不再每帧走 _settings.Current
+    // 属性链 + Math.Clamp + 除法，直接命中缓存常量。
+    private double _animDurScale = 1.0;   // Clamp(Duration,300,1400) / 700
+    private double _animLowPowerMp = 1.0; // LowPowerMode ? 0.65 : 1.0
+    private int _animBaseMs = 700;        // Clamp(Duration,300,1400)
+
 
     public System.Windows.Forms.Screen Screen { get; }
 
@@ -507,6 +514,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             FadeOnTextChange.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
             LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
             Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
+            RefreshAnimationConstants(); // 2.4.4：动画常量随设置即时刷新
         };
         // 2.3.0：启动时立即按当前低功耗设置同步一次（不等待设置变更事件）
         SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
@@ -514,6 +522,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         FadeOnTextChange.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
         LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
         Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
+        RefreshAnimationConstants(); // 2.4.4：启动即按当前设置缓存动画常量
         _vm.PropertyChanged += OnVmPropertyChanged;
         _theme.ThemeChanged += _onThemeChanged;
         _settings.Changed += _onSettingsChanged;
@@ -542,7 +551,26 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Closed += OnWindowClosed; // 关闭时退订外部事件源，避免 RecreateWindows 重建后事件泄漏
     }
 
-    /// <summary>窗口关闭：退订外部事件并停止本窗口定时器 / 渲染循环，防止内存与 CPU 泄漏。</summary>
+    /// <summary>2.4.4：刷新动画时长 / 低功耗缩放缓存。设置会话内任何一次保存都会触发。</summary>
+    private void RefreshAnimationConstants()
+    {
+        ComputeAnimationConstants(_settings.Current, out _animDurScale, out _animLowPowerMp, out _animBaseMs);
+    }
+
+    /// <summary>
+    /// 2.4.4：把动画时长与低功耗缩放换算为缓存常量（纯函数，便于单测）。
+    /// durScale 供弹簧响应时间缩放（默认 700ms ↔ ×1.0），baseMs 供传统 Storyboard 时长，
+    /// lowPowerMp 供低功耗模式整体加快（×0.65）。
+    /// </summary>
+    internal static void ComputeAnimationConstants(AppSettings s, out double durScale, out double lowPowerMp, out int baseMs)
+    {
+        var clamped = Math.Clamp(s.IslandAnimationDuration, 300, 1400);
+        baseMs = clamped;
+        durScale = clamped / 700.0;
+        lowPowerMp = s.LowPowerMode ? 0.65 : 1.0;
+    }
+
+        /// <summary>窗口关闭：退订外部事件并停止本窗口定时器 / 渲染循环，防止内存与 CPU 泄漏。</summary>
     // ── 定位 ──────────────────────────────────────────────────
     private DateTime _touchStartTime;
     private Point _touchStartPoint;
@@ -1660,7 +1688,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
             CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             EnsurePushSprings();
-            var lmPush = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            var lmPush = _animLowPowerMp;
             _pushOpacitySpring!.Configure(1.0, 0.3 * lmPush);
             _pushOpacitySpring.Start(0, 1);
             _pushScaleSpring!.Configure(0.84, 0.5 * lmPush);
@@ -2686,8 +2714,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         EnsureCardSprings();
 
         // 用户时长调节：默认 700ms ↔ response≈0.5s；低功耗模式整体加快
-        var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
-        var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+        var durScale = _animDurScale;
+        var lm = _animLowPowerMp;
         // 展开：轻微 Q 弹（ζ=0.86，过冲约 0.5%，只有 1-2px 的轻回弹），响应 0.66s 更慢更自然；
         // 收起：近临界（ζ=0.97 几乎无回弹），响应 0.56s 收尾柔和。
         var zeta = expand ? 0.86 : 0.97;
@@ -2823,8 +2851,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             // 已有卡片动画（展开/收起/尺寸调整）进行中：先按紧凑方向重设弹簧参数
             // （近临界、更快的收尾手感），再连续改目标——避免打断后沿用展开的
             // 欠阻尼参数产生不必要的过冲（2.1.5）。
-            var durScale2 = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
-            var lm2 = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            var durScale2 = _animDurScale;
+            var lm2 = _animLowPowerMp;
             var resp2 = CrossFadeCurves.CompactShapeResponseSec * durScale2 * lm2;
             if (_cardWSpring?.IsActive == true) { _cardWSpring.Configure(0.96, resp2); _cardWSpring.Retarget(targetWidth); }
             if (_cardHSpring?.IsActive == true) { _cardHSpring.Configure(0.96, resp2); _cardHSpring.Retarget(targetHeight); }
@@ -2845,8 +2873,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardAnimating = true;
         _cardTargetW = targetWidth;
         _cardTargetH = targetHeight;
-        var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
-        var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+        var durScale = _animDurScale;
+        var lm = _animLowPowerMp;
         var response = CrossFadeCurves.CompactShapeResponseSec * durScale * lm; // 紧凑尺寸调整略放慢，贴合自然手感
         _cardWSpring!.Configure(0.96, response);
         _cardWSpring.Start(ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth), targetWidth);
@@ -2908,7 +2936,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 1.2.0：动画时长可由用户微调（300~1400ms，默认 700ms）。
         // 各风格保留相对差异：Spring 全时长 / Soft 略慢 / Elastic 略快 / Fade 最短；
         // 收起时长约为展开的 0.86 倍，让回收更快一点更利落。
-        var baseMs = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400);
+        var baseMs = _animBaseMs;
         static int Ms(double v) => (int)Math.Round(v);
         switch (_settings.Current.AnimationStyle)
         {
@@ -3135,8 +3163,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (_settings.Current.AnimationStyle == "Spring")
         {
             EnsurePositionSprings();
-            var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
-            var lm = _settings.Current.LowPowerMode ? 0.65 : 1.0;
+            var durScale = _animDurScale;
+            var lm = _animLowPowerMp;
             var response = 0.4 * durScale * lm;
             if (_posLSpring!.IsActive) _posLSpring.Retarget(left);
             else { _posLSpring.Configure(0.9, response); _posLSpring.Start(Left, left); }
@@ -3237,7 +3265,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         else
         {
-            var durScale = Math.Clamp(_settings.Current.IslandAnimationDuration, 300, 1400) / 700.0;
+            var durScale = _animDurScale;
             _lyricsScrollSpring.Configure(1.0, 0.34 * durScale); // 临界阻尼：无回弹、丝滑到位
             _lyricsScrollSpring.Start(viewer.VerticalOffset, target);
         }
