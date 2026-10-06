@@ -49,11 +49,17 @@ public static class CrossFadeCurves
         if (expand)
         {
             // v: 0→1，胶囊行在 v∈[0, 0.25] 内平滑淡出让位（SmoothStep：两端零斜率，iOS 交叉淡出手感）
-            return 1.0 - SmoothStep(Math.Clamp(v / ExpandPillExitAt, 0.0, 1.0));
+            // 2.2.18: constant-time exit - past the exit window the pill row is
+            // fully gone (SmoothStep(1)=1 => 0), so skip the easing math entirely.
+            if (v >= ExpandPillExitAt) return 0.0;
+            return 1.0 - SmoothStep(v / ExpandPillExitAt);
         }
         // 收起：v 由 1→0，胶囊行在 v∈[0.5, 0] 内平滑淡入（SmoothStep：与内容淡出重叠交叉，不线性硬切）
         // 2.2.14: use the shared CollapsePillReappearAt constant so the pill-reintroduce point can never drift from its single definition
-        return SmoothStep(Math.Clamp((CollapsePillReappearAt - v) / CollapsePillReappearAt, 0.0, 1.0));
+        // 2.2.18: constant-time exit - the pill has not started reappearing while
+        // still inside the content-fade region, so return 0 without the easing math.
+        if (v >= CollapsePillReappearAt) return 0.0;
+        return SmoothStep((CollapsePillReappearAt - v) / CollapsePillReappearAt);
     }
 
     // Reappear window constant shared by PillOpacity (collapse) so mid-flight
@@ -112,12 +118,10 @@ public static class CrossFadeCurves
         if (expand)
         {
             var scale = ExpandParallaxScaleFrom + ExpandParallaxScaleGain * grow; // 2.2.14: precomputed gain
-            var y = ExpandParallaxYFrom * (1.0 - grow);
-            return (scale, y);
+            return (scale, 0.0); // 2.2.18: Y stays 0 (reserved for layered drift) - dead multiply removed
         }
         var cs = CollapseParallaxScaleTo + CollapseParallaxScaleGain * grow;       // 2.2.14: precomputed gain
-        var cy = CollapseParallaxYTo * (1.0 - grow);
-        return (cs, cy);
+        return (cs, 0.0); // 2.2.18: same - Y reserved, no dead multiply
     }
 
     /// <summary>Pill-row parallax (2.2.15): the compact pill row slides up and shrinks

@@ -329,5 +329,47 @@ public sealed class CrossFadeCurvesTests
         Assert.True(CrossFadeCurves.PillOpacity(0.1, true) > 0.0);
         Assert.True(CrossFadeCurves.PillOpacity(0.0, true) > CrossFadeCurves.PillOpacity(0.1, true));
     }
+    [Fact]
+    public void PillOpacity_ExpandEarlyExit_MatchesReference()
+    {
+        // 2.2.18: the constant-time exit (v >= ExpandPillExitAt => 0) is exactly
+        // the old eased result, and inside the window the eased path is unchanged.
+        foreach (var v in new double[] { 0.3, 0.5, 0.75, 1.0 })
+            Assert.Equal(0.0, CrossFadeCurves.PillOpacity(v, true), 12);
+        for (var i = 0; i <= 24; i++)
+        {
+            var v = i / 100.0;
+            var expected = 1.0 - CrossFadeCurves.SmoothStep(v / CrossFadeCurves.ExpandPillExitAt);
+            Assert.Equal(expected, CrossFadeCurves.PillOpacity(v, true), 12);
+        }
+    }
+
+    [Fact]
+    public void PillOpacity_CollapseEarlyExit_MatchesReference()
+    {
+        // 2.2.18: collapse exit mirrors expand - at/after CollapsePillReappearAt the
+        // pill is still hidden (0), inside the window the eased path is unchanged.
+        foreach (var v in new double[] { 0.5, 0.75, 1.0 })
+            Assert.Equal(0.0, CrossFadeCurves.PillOpacity(v, false), 12);
+        for (var i = 0; i <= 50; i++)
+        {
+            var v = i / 100.0;
+            var expected = CrossFadeCurves.SmoothStep((CrossFadeCurves.CollapsePillReappearAt - v) / CrossFadeCurves.CollapsePillReappearAt);
+            Assert.Equal(expected, CrossFadeCurves.PillOpacity(v, false), 12);
+        }
+    }
+
+    [Fact]
+    public void ContentParallax_YStaysZero_BothDirections()
+    {
+        // 2.2.18: the Y component is reserved (currently 0) for both directions
+        // across the whole fade - the dead multiply removal is behavior-neutral.
+        for (var i = 0; i <= 100; i++)
+        {
+            var v = i / 100.0;
+            Assert.Equal(0.0, CrossFadeCurves.ContentParallax(v, true).TranslateY, 12);
+            Assert.Equal(0.0, CrossFadeCurves.ContentParallax(v, false).TranslateY, 12);
+        }
+    }
 
 }

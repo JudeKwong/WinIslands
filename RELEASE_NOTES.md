@@ -1,3 +1,21 @@
+## WinIslands 2.2.18（正式版 / Stable）
+### 更新内容
+
+- **🎯 PillOpacity 常数时间早退**：展开分支越过退场窗（v≥ExpandPillExitAt）与收起分支未到重现点（v≥CollapsePillReappearAt）时直接返回 0——与旧缓动公式逐位同值，但去掉了每帧的 SmoothStep/Clamp 计算，交叉淡入热路径更省 CPU
+- **⚖️ 去除死乘**：ContentParallax 的 Y 分量当前恒为 0（为分层漂移预留），旧的 YFrom*(1-grow) 每帧空乘被移除，返回元组直接给 0.0，行为逐位不变
+- **🧪 回归测试**：新增「展开早退与参考公式一致」「收起早退与参考公式一致」「Y 分量两方向恒为 0」3 项测试，共 345 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.18 (Stable)
+### What's New
+
+- **🎯 PillOpacity constant-time early exits**: the expand branch now returns 0 as soon as v passes ExpandPillExitAt and the collapse branch returns 0 until v drops below CollapsePillReappearAt - bit-identical to the old eased formula, but the per-frame SmoothStep/Clamp math disappears for those regions, trimming the crossfade hot path
+- **⚖️ Dead-multiply removal**: ContentParallax's Y component is currently always 0 (reserved for future layered drift); the old YFrom*(1-grow) multiply per frame is gone and the tuple returns 0.0 directly, behavior unchanged to the last bit
+- **🧪 Regression**: 3 new tests (expand early-exit matches reference, collapse early-exit matches reference, Y stays zero for both directions) - 345 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.17（正式版 / Stable）
 ### 更新内容
 
