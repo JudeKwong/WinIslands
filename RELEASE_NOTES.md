@@ -1,3 +1,21 @@
+## WinIslands 2.2.16（正式版 / Stable）
+### 更新内容
+
+- **🌀 收敛尾部平滑**：IOSSpring 收敛判定改用 1/4 紧密尾窗——弹簧进入粗窗口后不再立即吸附，而是继续按解析物理积分，直到位移与速度都进入尾窗才收尾；最后一帧吸附距离缩小到原阈值 1/4（像素级跨度 ≤0.125px，亚像素不可感知），消除展开/收起动画收尾瞬间的「停止跳动」
+- **🔧 双窗口防抖**：粗/细两套收敛阈值独立存在，透明度/缩放等小跨度弹簧保留有意义的非零尾窗，收敛始终可达、不会悬停
+- **🧪 回归测试**：新增「尾窗=粗窗 1/4」「各跨度仍收敛到精确目标」「像素级跨度收尾吸附 <0.135px」3 项测试，共 339 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.16 (Stable)
+### What's New
+
+- **🌀 Settle-tail smoothing**: IOSSpring no longer snaps to rest the moment it enters the coarse settle window - it keeps integrating the analytic physics until displacement AND velocity are both inside a tight 1/4 tail window, so the final frame lands with a snap at most a quarter of the old epsilon (<= 0.125px for pixel-scale spans, sub-perceptual), removing the visible stopping jerk at the end of expand/collapse
+- **🔧 Dual-window thresholds**: coarse and tight tails coexist; small-span springs (opacity/scale) keep a meaningful non-zero tail so convergence stays reachable and never hovers
+- **🧪 Regression**: 3 new tests (tail = 1/4 of coarse, all spans still converge to the exact target, pixel-span final snap < 0.135px) - 339 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.15（正式版 / Stable）
 ### 更新内容
 

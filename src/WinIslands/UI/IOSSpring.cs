@@ -67,6 +67,18 @@ public sealed class IOSSpring
     // 这里按当前运动跨度线性缩放，像素级大跨度保持原阈值，小跨度收紧，让每个弹簧真正收敛到自然终点。
     private double _offsetEps = 0.5;
     private double _velEps = 2.5;
+    // 2.2.16: settle-tail windows - once inside the coarse settle window the
+    // spring keeps integrating analytically; Complete() only snaps when both
+    // displacement AND velocity are inside this tight 1/4 tail, so the final
+    // frame lands with a sub-perceptual micro-jerk instead of a visible stop-snap.
+    private const double SettleTailFactor = 0.25;
+    private double _offsetEpsTail = 0.125;
+    private double _velEpsTail = 0.625;
+
+    /// <summary>2.2.16: current tight settle-tail offset tolerance (diagnostics/tests).</summary>
+    public double SettleOffsetTolerance => _offsetEpsTail;
+    /// <summary>2.2.16: current tight settle-tail velocity tolerance (diagnostics/tests).</summary>
+    public double SettleVelocityTolerance => _velEpsTail;
 
     /// <summary>创建并按 UIKit 参数配置弹簧并启动。</summary>
     public static IOSSpring Create(double dampingRatio, double responseSeconds,
@@ -192,7 +204,10 @@ public sealed class IOSSpring
         }
 
         // 收敛判定：偏移与速度都足够小（阈值按运动跨度自适应）→ 瞬移到目标并结束
-        if (Math.Abs(Value - Target) < _offsetEps && Math.Abs(Velocity) < _velEps)
+        // 2.2.16: settle against the tight tail window - the final snap is at
+        // most 1/4 of the coarse epsilon (<= 0.125px for pixel spans), removing
+        // the visible stopping jerk at the end of expand/collapse.
+        if (Math.Abs(Value - Target) < _offsetEpsTail && Math.Abs(Velocity) < _velEpsTail)
         {
             Complete();
             return;
@@ -214,6 +229,10 @@ public sealed class IOSSpring
         var s = Math.Min(1.0, span / 100.0);
         _offsetEps = Math.Max(0.0005, _settleOffsetEpsilon * s);
         _velEps = Math.Max(0.05, _settleVelocityEpsilon * s);
+        // 2.2.16: tight tail windows derived from the coarse ones. Floors stay
+        // non-zero so opacity/scale-span springs keep a reachable, meaningful tail.
+        _offsetEpsTail = Math.Max(0.000125, _offsetEps * SettleTailFactor);
+        _velEpsTail = Math.Max(0.00625, _velEps * SettleTailFactor);
     }
     /// <summary>阻尼简谐振荡器解析解：由初始偏移 y0、初速 v0 求 t 时刻的偏移与速度。</summary>
     /// <summary>2.2.9：初始条件（_y0/_v0/参数）变化时重算各阻尼分支的解析解系数（纯数学，无 UI）。</summary>

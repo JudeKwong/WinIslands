@@ -474,4 +474,65 @@ public sealed class IOSSpringTests
         }
         Assert.Equal(0, SpringTicker.ActiveCount);
     }
+
+    [Fact]
+    public void SettleTail_TolerancesAreQuarterOfCoarse()
+    {
+        // 2.2.16: the tight tail windows are exactly 1/4 of the coarse ones
+        // (floors applied for small spans), pinning the de-jerk behavior.
+        foreach (var span in new double[] { 1, 100, 340 })
+        {
+            var s = IOSSpring.Create(0.86, 0.6, from: 0, to: span);
+            try
+            {
+                var coarse = Math.Max(0.0005, 0.5 * Math.Min(1.0, span / 100.0));
+                var coarseVel = Math.Max(0.05, 2.5 * Math.Min(1.0, span / 100.0));
+                Assert.Equal(Math.Max(0.000125, coarse * 0.25), s.SettleOffsetTolerance, 12);
+                Assert.Equal(Math.Max(0.00625, coarseVel * 0.25), s.SettleVelocityTolerance, 12);
+            }
+            finally { s.Stop(); }
+        }
+    }
+
+    [Fact]
+    public void SettleTail_AllSpansStillConvergeToExactTarget()
+    {
+        // 2.2.16: tightening the settle window must never hang a spring - every
+        // common span/zeta profile still reaches Completion and lands exactly on
+        // target within a bounded time.
+        foreach (var span in new double[] { 1, 50, 100, 340, 1200 })
+        {
+            foreach (var zeta in new double[] { 0.86, 1.0 })
+            {
+                var s = IOSSpring.Create(zeta, 0.55, from: 0, to: span);
+                for (var i = 0; i < 600 && s.IsActive; i++) s.Tick(Dt);
+                Assert.False(s.IsActive);
+                Assert.Equal(span, s.Value, 9);
+            }
+        }
+    }
+
+    [Fact]
+    public void SettleTail_PixelSpanFinalSnapIsSubPixel()
+    {
+        // 2.2.16: for a pixel-scale span the spring completes from inside the
+        // tight tail, so the pre-snap displacement is bounded by tailOffset plus
+        // one frame of residual motion (<= ~0.135px for a 340px span, versus up
+        // to 0.5px before) - the visible "stopping jerk" is gone.
+        var s = IOSSpring.Create(0.86, 0.6, from: 0, to: 340);
+        double snap = double.MaxValue;
+        for (var i = 0; i < 600 && s.IsActive; i++)
+        {
+            var prev = s.Value;
+            s.Tick(Dt);
+            if (!s.IsActive)
+            {
+                snap = Math.Abs(prev - s.Target);
+                break;
+            }
+        }
+        Assert.False(s.IsActive);
+        var tailOffset = s.SettleOffsetTolerance;
+        Assert.True(snap <= tailOffset + 0.01, $"snap {snap} exceeds tail bound {tailOffset + 0.01}");
+    }
 }
