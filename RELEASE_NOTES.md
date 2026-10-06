@@ -1,3 +1,21 @@
+## WinIslands 2.2.13（正式版 / Stable）
+### 更新内容
+
+- **⚡ 卡拉OK时间轴单次遍历重建**：scaled 时长与其倒数合并为一次遍历填充（FillScaledAndInverse），切歌/调速时才重建，属性高频刷新（进度/高亮比例）不再整数组扫描，逐帧渲染热路径更省 CPU
+- **🎯 脏标记+调速检测**：换词/调速置脏并只重建一次；顺带修复 2.2.11 倒数重算写在守卫块外的隐患（两步填充统一进同一守卫，缺口再无旧数组可用）
+- **🧪 回归测试**：新增「单遍=两步等价」「非法值守卫」「空/长度不匹配安全」3 项测试，共 331 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.13 (Stable)
+### What's New
+
+- **⚡ Karaoke timeline rebuilt in a single pass**: scaled word durations and their reciprocals are now filled in one traversal (FillScaledAndInverse), rebuilt only on song/speed change - frequent property refreshes (position/highlight fraction) no longer scan whole arrays, so the per-frame render path stays cheap
+- **🎯 Dirty flag + speed-change detection**: new words or a speed change marks the timeline dirty and rebuilds exactly once; the 2.2.11 reciprocal recompute now lives inside the same guard, so stale or length-mismatched arrays can never be used
+- **🧪 Regression**: 3 new tests (single-pass equals two-step, invalid-value guards, empty/mismatched safety) - 331 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.12（正式版 / Stable）
 ### 更新内容
 

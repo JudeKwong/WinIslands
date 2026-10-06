@@ -91,7 +91,9 @@ public class KaraokeTextBlock : TextBlock
     private double[] _wordStarts = Array.Empty<double>();
     private double[] _wordDenoms = Array.Empty<double>();
     private double[] _wordDensScaled = Array.Empty<double>();
-    private double[] _wordInvDensScaled = Array.Empty<double>(); // 2.2.11：递归倒数预计算，逐字过渡的除法改为一次乘法
+    private double[] _wordInvDensScaled = Array.Empty<double>(); // 2.2.11
+    private bool _timelineDirty = true;                  // 2.2.13：时间轴脏标记——仅在换句/调速时重建 scaled+inverse，属性高频刷新不再整数组遍历
+    private double _lastKaraokeSpeedScale = 1.0;         // 2.2.13：上次重建时的速度倍率，用于检测「调速」触发单次重建：递归倒数预计算，逐字过渡的除法改为一次乘法
    // 2.2.8：速度倍率换算一次，逐帧不再做除法
     // 2.1.3：逐字渲染性能优化——已点亮/未点亮的字共享冻结画刷，只对「正在过渡」的字逐帧算色。
     // 每字用阶段标记（0=未点亮共享底刷、1=过渡中独立刷、2=已点亮共享高亮刷），
@@ -323,11 +325,20 @@ public class KaraokeTextBlock : TextBlock
             _wordDensScaled = new double[_words.Count];
             _wordInvDensScaled = new double[_words.Count];
             BuildWordTimeline(_words, _wordStarts, _wordDenoms);
+            _timelineDirty = true; // 2.2.13：换句/切歌 → 时间轴必须重建
         }
-        // 2.2.8：速度倍率换算一次（切歌/调速时重建），逐帧渲染直接使用，不再逐字除法
-        if (_wordDensScaled.Length == _wordDenoms.Length && _wordDenoms.Length > 0)
-            FillScaledDenoms(_wordDenoms, _karaokeSpeedScale, _wordDensScaled);
-            FillInverseDenoms(_wordDensScaled, _wordInvDensScaled); // 2.2.11：同步重算倒数（切歌/调速时一次）
+        if (Math.Abs(_karaokeSpeedScale - _lastKaraokeSpeedScale) > 1e-12)
+        {
+            _lastKaraokeSpeedScale = _karaokeSpeedScale;
+            _timelineDirty = true; // 2.2.13：调速 → 按新倍率一次性重建
+        }
+        // 2.2.13：scaled 时长与其倒数在「换句/调速」时单次遍历重建（等价原两步填充但只扫一遍），
+        // 逐帧渲染直接使用；属性高频刷新（HighlightFraction 等）不再触发整数组遍历。
+        if (_timelineDirty && _wordDensScaled.Length == _wordDenoms.Length && _wordDenoms.Length > 0)
+        {
+            FillScaledAndInverse(_wordDenoms, _karaokeSpeedScale, _wordDensScaled, _wordInvDensScaled);
+            _timelineDirty = false;
+        }
 
         if (_hasWords)
         {
@@ -711,6 +722,21 @@ public class KaraokeTextBlock : TextBlock
             var d = scaled[i];
             // 0.001s 基长对应 1000/s；非法值绝不产生 NaN/无穷倒数
             inv[i] = double.IsFinite(d) && d > 0 ? 1.0 / d : 1000.0;
+        }
+    }
+
+    /// <summary>2.2.13：单次遍历同时计算「scaled 时长」与「其倒数」——等价于 FillScaledDenoms + FillInverseDenoms 两步，
+    /// 但只扫一遍数组（渲染热路径读取同一组数组）；非法时长回退 0.001/s 基长，绝不产生 NaN/无穷值。</summary>
+    internal static void FillScaledAndInverse(double[] denoms, double scale, double[] scaled, double[] inv)
+    {
+        var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
+        var n = Math.Min(denoms.Length, Math.Min(scaled.Length, inv.Length));
+        for (var i = 0; i < n; i++)
+        {
+            var d = denoms[i];
+            var scaledVal = (double.IsFinite(d) && d > 0 ? d : 0.001) / s;
+            scaled[i] = scaledVal;
+            inv[i] = double.IsFinite(scaledVal) && scaledVal > 0 ? 1.0 / scaledVal : 1000.0;
         }
     }
 

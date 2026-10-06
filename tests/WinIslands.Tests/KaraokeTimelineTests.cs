@@ -241,4 +241,56 @@ public class KaraokeTimelineTests
         Assert.Equal(10.0, inv[0], 12);
         Assert.Equal(5.0, inv[1], 12);
     }
+
+    [Fact]
+    public void FillScaledAndInverse_SinglePassMatchesTwoStep()
+    {
+        // 2.2.13: the single-pass combined fill is equivalent to FillScaledDenoms + FillInverseDenoms (12-digit)
+        var denoms = new[] { 0.001, 0.1, 0.5, 1.2, 3.7, 0.05 };
+        const double scale = 1.25;
+        var scaledA = new double[denoms.Length];
+        var invA = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledDenoms(denoms, scale, scaledA);
+        KaraokeTextBlock.FillInverseDenoms(scaledA, invA);
+        var scaledB = new double[denoms.Length];
+        var invB = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledAndInverse(denoms, scale, scaledB, invB);
+        for (var i = 0; i < denoms.Length; i++)
+        {
+            Assert.Equal(scaledA[i], scaledB[i], 12);
+            Assert.Equal(invA[i], invB[i], 12);
+            Assert.Equal(1.0 / scaledB[i], invB[i], 12);
+        }
+    }
+
+    [Fact]
+    public void FillScaledAndInverse_GuardsInvalid_NoNaNOrInf()
+    {
+        // 2.2.13: zero/negative/NaN/Inf durations become the 0.001/s base; inverse stays finite
+        var denoms = new[] { 0.0, -0.5, double.NaN, double.PositiveInfinity, 0.25 };
+        const double scale = 2.0;
+        var scaled = new double[denoms.Length];
+        var inv = new double[denoms.Length];
+        KaraokeTextBlock.FillScaledAndInverse(denoms, scale, scaled, inv);
+        for (var i = 0; i < denoms.Length; i++)
+        {
+            Assert.True(scaled[i] > 0 && double.IsFinite(scaled[i]), "bad scaled " + scaled[i]);
+            Assert.True(double.IsFinite(inv[i]) && inv[i] > 0, "bad inv " + inv[i]);
+            Assert.Equal(1.0 / scaled[i], inv[i], 12);
+        }
+        Assert.Equal(0.001 / scale, scaled[0], 12);
+        Assert.Equal(scale / 0.001, inv[0], 12);
+    }
+
+    [Fact]
+    public void FillScaledAndInverse_EmptyAndMismatched_NoThrow()
+    {
+        // 2.2.13: empty or length-mismatched inputs are safe no-ops / bounded writes
+        KaraokeTextBlock.FillScaledAndInverse(Array.Empty<double>(), 1.0, Array.Empty<double>(), Array.Empty<double>());
+        var scaled = new double[2];
+        var inv = new double[2];
+        KaraokeTextBlock.FillScaledAndInverse(new[] { 0.1, 0.2, 0.3 }, 1.0, scaled, inv);
+        Assert.Equal(10.0, inv[0], 12);
+        Assert.Equal(5.0, inv[1], 12);
+    }
 }
