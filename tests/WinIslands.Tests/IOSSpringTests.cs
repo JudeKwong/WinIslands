@@ -249,4 +249,29 @@ public sealed class IOSSpringTests
         Assert.Equal(300, IslandWindow.ResolveAnimationFrom(300, 1, 400), 6);
         Assert.Equal(400, IslandWindow.ResolveAnimationFrom(-1, -1, 400), 6); // 非法负值 → 回退
     }
+    [Fact]
+    public void Tick_IgnoresInvalidDt()
+    {
+        var s = IOSSpring.Create(0.86, 0.5, from: 0, to: 100);
+        s.Tick(-1);
+        s.Tick(double.NaN);
+        s.Tick(0);
+        Assert.True(s.IsActive);
+        Assert.Equal(0, s.Value, 6);
+        Assert.Equal(0, s.Velocity, 6);
+        s.Stop();
+    }
+
+    [Fact]
+    public void Tick_ClampsGiantDt_StaysFiniteAndSettles()
+    {
+        var s = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        s.Tick(10.0);
+        Assert.True(double.IsFinite(s.Value));
+        Assert.True(double.IsFinite(s.Velocity));
+        Assert.InRange(s.Value, 0.0, 110.0);
+        Drain(s, 2.0);
+        Assert.False(s.IsActive);
+        Assert.InRange(s.Value, 99.5, 100.5);
+    }
 }

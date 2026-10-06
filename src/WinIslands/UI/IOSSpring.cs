@@ -162,7 +162,10 @@ public sealed class IOSSpring
     internal void Tick(double dt)
     {
         if (!IsActive) return;
-        _elapsed += dt;
+                // 2.2.2: clamp single-frame dt to 0.1s so a lag spike or debugger
+        // resume cannot push the analytic solution into a huge jump.
+        if (!double.IsFinite(dt) || dt <= 0) return;
+        _elapsed += Math.Min(dt, 0.1);
         Solve(_elapsed);
 
         // 数值防护：任何 NaN/Inf 都不允许进入 UI 回调或收敛判定，静默停止避免污染扩散

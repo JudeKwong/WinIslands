@@ -116,6 +116,12 @@ public class KaraokeTextBlock : TextBlock
     /// <summary>中等偏差（SMTC/本地 API 上报量化、滞后）每次上报的收敛比例：0.5 = 每 200ms 收敛一半残余偏差，约两次平滑到位，肉眼无回跳。</summary>
     private const double PositionCorrectionGain = 0.5;
 
+    // 2.2.2：位置更新停顿感知——媒体端暂停/退出后若不再上报进度，墙钟外推会让歌词
+    // 继续“往后走”（最多 +0.5s 才停）。按距最近一次位置更新的时长动态收窄外推上限：
+    // 0.35s 内保持全额上限；0.35s→0.65s 线性渐缩到 0；0.65s 后完全冻结在最后确认位置。
+    private const double StallGraceStartSeconds = 0.35;
+    private const double StallFreezeSeconds = 0.65;
+
     public KaraokeTextBlock()
     {
         // 120fps：使用 CompositionTarget.Rendering（跟随显示器刷新率），不再用 DispatcherTimer
@@ -241,7 +247,8 @@ public class KaraokeTextBlock : TextBlock
         if (IsPlaying && _hasWords && _renderingSubscribed && IsVisible)
         {
             var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
-            var extrapolated = _posBase + Math.Min(Math.Max(elapsed, 0), MaxWallClockLeadSeconds);
+            var extrapolated = ClampWallClockLead(_posBase, elapsed,
+                StallAwareLead(Math.Max(0.0, elapsed), MaxWallClockLeadSeconds));
             var delta = pos - extrapolated;
             if (Math.Abs(delta) > PositionHardSyncThresholdSeconds)
             {
@@ -400,7 +407,16 @@ public class KaraokeTextBlock : TextBlock
                     : AnimationFrameRate.Current(lowPowerMode: false);
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
                 var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
-                var pos = ClampWallClockLead(_posBase, elapsed);
+                var sinceUpdate = Math.Max(0.0, elapsed);
+                if (sinceUpdate >= StallFreezeSeconds)
+                {
+                    // 2.2.2：位置更新停滞（暂停后播放器不再上报进度）→ 冻结在最后确认位置并停绘，
+                    // 防止歌词继续“往后走”；新位置到达后由 OnPositionChanged 重新启动动画。
+                    StopAnimation();
+                    RenderWords(_posBase);
+                    return;
+                }
+                var pos = ClampWallClockLead(_posBase, elapsed, StallAwareLead(sinceUpdate, MaxWallClockLeadSeconds));
                 RenderWords(pos);
                 // 该行已全部点亮/尚未开始：静态即可，停止动画（避免列表里多行同时空转）
                 if (!NeedsAnimation(pos)) StopAnimation();
@@ -657,5 +673,24 @@ public class KaraokeTextBlock : TextBlock
 
     /// <summary>墙钟外推限幅：只补足两次位置更新之间的间隙，绝不让歌词进度无限超前（防“漂到句尾再跳回”）。</summary>
     internal static double ClampWallClockLead(double posBase, double elapsedSeconds)
-        => posBase + Math.Min(Math.Max(elapsedSeconds, 0), MaxWallClockLeadSeconds);
+        => ClampWallClockLead(posBase, elapsedSeconds, MaxWallClockLeadSeconds);
+
+    /// <summary>按指定外推上限限幅（2.2.2：上限由 <see cref="StallAwareLead"/> 按更新间隔动态收紧）。</summary>
+    internal static double ClampWallClockLead(double posBase, double elapsedSeconds, double maxLead)
+        => posBase + Math.Min(Math.Max(elapsedSeconds, 0), Math.Max(0.0, maxLead));
+
+    /// <summary>
+    /// 按“距最近一次位置更新的时长”计算墙钟外推上限（2.2.2）。
+    /// 位置持续更新（播放中）→ 返回全额上限；更新停止（暂停/播放器退出但 IsPlaying 残留 true）
+    /// → 0.35s 后开始线性收窄，0.65s 后归零 → 冻结在最后确认位置，歌词不再漂移。
+    /// 纯函数，便于单元测试。
+    /// </summary>
+    internal static double StallAwareLead(double sinceLastUpdate, double maxLead)
+    {
+        var fullLead = double.IsFinite(maxLead) && maxLead >= 0 ? maxLead : MaxWallClockLeadSeconds;
+        if (sinceLastUpdate <= StallGraceStartSeconds) return fullLead;
+        if (sinceLastUpdate >= StallFreezeSeconds) return 0.0;
+        var f = (StallFreezeSeconds - sinceLastUpdate) / (StallFreezeSeconds - StallGraceStartSeconds);
+        return fullLead * Math.Max(0.0, Math.Min(1.0, f));
+    }
 }

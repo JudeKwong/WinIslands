@@ -1,3 +1,19 @@
+## WinIslands 2.2.2（正式版 / Stable）
+### 更新内容
+
+- **🎵 修复“暂停后歌词仍往后走”**：逐字歌词的位置推算加入“停滞感知”——距离最后一次播放器位置更新超过 0.35s 后，超前量开始线性收窄，0.65s 后完全冻结在最后确认的位置。暂停、退出重开、播放器停止推送位置时，高亮不再凭空前移、不再跳动，稳定停在暂停时刻的样子
+- **🧲 弹簧单帧步长防护**：iOS 风格弹簧的解析解在滞后尖峰 / 调试断点恢复时，把单帧步长钳制到 0.1s 内再推进，位置与速度保持连续，杜绝大跳帧导致的顿挫与瞬移（借鉴 nimbus 数值弹簧的 dt 钳制理念）
+- **🧪 回归测试**：新增停滞感知曲线单调性、大 dt 钳制收敛、冻结上限等 11 项专项测试，共 289 项单元测试全部通过，编译零警告
+
+---
+## WinIslands 2.2.2 (Stable)
+### What's New
+
+- **🎵 Fix "lyrics keep advancing after pause"**: word-by-word karaoke extrapolation is now stall-aware - once the last playback position update is older than 0.35s the lead tightens linearly, and after 0.65s it freezes entirely at the last confirmed position. Pausing, exiting/relaunching, or a player that stops pushing positions no longer makes the highlight crawl forward or jitter - it stays exactly where the music stopped
+- **🧲 Single-frame step guard for the spring solver**: the iOS-style spring analytic solution clamps each frame step to 0.1s before advancing, so lag spikes or debugger resumes keep position and velocity continuous - no hitching, no teleporting (same dt-clamping idea as the nimbus numeric spring)
+- **🧪 Regression**: 11 new targeted tests (stall-aware curve monotonicity, giant-dt clamping and settle, freeze cap), 289 unit tests total, all green with zero warnings
+
+---
 ## WinIslands 2.2.1（正式版 / Stable）
 ### 更新内容
 

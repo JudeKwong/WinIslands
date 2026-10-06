@@ -88,4 +88,38 @@ public class KaraokeTimelineTests
     {
         Assert.Equal(expected, KaraokeTextBlock.ClampWallClockLead(posBase, elapsed), 6);
     }
+    [Theory]
+    [InlineData(0.0, 0.5, 0.5)]
+    [InlineData(0.2, 0.5, 0.5)]
+    [InlineData(0.35, 0.5, 0.5)]
+    [InlineData(0.5, 0.5, 0.25)]
+    [InlineData(0.64, 0.5, 0.0166666667)]
+    [InlineData(0.65, 0.5, 0.0)]
+    [InlineData(10.0, 0.5, 0.0)]
+    public void StallAwareLead_TightensWhenUpdatesStop(double since, double maxLead, double expected)
+    {
+        Assert.Equal(expected, KaraokeTextBlock.StallAwareLead(since, maxLead), 4);
+    }
+
+    [Fact]
+    public void StallAwareLead_MonotonicInStallWindow()
+    {
+        double prev = double.MaxValue;
+        for (var s = 0.35; s <= 0.651; s += 0.001)
+        {
+            var v = KaraokeTextBlock.StallAwareLead(s, 0.5);
+            Assert.True(v <= prev + 1e-9, $"lead grew at since={s}");
+            prev = v;
+        }
+        Assert.Equal(0.0, prev, 6);
+    }
+
+    [Fact]
+    public void ClampWallClockLead_RespectsProvidedCap()
+    {
+        Assert.Equal(100.2, KaraokeTextBlock.ClampWallClockLead(100.0, 0.2, 0.3), 6);
+        Assert.Equal(100.3, KaraokeTextBlock.ClampWallClockLead(100.0, 0.5, 0.3), 6);
+        Assert.Equal(100.0, KaraokeTextBlock.ClampWallClockLead(100.0, -1.0, 0.3), 6);
+        Assert.Equal(100.05, KaraokeTextBlock.ClampWallClockLead(100.0, 0.05, 0.15), 6);
+    }
 }
