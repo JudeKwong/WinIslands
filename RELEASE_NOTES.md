@@ -1,3 +1,19 @@
+## WinIslands 2.7.9（正式版 / Stable）
+### 更新内容
+
+- 🚀 声波纹 OnWaveFrame 每帧钳制全部改走分支链：波形帧处理器第二波优化——① 波纹电平 Math.Clamp(_vm.WaveLevel, 0, 1) 改 WaveMath.ClampUnit；② 谱状/环形目标值钳制 Math.Clamp(base ± amp*wave*ramp, 0.05/0.08, 1.0) 改 WaveMath.ClampRange（x < min ? min : x > max ? max : x），与 Math.Clamp 在合法输入（min ≤ max，含 NaN/±Inf/±0）上逐位一致——NaN 透传、±Inf 钳到端点、±0 保持，波形姿态逐帧不变；该循环每帧每根条执行，n 条 × 每帧共省 n 次范围检查调用
+- 🧪 测试：新增 3 项——① 15 个特殊值 × 4 组实际上下界（0.05/1.0、0.08/1.0、-1.0/1.0、0.3/0.7）逐位对比 Math.Clamp 与 ClampRange（DoubleToInt64Bits）；② [-2,2] 100001 点密集扫描 × 三组上下界逐位一致；③ 边界断言（区间内原样、低于下限钳 min、高于上限钳 max、NaN/±Inf 与 Math.Clamp 一致）；共 531 项单元测试全部通过
+
+---
+
+## WinIslands 2.7.9 (Stable)
+### What's New
+
+- 🚀 Every OnWaveFrame clamp moves to a branch chain: the second wave-frame optimization - ① the wave level Math.Clamp(_vm.WaveLevel, 0, 1) becomes WaveMath.ClampUnit; ② the spectrum/ring target clamps Math.Clamp(base +- amp*wave*ramp, 0.05/0.08, 1.0) become WaveMath.ClampRange (x < min ? min : x > max ? max : x), bit-identical to Math.Clamp for every legal input (min <= max, including NaN/+-Inf/+-0) - NaN passes through, +-Inf clamp to the endpoints, +-0 preserved, so the wave pose is unchanged frame by frame; the loop runs once per bar per frame, saving n range-check calls per frame for n bars
+- 🧪 Tests: 3 new cases - (1) 15 special values x 4 real-world ranges (0.05/1.0, 0.08/1.0, -1.0/1.0, 0.3/0.7) compared bitwise (DoubleToInt64Bits) against Math.Clamp; (2) a 100001-point dense sweep over [-2, 2] across three ranges bit-identical; (3) boundary asserts (values inside pass through, below min clamps to min, above max clamps to max, NaN/+-Inf match Math.Clamp); 531 unit tests green
+
+---
+
 ## WinIslands 2.7.8（正式版 / Stable）
 ### 更新内容
 

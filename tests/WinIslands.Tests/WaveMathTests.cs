@@ -336,4 +336,51 @@ public sealed class WaveMathTests
         Assert.True(double.IsNaN(WaveMath.ClampUnit(double.NaN)));
         Assert.Equal(BitConverter.DoubleToInt64Bits(-0.0), BitConverter.DoubleToInt64Bits(WaveMath.ClampUnit(-0.0)));
     }
+
+    /// <summary>2.7.9：区间钳制 ClampRange 与 Math.Clamp(x, min, max) 在合法输入上逐位一致。</summary>
+    [Fact]
+    public void ClampRange_Specials_BitIdenticalToMathClamp()
+    {
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, -2.0
+        };
+        var ranges = new[] { (0.05, 1.0), (0.08, 1.0), (-1.0, 1.0), (0.3, 0.7) };
+        foreach (var (min, max) in ranges)
+            foreach (var x in specials)
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(Math.Clamp(x, min, max)),
+                    BitConverter.DoubleToInt64Bits(WaveMath.ClampRange(x, min, max)));
+    }
+
+    /// <summary>2.7.9：[-2, 2] 100001 点密集扫描 × 实际声波纹上下界，逐位一致。</summary>
+    [Fact]
+    public void ClampRange_DenseSweep_BitIdenticalToMathClamp()
+    {
+        foreach (var (min, max) in new[] { (0.05, 1.0), (0.08, 1.0), (-1.0, 1.0) })
+            for (var i = 0; i <= 100000; i++)
+            {
+                var x = -2.0 + 4.0 * i / 100000.0;
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(Math.Clamp(x, min, max)),
+                    BitConverter.DoubleToInt64Bits(WaveMath.ClampRange(x, min, max)));
+            }
+    }
+
+    /// <summary>2.7.9：边界断言——区间内原样、低于下限钳 min、高于上限钳 max、NaN/±Inf 与 Math.Clamp 一致。</summary>
+    [Fact]
+    public void ClampRange_Boundaries_Exact()
+    {
+        Assert.Equal(0.05, WaveMath.ClampRange(0.05, 0.05, 1.0));
+        Assert.Equal(1.0, WaveMath.ClampRange(1.0, 0.05, 1.0));
+        Assert.Equal(0.05, WaveMath.ClampRange(-2.0, 0.05, 1.0));
+        Assert.Equal(1.0, WaveMath.ClampRange(2.0, 0.05, 1.0));
+        Assert.Equal(0.08, WaveMath.ClampRange(0.0, 0.08, 1.0));
+        Assert.Equal(0.5, WaveMath.ClampRange(0.5, 0.08, 1.0));
+        Assert.Equal(1.0, WaveMath.ClampRange(double.PositiveInfinity, 0.05, 1.0));
+        Assert.Equal(0.05, WaveMath.ClampRange(double.NegativeInfinity, 0.05, 1.0));
+        Assert.True(double.IsNaN(WaveMath.ClampRange(double.NaN, 0.05, 1.0)));
+    }
 }

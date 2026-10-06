@@ -1980,7 +1980,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var dt = KaraokeMath.ClampTickDelta(now - _lastWaveTime); // 2.4.8: 与歌词共用同一化钳制（分支链，免 Math 调用）
             _lastWaveTime = now;
 
-            var level = Math.Clamp(_vm.WaveLevel, 0, 1);
+            var level = WaveMath.ClampUnit(_vm.WaveLevel);
             var height = _cachedWaveHeight;
             var alpha = WaveMath.SmoothAlpha(dt, 22.0); // 帧率无关的指数平滑（2.4.8: NaN 安全纯函数）
             // 1.2.1 性能优化：只更新当前可见的波纹集合（展开=大波纹、紧凑=小波纹），
@@ -2032,9 +2032,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             {
                 var wave = WaveValue(sinBase, cosBase, i, WaveOffsets09);
                 if (bias > 0)
-                    target = Math.Clamp(baseB + ampB * wave * ramp, 0.05, 1.0);
+                    target = WaveMath.ClampRange(baseB + ampB * wave * ramp, 0.05, 1.0);
                 else
-                    target = Math.Clamp(baseA + ampA * wave, 0.08, 1.0);
+                    target = WaveMath.ClampRange(baseA + ampA * wave, 0.08, 1.0);
             }
             else
             {

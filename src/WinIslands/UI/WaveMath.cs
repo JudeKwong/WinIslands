@@ -92,4 +92,11 @@ internal static class WaveMath
     /// 声波纹热路径（模拟节拍每帧、WASAPI 10ms 包络窗）各省一次范围检查调用。
     /// </summary>
     internal static double ClampUnit(double x) => x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x;
+    /// <summary>
+    /// 区间钳制（2.7.9）：x &lt; min ? min : x &gt; max ? max : x 双比较分支链，
+    /// 与 Math.Clamp(x, min, max) 在合法输入（min ≤ max，含 NaN/±Inf/±0）上逐位一致——
+    /// NaN 透传、±Inf 钳到端点、±0 保持；声波纹环形/谱状目标每帧每根条的目标钳制走此路径，
+    /// 省一次范围检查调用。
+    /// </summary>
+    internal static double ClampRange(double x, double min, double max) => x < min ? min : x > max ? max : x;
 }
