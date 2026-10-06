@@ -52,7 +52,8 @@ public static class CrossFadeCurves
             return 1.0 - SmoothStep(Math.Clamp(v / 0.25, 0.0, 1.0));
         }
         // 收起：v 由 1→0，胶囊行在 v∈[0.5, 0] 内平滑淡入（SmoothStep：与内容淡出重叠交叉，不线性硬切）
-        return SmoothStep(Math.Clamp((0.5 - v) / 0.5, 0.0, 1.0));
+        // 2.2.14: use the shared CollapsePillReappearAt constant so the pill-reintroduce point can never drift from its single definition
+        return SmoothStep(Math.Clamp((CollapsePillReappearAt - v) / CollapsePillReappearAt, 0.0, 1.0));
     }
 
     // Reappear window constant shared by PillOpacity (collapse) so mid-flight
@@ -66,6 +67,11 @@ public static class CrossFadeCurves
     /// <summary>Collapse: content gently shrinks while fading out（极轻微收缩，不产生文字缩放跳动）。</summary>
     public const double CollapseParallaxScaleTo = 0.98;
     public const double CollapseParallaxYTo = 0;
+
+    /// <summary>2.2.14: precomputed parallax scale gains (1.0 - ScaleFrom/ScaleTo) so per-frame
+    /// ContentParallax never repeats floating-point subtraction on the animation hot path.</summary>
+    public const double ExpandParallaxScaleGain = 1.0 - ExpandParallaxScaleFrom;
+    public const double CollapseParallaxScaleGain = 1.0 - CollapseParallaxScaleTo;
 
     /// <summary>
     /// Content parallax (2.1.0): drives the expanded content's scale + vertical
@@ -81,11 +87,11 @@ public static class CrossFadeCurves
         var grow = expand ? EaseOutQuad(t) : 1.0 - EaseOutQuad(1.0 - t);
         if (expand)
         {
-            var scale = ExpandParallaxScaleFrom + (1.0 - ExpandParallaxScaleFrom) * grow;
+            var scale = ExpandParallaxScaleFrom + ExpandParallaxScaleGain * grow; // 2.2.14: precomputed gain
             var y = ExpandParallaxYFrom * (1.0 - grow);
             return (scale, y);
         }
-        var cs = CollapseParallaxScaleTo + (1.0 - CollapseParallaxScaleTo) * grow;
+        var cs = CollapseParallaxScaleTo + CollapseParallaxScaleGain * grow;       // 2.2.14: precomputed gain
         var cy = CollapseParallaxYTo * (1.0 - grow);
         return (cs, cy);
     }

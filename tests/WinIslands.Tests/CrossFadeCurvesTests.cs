@@ -182,6 +182,29 @@ public sealed class CrossFadeCurvesTests
     }
 
     [Fact]
+    public void PillOpacity_Collapse_MatchesSharedConstantBoundary()
+    {
+        // 2.2.14: the collapse pill-reappear curve is driven by the shared CollapsePillReappearAt
+        // constant - at exactly that boundary the pill is fully faded out (0) and below it reappears
+        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(CrossFadeCurves.CollapsePillReappearAt, expand: false), 9);
+        Assert.Equal(0.0, CrossFadeCurves.PillOpacity(0.5, expand: false), 9); // 0.5 == CollapsePillReappearAt today
+        Assert.Equal(1.0, CrossFadeCurves.PillOpacity(0.0, expand: false), 9);
+    }
+
+    [Fact]
+    public void Parallax_ScaleGainConstants_ConsistentWithBounds()
+    {
+        // 2.2.14: precomputed gains equal 1 - From/To, stay small and positive (subtle parallax, no text jump)
+        Assert.Equal(1.0 - CrossFadeCurves.ExpandParallaxScaleFrom, CrossFadeCurves.ExpandParallaxScaleGain, 12);
+        Assert.Equal(1.0 - CrossFadeCurves.CollapseParallaxScaleTo, CrossFadeCurves.CollapseParallaxScaleGain, 12);
+        Assert.InRange(CrossFadeCurves.ExpandParallaxScaleGain, 0.0, 0.1);
+        Assert.InRange(CrossFadeCurves.CollapseParallaxScaleGain, 0.0, 0.1);
+        var (s0, _) = CrossFadeCurves.ContentParallax(0.0, expand: true);
+        Assert.Equal(CrossFadeCurves.ExpandParallaxScaleFrom, s0, 12);
+        var (c0, _) = CrossFadeCurves.ContentParallax(0.0, expand: false);
+        Assert.Equal(CrossFadeCurves.CollapseParallaxScaleTo, c0, 12);
+    }
+    [Fact]
     public void SpringResponseConstants_iOSRhythm()
     {
         // 2.2.6: shape-spring base responses are now pure constants - expand 0.66s /

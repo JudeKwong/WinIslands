@@ -1,3 +1,21 @@
+## WinIslands 2.2.14（正式版 / Stable）
+### 更新内容
+
+- **⚡ 视差放大增量预计算**：ContentParallax 每帧的 1.0 - ScaleFrom/ScaleTo 浮点减法提前算成常量（Expand/CollapseParallaxScaleGain），展开/收起动画热路径更省 CPU、结果与旧算法完全一致
+- **🎯 收起胶囊行重现点统一**：PillOpacity 收起分支的字面量 0.5 替换为共享常量 CollapsePillReappearAt，重现点与定义唯一同源，不再可能票离
+- **🧪 回归测试**：新增「重现边界与共享常量一致」「增量常量与边界一致」2 项测试，共 333 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.14 (Stable)
+### What's New
+
+- **⚡ Precomputed parallax scale gains**: the per-frame 1.0 - ScaleFrom/ScaleTo float subtraction in ContentParallax is now folded into constants (Expand/CollapseParallaxScaleGain), trimming the expand/collapse animation hot path with bit-identical results
+- **🎯 Unified pill-reappear point**: PillOpacity's collapse branch now uses the shared CollapsePillReappearAt constant instead of a literal 0.5, so the pill-reintroduce point can never drift from its single definition
+- **🧪 Regression**: 2 new tests (reappear boundary matches the shared constant, gain constants agree with the From/To bounds) - 333 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.13（正式版 / Stable）
 ### 更新内容
 
