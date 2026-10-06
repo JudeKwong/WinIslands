@@ -1,3 +1,21 @@
+## WinIslands 2.3.8（正式版 / Stable）
+### 更新内容
+
+- **⚡ 弹簧热路径微优化**：IOSSpring.Tick 的巨帧钳制由 Math.Min 改为条件三元——每个活跃弹簧每合成帧免去一次 Math.Min 调用，展开/收起与歌词强调的帧开销更低；巨帧（挂起/调试恢复）仍严格按 0.1s 积分，行为与旧版完全一致
+- **⚡ 帧节拍下限常量提升**：FrameClock 的 1/240s 步长下限改为编译期常量，帧间隔状态机少一次除法；卡拉OK过渡字渲染改为直接读缓存的过渡画刷，免去每帧对每个过渡字的 is 类型判断
+- **🧪 回归测试**：新增巨帧钳制等价性测试（5s 巨帧与精确 0.1s 步长的位置/速度完全一致、一帧不瞬移不收敛），共 406 项单元测试全部通过
+
+---
+
+## WinIslands 2.3.8 (Stable)
+### What's New
+
+- **⚡ Spring hot-path micro-optimization**: IOSSpring.Tick's huge-frame clamp now uses a conditional ternary instead of Math.Min - every active spring skips one Math.Min call per composite frame (expand/collapse and lyric emphasis cost less); huge frames (suspend/debugger resume) still integrate at exactly 0.1s, identical behaviour to before
+- **⚡ Frame-clock floor constant + karaoke brush read**: the 1/240s step floor is a compile-time constant (one fewer division per frame-clock step); the karaoke cross-fade now reads the cached transition brush directly, dropping the per-word is-type check every frame
+- **🧪 Regression**: new huge-frame equivalence test (a 5s frame and an exact 0.1s step produce identical position/velocity - one frame can never snap or settle), 406 unit tests total, all green
+
+---
+
 ## WinIslands 2.3.7（正式版 / Stable）
 ### 更新内容
 

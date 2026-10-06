@@ -24,6 +24,9 @@ internal sealed class FrameClock
     /// a known pose).</summary>
     private const double WarmUpCapSeconds = 1.0 / 120.0;
 
+    /// <summary>2.3.8: 步长下限常量（1/240s），提前折叠除法。</summary>
+    private const double MinFloorStepSeconds = 1.0 / 240.0;
+
     /// <summary>重建帧节拍基线（新动画会话 / 系统恢复时调用）。</summary>
     public void ResetBaseline(double now)
     {
@@ -73,7 +76,7 @@ internal sealed class FrameClock
         {
             _smoothDt += (dt - _smoothDt) * 0.15; // 2.3.4: one fewer multiply-add per compositor frame (identical EWMA)
         }
-        var maxStep = Math.Max(1.0 / 240.0, _smoothDt * 1.5);
+        var maxStep = Math.Max(MinFloorStepSeconds, _smoothDt * 1.5);
         if (dt > maxStep) dt = maxStep;
         return dt;
     }

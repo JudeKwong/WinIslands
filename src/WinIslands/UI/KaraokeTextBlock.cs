@@ -559,13 +559,11 @@ public class KaraokeTextBlock : TextBlock
                 run.Foreground = cached;
                 _wordPhase[i] = 1;
             }
-            else if (run.Foreground is SolidColorBrush brush)
-            {
-                if (!ColorEqual(brush.Color, c)) brush.Color = c;
-            }
             else
             {
-                run.Foreground = new SolidColorBrush(c);
+                // 2.3.8: 过渡期画刷在进入分支时已保证非空并挂到 Run 上，直接读缓存刷，免去每帧 is 判断
+                var brush = _wordBrushes[i]!;
+                if (!ColorEqual(brush.Color, c)) brush.Color = c;
             }
         }
     }

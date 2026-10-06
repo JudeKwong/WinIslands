@@ -550,4 +550,21 @@ public sealed class IOSSpringTests
         Assert.Equal(50, last, 3); // final update callback lands on target
     }
 
+
+    [Fact]
+    public void Tick_HugeFrame_EquivalentTo100ms()
+    {
+        // 2.3.8: 巨帧（5s）必须按 0.1s 钳制积分——与精确 0.1s 步长的结果完全一致，
+        // 一帧内绝不直接收敛或跳变到目标（lag spike / 调试器恢复时的稳定性护栏）。
+        var huge = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        var exact = IOSSpring.Create(0.82, 0.5, from: 0, to: 100);
+        huge.Tick(5.0);
+        exact.Tick(0.1);
+        Assert.True(huge.IsActive, "huge dt must be clamped - spring cannot settle in one frame");
+        Assert.Equal(exact.Value, huge.Value, 9);
+        Assert.Equal(exact.Velocity, huge.Velocity, 9);
+        huge.Complete();
+        exact.Complete();
+    }
+
 }

@@ -190,7 +190,7 @@ public sealed class IOSSpring
                 // 2.2.2: clamp single-frame dt to 0.1s so a lag spike or debugger
         // resume cannot push the analytic solution into a huge jump.
         if (!double.IsFinite(dt) || dt <= 0) return;
-        _elapsed += Math.Min(dt, 0.1);
+        _elapsed += dt > 0.1 ? 0.1 : dt; // 2.3.8: 条件钳制，热路径免去 Math.Min 调用
         Solve(_elapsed);
 
         // 2.3.4: read Value/Velocity once per frame - the settle check and the
