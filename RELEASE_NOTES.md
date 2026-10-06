@@ -1,3 +1,21 @@
+## WinIslands 2.2.12（正式版 / Stable）
+### 更新内容
+
+- **⚡ 空闲态内存回收**：MemoryOptimizer 新增「空闲判定」：灵动岛无媒体、未展开时才进入的回收路径改用更积极门限（工作集 64MB / 私有 28MB / 60s 间隔），后台常驻内存占用明显更低
+- **🎯 活动/空闲双门限**：RequestTrim(idle) 让调用方区分场景——活动时保持原门限（96/40/120s）保证不抖帧，空闲时更早回收；默认重载行为与旧版完全一致
+- **🧪 回归测试**：新增「空闲门限生效」「空闲仍节流」「默认重载与活动路径一致」3 项测试，共 328 项单元测试全部通过，编译零警告
+
+---
+
+## WinIslands 2.2.12 (Stable)
+### What's New
+
+- **⚡ Idle-state memory reclamation**: MemoryOptimizer learns idle detection - the reclaim path that only runs when the island has no media and is collapsed now uses aggressive thresholds (working set 64MB / private 28MB / 60s interval), lowering background residency further
+- **🎯 Active vs idle dual thresholds**: RequestTrim(idle) lets callers pick a policy - keep the original 96/40/120s bars while active so frames never stutter, reclaim earlier at rest; the parameterless overload keeps the exact legacy behavior
+- **🧪 Regression**: 3 new tests (idle thresholds take effect, idle mode still throttles, default overload matches the active path) - 328 unit tests total, all green with zero warnings
+
+---
+
 ## WinIslands 2.2.11（正式版 / Stable）
 ### 更新内容
 

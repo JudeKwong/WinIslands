@@ -21,4 +21,37 @@ public sealed class MemoryOptimizerTests
     [Fact]
     public void ShouldTrim_ThrottlesRepeatedRequests()
         => Assert.False(MemoryOptimizer.ShouldTrim(200 * Mb, 200 * Mb, 0, Interval - 1));
+
+    [Fact]
+    public void ShouldTrim_Idle_UsesLowerThresholdsAndShorterInterval()
+    {
+        // 2.2.12: idle=true trims at WS>=64MB && private>=28MB after 60s,
+        // where the active path (96/40/120s) would still refuse
+        const long idleInterval = 60L * 1000L;
+        Assert.True(MemoryOptimizer.ShouldTrim(66 * Mb, 30 * Mb, 0, idleInterval, idle: true));
+        Assert.False(MemoryOptimizer.ShouldTrim(66 * Mb, 30 * Mb, 0, idleInterval, idle: false));
+        Assert.False(MemoryOptimizer.ShouldTrim(63 * Mb, 30 * Mb, 0, idleInterval, idle: true));   // WS below idle bar
+        Assert.False(MemoryOptimizer.ShouldTrim(66 * Mb, 27 * Mb, 0, idleInterval, idle: true));   // private below idle bar
+    }
+
+    [Fact]
+    public void ShouldTrim_Idle_StillThrottled()
+    {
+        // 2.2.12: idle mode keeps its own 60s throttle, so repeated requests are still debounced
+        const long idleInterval = 60L * 1000L;
+        Assert.False(MemoryOptimizer.ShouldTrim(200 * Mb, 200 * Mb, 0, idleInterval - 1, idle: true));
+        Assert.True(MemoryOptimizer.ShouldTrim(200 * Mb, 200 * Mb, 0, idleInterval, idle: true));
+    }
+
+    [Fact]
+    public void ShouldTrim_DefaultOverload_MatchesActivePath()
+    {
+        // 2.2.12: the 4-arg overload keeps the exact active thresholds for callers who do not opt into idle mode
+        const long activeInterval = Interval;
+        Assert.False(MemoryOptimizer.ShouldTrim(200 * Mb, 39 * Mb, 0, activeInterval));
+        Assert.True(MemoryOptimizer.ShouldTrim(97 * Mb, 41 * Mb, 0, activeInterval));
+        Assert.Equal(
+            MemoryOptimizer.ShouldTrim(97 * Mb, 41 * Mb, 0, activeInterval),
+            MemoryOptimizer.ShouldTrim(97 * Mb, 41 * Mb, 0, activeInterval, idle: false));
+    }
 }

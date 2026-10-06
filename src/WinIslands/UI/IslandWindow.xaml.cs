@@ -408,7 +408,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             // 后台 GC 不会造成可见卡顿；媒体播放由外部进程驱动，不受影响。
             if (_vm.IsExpanded) return;
             if (_cardAnimating || SpringTicker.ActiveCount > 0) return;
-            MemoryOptimizer.RequestTrim();
+            MemoryOptimizer.RequestTrim(idle: true); // 2.2.12：空闲态（无媒体/未展开时才进入）用更积极的回收门限，压低后台占用
         };
         _memoryTrimTimer.Start();
 
