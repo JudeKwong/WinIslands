@@ -49,7 +49,7 @@ internal static class AnimationFrameRate
             30 => Interval30,
             60 => Interval60,
             120 => Interval120,
-            _ => 1.0 / Math.Clamp(framesPerSecond, 30, HighRefresh),
+            _ => 1.0 / ClampFps(framesPerSecond), // 2.8.2: 分支链替代 Math.Clamp
         };
         if (nowSeconds + 0.0000001 < nextFrameSeconds) return false;
 
@@ -59,4 +59,9 @@ internal static class AnimationFrameRate
             : nextFrameSeconds + interval;
         return true;
     }
+    /// <summary>2.8.2: Math.Clamp(fps, 30, 120) 改走分支链 ClampFps（int 无
+    /// NaN/±0 语义，x<30?30 : x>120?120 : x 与 Math.Clamp 完全一致），
+    /// 后备档位每帧省一次范围检查调用。</summary>
+    private static int ClampFps(int fps) => fps < 30 ? 30 : fps > 120 ? 120 : fps;
+
 }

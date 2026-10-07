@@ -250,13 +250,13 @@ public sealed class IOSSpring
         }
         // span≥100 单位（像素级尺寸/位移）→ 保持原阈值 0.5 / 2.5；
         // span<100（如透明度 0~1、缩放、圆角小变化）→ 按比例收紧，弹簧真正收敛到自然终点。
-        var s = Math.Min(1.0, span / 100.0);
-        _offsetEps = Math.Max(0.0005, _settleOffsetEpsilon * s);
-        _velEps = Math.Max(0.05, _settleVelocityEpsilon * s);
+        var s = SpringMath.MinUnit(span / 100.0); // 2.8.2: 分支链，逐位等价 Math.Min(1.0, x)
+        _offsetEps = SpringMath.MaxFloor(_settleOffsetEpsilon * s, 0.0005); // 2.8.2: 分支链
+        _velEps = SpringMath.MaxFloor(_settleVelocityEpsilon * s, 0.05); // 2.8.2: 分支链
         // 2.2.16: tight tail windows derived from the coarse ones. Floors stay
         // non-zero so opacity/scale-span springs keep a reachable, meaningful tail.
-        _offsetEpsTail = Math.Max(0.000125, _offsetEps * SettleTailFactor);
-        _velEpsTail = Math.Max(0.00625, _velEps * SettleTailFactor);
+        _offsetEpsTail = SpringMath.MaxFloor(_offsetEps * SettleTailFactor, 0.000125); // 2.8.2
+        _velEpsTail = SpringMath.MaxFloor(_velEps * SettleTailFactor, 0.00625); // 2.8.2
     }
     /// <summary>阻尼简谐振荡器解析解：由初始偏移 y0、初速 v0 求 t 时刻的偏移与速度。</summary>
     /// <summary>2.2.9：初始条件（_y0/_v0/参数）变化时重算各阻尼分支的解析解系数（纯数学，无 UI）。</summary>

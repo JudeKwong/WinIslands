@@ -87,8 +87,15 @@ public sealed class AnimationFrameRateTests
 
     [Theory]
     [InlineData(20, 1.0 / 30.0)]   // 低于下限 -> Clamp 到 30
+    [InlineData(-5, 1.0 / 30.0)]   // 2.8.2: 负值/极端值 -> Clamp 到 30
+    [InlineData(1, 1.0 / 30.0)]    // 2.8.2: 个位帧率 -> Clamp 到 30
+    [InlineData(29, 1.0 / 30.0)]   // 2.8.2: 紧贴下限之下 -> Clamp 到 30
+    [InlineData(31, 1.0 / 31.0)]   // 2.8.2: 紧贴下限之上 -> 直接除法
     [InlineData(75, 1.0 / 75.0)]   // 非档位值 -> 直接除法
+    [InlineData(119, 1.0 / 119.0)] // 2.8.2: 紧贴上限之下 -> 直接除法
+    [InlineData(121, 1.0 / 120.0)] // 2.8.2: 紧贴上限之上 -> Clamp 到 120
     [InlineData(240, 1.0 / 120.0)] // 高于上限 -> Clamp 到 120
+    [InlineData(1000, 1.0 / 120.0)] // 2.8.2: 极端高帧率 -> Clamp 到 120
     public void ShouldProcessFrame_UnlistedRateFallsBackToClampedInterval(int fps, double interval)
     {
         var next = 1.0;

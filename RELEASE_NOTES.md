@@ -1,3 +1,19 @@
+## WinIslands 2.8.2（正式版 / Stable）
+### 更新内容
+
+- 🚀 IOS 弹簧收敛阈值换算（UpdateEpsilon）的 1 个 Math.Min + 4 个 Math.Max 全部改走新增 SpringMath 分支链——拖拽/打断改目标时该方法每帧触发：MinUnit（x != x ? x : x < 1.0 ? x : 1.0）与 Math.Min(1.0, x) 逐位一致（探针验证本机 .NET 8 运行时 NaN 原样透传位形、相等返回首参、混合 ±0 返回 -0）；MaxFloor(x, floor) 与 Math.Max(floor, x) 逐位一致，含 IEEE 754-2019 maximum 的 ±0 角语义（混合 ±0 恒为 +0、双 -0 保留 -0、NaN 首参胜出），四个真实下限（0.0005 / 0.05 / 0.000125 / 0.00625）全部走分支链——拖拽场景每帧省 5 次范围检查调用，阈值姿态逐帧不变
+- 🚀 AnimationFrameRate 后备档位（非 30/60/120 帧率）的 Math.Clamp(fps, 30, 120) 改走整数分支链 ClampFps（x < 30 ? 30 : x > 120 ? 120 : x），与 Math.Clamp 完全一致，后备档每帧省一次范围检查调用
+- 🧪 测试：新增 4 项 + 扩充 1 项（+11 用例）——① MinUnit 对 Math.Min(1.0, x) 的 21 特异值逐位一致 + 20 万点跨量级随机扫描 + 1.0 临界邻域 10 万点稠密扫描；② MaxFloor 对 Math.Max(floor, x) 的 6 个下限（4 真实下限 + ±0）× 16 特异值全矩阵 + 每下限 10 万点随机 + 10 万点稠密临界邻域逐位一致；③ MaxFloor ±0 角语义（混合恒 +0、双 -0 保留、恰等返回首参）；④ MinUnit 端点语义（NaN 保号、-0 保留、+Inf 落 1.0）；⑤ ShouldProcessFrame 后备档位扩充至 10 组边界帧率（-5/1/29/31/75/119/121/240/1000）；共 555 项单元测试全绿
+
+## WinIslands 2.8.2 (Stable)
+### What's New
+
+- 🚀 iOS spring settle-threshold derivation (UpdateEpsilon, running every frame while a drag/retarget changes the target) now feeds all five Math.Min/Math.Max calls through the new SpringMath branch chains: MinUnit (x != x ? x : x < 1.0 ? x : 1.0) is bit-identical to Math.Min(1.0, x) - a probe on this machine proved the runtime passes a NaN argument through with its bits intact, returns the first argument on equality, and returns -0 for a mixed +-0 pair; MaxFloor(x, floor) is bit-identical to Math.Max(floor, x) including IEEE 754-2019 maximum zero-corner semantics (mixed +-0 is always +0, both -0 stays -0, first NaN argument wins), and all four real floors (0.0005 / 0.05 / 0.000125 / 0.00625) run through the chains - five range-check calls saved per frame during drags, with the settle pose unchanged frame by frame
+- 🚀 AnimationFrameRate's fallback tier (non-30/60/120 rates) swaps Math.Clamp(fps, 30, 120) for the integer branch chain ClampFps (x < 30 ? 30 : x > 120 ? 120 : x), exactly identical to Math.Clamp, saving one range-check call per frame on the fallback tier
+- 🧪 Tests: 4 new cases + 1 extended theory (+11 cases) - (1) MinUnit vs Math.Min(1.0, x) bitwise across 21 specials plus a 200000-point cross-magnitude sweep and a 100001-point dense neighbourhood around the 1.0 tie; (2) MaxFloor vs Math.Max(floor, x) across a 6-floor x 16-special full matrix (four real floors plus +-0) plus a 100000-point random sweep and a 100001-point dense tie neighbourhood per floor; (3) MaxFloor zero-corner semantics (mixed +-0 always +0, both -0 stays -0, exact tie returns first argument); (4) MinUnit endpoint semantics (NaN payload preserved, -0 kept, +Inf lands on 1.0); (5) ShouldProcessFrame fallback theory extended to 10 boundary rates (-5/1/29/31/75/119/121/240/1000); RELEASE_NOTES updated; 555 unit tests green
+
+---
+
 ## WinIslands 2.8.1（正式版 / Stable）
 ### 更新内容
 

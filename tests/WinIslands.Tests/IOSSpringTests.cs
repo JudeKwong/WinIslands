@@ -840,6 +840,106 @@ public sealed class IOSSpringTests
         Assert.True(0 < eo && 0 > -eo && 0 < ev && 0 > -ev, "interior must settle");
     }
 
+    [Fact]
+    public void SpringMath_MinUnit_MatchesRuntimeMathMin_Bitwise()
+    {
+        // 2.8.2: MinUnit(x) must be bit-identical to Math.Min(1.0, x) on this runtime -
+        // NaN passes through with its bits intact (payload + sign), the exact 1.0 tie
+        // returns the constant (first-arg semantics), -0.0 stays -0.0, +Inf lands on 1.0.
+        var specials = new double[]
+        {
+            double.NaN, CustomNaN(0x0000000000000123UL, quiet: true, negative: false),
+            CustomNaN(0x0007FFFFFFFFFFFFUL, quiet: true, negative: true),
+            CustomNaN(0x0000000000000001UL, quiet: false, negative: false),
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            1.0, -1.0, 0.5, 2.0, 100.0, -100.0,
+            1e300, -1e300, double.MaxValue, -double.MaxValue
+        };
+        foreach (var x in specials)
+            Assert.Equal(Bits(Math.Min(1.0, x)), Bits(SpringMath.MinUnit(x)));
+        var rnd = new Random(28201);
+        for (var i = 0; i < 200000; i++) // cross-magnitude reachable domain
+        {
+            var x = (rnd.NextDouble() - 0.5) * 2000.0;
+            Assert.Equal(Bits(Math.Min(1.0, x)), Bits(SpringMath.MinUnit(x)));
+        }
+        for (var i = 0; i <= 100000; i++) // dense neighbourhood around the 1.0 tie
+        {
+            var x = 1.0 + (i - 50000) * 1e-12;
+            Assert.Equal(Bits(Math.Min(1.0, x)), Bits(SpringMath.MinUnit(x)));
+        }
+    }
+
+    [Fact]
+    public void SpringMath_MaxFloor_MatchesRuntimeMathMax_Bitwise()
+    {
+        // 2.8.2: MaxFloor(x, floor) must be bit-identical to Math.Max(floor, x) on this
+        // runtime - first-NaN-argument wins with its bits intact, a mixed +-0 pair is +0
+        // regardless of order (probe-verified, IEEE 754-2019 maximum). The four real
+        // floors exercised below are the ones UpdateEpsilon feeds (0.0005 / 0.05 /
+        // 0.000125 / 0.00625), plus +-0 to pin the zero corner.
+        var floors = new double[] { 0.0005, 0.05, 0.000125, 0.00625, -0.0, 0.0 };
+        var specials = new double[]
+        {
+            double.NaN, CustomNaN(0x0000000000000123UL, quiet: true, negative: false),
+            CustomNaN(0x0007FFFFFFFFFFFFUL, quiet: true, negative: true),
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            double.MaxValue, -double.MaxValue, 1e-300, 1e300, -1e300, 7.0, -7.0
+        };
+        foreach (var floor in floors)
+            foreach (var x in specials)
+                Assert.Equal(Bits(Math.Max(floor, x)), Bits(SpringMath.MaxFloor(x, floor)));
+        var rnd = new Random(28202);
+        foreach (var floor in new double[] { 0.0005, 0.05, 0.000125, 0.00625 })
+        {
+            for (var i = 0; i < 100000; i++) // wide reachable domain [-2, 2]
+            {
+                var x = (rnd.NextDouble() - 0.5) * 4.0;
+                Assert.Equal(Bits(Math.Max(floor, x)), Bits(SpringMath.MaxFloor(x, floor)));
+            }
+            for (var i = 0; i <= 100000; i++) // dense tie neighbourhood around floor
+            {
+                var x = floor + (i - 50000) * 1e-15;
+                Assert.Equal(Bits(Math.Max(floor, x)), Bits(SpringMath.MaxFloor(x, floor)));
+            }
+        }
+    }
+
+    [Fact]
+    public void SpringMath_MaxFloor_ZeroCornerSemantics()
+    {
+        // 2.8.2: pinned against the live runtime (probe) - mixed +-0 always +0,
+        // both -0 stays -0, exact ties return the first argument (floor) bits.
+        Assert.Equal(Bits(+0.0), Bits(SpringMath.MaxFloor(-0.0, +0.0)));
+        Assert.Equal(Bits(+0.0), Bits(SpringMath.MaxFloor(+0.0, -0.0)));
+        Assert.Equal(Bits(-0.0), Bits(SpringMath.MaxFloor(-0.0, -0.0)));
+        Assert.Equal(Bits(+0.0), Bits(SpringMath.MaxFloor(+0.0, +0.0)));
+        Assert.Equal(Bits(0.0005), Bits(SpringMath.MaxFloor(0.0005, 0.0005)));
+        Assert.Equal(Bits(0.0005), Bits(SpringMath.MaxFloor(0.0, 0.0005)));
+        Assert.Equal(Bits(7.0), Bits(SpringMath.MaxFloor(7.0, 0.0005)));
+    }
+
+    [Fact]
+    public void SpringMath_MinUnit_EndpointSemantics()
+    {
+        Assert.Equal(1.0, SpringMath.MinUnit(2.0));
+        Assert.Equal(1.0, SpringMath.MinUnit(double.PositiveInfinity));
+        Assert.Equal(-3.5, SpringMath.MinUnit(-3.5));
+        Assert.Equal(0.5, SpringMath.MinUnit(0.5));
+        Assert.Equal(-0.0, SpringMath.MinUnit(-0.0));
+        Assert.True(double.IsNaN(SpringMath.MinUnit(double.NaN)));
+        var negNan = CustomNaN(0x0000000000000ABCUL, quiet: true, negative: true);
+        Assert.Equal(Bits(negNan), Bits(SpringMath.MinUnit(negNan)));
+    }
+
+    private static double CustomNaN(ulong payload, bool quiet, bool negative)
+        => BitConverter.Int64BitsToDouble((long)((negative ? 0x8000000000000000UL : 0UL)
+            | 0x7FF0000000000000UL
+            | (quiet ? 0x0008000000000000UL : 0UL)
+            | (payload & 0x0007FFFFFFFFFFFFUL)));
+
     private static double NextSigned(Random rng, double magnitude)
     {
         var v = rng.NextDouble() * magnitude;
