@@ -113,7 +113,7 @@ public static class LyricEmphasis
     {
         if (!double.IsFinite(baseSize) || !double.IsFinite(currentSize) || baseSize <= 0)
             return 1.18;                                   // 非法输入兜底
-        return Math.Clamp(currentSize / baseSize, 1.0, 1.35);
+        return WaveMath.ClampRange(currentSize / baseSize, 1.0, 1.35); // 2.9.0: 分支链，逐位等价 Math.Clamp(x,1.0,1.35)
     }
 
     private static void OnIsCurrentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -193,7 +193,7 @@ public static class LyricEmphasis
     }
 
     private static double ReadTargetScale(FrameworkElement fe)
-        => Math.Clamp((double)fe.GetValue(TargetScaleProperty), 1.0, 1.5);
+        => WaveMath.ClampRange((double)fe.GetValue(TargetScaleProperty), 1.0, 1.5); // 2.9.0: 分支链，逐位等价 Math.Clamp(x,1.0,1.5)
 
     private static double ReadDuration(FrameworkElement fe)
         => (double)fe.GetValue(DurationMsProperty);

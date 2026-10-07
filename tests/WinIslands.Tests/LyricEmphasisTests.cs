@@ -43,6 +43,27 @@ public sealed class LyricEmphasisTests
         Assert.Equal(1.18, LyricEmphasis.ComputeTargetScale(-5, 16), 6);
         Assert.Equal(1.18, LyricEmphasis.ComputeTargetScale(13, double.PositiveInfinity), 6);
     }
+
+    // ---- 2.9.0：目标缩放钳制走 WaveMath.ClampRange 分支链，与 Math.Clamp 逐位一致 ----
+    [Fact]
+    public void ComputeTargetScale_BitIdenticalToMathClamp()
+    {
+        var currents = new[] { 0.5, 1.0, 1.35, 1.3500000000001, 2.0, double.Epsilon, 1e-308, 6.25 };
+        var bases = new[] { 1.0, 8.0, 13.0, 16.0, 26.0, 100.0, 320.0 };
+        foreach (var bs in bases)
+        {
+            foreach (var cs in currents)
+            {
+                var actual = LyricEmphasis.ComputeTargetScale(bs, cs);
+                var expected = Math.Clamp(cs / bs, 1.0, 1.35);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+            }
+        }
+        Assert.Equal(1.0, LyricEmphasis.ComputeTargetScale(16, 16), 12);
+        Assert.Equal(1.35, LyricEmphasis.ComputeTargetScale(100, 135), 12);
+        Assert.Equal(1.0, LyricEmphasis.ComputeTargetScale(10, 5), 12);
+        Assert.Equal(1.35, LyricEmphasis.ComputeTargetScale(10, 1000), 12);
+    }
     // ── 2.3.0：真实 IOSSpring 物理引擎参数换算 ─────────────────────────
     [Theory]
     [InlineData(240)]

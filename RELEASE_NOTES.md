@@ -1,4 +1,17 @@
-﻿## WinIslands 2.8.9（正式版 / Stable）
+﻿## WinIslands 2.9.0（正式版 / Stable）
+### 更新内容
+
+- 🏃 歌词强调（LyricEmphasis）剩余两处 Math.Clamp 改走逐位等价分支链：① 目标缩放比 `Math.Clamp(currentSize/baseSize, 1.0, 1.35)` 改走 WaveMath.ClampRange——双比较分支链（x&lt;min→min，x&gt;max→max，否则原值），与运行时 Math.Clamp 在全部 double 输入上逐位一致（NaN 位形透传、±Inf 落端点、±0 保持、1.0/1.35 精确 tie 返回原值与 Math.Clamp 相等时返回 value 一致）；② 读入目标缩放 `Math.Clamp(值, 1.0, 1.5)` 同走 ClampRange。当前行切换/样式重建的两处读取各省一次范围检查调用，高亮姿态逐帧不变
+- 🧪 测试：新增 ComputeTargetScale 对旧公式的 56 组（7 组基础字号 × 8 组当前字号，含 1.0/1.35 边界、1.3500000000001 邻域、Epsilon/1e-308 次正规数）逐位一致 + 4 项边界断言；共 582 项单元测试全绿
+
+## WinIslands 2.9.0 (Stable)
+### What's New
+
+- 🏃 The remaining two Math.Clamp call sites in LyricEmphasis fall onto bitwise-identical branch chains: (1) the target-scale ratio `Math.Clamp(currentSize/baseSize, 1.0, 1.35)` becomes WaveMath.ClampRange - a two-sided branch chain (x&lt;min -&gt; min, x&gt;max -&gt; max, otherwise unchanged), bitwise identical to the runtime Math.Clamp on every double input (NaN payloads pass through, +-Inf land on the endpoints, +-0 is preserved, exact 1.0/1.35 ties return the value just like Math.Clamp equals-returns-value); (2) the target-scale read `Math.Clamp(value, 1.0, 1.5)` follows the same ClampRange path. The current-line switch and style-rebuild reads each drop one range-check call while the highlight pose stays unchanged frame by frame
+- 🧪 Tests: 1 new case - ComputeTargetScale vs the old formula across 56 combinations (7 base sizes x 8 current sizes incl. the 1.0/1.35 edges, the 1.3500000000001 neighbourhood and Epsilon/1e-308 subnormals), DoubleToInt64Bits-identical, plus 4 boundary assertions; 582 unit tests green
+
+---
+## WinIslands 2.8.9（正式版 / Stable）
 ### 更新内容
 
 - 🏃 卡拉OK控件剩余两处 Math.Clamp 改走逐位等价分支链：① 调速倍率表达式 `Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)` 抽为 KaraokeMath.ClampSpeedScale——单比较守卫（speed≤0 折叠 1.0，NaN 经 `NaN<=0` 为 false 原样透传）+ 双边界分支链（x<0.2→0.2，x>3.0→3.0，否则原值），与运行时 Math.Clamp 在全部 double 输入上逐位一致（NaN 负载透传、±Inf 落端点、0.2/3.0 精确 tie 返回原值与 Math.Clamp 相等时返回 value 一致、-0.0 经守卫折叠 1.0）；② 整行均分模式目标高亮分数 `Math.Clamp(f, 0, 1)` 抽为 KaraokeMath.ClampFraction——双比较分支链（f<0→0，f>1→1，否则原值），与运行时逐位一致（NaN 负载透传、±Inf 落端点、-0.0 保持、0/1 精确 tie 返回原值）。歌词控件的两次属性刷新各省一次 Math.Clamp 范围检查调用，高亮行为逐帧不变
