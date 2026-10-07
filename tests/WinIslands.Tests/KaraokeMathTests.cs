@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+using System.Windows.Media;
 using WinIslands.UI;
 
 namespace WinIslands.Tests;
@@ -791,6 +791,46 @@ public sealed class KaraokeMathTests
             Assert.Equal(
                 BitConverter.DoubleToInt64Bits(Math.Clamp(f, 0, 1)),
                 BitConverter.DoubleToInt64Bits(KaraokeMath.ClampFraction(f)));
+        }
+    }
+
+    [Fact]
+    public void LineFraction_MatchesOldFormula_BitForBit()
+    {
+        // 2.9.2: Math.Clamp((posSec - startSec) / Math.Max(0.1, nextStartSec - startSec), 0, 1)
+        static double Old(double pos, double start, double next)
+            => Math.Clamp((pos - start) / Math.Max(0.1, next - start), 0, 1);
+        var specials = new[]
+        {
+            0.0, -0.0, 0.1, -0.1, 0.09999999999999999, 0.10000000000000001,
+            0.20000000000000001, 0.5, 1.0, 2.0, 5.0, -5.0, 300.0,
+            double.MaxValue, double.MinValue, 1e-308, -1e-308,
+            double.PositiveInfinity, double.NegativeInfinity, double.NaN, -double.NaN,
+        };
+        foreach (var pos in specials)
+            foreach (var start in specials)
+                foreach (var next in specials)
+                    Assert.Equal(
+                        BitConverter.DoubleToInt64Bits(Old(pos, start, next)),
+                        BitConverter.DoubleToInt64Bits(KaraokeMath.LineFraction(pos, start, next)));
+        var rng = new Random(0x3B2F);
+        for (var i = 0; i < 60001; i++)
+        {
+            var pos = (i % 3) switch
+            {
+                0 => NextSigned(rng, 600.0),
+                1 => rng.NextDouble() < 0.2 ? double.NaN : NextSigned(rng, 1e6),
+                _ => rng.NextDouble() * 1e-6 - 5e-7,
+            };
+            var start = (i % 2) switch
+            {
+                0 => NextSigned(rng, 600.0),
+                _ => rng.NextDouble() < 0.15 ? double.PositiveInfinity : NextSigned(rng, 1e6),
+            };
+            var next = rng.NextDouble() < 0.1 ? double.NaN : NextSigned(rng, 1200.0);
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Old(pos, start, next)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.LineFraction(pos, start, next)));
         }
     }
 

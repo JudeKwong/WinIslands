@@ -2500,7 +2500,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             // 直接按当前（已恢复的）位置定位当前句，避免启动瞬间先显示第 0 行再跳；
             // #4：叠加用户校准的时间偏移
-            var idx = result.Document.IndexAt(LyricsAdjustedPosition(TimeSpan.FromSeconds(Math.Max(0, _interpolatedPosition))));
+            var idx = result.Document.IndexAt(LyricsAdjustedPosition(TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition))));
             LyricIndex = idx < 0 ? -1 : idx;
             // 显式对齐（LyricIndex 可能未变化）；按时间取词兼容双语合并行序
             CurrentLyricWords = idx >= 0 && idx < LyricLines.Count
@@ -2594,8 +2594,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
         // 时长不可用（Cider）时用兜底时长，保证进度/卡拉OK仍推进
         var duration = DurationSeconds > 0 ? DurationSeconds : 300.0;
-        Position = TimeSpan.FromSeconds(Math.Max(0, _interpolatedPosition));
-        Progress = Math.Clamp(_interpolatedPosition / duration, 0, 1);
+        Position = TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition));
+        Progress = KaraokeMath.ClampFraction(_interpolatedPosition / duration);
 
         if (HasLyrics)
         {
@@ -2612,9 +2612,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         var lines = _lyrics.Document.Lines;
         var cur = lines[LyricIndex];
         var nextStart = (LyricIndex + 1 < lines.Count) ? lines[LyricIndex + 1].Time.TotalSeconds : cur.Time.TotalSeconds + 5.0;
-        var duration = Math.Max(0.1, nextStart - cur.Time.TotalSeconds);
         var posSec = Position.TotalSeconds + CurrentLyricOffset; // #4 叠加歌词偏移
-        var frac = Math.Clamp((posSec - cur.Time.TotalSeconds) / duration, 0, 1);
+        var frac = KaraokeMath.LineFraction(posSec, cur.Time.TotalSeconds, nextStart);
 
         if (Status == PlaybackStatus.Playing)
         {
@@ -2640,9 +2639,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (LyricLines.Count > LyricIndex)
         {
             var lvm = LyricLines[LyricIndex];
-            if (Math.Abs(lvm.HighlightFraction - frac) > 0.0005) lvm.HighlightFraction = frac;
+            if (KaraokeMath.AbsGreaterThan(lvm.HighlightFraction - frac, 0.0005)) lvm.HighlightFraction = frac;
         }
-        if (Math.Abs(CompactHighlightFraction - frac) > 0.0005) CompactHighlightFraction = frac;
+        if (KaraokeMath.AbsGreaterThan(CompactHighlightFraction - frac, 0.0005)) CompactHighlightFraction = frac;
     }
 
     // ── AMLL TTML 逐字时间轴辅助 ──────────────────────────────
@@ -2680,7 +2679,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             new PlaybackStateStore
             {
                 TrackKey = LyricsService.TrackKey(_snapshot.Track),
-                PositionSeconds = Math.Max(0, _interpolatedPosition),
+                PositionSeconds = KaraokeMath.AtLeastZero(_interpolatedPosition),
                 Status = Status.ToString(),
             }.Save();
         }
@@ -3024,7 +3023,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     {
         _suppressSeek--;
         if (_snapshot is null || _snapshot.DurationSeconds <= 0) return;
-        var target = Math.Clamp(fraction, 0, 1) * _snapshot.DurationSeconds;
+        var target = KaraokeMath.ClampFraction(fraction) * _snapshot.DurationSeconds;
         _restoredMode = false;
         _interpolatedPosition = target;
         _lastPositionTime = DateTime.UtcNow;
@@ -3085,7 +3084,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     {
         _lastPositionTime = DateTime.UtcNow;
         if (_useFreeClock || _trackStartTime == default || _trackStartTime == DateTime.MinValue)
-            _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(Math.Max(0, _interpolatedPosition));
+            _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition));
     }
     public void Dispose()
     {

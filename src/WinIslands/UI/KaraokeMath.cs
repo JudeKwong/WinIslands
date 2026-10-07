@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace WinIslands.UI;
 
@@ -198,5 +198,22 @@ internal static class KaraokeMath
     /// KaraokeTextBlock.RefreshTarget's per-refresh target-fraction write.
     /// </summary>
     internal static double ClampFraction(double f) => f < 0.0 ? 0.0 : f > 1.0 ? 1.0 : f;
+
+    /// <summary>
+    /// Per-line karaoke highlight fraction (2.9.2): folds the old two-step
+    /// expression Math.Clamp((posSec - startSec) / Math.Max(0.1, nextStartSec - startSec), 0, 1)
+    /// into one pure function. The duration floor goes through SpringMath.MaxFloor
+    /// (bit-identical to Math.Max(0.1, x), verified by SpringMathTests) and the ratio
+    /// goes through ClampFraction (bit-identical to Math.Clamp(&#x2026;, 0, 1), verified by
+    /// ClampFraction_MatchesMathClamp_BitForBit), so every input - incl. NaN payloads,
+    /// +-Inf durations, -0.0 positions and exact 0.1/0/1 ties - yields the same bits as
+    /// the old formula while the 60/120fps lyric-refresh hot path drops one Math.Max
+    /// and one Math.Clamp range-check call per frame.
+    /// </summary>
+    internal static double LineFraction(double posSec, double startSec, double nextStartSec)
+    {
+        var duration = SpringMath.MaxFloor(nextStartSec - startSec, 0.1); // == Math.Max(0.1, nextStart - start)
+        return ClampFraction((posSec - startSec) / duration);             // == Math.Clamp(&#x2026;, 0, 1)
+    }
 
 }

@@ -1,4 +1,17 @@
-﻿## WinIslands 2.9.1（正式版 / Stable）
+## WinIslands 2.9.2（正式版 / Stable）
+### 更新内容
+
+- 🏃 卡拉OK/进度热路径剩余的 Math.Clamp/Math.Max/Math.Abs 全部落进已逐位验证的纯函数分支链：① 新增 KaraokeMath.LineFraction——把旧两步表达式 `Math.Clamp((当前句内位置-行开始)/Math.Max(0.1, 下一句开始-行开始), 0, 1)` 折叠为一次组合调用，分母走 SpringMath.MaxFloor（与 Math.Max(0.1, ·) 逐位一致）、比值走 ClampFraction（与 Math.Clamp(·,0,1) 逐位一致），60/120fps 歌词刷新每帧省一次 Math.Max 与一次 Math.Clamp 范围检查；② 进度 Progress 的 `Math.Clamp(_interpolatedPosition/duration, 0, 1)` 与 EndSeek 的 fraction 钳制改走 ClampFraction；③ 四处 `Math.Max(0, _interpolatedPosition)` 改走 AtLeastZero；④ SetHighlightFraction 的两处 `Math.Abs(·)>0.0005` 写入门改走 AbsGreaterThan。所有替换在全部 double 输入上逐位一致（NaN 负载透传、±Inf 落端点、±0 语义保持），高亮姿态与进度显示逐帧不变
+- 🧪 测试：新增 LineFraction_MatchesOldFormula_BitForBit——21 组特殊值（含 ±NaN 负载、±Inf、±0、0.1/0/1 边界邻域、次正规数）三参数全组合 9261 组 + 6 万随机位形对旧公式 DoubleToInt64Bits 逐位一致；共 584 项单元测试全绿
+
+## WinIslands 2.9.2 (Stable)
+### What's New
+
+- 🏃 The remaining Math.Clamp/Math.Max/Math.Abs call sites on the karaoke/progress hot path all fall onto bit-verified pure-function branch chains: (1) new KaraokeMath.LineFraction folds the old two-step expression `Math.Clamp((posSec - lineStart)/Math.Max(0.1, nextLineStart - lineStart), 0, 1)` into one combined call - the duration floor goes through SpringMath.MaxFloor (bit-identical to Math.Max(0.1, x)) and the ratio through ClampFraction (bit-identical to Math.Clamp(x, 0, 1)), so the 60/120fps lyric refresh drops one Math.Max and one Math.Clamp range-check call per frame; (2) Progress's `Math.Clamp(_interpolatedPosition/duration, 0, 1)` and EndSeek's fraction clamp go through ClampFraction; (3) four `Math.Max(0, _interpolatedPosition)` call sites become AtLeastZero; (4) SetHighlightFraction's two `Math.Abs(·)>0.0005` write gates become AbsGreaterThan. Every replacement is bit-identical on all double inputs (NaN payload pass-through, ±Inf endpoints, ±0 semantics preserved), so the highlight pose and progress display stay unchanged frame by frame
+- 🧪 Tests: 1 new case - LineFraction_MatchesOldFormula_BitForBit across 9261 triples of 21 specials (incl. ±NaN payloads, ±Inf, ±0, the 0.1/0/1 boundary neighbourhoods and subnormals) plus 60000 random bit patterns, all DoubleToInt64Bits-identical to the old formula; 584 unit tests green
+
+---
+## WinIslands 2.9.1（正式版 / Stable）
 ### 更新内容
 
 - 🏃 声波纹 Int16 PCM 逐帧包络路径的 Math.Abs(s / 32768.0) 抽为 WaveMath.Int16Envelope(short)——内部走 ToleranceMath.AbsValue（DoubleToInt64Bits 清符号位，对全部 double 输入与 Math.Abs 逐位一致，含 NaN 负载保真），Int16 由构造保证 |s| ≤ 32768 无需再钳制；WASAPI 10ms 包络窗每样本省一次 Math.Abs 调用，声波纹形状逐帧不变
