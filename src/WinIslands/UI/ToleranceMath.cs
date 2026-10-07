@@ -25,4 +25,12 @@ public static class ToleranceMath
     /// 仅 ±Inf 越闸。热路径免去绝对值调用（2.8.4）。
     /// </remarks>
     public static bool AbsAtLeast(double d, double t) => d >= t || d <= -t;
+
+    /// <summary>
+    /// |x| 符号位清零版（2.8.8）：BitConverter 清符号位，对全部 double 输入与 Math.Abs(x)
+    /// 逐位一致（DoubleToInt64Bits）——含 NaN 负载保真（仅清符号位）、±0、±Inf、±Epsilon。
+    /// 拖拽/打断改目标时 UpdateEpsilon 每帧触发，热路径免去 Math.Abs 调用。
+    /// </summary>
+    public static double AbsValue(double x)
+        => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(x) & 0x7FFFFFFFFFFFFFFFL);
 }

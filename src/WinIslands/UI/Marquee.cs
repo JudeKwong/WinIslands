@@ -110,7 +110,7 @@ public static class Marquee
             var text = tb is KaraokeTextBlock kt ? (kt.KaraokeText ?? string.Empty) : (tb.Text ?? string.Empty);
             var viewW = tb.ActualWidth;
             if (viewW <= 1 || text.Length == 0) { StopMarquee(fe); return; }
-            if (state.Running && !GetPause(fe) && string.Equals(state.Text, text, StringComparison.Ordinal) && Math.Abs(state.ViewWidth - viewW) < 0.5)
+            if (state.Running && !GetPause(fe) && string.Equals(state.Text, text, StringComparison.Ordinal) && ToleranceMath.NearWithin(state.ViewWidth, viewW, 0.5)) // 2.8.8: 复用双边界分支链，布尔逐位等价 Math.Abs(·) < 0.5
                 return;
 
             var textW = MeasureTextWidth(tb, text);

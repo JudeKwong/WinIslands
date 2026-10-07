@@ -145,7 +145,7 @@ public sealed class IOSSpring
         _y0 = from - to;
         _v0 = initialVelocity;
         RebuildCoefficients(); // 2.2.9：初始条件变化 → 重算解析解系数（一次性）
-        UpdateEpsilon(Math.Abs(from - to));
+        UpdateEpsilon(ToleranceMath.AbsValue(from - to)); // 2.8.8: 符号位清零，逐位等价 Math.Abs
         _notifyCompleted = false;
         IsActive = true;
         SpringTicker.Add(this);
@@ -164,7 +164,7 @@ public sealed class IOSSpring
         _y0 = Value - to;
         _v0 = Velocity;
         RebuildCoefficients(); // 2.2.9：改目标后初速变化 → 重算解析解系数（一次性）
-        UpdateEpsilon(Math.Abs(Value - to));
+        UpdateEpsilon(ToleranceMath.AbsValue(Value - to)); // 2.8.8: 符号位清零，逐位等价 Math.Abs
         Target = to;
         _notifyCompleted = false;
     }

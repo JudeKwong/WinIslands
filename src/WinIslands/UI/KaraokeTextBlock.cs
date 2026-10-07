@@ -350,7 +350,7 @@ public class KaraokeTextBlock : TextBlock
             BuildWordTimeline(_words, _wordStarts, _wordDenoms);
             _timelineDirty = true; // 2.2.13：换句/切歌 → 时间轴必须重建
         }
-        if (Math.Abs(_karaokeSpeedScale - _lastKaraokeSpeedScale) > 1e-12)
+        if (KaraokeMath.AbsGreaterThan(_karaokeSpeedScale - _lastKaraokeSpeedScale, 1e-12)) // 2.8.8: 复用已测分支链，布尔逐位等价 Math.Abs(·) > 1e-12
         {
             _lastKaraokeSpeedScale = _karaokeSpeedScale;
             _timelineDirty = true; // 2.2.13：调速 → 按新倍率一次性重建

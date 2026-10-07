@@ -1,3 +1,16 @@
+## WinIslands 2.8.8（正式版 / Stable）
+### 更新内容
+
+- 🏃 三处 Math.Abs 调用改走逐位等价分支链/符号位清零：① ToleranceMath 新增 AbsValue（DoubleToInt64Bits 清符号位，对全部 double 输入与 Math.Abs 逐位一致，含 NaN 负载保真——仅清符号位），IOSSpring.Start/Retarget 的 UpdateEpsilon(Math.Abs(·)) 改走 AbsValue，拖拽/打断改目标（每帧触发）省两次绝对值调用；② Marquee.OnTick 的 Math.Abs(ViewWidth - viewW) < 0.5 改走既有 ToleranceMath.NearWithin（单次差值 + 双边界分支链，布尔逐位等价），跑马灯每帧省绝对值调用；③ KaraokeTextBlock 调速重建门的 Math.Abs(·) > 1e-12 改走既有 KaraokeMath.AbsGreaterThan（2.8.3 已测）。三种替换姿态/判定逐帧不变
+- 🧪 测试：新增 3 项——① AbsValue 对 Math.Abs 的 19 特殊值（含 ±NaN 负载、±0、±Epsilon、±Inf）逐位 + 30 万随机位形 DoubleToInt64Bits 逐位一致；② 负 NaN 符号位清零、负载逐位保留（0xFFF8000000001234 → 0x7FF8000000001234）且与运行时 Math.Abs 位形一致；③ 行为断言（±值、-0 → +0、±Inf）；共 579 项单元测试全绿
+
+## WinIslands 2.8.8 (Stable)
+### What's New
+
+- 🏃 Three Math.Abs call sites fall onto bitwise-identical branch chains / sign-bit clears: (1) ToleranceMath gains AbsValue (sign-bit clear via DoubleToInt64Bits, bitwise identical to Math.Abs for every double incl. NaN payloads - only the sign bit is cleared), and IOSSpring.Start/Retarget's UpdateEpsilon(Math.Abs(·)) use it so the per-frame drag/interrupt retarget path drops its two abs calls; (2) Marquee.OnTick's Math.Abs(ViewWidth - viewW) < 0.5 becomes the existing ToleranceMath.NearWithin (single-delta + two-sided branch chain, boolean-bitwise identical), dropping the abs call from every marquee tick; (3) the karaoke speed-change rebuild gate Math.Abs(·) > 1e-12 becomes the existing KaraokeMath.AbsGreaterThan (tested in 2.8.3). All three swaps keep every pose/judgement identical frame by frame
+- 🧪 Tests: 3 new cases - (1) AbsValue vs Math.Abs bitwise (DoubleToInt64Bits) across 19 specials (incl. +/-NaN payload, +/-0, +/-Epsilon, +/-Inf) plus 300000 random bit patterns; (2) negative NaN: sign bit cleared, payload preserved bit-for-bit (0xFFF8000000001234 -> 0x7FF8000000001234) and identical to the runtime Math.Abs bit pattern; (3) behavioural assertions (+/-values, -0 -> +0, +/-Inf); 579 unit tests green
+
+---
 ## WinIslands 2.8.7（正式版 / Stable）
 ### 更新内容
 

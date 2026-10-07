@@ -124,4 +124,53 @@ public sealed class ToleranceMathTests
         Assert.True(ToleranceMath.AbsAtLeast(double.PositiveInfinity, double.PositiveInfinity));
         Assert.True(ToleranceMath.AbsAtLeast(double.NegativeInfinity, double.PositiveInfinity));
     }
+
+    // ── 2.8.8：AbsValue（符号位清零，逐位等价 Math.Abs）───────────────────────────
+    [Fact]
+    public void AbsValue_SpecialsAndRandom_BitwiseIdenticalToMathAbs()
+    {
+        var spec = new double[]
+        {
+            double.NaN,
+            BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000000001UL)), // 负 NaN / 大负载
+            BitConverter.Int64BitsToDouble(unchecked((long)0x7FF8000000000001UL)), // 正 NaN / 大负载
+            BitConverter.Int64BitsToDouble(unchecked((long)0x8000000000000000UL)), // -0.0
+            double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, 1e300, -1e300
+        };
+        foreach (var x in spec)
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Abs(x)),
+                         BitConverter.DoubleToInt64Bits(ToleranceMath.AbsValue(x)));
+        var rnd = new Random(28801);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var x = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Abs(x)),
+                         BitConverter.DoubleToInt64Bits(ToleranceMath.AbsValue(x)));
+        }
+    }
+
+    [Fact]
+    public void AbsValue_NaNSignBitCleared_PayloadPreserved()
+    {
+        // 负 NaN（符号位 1）：|x| 必须保留负载、清符号位（与运行时 Math.Abs 一致的位形）
+        var negNaN = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var got = BitConverter.DoubleToInt64Bits(ToleranceMath.AbsValue(negNaN));
+        Assert.True((got & 0x7FF8000000000000L) == 0x7FF8000000000000L); // 仍是 NaN（指数全1+有效位非0）
+        Assert.True((got & unchecked((long)0x8000000000000000UL)) == 0); // 符号位已清
+        Assert.Equal(0x7FF8000000001234UL, (ulong)got);                  // 负载逐位保留
+        Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Abs(negNaN)), got);
+    }
+
+    [Fact]
+    public void AbsValue_Behavioural()
+    {
+        Assert.Equal(3.5, ToleranceMath.AbsValue(3.5), 12);
+        Assert.Equal(3.5, ToleranceMath.AbsValue(-3.5), 12);
+        Assert.Equal(0.0, ToleranceMath.AbsValue(-0.0), 12);
+        Assert.Equal(0.0, BitConverter.DoubleToInt64Bits(ToleranceMath.AbsValue(-0.0)), 12); // +0
+        Assert.Equal(double.PositiveInfinity, ToleranceMath.AbsValue(double.NegativeInfinity), 12);
+        Assert.True(double.IsNaN(ToleranceMath.AbsValue(double.NaN)));
+    }
 }
