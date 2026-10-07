@@ -149,10 +149,12 @@ public sealed class AudioWaveService : IDisposable
     // ── 模拟降级：无实时采集时按“节拍”起伏，暂停时衰减到 0 ────────
     private void SimulateLoop(int gen)
     {
-        var sw = Stopwatch.StartNew();
         var bpm = 88 + _rng.NextDouble() * 56;                  // 88 ~ 144 BPM
         var beatLen = 60.0 / bpm;
         double pulse = 0, nextBeat = 0;
+        double simT = 0;                                        // 2.9.8: nominal time (fixed-step while playing, frozen while paused)
+        var step = PublishIntervalMs / 1000.0;                  // 2.9.8: fixed step = one display refresh interval
+        var osc = WaveOscillator.Create(step);                  // 2.9.8: phase-accumulator oscillator (trig computed once)
         var attemptSw = Stopwatch.StartNew();                   // 跟随开启且实时不可用时，周期回外层重试
         while (gen == _generation && _running && (!_syncEnabled || attemptSw.ElapsedMilliseconds < SimulateRetryMs))
         {
@@ -160,14 +162,14 @@ public sealed class AudioWaveService : IDisposable
             {
                 if (_playing)
                 {
-                    var t = sw.ElapsedTicks / (double)Stopwatch.Frequency; // 2.5.2: 直读刻度，免 TimeSpan 构造（同 SpringTicker/WaveNow 模式）
-                    if (t >= nextBeat)
+                    simT += step;                                                  // 2.9.8: nominal time, fixed step (paused => frozen)
+                    if (simT >= nextBeat)
                     {
-                        nextBeat = t + beatLen * (0.6 + _rng.NextDouble() * 0.8); // 略不规整更自然
+                        nextBeat = simT + beatLen * (0.6 + _rng.NextDouble() * 0.8); // 略不规整更自然
                         pulse = 0.55 + _rng.NextDouble() * 0.45;                    // 拍点起跳
                     }
                     pulse *= 0.965;                                                // 指数衰减回落
-                    var noise = 0.10 + 0.05 * Math.Sin(t * 13.0) + 0.035 * Math.Sin(t * 31.0);
+                    var noise = osc.Advance();                                     // 2.9.8: phase-accumulated oscillator, zero per-tick trig
                     _level = WaveMath.ClampUnit(pulse * (0.55 + 0.45 * noise) * Volatile.Read(ref _sensitivity));
                     PublishLevel(_level);
                 }

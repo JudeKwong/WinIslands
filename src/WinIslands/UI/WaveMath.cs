@@ -124,4 +124,49 @@ internal static class WaveMath
         if (d > 0.5) return (int)f + 1;
         return ((int)f & 1) == 0 ? (int)f : (int)f + 1; // .5 边界按就近偶数（银行家舍入，与 Math.Round 一致）
     }
+
 }
+
+    /// <summary>
+    /// Phase-accumulator oscillator for the beat-simulation wave (2.9.8): instead of calling
+    /// Math.Sin(t*13) + Math.Sin(t*31) every tick, two sin/cos pairs advance by fixed-step
+    /// rotation - per-tick work is multiply-add only, zero trig calls. The nominal time
+    /// advances on a fixed step, so Sleep jitter can no longer make the phase jump; the wave
+    /// freezes while paused and resumes from the frozen phase. Drift is pure float rounding
+    /// (~1e-16/step, well under 1e-9 after an hour) - visually identical to the old wave.
+    /// </summary>
+    internal struct WaveOscillator
+    {
+        private readonly double _rs1, _rc1, _rs2, _rc2; // rotation constants: sin/cos(13*step), sin/cos(31*step)
+        private double _s1, _c1, _s2, _c2;              // current sin/cos of the nominal phases
+
+        /// <summary>Private ctor: readonly rotation constants + initial phase sin/cos.</summary>
+        private WaveOscillator(double rs1, double rc1, double rs2, double rc2)
+        {
+            _rs1 = rs1; _rc1 = rc1; _rs2 = rs2; _rc2 = rc2;
+            _s1 = 0.0; _c1 = 1.0; _s2 = 0.0; _c2 = 1.0;
+        }
+
+        /// <summary>Create with a fixed step (seconds); trig runs once here, never per tick.</summary>
+        public static WaveOscillator Create(double step)
+        {
+            var (s1, c1) = Math.SinCos(13.0 * step);
+            var (s2, c2) = Math.SinCos(31.0 * step);
+            return new WaveOscillator(s1, c1, s2, c2);
+        }
+
+        /// <summary>Advance both phases one step and return noise 0.10 + 0.05*sin(13t) + 0.035*sin(31t).</summary>
+        public double Advance()
+        {
+            // sin(a+d)=sin a*cos d+cos a*sin d; cos(a+d)=cos a*cos d-sin a*sin d
+            var ns1 = _s1 * _rc1 + _c1 * _rs1;
+            var nc1 = _c1 * _rc1 - _s1 * _rs1;
+            var ns2 = _s2 * _rc2 + _c2 * _rs2;
+            var nc2 = _c2 * _rc2 - _s2 * _rs2;
+            _s1 = ns1; _c1 = nc1; _s2 = ns2; _c2 = nc2;
+            return 0.10 + 0.05 * _s1 + 0.035 * _s2;
+        }
+
+        /// <summary>Current sin/cos of both nominal phases (unit-test accuracy check).</summary>
+        internal (double S1, double C1, double S2, double C2) State => (_s1, _c1, _s2, _c2);
+    }

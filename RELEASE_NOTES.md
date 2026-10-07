@@ -1,3 +1,19 @@
+## WinIslands 2.9.8（正式版 / Stable）
+### 更新内容
+
+- 🎵 模拟声波更省电：以前每帧都要算两次正弦，现在改成固定步长的相位旋转推进，每帧只剩乘法和加法，CPU 占用更低
+- 🎯 波形更稳：模拟波按固定步长走，暂停时冻结、恢复后接着走，系统调度偶尔卡一下也不会让波形跳变
+- 🧪 测试：新增 3 项——相位累加与直接正弦在 1 分钟 7200 步内误差 < 1e-9，旋转范数始终保持在 1 附近，输出范围与连续性检查；共 599 项单元测试全绿
+
+## WinIslands 2.9.8 (Stable)
+### What's New
+
+- 🎵 Lighter beat-simulation wave: the old wave ran two Math.Sin calls per frame; it now advances two fixed-step phase rotors instead - per-frame work is multiply-add only, lower CPU
+- 🎯 Steadier wave: the simulated wave runs on a fixed nominal step, freezes while paused and resumes from the frozen phase, so an occasional scheduler hiccup can no longer make it jump
+- 🧪 Tests: 3 new cases - phase accumulation vs direct Sin stays within 1e-9 over 7200 steps, rotor norm stays ~1, output range & continuity; 599 unit tests green
+
+---
+
 ## WinIslands 2.9.7（正式版 / Stable）
 ### 更新内容
 
