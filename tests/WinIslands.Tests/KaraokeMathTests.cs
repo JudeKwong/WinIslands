@@ -583,6 +583,115 @@ public sealed class KaraokeMathTests
         }
     }
 
+    [Fact]
+    public void AbsGreaterThan_MatchesMathAbs_BooleanIdentical()
+    {
+        // 2.8.3: OnPositionChanged 的硬/软同步判定 Math.Abs(delta) > t 改走分支链
+        // x > t || x < -t——|x| > t <-> x > t || x < -t 对全部 double 输入对恒成立：
+        // NaN 两侧比较均假（永不触发同步）、±Inf 落在两侧比较、+0/-0 与恰在阈值上不越闸。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5,
+            double.Epsilon, -double.Epsilon,
+            double.MaxValue, double.MinValue, double.MaxValue / 2, -double.MaxValue / 2,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        // 两个真实阈值 × 21 特异值
+        foreach (var t in new[] { 0.30, 0.80 })
+        {
+            foreach (var x in specials)
+            {
+                Assert.Equal(Math.Abs(x) > t, KaraokeMath.AbsGreaterThan(x, t));
+            }
+        }
+        // 21×21 全组合（覆盖 NaN/±Inf/±0 阈值等异端）
+        foreach (var a in specials)
+        {
+            foreach (var b in specials)
+            {
+                Assert.Equal(Math.Abs(a) > b, KaraokeMath.AbsGreaterThan(a, b));
+            }
+        }
+        // 大量随机对：x 秒级偏差，t 阈值 [0,5)
+        var rng = new Random(0xA38D);
+        for (var i = 0; i < 300000; i++)
+        {
+            var x = NextSigned(rng, 2.0);
+            var t = rng.NextDouble() * 5.0;
+            Assert.Equal(Math.Abs(x) > t, KaraokeMath.AbsGreaterThan(x, t));
+        }
+        for (var i = 0; i < 60000; i++)
+        {
+            var x = NextSigned(rng, 1e300);
+            var t = NextSigned(rng, 1e300);
+            Assert.Equal(Math.Abs(x) > t, KaraokeMath.AbsGreaterThan(x, t));
+        }
+        // 每个真实阈值两侧稠密扫描（±0.00005 邻域，100001 点）
+        foreach (var t in new[] { 0.30, 0.80 })
+        {
+            for (var i = 0; i <= 100000; i++)
+            {
+                var x = t + (i - 50000) * 1e-9;
+                Assert.Equal(Math.Abs(x) > t, KaraokeMath.AbsGreaterThan(x, t));
+            }
+        }
+    }
+
+    [Fact]
+    public void AbsGreaterThan_ExactTiesAndZeros_StayBelowGate()
+    {
+        // 2.8.3: 恰在 ±t 上、±0、NaN 均不越闸；刚越阈值与 ±Inf 越闸。
+        foreach (var t in new[] { 0.30, 0.80 })
+        {
+            Assert.False(KaraokeMath.AbsGreaterThan(t, t));
+            Assert.False(KaraokeMath.AbsGreaterThan(-t, t));
+            Assert.False(KaraokeMath.AbsGreaterThan(0.0, t));
+            Assert.False(KaraokeMath.AbsGreaterThan(-0.0, t));
+            Assert.True(KaraokeMath.AbsGreaterThan(t * 1.0000001, t));
+            Assert.True(KaraokeMath.AbsGreaterThan(-(t * 1.0000001), t));
+            Assert.False(KaraokeMath.AbsGreaterThan(double.NaN, t));
+            Assert.False(KaraokeMath.AbsGreaterThan(double.PositiveInfinity, double.PositiveInfinity));
+            Assert.True(KaraokeMath.AbsGreaterThan(double.NegativeInfinity, double.NegativeInfinity)); // Math.Abs(-Inf) > -Inf = +Inf > -Inf = true
+            Assert.True(KaraokeMath.AbsGreaterThan(double.PositiveInfinity, 0.0));
+            Assert.True(KaraokeMath.AbsGreaterThan(double.NegativeInfinity, 0.0));
+        }
+    }
+
+    [Fact]
+    public void AtLeastZero_ZeroFirstArgOrder_MatchesMathMax_BitForBit()
+    {
+        // 2.8.3: OnPositionChanged 的外推上限 StallAwareLead(Math.Max(0.0, elapsed), ...) 改走
+        // 同一分支链 AtLeastZero——Math.Max 首参为常量 0.0 时与 Math.Max(x, 0.0) 位形一致
+        // （IEEE 754-2019 maximum：混合 ±0 恒为 +0、NaN 原样透传、相等返回首参同为 +0）。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5,
+            double.Epsilon, -double.Epsilon,
+            double.MaxValue, double.MinValue, double.MaxValue / 2, -double.MaxValue / 2,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var x in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(0.0, x)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.AtLeastZero(x)));
+        }
+        var rng = new Random(0x7A21);
+        for (var i = 0; i < 30001; i++)
+        {
+            var x = NextSigned(rng, 1e6 * rng.NextDouble());
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(0.0, x)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.AtLeastZero(x)));
+        }
+    }
+
     private static double NextSigned(Random rng, double magnitude)
     {
         var v = rng.NextDouble() * magnitude;

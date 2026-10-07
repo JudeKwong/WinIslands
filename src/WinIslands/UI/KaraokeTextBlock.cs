@@ -278,13 +278,13 @@ public class KaraokeTextBlock : TextBlock
         {
             var elapsed = (double)(_tickClock.ElapsedTicks - _posBaseTicks) / Stopwatch.Frequency;
             var extrapolated = ClampWallClockLead(_posBase, elapsed,
-                StallAwareLead(Math.Max(0.0, elapsed), MaxWallClockLeadSeconds));
+                StallAwareLead(KaraokeMath.AtLeastZero(elapsed), MaxWallClockLeadSeconds)); // 2.8.3: 复用已测分支链，与 Math.Max(0.0, x) 逐位一致
             var delta = pos - extrapolated;
-            if (Math.Abs(delta) > PositionHardSyncThresholdSeconds)
+            if (KaraokeMath.AbsGreaterThan(delta, PositionHardSyncThresholdSeconds)) // 2.8.3: 分支链，与 Math.Abs 式布尔逐位一致
             {
                 _posBase = pos;                                              // 大偏差：硬同步（seek/切歌/暂停恢复）
             }
-            else if (Math.Abs(delta) > PositionSyncThresholdSeconds)
+            else if (KaraokeMath.AbsGreaterThan(delta, PositionSyncThresholdSeconds)) // 2.8.3: 分支链
             {
                 _posBase = extrapolated + delta * PositionCorrectionGain;    // 中等偏差：平滑收敛不跳变
             }

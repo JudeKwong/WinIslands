@@ -162,4 +162,16 @@ internal static class KaraokeMath
         }
         return a;
     }
+
+    /// <summary>
+    /// Math.Abs(x) &gt; t as a branch chain (2.8.3): x &gt; t || x &lt; -t. For every
+    /// double pair (x, t) the |x| &gt; t <-> x &gt; t || x &lt; -t equivalence holds
+    /// exactly - NaN never triggers (both comparisons false), +-Inf lands on the
+    /// appropriate comparison, +0/-0 and the exact +-t ties stay below the gate -
+    /// so the hard/soft position-sync gates in KaraokeTextBlock.OnPositionChanged
+    /// are boolean-identical to the Math.Abs form while saving a sign-mask +
+    /// compare pair per media position update.
+    /// </summary>
+    internal static bool AbsGreaterThan(double x, double t) => x > t || x < -t;
+
 }

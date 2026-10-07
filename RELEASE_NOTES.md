@@ -1,3 +1,16 @@
+## WinIslands 2.8.3（正式版 / Stable）
+### 更新内容
+
+- 🚀 逐字卡拉OK位置同步热路径的 Math.Abs/Math.Max 继续改走分支链：① 位置同步的两个阈值判定（硬同步 0.25s / 软同步 0.05s）改走新增 AbsGreaterThan（x > t || x < -t），对全部 double 输入与 Math.Abs(x) > t 布尔逐位一致——NaN 永不越闸、±Inf 落在两侧比较、±0 与恰在阈值上不越闸，差值每帧只计算一次；② 停滞感知 lead 的 Math.Max(0.0, elapsed) 改走既有 AtLeastZero（x <= 0 ? 0 : x），与本机 .NET 8 运行时的 Math.Max 逐位一致（含 NaN 透传、±0、精确相等），歌词高亮姿态逐帧不变，同步热路径每帧省去范围检查调用
+- 🧪 测试：新增 3 项——① AbsGreaterThan 对 Math.Abs(x) > t 的 21 特异值 × 2 真实阈值 + 21×21 全组合 + 30 万随机 + 6 万极端随机 + 每阈值 10 万点稠密扫描布尔逐位一致；② 恰在 ±t / ±0 / NaN / ±Inf 端点语义；③ AtLeastZero 对 Math.Max(0.0, x) 零首参顺序逐位一致（DoubleToInt64Bits）；共 558 项单元测试全绿
+
+## WinIslands 2.8.3 (Stable)
+### What's New
+
+- 🚀 The karaoke position-sync hot path drops its Math.Abs/Math.Max calls onto branch chains: (1) both position-sync gates (hard sync 0.25s / soft sync 0.05s) now use the new AbsGreaterThan (x > t || x < -t), which is boolean-bitwise identical to Math.Abs(x) > t for every double input - NaN never trips the gate, ±Inf resolves through the two-sided comparisons, ±0 and exact ties stay below the gate, and the delta is computed only once per frame; (2) the stall-aware lead's Math.Max(0.0, elapsed) becomes the existing AtLeastZero (x <= 0 ? 0 : x), bit-identical to this machine's .NET 8 Math.Max (NaN pass-through, ±0, exact tie), so the karaoke highlight pose is unchanged frame by frame while the sync hot path drops its range-check calls
+- 🧪 Tests: 3 new cases - (1) AbsGreaterThan vs Math.Abs(x) > t boolean-bitwise identical across 21 specials x 2 real thresholds, a full 21x21 pairing, 300000 random pairs, 60000 extreme random pairs, and a 100001-point dense sweep per threshold; (2) exact-tie / ±0 / NaN / ±Inf endpoint semantics; (3) AtLeastZero vs Math.Max(0.0, x) bit-identical for the zero-first-argument order (DoubleToInt64Bits); 558 unit tests green
+
+---
 ## WinIslands 2.8.2（正式版 / Stable）
 ### 更新内容
 
