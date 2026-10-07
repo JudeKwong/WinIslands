@@ -908,6 +908,47 @@ public sealed class KaraokeMathTests
         }
     }
 
+    // ── 2.9.6：TruncateFloor（(int)Math.Floor 的分支链，全部 double 输入逐位一致）──
+    [Fact]
+    public void TruncateFloor_BitIdenticalToMathFloorCast()
+    {
+        // 特殊值：NaN/±Inf/±0/Epsilon/±1、.5 边界、2^31 溢出邻域、2^52 与极值
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            1.0, -1.0, 0.9999999999999999, -0.9999999999999999,
+            0.5, -0.5, 1.5, -1.5, 2.5, -2.5,
+            int.MaxValue, int.MinValue, 2147483648.0, -2147483649.0,
+            2147483647.9999998, -2147483648.0 - 0.5,
+            4503599627370496.0, -4503599627370496.0,
+            double.MaxValue, -double.MaxValue,
+        };
+        foreach (var x in specials)
+            Assert.Equal((int)Math.Floor(x), KaraokeMath.TruncateFloor(x));
+        // [-4, 4] 每 1/1024 稠密扫描（覆盖正负半程与 .5 边界）；含 -0.0 保号
+        for (var i = -4 * 1024; i <= 4 * 1024; i++)
+        {
+            var x = i / 1024.0;
+            Assert.Equal((int)Math.Floor(x), KaraokeMath.TruncateFloor(x));
+            Assert.Equal((int)Math.Floor(-x), KaraokeMath.TruncateFloor(-x));
+        }
+        // 2^31 溢出邻域（饱和转换两侧一致）
+        for (var k = 0; k <= 2048; k++)
+        {
+            var near = 2147483647.0 + k * 1.5;
+            Assert.Equal((int)Math.Floor(near), KaraokeMath.TruncateFloor(near));
+            Assert.Equal((int)Math.Floor(-near), KaraokeMath.TruncateFloor(-near));
+        }
+        // 全 64 位随机位形
+        var rng = new Random(0x5EED9F60);
+        for (var i = 0; i < 300000; i++)
+        {
+            var x = BitConverter.Int64BitsToDouble(rng.NextInt64());
+            Assert.Equal((int)Math.Floor(x), KaraokeMath.TruncateFloor(x));
+        }
+    }
+
     private static double NextSigned(Random rng, double magnitude)
     {
         var v = rng.NextDouble() * magnitude;

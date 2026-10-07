@@ -101,7 +101,7 @@ internal static class KaraokeMath
     internal static (int LitChars, double Blend) WholeLineSplit(double fraction, int length)
     {
         var scaled = fraction * length; // 旧代码此处重复计算 fraction*length（Floor 输入一次、blend 余数一次）
-        var lit = MinInt((int)Math.Floor(scaled), length); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
+        var lit = MinInt(TruncateFloor(scaled), length); // 2.9.6: (int)Math.Floor 分支链；2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         var blend = lit >= length ? 1.0 : scaled - lit;
         return (lit, blend);
     }
@@ -126,6 +126,12 @@ internal static class KaraokeMath
     /// NeedsAnimationFor's per-word per-frame check.
     /// </summary>
     internal static double MaxDurationFloor(double d) => d >= 0.001 || d != d ? d : 0.001;
+
+    /// <summary>
+    /// (int)Math.Floor(x) 的分支链（2.9.6）：非负输入直接截断（与 floor 对非负值逐位一致，
+    /// 卡拉OK整行拆分每帧每行省一次 Math.Floor 调用）；负输入回退 Math.Floor，全部 double 输入逐位一致。
+    /// </summary>
+    internal static int TruncateFloor(double x) => x >= 0.0 ? (int)x : (int)Math.Floor(x);
 
     /// <summary>
     /// Math.Min(0.045, y) as a single-comparison branch chain (2.8.0):

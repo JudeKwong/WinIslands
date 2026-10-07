@@ -1,3 +1,17 @@
+## WinIslands 2.9.6（正式版 / Stable）
+### 更新内容
+
+- 🏃 声波环的呼吸缩放和专辑封面的呼吸色又各精简了一处：两处 (0.5 + 0.5×sin) 波形计算收进同一条纯函数，封面色每帧的α取整改成与 (int)Math.Round 逐位一致的分支链，卡拉OK整行点亮的取整也换成纯函数分支链。CPU 更省、更稳，动画观感与之前完全一致
+- 🧪 测试：新增 3 项——① Pulse01 对照内联 0.5+0.5×sin 的 15 个特殊值 + 20 万随机位形逐位一致；② RoundEven 对照 (int)Math.Round 的 ±256 四分格 + .5 精确边界 ±1ulp + 30 万随机一致；③ TruncateFloor 对照 (int)Math.Floor 的特殊值/稠密扫描/2³¹ 溢出邻域/30 万随机位形全一致；共 595 项单元测试全绿
+
+## WinIslands 2.9.6 (Stable)
+### What's New
+
+- 🏃 Two more hot paths slim down to tested pure functions: both breathing-ring scale and cover-tint alpha share one Pulse01 wave function, the tint byte rounding is a branch chain bit-identical to (int)Math.Round, and the karaoke whole-line floor moves onto its own branch chain. Less CPU per frame, every pose/color stays pixel-identical
+- 🧪 Tests: 3 new cases - (1) Pulse01 vs the inline 0.5+0.5*sin across 15 specials + 200000 random bit patterns; (2) RoundEven vs (int)Math.Round across the ±256 quarter grid + exact .5 edges ±1ulp + 300000 random; (3) TruncateFloor vs (int)Math.Floor across specials/dense sweep/2^31 overflow neighborhood/300000 random bit patterns; 595 unit tests green
+
+---
+
 ## WinIslands 2.9.5（正式版 / Stable）
 ### 更新内容
 

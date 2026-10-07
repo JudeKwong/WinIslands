@@ -105,4 +105,23 @@ internal static class WaveMath
     /// 省一次范围检查调用。
     /// </summary>
     internal static double ClampRange(double x, double min, double max) => x < min ? min : x > max ? max : x;
+    /// <summary>
+    /// 呼吸/脉搏波形（2.9.6）：0.5 + 0.5 * sin(phase)，与旧的两处内联写法逐位一致。
+    /// 声波环（UpdateRingVisual，t*6.0）与封面呼吸色（OnTintFrame，t*0.35）共用同一条纯函数，
+    /// 便于统一回归测试；每帧仍只调一次 Math.Sin，观感完全不变。
+    /// </summary>
+    internal static double Pulse01(double phase) => 0.5 + 0.5 * Math.Sin(phase);
+    /// <summary>
+    /// 银行家舍入到最接近整数（2.9.6）：与 (int)Math.Round(v) 在全部有限 double 输入上逐位一致
+    /// （v 与 floor 的差是精确的，.5 边界按就近偶数）；分支链省去 Math.Round 运行时调用。
+    /// 封面呼吸色每帧把 alpha*255 量化成字节时使用（alpha 恒在 [0.85, 0.97]，v 恒在 [216, 248]）。
+    /// </summary>
+    internal static int RoundEven(double v)
+    {
+        var f = Math.Floor(v);
+        var d = v - f;
+        if (d < 0.5) return (int)f;
+        if (d > 0.5) return (int)f + 1;
+        return ((int)f & 1) == 0 ? (int)f : (int)f + 1; // .5 边界按就近偶数（银行家舍入，与 Math.Round 一致）
+    }
 }

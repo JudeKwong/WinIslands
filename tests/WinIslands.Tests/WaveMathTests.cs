@@ -477,4 +477,58 @@ public sealed class WaveMathTests
         Assert.Equal(32767.0 / 32768.0, WaveMath.Int16Envelope(short.MaxValue), 12);
         Assert.Equal(0.0, WaveMath.Int16Envelope(0), 12);
     }
+    // ── 2.9.6：Pulse01 呼吸/脉搏波形（与 0.5 + 0.5*Math.Sin 逐位一致）──
+    [Fact]
+    public void Pulse01_BitIdenticalToInlineSinPulse()
+    {
+        double[] specials = {
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            Math.PI / 2, Math.PI, 3 * Math.PI / 2, 2 * Math.PI,
+            6.283185307179586, -1.5, 0.35, 1234.5678, -9876.54321,
+            1e10, -1e-10
+        };
+        foreach (var p0 in specials)
+            Assert.Equal(BitConverter.DoubleToInt64Bits(0.5 + 0.5 * Math.Sin(p0)),
+                         BitConverter.DoubleToInt64Bits(WaveMath.Pulse01(p0)));
+        var rnd = new Random(29601);
+        for (var i = 0; i < 200_000; i++)
+        {
+            var p0 = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(0.5 + 0.5 * Math.Sin(p0)),
+                         BitConverter.DoubleToInt64Bits(WaveMath.Pulse01(p0)));
+        }
+    }
+
+    // ── 2.9.6：RoundEven 银行家舍入（与 (int)Math.Round 逐位一致）──
+    [Fact]
+    public void RoundEven_IdenticalToMathRound()
+    {
+        // 四分格 [-256, 256]（含 .25/.5/.75 边界）：与 (int)Math.Round 一致
+        for (var k = -256 * 4; k <= 256 * 4; k++)
+        {
+            var v = k / 4.0;
+            Assert.Equal((int)Math.Round(v), WaveMath.RoundEven(v));
+        }
+        // 对 f ± .5 精确边界及 ±1ulp 扰动：均与 (int)Math.Round 一致
+        foreach (var f in new[] { -100.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 100.0, 216.0, 247.0 })
+        {
+            Assert.Equal((int)Math.Round(f + 0.5), WaveMath.RoundEven(f + 0.5));
+            Assert.Equal((int)Math.Round(f - 0.5), WaveMath.RoundEven(f - 0.5));
+            Assert.Equal((int)Math.Round(f + 0.5 + double.Epsilon), WaveMath.RoundEven(f + 0.5 + double.Epsilon));
+            Assert.Equal((int)Math.Round(f + 0.5 - double.Epsilon), WaveMath.RoundEven(f + 0.5 - double.Epsilon));
+        }
+        // 全幅随机（|v| ≤ 1e9，可安全落入 int）：与 (int)Math.Round 一致
+        var rnd2 = new Random(29602);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var v = (rnd2.NextDouble() * 2.0 - 1.0) * 1e9;
+            Assert.Equal((int)Math.Round(v), WaveMath.RoundEven(v));
+        }
+        // NaN/±Inf/极值输入与 (int)Math.Round 同样不抛异常（调用方约定不落入渲染路径）
+        WaveMath.RoundEven(double.NaN);
+        WaveMath.RoundEven(double.PositiveInfinity);
+        WaveMath.RoundEven(double.NegativeInfinity);
+        WaveMath.RoundEven(double.MaxValue);
+    }
+
 }

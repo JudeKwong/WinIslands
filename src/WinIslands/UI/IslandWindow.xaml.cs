@@ -2162,7 +2162,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         double target = 1.0;
         if (_vm.IsPlaying)
         {
-            var wave = 0.5 + 0.5 * Math.Sin(t * 6.0);
+            var wave = WaveMath.Pulse01(t * 6.0); // 2.9.6: 与 0.5+0.5*Sin 逐位一致
             target = 1.0 + 0.24 * level * wave;
         }
         if (!double.IsFinite(ring.ScaleX)) { ring.ScaleX = target; ring.ScaleY = target; return; }
@@ -2282,8 +2282,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var c = _tintCoverColor;
         if (c is null) { SubscribeTintRendering(false); return; }
         var t = (double)(System.Diagnostics.Stopwatch.GetTimestamp() - _tintPhaseTicks) / System.Diagnostics.Stopwatch.Frequency;
-        var alpha = 0.85 + 0.06 * (0.5 + 0.5 * Math.Sin(t * 0.35)); // 0.85..0.97 慢周期
-        var a = (byte)Math.Round(alpha * 255);
+        var alpha = 0.85 + 0.06 * WaveMath.Pulse01(t * 0.35); // 0.85..0.97 慢周期（2.9.6：与 (0.5+0.5*Sin) 逐位一致）
+        var a = (byte)WaveMath.RoundEven(alpha * 255); // 2.9.6: 与 (byte)Math.Round 逐位一致
         if (_tintStop0.Color.A != a)
             _tintStop0.Color = System.Windows.Media.Color.FromArgb(a, c.Value.R, c.Value.G, c.Value.B);
     }
