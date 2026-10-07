@@ -63,4 +63,82 @@ public class MarqueeTests
         var cruB = (rb - b.RampDist * 2.0) / MarqueeMath.SpeedPxPerSec;
         Assert.InRange(cruB / cruA, 1.8, 2.2);
     }
+
+    // ── 2.8.5：MarqueeMath 移除两个必然空操作的 Math.Max（ScrollRange/BuildSpec），
+    //    与旧公式逐位一致（DoubleToInt64Bits 全比较）────────────────────────────
+    [Fact]
+    public void ScrollRange_BitwiseIdenticalToRemovedMaxForm()
+    {
+        // 参考 = 旧公式 Math.Max(1.0, Guarded(w) + GapPx)；新实现 = Guarded(w) + GapPx
+        static double Guarded(double textWidth)
+            => double.IsFinite(textWidth) && textWidth > 0 ? textWidth : 0.0;
+        static double Reference(double textWidth)
+            => Math.Max(1.0, Guarded(textWidth) + MarqueeMath.GapPx);
+
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 27.0, 28.0, 28.000000000000004, 100.0,
+            1e300, -1e300, 2000.0, 123456.789
+        };
+        foreach (var w in specials)
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Reference(w)),
+                         BitConverter.DoubleToInt64Bits(MarqueeMath.ScrollRange(w)));
+
+        var rnd = new Random(28501);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var w = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Reference(w)),
+                         BitConverter.DoubleToInt64Bits(MarqueeMath.ScrollRange(w)));
+        }
+        // 稠密扫描：跨过 1.0 阈值邻域与 GapPx 邻域
+        for (var i = 0; i <= 200_000; i++)
+        {
+            var w = -10.0 + 40.0 * i / 200_000.0;
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Reference(w)),
+                         BitConverter.DoubleToInt64Bits(MarqueeMath.ScrollRange(w)));
+        }
+    }
+
+    [Fact]
+    public void BuildSpec_BitwiseIdenticalToRemovedMaxForm()
+    {
+        static double Guarded(double textWidth)
+            => double.IsFinite(textWidth) && textWidth > 0 ? textWidth : 0.0;
+        static double RefRange(double textWidth)
+            => Math.Max(1.0, Guarded(textWidth) + MarqueeMath.GapPx);
+        static double RefCruise(double textWidth)
+            => Math.Max(0.0, RefRange(textWidth) * (1.0 - 2.0 * MarqueeMath.RampPortion));
+
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 27.0, 28.0, 100.0, 120.0, 500.0, 600.0, 2000.0, 1e300, -1e300
+        };
+        foreach (var w in specials)
+        {
+            var spec = MarqueeMath.BuildSpec(w);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(RefCruise(w) / MarqueeMath.SpeedPxPerSec),
+                         BitConverter.DoubleToInt64Bits(spec.CruiseSec));
+            Assert.Equal(BitConverter.DoubleToInt64Bits((RefRange(w) - RefCruise(w)) / 2.0),
+                         BitConverter.DoubleToInt64Bits(spec.RampDist));
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(MarqueeMath.StartHoldSec + MarqueeMath.RampSec * 2.0
+                                               + RefCruise(w) / MarqueeMath.SpeedPxPerSec),
+                BitConverter.DoubleToInt64Bits(spec.TotalForwardSec));
+        }
+
+        var rnd = new Random(28502);
+        for (var i = 0; i < 200_000; i++)
+        {
+            var w = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var spec = MarqueeMath.BuildSpec(w);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(RefCruise(w) / MarqueeMath.SpeedPxPerSec),
+                         BitConverter.DoubleToInt64Bits(spec.CruiseSec));
+        }
+    }
+
 }

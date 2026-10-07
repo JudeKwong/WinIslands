@@ -215,14 +215,14 @@ public static class Marquee
         public static double ScrollRange(double textWidth)
         {
             var w = double.IsFinite(textWidth) && textWidth > 0 ? textWidth : 0.0;
-            return Math.Max(1.0, w + GapPx);
+            return w + GapPx; // 2.8.5: Math.Max(1.0, ·) 必然空操作——守卫后 w ≥ 0 且 GapPx=28 ⇒ w+GapPx 恒 ≥ 28 > 1.0，直接返回逐位等价且免去范围检查调用
         }
 
         /// <summary>构建每循环的时间线规格：段和一致、永不为 NaN/Inf。</summary>
         public static MarqueeSpec BuildSpec(double textWidth)
         {
             var range = ScrollRange(textWidth);
-            var cruise = Math.Max(0.0, range * (1.0 - 2.0 * RampPortion)); // 短文本时巡航可为 0
+            var cruise = range * (1.0 - 2.0 * RampPortion); // 2.8.5: Math.Max(0.0, ·) 必然空操作——range 恒 ≥ 28 且 (1-2·RampPortion)=0.8>0 ⇒ 积恒 > 0，逐位等价且免去范围检查调用
             var rampDist = (range - cruise) / 2.0;
             var cruiseSec = cruise / SpeedPxPerSec;
             var total = StartHoldSec + RampSec * 2.0 + cruiseSec;

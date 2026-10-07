@@ -1,3 +1,16 @@
+## WinIslands 2.8.5（正式版 / Stable）
+### 更新内容
+
+- 🏃 跑马灯时间线数学（MarqueeMath）移除两个必然空操作的 Math.Max 调用：① ScrollRange 旧式 `Math.Max(1.0, w + GapPx)` ——守卫后 w ≥ 0 且 GapPx=28 恒正，w+GapPx 恒 ≥ 28 > 1.0，最大值调用永远返回第二操作数，直接返回 `w + GapPx` 逐位等价且免去范围检查；② BuildSpec 的 `Math.Max(0.0, range * (1.0 - 2.0 * RampPortion))` ——ScrollRange 收敛后 range 恒 ≥ 28 且系数 (1-2×0.10)=0.8 > 0，乘积恒 > 0，同样为必然空操作，直接取乘积逐位等价。跑马灯在文本/尺寸变化重建动画会话时少两次范围检查调用，行为逐帧不变
+- 🧪 测试：新增 2 项——① ScrollRange 对旧公式 Math.Max(1.0, wGuard+GapPx) 的 20 个特殊输入 + 30 万随机位形 + 20 万点稠密扫描（跨 1.0 与 GapPx 邻域）DoubleToInt64Bits 逐位一致；② BuildSpec 对旧公式的 CruiseSec/RampDist/TotalForwardSec 同矩阵 + 20 万随机位形逐位一致；共 569 项单元测试全绿
+
+## WinIslands 2.8.5 (Stable)
+### What's New
+
+- 🏃 MarqueeMath (marquee timeline math) drops two provably-dead Math.Max calls: (1) ScrollRange's `Math.Max(1.0, w + GapPx)` - the guard keeps w >= 0 and GapPx=28 is positive, so w+GapPx is always >= 28 > 1.0 and the max always returns the second operand; returning `w + GapPx` directly is bitwise identical and skips the range check; (2) BuildSpec's `Math.Max(0.0, range * (1.0 - 2.0 * RampPortion))` - ScrollRange guarantees range >= 28 and (1 - 2*0.10) = 0.8 > 0, so the product is always > 0 and the max is a no-op; taking the product directly is bitwise identical. The marquee animation session rebuild (text/size changes) now pays two fewer range-check calls while the pose stays unchanged frame by frame
+- 🧪 Tests: 2 new cases - (1) ScrollRange bitwise identical (DoubleToInt64Bits) to the old `Math.Max(1.0, wGuard + GapPx)` form across 20 special inputs, 300000 random bit patterns and a 200001-point dense sweep straddling the 1.0 and GapPx neighbourhoods; (2) BuildSpec's CruiseSec/RampDist/TotalForwardSec bitwise identical to the old `Math.Max(0.0, ·)` form across the same special matrix plus 200000 random bit patterns; 569 unit tests green
+
+---
 ## WinIslands 2.8.4（正式版 / Stable）
 ### 更新内容
 
