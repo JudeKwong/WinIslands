@@ -325,7 +325,7 @@ public sealed class AudioWaveService : IDisposable
         if (frames <= 0) return 0;
 
         var winFrames = Math.Max(1, (int)(fmt.nSamplesPerSec * 0.010)); // 10ms 分析窗
-        double maxRms = 0, maxWinPeak = 0, sumSq = 0;
+        double maxSqN = 0, maxWinPeak = 0, sumSq = 0; // 2.9.7: 只跟踪每窗 sumSq/n 的最大值，sqrt 收尾一次
         var nInWindow = 0;
         var idx = 0;
         for (var f = 0; f < frames; f++)
@@ -349,18 +349,22 @@ public sealed class AudioWaveService : IDisposable
 
             if (nInWindow >= winFrames)
             {
-                var rms = Math.Sqrt(sumSq / nInWindow);
-                if (rms > maxRms) maxRms = rms;
+                // 2.9.7: 只比较每窗 sumSq/n，不再每窗算一次 Sqrt
+                var sqN = sumSq / nInWindow;
+                if (sqN > maxSqN) maxSqN = sqN;
                 sumSq = 0;
                 nInWindow = 0;
             }
         }
         if (nInWindow > 0)
         {
-            var rms = Math.Sqrt(sumSq / nInWindow);
-            if (rms > maxRms) maxRms = rms;
+            var sqN = sumSq / nInWindow;
+            if (sqN > maxSqN) maxSqN = sqN;
         }
 
+        // 2.9.7: sqrt 严格单调递增，max(sqrt(x_i)) ≡ sqrt(max(x_i)) 逐位一致；
+        // sqrt 移到收尾，每包数据最多 2 次（maxSqN 开方 + 压缩曲线开方），旧实现每 10ms 窗一次
+        var maxRms = Math.Sqrt(maxSqN);
         // RMS 为主 + 窗内峰值补充瞬态；sqrt 感知压缩让中低音量也有起伏
         var level = Math.Sqrt(WaveMath.ClampUnit(maxRms * 1.25));
         return WaveMath.ClampUnit(level * 0.88 + maxWinPeak * 0.12);

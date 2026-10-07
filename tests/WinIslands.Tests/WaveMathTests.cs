@@ -531,4 +531,46 @@ public sealed class WaveMathTests
         WaveMath.RoundEven(double.MaxValue);
     }
 
+    // ── 2.9.7：包络 RMS 最大值——每窗开方再取最大 == 取最大后一次开方（sqrt 单调，逐位一致）──
+    [Fact]
+    public void Envelope_MaxOfSqrtEqualsSqrtOfMax_BitIdentical()
+    {
+        static double OldMaxRms(double[] xs)
+        {
+            double m = 0;
+            foreach (var x in xs) { var r = Math.Sqrt(x); if (r > m) m = r; }
+            return m;
+        }
+        static double NewMaxRms(double[] xs)
+        {
+            double m = 0;
+            foreach (var x in xs) if (x > m) m = x;
+            return Math.Sqrt(m);
+        }
+        // 空窗与单窗：旧=0/新=sqrt(0)、旧=sqrt(x)/新=sqrt(x) 均逐位一致
+        Assert.Equal(0L, BitConverter.DoubleToInt64Bits(NewMaxRms(Array.Empty<double>())));
+        Assert.Equal(BitConverter.DoubleToInt64Bits(1.0), BitConverter.DoubleToInt64Bits(NewMaxRms(new[] { 1.0 })));
+        var rnd = new Random(0x2_9_9_7);
+        for (var trial = 0; trial < 200000; trial++)
+        {
+            var n = 1 + rnd.Next(16);
+            var xs = new double[n];
+            for (var i = 0; i < n; i++)
+            {
+                // v ∈ [0,1]（生产路径）为主，另掺入全幅随机非负位形（含次正规/极值/∞）
+                var v = rnd.Next(4) == 0
+                    ? BitConverter.Int64BitsToDouble(rnd.NextInt64() & 0x7FFFFFFFFFFFFFFF)
+                    : rnd.NextDouble();
+                xs[i] = v * v;
+            }
+            var o = OldMaxRms(xs);
+            var nx = NewMaxRms(xs);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(o), BitConverter.DoubleToInt64Bits(nx));
+            // 最终压缩电平同样逐位一致（0.85 倍 + 峰值 0.12 混合前）
+            var levelO = Math.Sqrt(WaveMath.ClampUnit(o * 1.25));
+            var levelN = Math.Sqrt(WaveMath.ClampUnit(nx * 1.25));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(levelO), BitConverter.DoubleToInt64Bits(levelN));
+        }
+    }
+
 }

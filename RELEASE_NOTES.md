@@ -1,3 +1,17 @@
+## WinIslands 2.9.7（正式版 / Stable）
+### 更新内容
+
+- 🎵 声波纹的算法又轻了一档：之前每 10 毫秒的小窗口都要开一次平方根，现在改成只在收尾开两次平方根，计算量少了一大截，波纹跟着音乐起伏的样子和之前完全一样、逐位不差
+- 🧪 测试：新增 1 项——包络 RMS 最大值，每窗开方再取最大 与 取最大后一次开方 在 20 万组随机窗（含静音/满幅/次正规/极值/∞）下逐位一致，最终压平电平也逐位一致；共 596 项单元测试全绿
+
+## WinIslands 2.9.7 (Stable)
+### What's New
+
+- 🎵 The audio wave envelope is lighter again: instead of a square root per 10ms analysis window, it now takes the window max first and does the square root just twice at the end. A lot less math per buffer, and the wave still moves with the music exactly the same, bit for bit
+- 🧪 Tests: 1 new case - the envelope RMS max identity (per-window sqrt then max vs max then one sqrt) is bit-identical across 200000 random window sets (silence/full-scale/subnormal/huge/inf), including the final compressed level; 596 unit tests green
+
+---
+
 ## WinIslands 2.9.6（正式版 / Stable）
 ### 更新内容
 
