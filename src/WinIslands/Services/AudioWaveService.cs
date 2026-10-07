@@ -340,7 +340,7 @@ public sealed class AudioWaveService : IDisposable
             {
                 // Int16 由构造保证 |s| ≤ 32768，无需再钳制
                 var s = BitConverter.ToInt16(bytes, idx);
-                v = Math.Abs(s / 32768.0);
+                v = WaveMath.Int16Envelope(s); // 2.9.1: 逐位等价 Math.Abs(s / 32768.0)，抽纯函数可测
             }
             sumSq += v * v;
             nInWindow++;

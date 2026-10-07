@@ -1,4 +1,4 @@
-﻿using WinIslands.UI;
+using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -457,5 +457,24 @@ public sealed class WaveMathTests
             Assert.Equal(BitConverter.DoubleToInt64Bits(EnvelopeSampleRef(f)),
                          BitConverter.DoubleToInt64Bits(WaveMath.EnvelopeSample(f)));
         }
+    }
+
+    // ── 2.9.1：Int16 包络样本 —— 全 65536 位形与 Math.Abs(s / 32768.0) 逐位一致 ──────
+    [Fact]
+    public void Int16Envelope_BitIdenticalToMathAbs()
+    {
+        // Int16 由构造保证 |s| ≤ 32768，无需再钳制；整数 → double 除法一致，
+        // 绝对值走 AbsValue（符号位清零）与 Math.Abs 逐位等价。
+        for (int i = short.MinValue; i <= short.MaxValue; i++)
+        {
+            var s = (short)i;
+            var expected = Math.Abs(s / 32768.0);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected),
+                         BitConverter.DoubleToInt64Bits(WaveMath.Int16Envelope(s)));
+        }
+        // 边界：-32768 → 1.0，32767 → 略小于 1，0 → 0
+        Assert.Equal(1.0, WaveMath.Int16Envelope(short.MinValue), 12);
+        Assert.Equal(32767.0 / 32768.0, WaveMath.Int16Envelope(short.MaxValue), 12);
+        Assert.Equal(0.0, WaveMath.Int16Envelope(0), 12);
     }
 }

@@ -1,4 +1,17 @@
-﻿## WinIslands 2.9.0（正式版 / Stable）
+﻿## WinIslands 2.9.1（正式版 / Stable）
+### 更新内容
+
+- 🏃 声波纹 Int16 PCM 逐帧包络路径的 Math.Abs(s / 32768.0) 抽为 WaveMath.Int16Envelope(short)——内部走 ToleranceMath.AbsValue（DoubleToInt64Bits 清符号位，对全部 double 输入与 Math.Abs 逐位一致，含 NaN 负载保真），Int16 由构造保证 |s| ≤ 32768 无需再钳制；WASAPI 10ms 包络窗每样本省一次 Math.Abs 调用，声波纹形状逐帧不变
+- 🧪 测试：新增 Int16Envelope 对旧公式的全 65536 位形逐位一致扫描（-32768 → 1.0、32767 → 32767/32768、0 → 0 边界各断言一次）；共 583 项单元测试全绿
+
+## WinIslands 2.9.1 (Stable)
+### What's New
+
+- 🏃 The Math.Abs(s / 32768.0) call in the waveform Int16 PCM per-sample envelope path becomes WaveMath.Int16Envelope(short) - it goes through ToleranceMath.AbsValue (sign-bit cleared via DoubleToInt64Bits, bit-identical to Math.Abs on every double input incl. NaN payload preservation) and Int16 is guaranteed by construction to have |s| ≤ 32768 so no extra clamp is needed; the WASAPI 10ms envelope window drops one Math.Abs call per sample while the waveform shape stays identical frame by frame
+- 🧪 Tests: 1 new case - Int16Envelope vs the old expression across all 65536 bit patterns (DoubleToInt64Bits-identical), plus one boundary assertion each for -32768 -> 1.0, 32767 -> 32767/32768 and 0 -> 0; 583 unit tests green
+
+---
+## WinIslands 2.9.0（正式版 / Stable）
 ### 更新内容
 
 - 🏃 歌词强调（LyricEmphasis）剩余两处 Math.Clamp 改走逐位等价分支链：① 目标缩放比 `Math.Clamp(currentSize/baseSize, 1.0, 1.35)` 改走 WaveMath.ClampRange——双比较分支链（x&lt;min→min，x&gt;max→max，否则原值），与运行时 Math.Clamp 在全部 double 输入上逐位一致（NaN 位形透传、±Inf 落端点、±0 保持、1.0/1.35 精确 tie 返回原值与 Math.Clamp 相等时返回 value 一致）；② 读入目标缩放 `Math.Clamp(值, 1.0, 1.5)` 同走 ClampRange。当前行切换/样式重建的两处读取各省一次范围检查调用，高亮姿态逐帧不变

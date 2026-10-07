@@ -87,6 +87,12 @@ internal static class WaveMath
         return v > 1.0 ? 1.0 : v;
     }
     /// <summary>
+    /// 16 位有符号 PCM 样本 → 0..1 包络幅值（2.9.1）：Int16 由构造保证 |s| ≤ 32768，无需再钳制；
+    /// 绝对值走 ToleranceMath.AbsValue（符号位清零，对全部 double 输入与 Math.Abs 逐位一致），
+    /// 逐帧每样本省去 Math.Abs 调用；与原 Math.Abs(s / 32768.0) 逐位等价（见全空间扫描）。
+    /// </summary>
+    internal static double Int16Envelope(short sample) => ToleranceMath.AbsValue(sample / 32768.0);
+    /// <summary>
     /// 单元区间钳制（2.7.8）：x &lt; 0 ? 0 : x &gt; 1 ? 1 : x 双比较分支链，
     /// 与 Math.Clamp(x, 0, 1) 在全部 double 输入上逐位一致——NaN 透传、±Inf 钳到端点、±0 保持；
     /// 声波纹热路径（模拟节拍每帧、WASAPI 10ms 包络窗）各省一次范围检查调用。
