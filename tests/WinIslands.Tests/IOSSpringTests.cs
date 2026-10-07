@@ -1021,4 +1021,115 @@ public sealed class IOSSpringTests
         }
     }
 
+    // ── 2.9.5：Configure 的 2π/response 提取为 AngularBase（只算一次），
+    //     Omega0/OmegaD 与旧公式逐位一致────────────────────────────
+    [Fact]
+    public void Configure_AngularBaseHoisted_Specials_BitIdenticalToOldFormula()
+    {
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 0.01, -0.01, 0.03, -0.03, 2.0, -2.0,
+            0.9999999999999999, 1.0000000000000002, 1.5, 10.0, 1e300, -1e300
+        };
+        foreach (var zeta in specials)
+            foreach (var resp in specials)
+            {
+                var (_, z, r) = IOSSpringMath.NormalizeParams(zeta, resp, 1.0);
+                double oldO0, oldOd;
+                if (z < 1.0)
+                {
+                    var root = Math.Sqrt(1 - z * z);
+                    oldO0 = (2 * Math.PI / r) / root;
+                    oldOd = 2 * Math.PI / r;
+                }
+                else
+                {
+                    oldO0 = 2 * Math.PI / r;
+                    oldOd = 0;
+                }
+                var s = new IOSSpring();
+                s.Configure(zeta, resp, 1.0);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oldO0), BitConverter.DoubleToInt64Bits(s.Omega0));
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oldOd), BitConverter.DoubleToInt64Bits(s.OmegaD));
+            }
+    }
+
+    [Fact]
+    public void Configure_AngularBaseHoisted_RandomSweep_BitIdenticalToOldFormula()
+    {
+        var rnd = new Random(29501);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var zeta = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var resp = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var (_, z, r) = IOSSpringMath.NormalizeParams(zeta, resp, 1.0);
+            double oldO0, oldOd;
+            if (z < 1.0)
+            {
+                var root = Math.Sqrt(1 - z * z);
+                oldO0 = (2 * Math.PI / r) / root;
+                oldOd = 2 * Math.PI / r;
+            }
+            else
+            {
+                oldO0 = 2 * Math.PI / r;
+                oldOd = 0;
+            }
+            var s = new IOSSpring();
+            s.Configure(zeta, resp, 1.0);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(oldO0), BitConverter.DoubleToInt64Bits(s.Omega0));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(oldOd), BitConverter.DoubleToInt64Bits(s.OmegaD));
+        }
+    }
+
+    [Fact]
+    public void UnderdampedRoot_SpecialsAndRandom_BitIdenticalToMathSqrt()
+    {
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, 100.0, 8712.0, -8712.0,
+            0.9999999999999999, 1.0000000000000002
+        };
+        foreach (var z in specials)
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Sqrt(1 - z * z)),
+                         BitConverter.DoubleToInt64Bits(IOSSpringMath.UnderdampedRoot(z)));
+        var rnd = new Random(29502);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var z = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Sqrt(1 - z * z)),
+                         BitConverter.DoubleToInt64Bits(IOSSpringMath.UnderdampedRoot(z)));
+        }
+        Assert.Equal(0.0, IOSSpringMath.UnderdampedRoot(1.0), 10);
+        Assert.Equal(double.NaN, IOSSpringMath.UnderdampedRoot(2.0));
+    }
+
+    [Fact]
+    public void OverdampedRoot_SpecialsAndRandom_BitIdenticalToMathSqrt()
+    {
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, 100.0, 8712.0, -8712.0,
+            0.9999999999999999, 1.0000000000000002
+        };
+        foreach (var z in specials)
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Sqrt(z * z - 1)),
+                         BitConverter.DoubleToInt64Bits(IOSSpringMath.OverdampedRoot(z)));
+        var rnd = new Random(29503);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var z = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Sqrt(z * z - 1)),
+                         BitConverter.DoubleToInt64Bits(IOSSpringMath.OverdampedRoot(z)));
+        }
+        Assert.Equal(0.0, IOSSpringMath.OverdampedRoot(1.0), 10);
+        Assert.Equal(double.NaN, IOSSpringMath.OverdampedRoot(0.5));
+    }
+
 }

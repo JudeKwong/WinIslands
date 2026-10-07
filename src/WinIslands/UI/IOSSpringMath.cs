@@ -25,4 +25,28 @@ internal static class IOSSpringMath
         var r = SpringMath.MaxFloor(responseSeconds, 0.03);     // == Math.Max(0.03, responseSeconds)
         return (m, z, r);
     }
+
+    /// <summary>
+    /// 2.9.5: 2*PI/response - the UIKit natural-frequency base (rad/s). Hoists
+    /// the duplicated (2*PI/response) expression out of Configure: the old body
+    /// recomputed it up to three times per Configure, now it is computed once
+    /// and reused. Bitwise identical on every input because the very same
+    /// expression yields the very same bits, and both Omega0 branches divide
+    /// or assign exactly that value as before.
+    /// </summary>
+    internal static double AngularBase(double response) => 2 * Math.PI / response;
+
+    /// <summary>
+    /// 2.9.5: root of the underdamped discriminant, sqrt(1 - zeta*zeta).
+    /// Centralises Configure's inline expression so the two damping branches
+    /// share one documented, tested form (same expression, same bits).
+    /// </summary>
+    internal static double UnderdampedRoot(double zeta) => Math.Sqrt(1 - zeta * zeta);
+
+    /// <summary>
+    /// 2.9.5: root of the overdamped discriminant, sqrt(zeta*zeta - 1).
+    /// Centralises RebuildCoefficients' inline expression (same expression,
+    /// same bits) so coefficient rebuilds use the shared tested form.
+    /// </summary>
+    internal static double OverdampedRoot(double zeta) => Math.Sqrt(zeta * zeta - 1);
 }

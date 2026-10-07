@@ -114,15 +114,18 @@ public sealed class IOSSpring
         Zeta = zetaNorm;
 
         // 标准 iOS 换算：ωd = 2π/response，ω0 = ωd/√(1−ζ²)；ζ≥1 时取 ω0 = 2π/response。
+        // 2.9.5: compute the UIKit angular base once via AngularBase instead
+        // of re-evaluating 2*PI/response up to three times - bitwise identical.
+        var omegaBase = IOSSpringMath.AngularBase(response);
         if (Zeta < 1.0)
         {
-            var root = Math.Sqrt(1 - Zeta * Zeta);
-            Omega0 = (2 * Math.PI / response) / root;
-            OmegaD = 2 * Math.PI / response;
+            var root = IOSSpringMath.UnderdampedRoot(Zeta);
+            Omega0 = omegaBase / root;
+            OmegaD = omegaBase;
         }
         else
         {
-            Omega0 = 2 * Math.PI / response;
+            Omega0 = omegaBase;
             OmegaD = 0;
         }
         RebuildCoefficients(); // 2.2.9：参数变化后系数随新 ω₀/ζ 重建（运行中也立即生效）
@@ -277,7 +280,7 @@ public sealed class IOSSpring
         {
             // 过阻尼
             _solveMode = ModeOver;
-            var root = Math.Sqrt(Zeta * Zeta - 1);
+            var root = IOSSpringMath.OverdampedRoot(Zeta); // 2.9.5
             _oL1 = Omega0 * (Zeta + root);
             _oL2 = Omega0 * (Zeta - root);
             _oC2 = (_v0 + _oL1 * _y0) / (_oL1 - _oL2);

@@ -1,3 +1,15 @@
+## WinIslands 2.9.5（正式版 / Stable）
+### 更新内容
+
+- 🏃 灵动岛弹簧动画的角频率换算又精简了一步：2π/response 这个基准值原来每次配置时要在不同分支里重复算好几次，现在只在纯函数里算一次、三处共用；欠阻尼/过阻尼两根平方根也收进同一套经过测试的纯函数。动画每一帧的位置、速度、弹性手感都和之前逐位一致，但配置弹簧和播放中改目标时 CPU 更省、更稳定
+- 🧪 测试：新增 4 项——① 特殊值全组合下 Omega0/OmegaD 与旧公式逐位一致；② 30 万组随机位形下与旧公式同样逐位一致；③④ 欠阻尼/过阻尼两根平方根对照 Math.Sqrt 的 19 个特殊值 + 30 万随机位形逐位一致；共 592 项单元测试全绿
+## WinIslands 2.9.5 (Stable)
+### What's New
+
+- 🏃 The island spring's angular-frequency conversion is simplified once more: the 2π/response base used to be recomputed several times per configure call, now it is computed once and shared by all three call sites, and the underdamped/overdamped square roots move into the same tested pure-function family. Every frame pose, velocity and springy feel stays bit-identical while configure/retarget does less work
+- 🧪 Tests: 4 new cases - (1) Omega0/OmegaD vs the old formula across the full special-value matrix bit-identical; (2) the same across 300000 random bit patterns; (3)(4) the underdamped/overdamped roots vs Math.Sqrt across 19 specials + 300000 random bit patterns; 592 unit tests green
+
+---
 ## WinIslands 2.9.4（正式版 / Stable）
 ### 更新内容
 
