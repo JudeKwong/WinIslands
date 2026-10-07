@@ -1,4 +1,16 @@
-## WinIslands 2.8.8（正式版 / Stable）
+﻿## WinIslands 2.8.9（正式版 / Stable）
+### 更新内容
+
+- 🏃 卡拉OK控件剩余两处 Math.Clamp 改走逐位等价分支链：① 调速倍率表达式 `Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)` 抽为 KaraokeMath.ClampSpeedScale——单比较守卫（speed≤0 折叠 1.0，NaN 经 `NaN<=0` 为 false 原样透传）+ 双边界分支链（x<0.2→0.2，x>3.0→3.0，否则原值），与运行时 Math.Clamp 在全部 double 输入上逐位一致（NaN 负载透传、±Inf 落端点、0.2/3.0 精确 tie 返回原值与 Math.Clamp 相等时返回 value 一致、-0.0 经守卫折叠 1.0）；② 整行均分模式目标高亮分数 `Math.Clamp(f, 0, 1)` 抽为 KaraokeMath.ClampFraction——双比较分支链（f<0→0，f>1→1，否则原值），与运行时逐位一致（NaN 负载透传、±Inf 落端点、-0.0 保持、0/1 精确 tie 返回原值）。歌词控件的两次属性刷新各省一次 Math.Clamp 范围检查调用，高亮行为逐帧不变
+- 🧪 测试：新增 2 项——① ClampSpeedScale 对旧公式 `Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)` 的 26 特殊值（含 ±NaN 负载、±Inf、±0、0.2/3.0/0 边界邻域）+ 0.2/3.0/0 三边界两侧 ±4096 点稠密扫描 + 6 万随机位形 DoubleToInt64Bits 逐位一致；② ClampFraction 对 `Math.Clamp(f, 0, 1)` 的 23 特殊值 + 0/1 两边界 ±4096 点稠密扫描（跨 ±0 邻域）+ 6 万随机位形逐位一致；共 581 项单元测试全绿
+
+## WinIslands 2.8.9 (Stable)
+### What's New
+
+- 🏃 The last two KaraokeTextBlock Math.Clamp call sites fall onto bitwise-identical branch chains: (1) the speed-scale expression `Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)` becomes KaraokeMath.ClampSpeedScale - a single-comparison guard (speed<=0 folds to 1.0, NaN passes through because `NaN<=0` is false) plus a two-sided branch chain (x<0.2 -> 0.2, x>3.0 -> 3.0, otherwise unchanged), bit-identical to the runtime Math.Clamp on every double input (NaN payloads pass through, +-Inf land on the endpoints, exact 0.2/3.0 ties return the value just like Math.Clamp's equals-returns-value, -0.0 folds to 1.0 through the guard); (2) the whole-line highlight fraction `Math.Clamp(f, 0, 1)` becomes KaraokeMath.ClampFraction - a two-sided branch chain (f<0 -> 0, f>1 -> 1, otherwise unchanged), bit-identical to the runtime (NaN payloads pass through, +-Inf land on the endpoints, -0.0 is preserved, exact 0/1 ties return the value). Each karaoke property refresh drops one Math.Clamp range-check call while the highlight pose stays unchanged frame by frame
+- 🧪 Tests: 2 new cases - (1) ClampSpeedScale vs the old `Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)` across 26 specials (incl. +/-NaN payload, +/-Inf, +/-0, the 0.2/3.0/0 boundary neighbourhoods) plus a dense +/-4096-point sweep on both sides of the 0.2/3.0/0 edges plus 60000 random bit patterns, all DoubleToInt64Bits-identical; (2) ClampFraction vs `Math.Clamp(f, 0, 1)` across 23 specials plus a +/-4096-point dense sweep on both sides of the 0/1 edges (straddling +/-0) plus 60000 random bit patterns; 581 unit tests green
+
+---## WinIslands 2.8.8（正式版 / Stable）
 ### 更新内容
 
 - 🏃 三处 Math.Abs 调用改走逐位等价分支链/符号位清零：① ToleranceMath 新增 AbsValue（DoubleToInt64Bits 清符号位，对全部 double 输入与 Math.Abs 逐位一致，含 NaN 负载保真——仅清符号位），IOSSpring.Start/Retarget 的 UpdateEpsilon(Math.Abs(·)) 改走 AbsValue，拖拽/打断改目标（每帧触发）省两次绝对值调用；② Marquee.OnTick 的 Math.Abs(ViewWidth - viewW) < 0.5 改走既有 ToleranceMath.NearWithin（单次差值 + 双边界分支链，布尔逐位等价），跑马灯每帧省绝对值调用；③ KaraokeTextBlock 调速重建门的 Math.Abs(·) > 1e-12 改走既有 KaraokeMath.AbsGreaterThan（2.8.3 已测）。三种替换姿态/判定逐帧不变

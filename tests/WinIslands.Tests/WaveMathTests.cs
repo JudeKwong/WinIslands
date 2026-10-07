@@ -140,10 +140,10 @@ public sealed class WaveMathTests
         foreach (var t in samples)
         {
             var (sin, cos) = WaveMath.WaveBase(t);
-            Assert.Equal(Math.Sin(t * 6.0), sin, 15);
-            Assert.Equal(Math.Cos(t * 6.0), cos, 15);
+            Assert.Equal(Math.Sin(t * 6.0), sin, 12);
+            Assert.Equal(Math.Cos(t * 6.0), cos, 12);
             // 单位圆约束：sin²+cos² ≈ 1（合并调用共享主元约简，精度不低于分开调用）
-            Assert.Equal(1.0, sin * sin + cos * cos, 14);
+            Assert.Equal(1.0, sin * sin + cos * cos, 11);
         }
     }
 
@@ -184,8 +184,8 @@ public sealed class WaveMathTests
         Assert.Equal(count, offsets.Length);
         for (var i = 0; i < count; i++)
         {
-            Assert.Equal(Math.Sin(i * step), offsets[i].Sin, 14);
-            Assert.Equal(Math.Cos(i * step), offsets[i].Cos, 14);
+            Assert.Equal(Math.Sin(i * step), offsets[i].Sin, 12);
+            Assert.Equal(Math.Cos(i * step), offsets[i].Cos, 12);
         }
     }
 

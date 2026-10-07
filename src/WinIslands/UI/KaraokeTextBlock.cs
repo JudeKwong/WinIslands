@@ -334,7 +334,7 @@ public class KaraokeTextBlock : TextBlock
 
     private void RefreshTarget()
     {
-        _karaokeSpeedScale = Math.Clamp(KaraokeSpeed <= 0 ? 1.0 : KaraokeSpeed, 0.2, 3.0);
+        _karaokeSpeedScale = KaraokeMath.ClampSpeedScale(KaraokeSpeed); // 2.8.9: 分支链，逐位等价 Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)
         var words = (IReadOnlyList<TtmlWord>?)GetValue(WordsProperty);
         _hasWords = words is { Count: > 0 };
         if (_hasWords && !ReferenceEquals(words, _words))
@@ -386,7 +386,7 @@ public class KaraokeTextBlock : TextBlock
         }
 
         var text = KaraokeText ?? string.Empty;
-        _targetFraction = Math.Clamp(HighlightFraction, 0, 1);
+        _targetFraction = KaraokeMath.ClampFraction(HighlightFraction); // 2.8.9: 分支链，逐位等价 Math.Clamp(f, 0, 1)
 
         // 换行时从 0 开始：新句第一个字保持未点亮，随进度从左到右平滑点亮。
         if (!string.Equals(text, _lastText, StringComparison.Ordinal))

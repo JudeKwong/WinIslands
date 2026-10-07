@@ -692,6 +692,108 @@ public sealed class KaraokeMathTests
         }
     }
 
+    [Fact]
+    public void ClampSpeedScale_MatchesMathClamp_BitForBit()
+    {
+        // 2.8.9: KaraokeTextBlock 调速倍率钳制 Math.Clamp(speed<=0 ? 1.0 : speed, 0.2, 3.0)
+        // 改为单比较守卫 + 双边界分支链；全部 double 输入上与运行时逐位一致——NaN 经
+        // NaN <= 0 为 false 原样透传、-Inf/<=0 折叠到 1.0、+Inf 落 3.0、恰在 0.2/3.0
+        // 的 tie 返回原值（Math.Clamp 相等时返回 value）。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 2.0, 0.2, 3.0, 0.15, 0.25, 2.99, 3.01,
+            double.Epsilon, -double.Epsilon,
+            double.MaxValue, double.MinValue, double.MaxValue / 2, -double.MaxValue / 2,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var s in specials)
+        {
+            var exp = Math.Clamp(s <= 0 ? 1.0 : s, 0.2, 3.0);
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(exp),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.ClampSpeedScale(s)));
+        }
+        // 0.2 / 3.0 / 0 三个边界两侧稠密扫描
+        foreach (var edge in new[] { 0.2, 3.0, 0.0 })
+        {
+            for (var i = -4096; i <= 4096; i++)
+            {
+                var s = edge + i * 1e-9;
+                var exp = Math.Clamp(s <= 0 ? 1.0 : s, 0.2, 3.0);
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(exp),
+                    BitConverter.DoubleToInt64Bits(KaraokeMath.ClampSpeedScale(s)));
+            }
+        }
+        var rng = new Random(0x2E89);
+        for (var i = 0; i < 60001; i++)
+        {
+            var s = (i % 4) switch
+            {
+                0 => NextSigned(rng, 10.0),
+                1 => rng.NextDouble() * 4.0 - 0.5,
+                2 => rng.NextDouble() < 0.25 ? double.NaN : NextSigned(rng, 1e4),
+                _ => rng.NextDouble() * 1e-6 - 5e-7,
+            };
+            var exp = Math.Clamp(s <= 0 ? 1.0 : s, 0.2, 3.0);
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(exp),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.ClampSpeedScale(s)));
+        }
+    }
+
+    [Fact]
+    public void ClampFraction_MatchesMathClamp_BitForBit()
+    {
+        // 2.8.9: KaraokeTextBlock 整行均分模式目标高亮分数钳制 Math.Clamp(f, 0, 1)
+        // 改为双比较分支链；全部 double 输入上与运行时逐位一致——NaN 原样透传
+        // （Math.Clamp 未命中比较时返回 value）、±Inf 落端点、-0.0 保持 -0.0、恰在 0/1
+        // 的 tie 返回原值。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 0.999999999999, 1.000000000001,
+            double.Epsilon, -double.Epsilon, double.MaxValue, double.MinValue,
+            double.MaxValue / 2, -double.MaxValue / 2, 1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var f in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(f, 0, 1)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.ClampFraction(f)));
+        }
+        // 0 与 1 两侧稠密扫描（跨 ±0 邻域）
+        foreach (var edge in new[] { 0.0, 1.0 })
+        {
+            for (var i = -4096; i <= 4096; i++)
+            {
+                var f = edge + i * 1e-9;
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(Math.Clamp(f, 0, 1)),
+                    BitConverter.DoubleToInt64Bits(KaraokeMath.ClampFraction(f)));
+            }
+        }
+        var rng = new Random(0x2E8A);
+        for (var i = 0; i < 60001; i++)
+        {
+            var f = (i % 4) switch
+            {
+                0 => NextSigned(rng, 2.0),
+                1 => rng.NextDouble() * 1.2 - 0.1,
+                2 => rng.NextDouble() < 0.25 ? double.NaN : NextSigned(rng, 1e6),
+                _ => rng.NextDouble() * 1e-6 - 5e-7,
+            };
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Clamp(f, 0, 1)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.ClampFraction(f)));
+        }
+    }
+
     private static double NextSigned(Random rng, double magnitude)
     {
         var v = rng.NextDouble() * magnitude;

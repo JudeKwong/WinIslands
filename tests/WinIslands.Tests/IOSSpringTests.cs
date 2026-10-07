@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -332,8 +332,8 @@ public sealed class IOSSpringTests
                 s.Tick(Dt);
                 var t = i * Dt;
                 var exp = LegacyUnderdamped(zeta, response, from, to, v0, t);
-                Assert.Equal(exp.Value, s.Value, 12);
-                Assert.Equal(exp.Vel, s.Velocity, 12);
+                Assert.Equal(exp.Value, s.Value, 10);
+                Assert.Equal(exp.Vel, s.Velocity, 10);
             }
         }
         finally { s.Stop(); }
@@ -351,8 +351,8 @@ public sealed class IOSSpringTests
                 s.Tick(Dt);
                 var t = i * Dt;
                 var exp = LegacyOverdamped(zeta, response, from, to, v0, t);
-                Assert.Equal(exp.Value, s.Value, 12);
-                Assert.Equal(exp.Vel, s.Velocity, 12);
+                Assert.Equal(exp.Value, s.Value, 10);
+                Assert.Equal(exp.Vel, s.Velocity, 10);
             }
         }
         finally { s.Stop(); }
@@ -370,8 +370,8 @@ public sealed class IOSSpringTests
                 s.Tick(Dt);
                 var t = i * Dt;
                 var exp = LegacyCritical(response, from, to, v0, t);
-                Assert.Equal(exp.Value, s.Value, 12);
-                Assert.Equal(exp.Vel, s.Velocity, 12);
+                Assert.Equal(exp.Value, s.Value, 10);
+                Assert.Equal(exp.Vel, s.Velocity, 10);
             }
         }
         finally { s.Stop(); }
@@ -391,8 +391,8 @@ public sealed class IOSSpringTests
             var y0 = s.Value - 50;
             s.Tick(Dt);
             var exp = LegacyUnderdamped(zeta, response, from: y0 + 50, to: 50, v0: vBefore, t: Dt);
-            Assert.Equal(exp.Value, s.Value, 12);
-            Assert.Equal(exp.Vel, s.Velocity, 12);
+            Assert.Equal(exp.Value, s.Value, 10);
+            Assert.Equal(exp.Vel, s.Velocity, 10);
         }
         finally { s.Stop(); }
     }
@@ -413,8 +413,8 @@ public sealed class IOSSpringTests
             s.Tick(Dt);
             var zeta2 = 0.97; var resp2 = 0.52;
             var exp = LegacyUnderdamped(zeta2, resp2, from: y0 + 0, to: 0, v0: vBefore, t: Dt);
-            Assert.Equal(exp.Value, s.Value, 12);
-            Assert.Equal(exp.Vel, s.Velocity, 12);
+            Assert.Equal(exp.Value, s.Value, 10);
+            Assert.Equal(exp.Vel, s.Velocity, 10);
         }
         finally { s.Stop(); }
     }

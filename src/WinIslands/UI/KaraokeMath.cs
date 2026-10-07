@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace WinIslands.UI;
 
@@ -173,5 +173,30 @@ internal static class KaraokeMath
     /// compare pair per media position update.
     /// </summary>
     internal static bool AbsGreaterThan(double x, double t) => x > t || x < -t;
+
+    /// <summary>
+    /// Math.Clamp(speed <= 0 ? 1.0 : speed, 0.2, 3.0) as a branch chain (2.8.9).
+    /// The guard folds first (speed &lt;= 0 -> 1.0, NaN &lt;= 0 is false so NaN passes
+    /// through), then a low/high double-comparison chain clamps to [0.2, 3.0].
+    /// Bit-identical to the runtime Math.Clamp on every double input - NaN passes
+    /// through with its payload, +-Inf land on the endpoints, -0.0 folds to 1.0 via
+    /// the guard exactly like the ternary, and exact ties at 0.2/3.0 return the
+    /// value (Math.Clamp returns `value` when it equals min/max). Used by
+    /// KaraokeTextBlock.RefreshTarget's per-refresh speed-scale rebuild gate.
+    /// </summary>
+    internal static double ClampSpeedScale(double speed)
+    {
+        var x = speed <= 0.0 ? 1.0 : speed;
+        return x < 0.2 ? 0.2 : x > 3.0 ? 3.0 : x;
+    }
+
+    /// <summary>
+    /// Math.Clamp(f, 0, 1) as a branch chain (2.8.9): f &lt; 0 ? 0 : f &gt; 1 ? 1 : f.
+    /// Bit-identical to the runtime Math.Clamp on every double input - NaN passes
+    /// through with its payload, +-Inf land on the endpoints, -0.0 stays -0.0
+    /// (Math.Clamp returns `value` when neither comparison is true). Used by
+    /// KaraokeTextBlock.RefreshTarget's per-refresh target-fraction write.
+    /// </summary>
+    internal static double ClampFraction(double f) => f < 0.0 ? 0.0 : f > 1.0 ? 1.0 : f;
 
 }
