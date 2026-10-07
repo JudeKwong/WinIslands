@@ -1,3 +1,21 @@
+## WinIslands 2.8.1（正式版 / Stable）
+### 更新内容
+
+- 🚀 FrameClock 每帧的最大步长钳制 Math.Max(MinFloorStepSeconds, _smoothDt*1.5) 改走分支链 MaxStepFloor（x != x ? x : x > floor ? x : floor）——探针验证本机 .NET 8 运行时 Math.Max(常量, NaN) 会原样透传 NaN 位形（含负 NaN / 自定义负载），因此 NaN 自比较防护臂必不可少；其余输入（精确相等、±0、±Inf、负值）与 Math.Max 逐位一致，恰等时返回下限常量。每合成器帧省一次范围检查调用
+- 🚀 展开/收起视差写入去重的两个 Math.Abs(d) < eps 改走双侧分支链（-eps < d && d < eps），对全部 double 输入与 Math.Abs 形式布尔逐位一致（NaN/±Inf 永不判定为「接近」，±0 仍判定接近，恰在阈值上不算接近），差值每维只计算一次——内容视差与胶囊行视差两条写入判定每帧各省一次符号掩码+比较对
+- 🧪 测试：新增 6 项——① MaxStepFloor 对 Math.Max(MinFloorStepSeconds, x) 的特异值（自定义 NaN 负载、±0、±Inf、精确相等点）逐位一致 + 15 万点随机扫描 + 常量邻域 10 万点稠密扫描；② MaxStepFloor 端点语义（等于/低于下限返回下限、高于透传、NaN 符号位保留）；③ 接近谓词 (-eps<d && d<eps) 对 Math.Abs(d)<eps 的 22 特异值 × 双阈值 + 10 万点扫描布尔逐位一致；④ ShouldWriteParallax 首次调用必写；⑤ 接近位姿跳过且保留上次位姿、恰在阈值上写入；⑥ 越界与 NaN 必写；共 541 项单元测试全绿
+
+---
+
+## WinIslands 2.8.1 (Stable)
+### What's New
+
+- 🚀 FrameClock's per-frame max-step clamp Math.Max(MinFloorStepSeconds, _smoothDt*1.5) moves to the MaxStepFloor branch chain (x != x ? x : x > floor ? x : floor) - a probe on this machine proved the runtime Math.Max(constant, NaN) passes the NaN through with its bits intact (incl. negative NaN / custom payloads), so the NaN self-compare guard is required; on every other input (exact tie, +-0, +-Inf, negatives) the chain is bit-identical to Math.Max, with the tie returning the floor. One range-check call saved per compositor frame
+- 🚀 The expand/collapse parallax write-dedup's two Math.Abs(d) < eps checks move to two-sided branch chains (-eps < d && d < eps), boolean-bitwise identical to the abs form on every double (NaN/+-Inf never settle as near, +-0 still settles, the exact tie does not) and compute the diff once per dimension - a sign-mask + compare pair saved per frame on each of the content-parallax and pill-row-parallax write checks
+- 🧪 Tests: 6 new cases - (1) MaxStepFloor vs Math.Max(MinFloorStepSeconds, x) bitwise across specials (custom-NaN payloads, +-0, +-Inf, the exact tie) plus a 150000-point random sweep and a 100001-point dense neighbourhood around the constant; (2) MaxStepFloor endpoint semantics incl. NaN sign preservation; (3) the near predicate (-eps<d && d<eps) vs Math.Abs(d)<eps across 22 specials x 2 epsilons + a 100001-point sweep, boolean-bitwise identical; (4) ShouldWriteParallax first call always writes; (5) near-pose skips and keeps the cached pose, exact-epsilon ties write; (6) outside-tolerance and NaN always write; RELEASE_NOTES updated; 541 unit tests green
+
+---
+
 ## WinIslands 2.8.0（正式版 / Stable）
 ### 更新内容
 

@@ -82,7 +82,15 @@ public static class CrossFadeCurves
     public static bool ShouldWriteParallax(ref bool wrote, ref double lastScale,
         ref double lastY, double scale, double y)
     {
-        if (wrote && Math.Abs(scale - lastScale) < ParallaxScaleEps && Math.Abs(y - lastY) < ParallaxYEps)
+        // 2.8.1: near-check via two-sided branch chains - (-eps < d && d < eps) is
+        // boolean-identical to Math.Abs(d) < eps for every double (probe-verified:
+        // NaN/+-Inf never settle as near, +-0 settles, exact ties do not), and the
+        // diff is computed once per dimension - a sign-mask + compare pair is saved
+        // per frame on each of the content-parallax and pill-row-parallax write checks.
+        var ds = scale - lastScale;
+        var dy = y - lastY;
+        if (wrote && ds > -ParallaxScaleEps && ds < ParallaxScaleEps
+            && dy > -ParallaxYEps && dy < ParallaxYEps)
             return false;
         wrote = true;
         lastScale = scale;

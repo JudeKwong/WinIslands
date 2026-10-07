@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -145,5 +145,61 @@ public sealed class FrameClockTests
         Assert.InRange(dt2, Frame120 * 0.5, Frame120 * 2.0);
     }
 
-}
+    [Fact]
+    public void MaxStepFloor_MatchesRuntimeMathMax_Bitwise()
+    {
+        // 2.8.1: the per-frame max-step clamp chain must be bit-identical to
+        // Math.Max(MinFloorStepSeconds, x) on this runtime. The probe showed the
+        // runtime passes a NaN argument through with its bits intact (payload +
+        // sign), and the exact tie returns the floor constant - both arms are
+        // exercised below (custom-NaN payloads, +-0, +-Inf, the tie).
+        const double floor = 1.0 / 240.0;
+        var specials = new double[]
+        {
+            double.NaN, CustomNaN(0x0000000000000123UL, quiet: true, negative: false),
+            CustomNaN(0x0007FFFFFFFFFFFFUL, quiet: true, negative: false),
+            CustomNaN(0x0000000000000001UL, quiet: false, negative: false),
+            CustomNaN(0x0000000000000ABCUL, quiet: true, negative: true),
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            floor, -floor, floor * 0.5, floor * 1.5, floor * 2.0,
+            double.MaxValue, -double.MaxValue, 1e-300, 1e300, -1e300, 0.5, -0.5, 1.0, -1.0
+        };
+        foreach (var x in specials)
+            Assert.Equal(Bits(Math.Max(floor, x)), Bits(FrameClock.MaxStepFloor(x)));
+        var rnd = new Random(28101);
+        for (var i = 0; i < 150000; i++) // reachable domain [0, 2] plus a negative stretch
+        {
+            var x = rnd.NextDouble() * 4.0 - 1.0;
+            Assert.Equal(Bits(Math.Max(floor, x)), Bits(FrameClock.MaxStepFloor(x)));
+        }
+        for (var i = 0; i <= 100000; i++) // dense neighbourhood around the constant (tie region)
+        {
+            var x = floor + (i - 50000) * 1e-12;
+            Assert.Equal(Bits(Math.Max(floor, x)), Bits(FrameClock.MaxStepFloor(x)));
+        }
+    }
 
+    [Fact]
+    public void MaxStepFloor_EndpointSemantics()
+    {
+        // 2.8.1: below/equal floor returns the floor, above returns x unchanged;
+        // NaN passes through with its sign+payload intact (runtime-verified).
+        Assert.Equal(1.0 / 240.0, FrameClock.MaxStepFloor(0.0));
+        Assert.Equal(1.0 / 240.0, FrameClock.MaxStepFloor(-1.0));
+        Assert.Equal(1.0 / 240.0, FrameClock.MaxStepFloor(1.0 / 240.0));
+        Assert.Equal(0.5, FrameClock.MaxStepFloor(0.5));
+        Assert.Equal(double.PositiveInfinity, FrameClock.MaxStepFloor(double.PositiveInfinity));
+        Assert.True(double.IsNaN(FrameClock.MaxStepFloor(double.NaN)));
+        var negNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000000123UL));
+        Assert.Equal(Bits(negNan), Bits(FrameClock.MaxStepFloor(negNan)));
+    }
+
+    private static long Bits(double d) => BitConverter.DoubleToInt64Bits(d);
+
+    private static double CustomNaN(ulong payload, bool quiet, bool negative)
+        => BitConverter.Int64BitsToDouble((long)((negative ? 0x8000000000000000UL : 0UL)
+            | 0x7FF0000000000000UL
+            | (quiet ? 0x0008000000000000UL : 0UL)
+            | (payload & 0x0007FFFFFFFFFFFFUL)));
+}

@@ -83,8 +83,16 @@ internal sealed class FrameClock
         {
             _smoothDt += (dt - _smoothDt) * 0.15; // 2.3.4: one fewer multiply-add per compositor frame (identical EWMA)
         }
-        var maxStep = Math.Max(MinFloorStepSeconds, _smoothDt * 1.5);
+        var maxStep = MaxStepFloor(_smoothDt * 1.5); // 2.8.1: branch chain, bit-identical to Math.Max(MinFloorStepSeconds, x)
         if (dt > maxStep) dt = maxStep;
         return dt;
     }
+    /// <summary>2.8.1: Math.Max(MinFloorStepSeconds, x) as a branch chain - this
+    /// machine's .NET 8 runtime passes a NaN x through with its bits intact
+    /// (probe-verified, incl. negative/custom-payload NaNs), so the self-compare
+    /// guard runs first; on every other input x > floor ? x : floor is bit-
+    /// identical (the exact tie returns the floor, +-Inf clamp to the endpoints,
+    /// -0 and +0 both land on the floor). One range-check call saved per
+    /// compositor frame.</summary>
+    internal static double MaxStepFloor(double x) => x != x ? x : x > MinFloorStepSeconds ? x : MinFloorStepSeconds;
 }

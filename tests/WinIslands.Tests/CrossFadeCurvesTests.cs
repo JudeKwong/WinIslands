@@ -1,4 +1,4 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -611,4 +611,75 @@ public sealed class CrossFadeCurvesTests
             return (scale, y);
         }
     }
+    [Fact]
+    public void NearPredicate_MatchesMathAbsOnEveryDouble()
+    {
+        // 2.8.1: -eps < d && d < eps is boolean-identical to Math.Abs(d) < eps for
+        // every double - NaN/+-Inf never settle as near, +-0 settles, and the exact
+        // tie does NOT count as near (strict <, same as the abs form).
+        var epsilons = new[] { 0.0005, 0.05 };
+        var specials = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon,
+            double.MaxValue, -double.MaxValue, 1e-300, -1e-300, 1e300, -1e300,
+            0.0005, -0.0005, 0.000499999, -0.000499999, 0.05, -0.05, 0.049999999, -0.049999999,
+            1.0, -1.0
+        };
+        foreach (var eps in epsilons)
+            foreach (var d in specials)
+                Assert.Equal(Math.Abs(d) < eps, Near(d, eps));
+        var rnd = new Random(28102);
+        for (var i = 0; i < 100001; i++)
+        {
+            var d = (rnd.NextDouble() - 0.5) * 0.12;
+            Assert.Equal(Math.Abs(d) < 0.0005, Near(d, 0.0005));
+        }
+    }
+
+    [Fact]
+    public void ShouldWriteParallax_FirstCallAlwaysWrites()
+    {
+        var wrote = false;
+        double lastScale = 0, lastY = 0;
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.0, 0.0));
+        Assert.True(wrote);
+        Assert.Equal(1.0, lastScale, 6);
+        Assert.Equal(0.0, lastY, 6);
+    }
+
+    [Fact]
+    public void ShouldWriteParallax_NearPoseSkipsWriteAndKeepsCachedPose()
+    {
+        var wrote = true;
+        double lastScale = 0.0, lastY = 0.0;
+        // just-inside both dimensions (one ulp below each epsilon): skip, pose untouched
+        Assert.False(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY,
+            Prev(0.0005), Prev(0.05)));
+        Assert.Equal(0.0, lastScale, 6);
+        Assert.Equal(0.0, lastY, 6);
+        // exact epsilon tie is NOT near (strict <, matches Math.Abs(d) < eps) - writes
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY,
+            0.0005, -0.05));
+        Assert.Equal(0.0005, lastScale, 6);
+        Assert.Equal(-0.05, lastY, 6);
+    }
+
+    [Fact]
+    public void ShouldWriteParallax_OutsideToleranceAlwaysWrites()
+    {
+        var wrote = true;
+        double lastScale = 1.0, lastY = 0.0;
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.2, 0.0)); // scale far
+        Assert.Equal(1.2, lastScale, 6);
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, 1.2, 0.09)); // y far
+        Assert.Equal(0.09, lastY, 6);
+        // NaN delta never counts as near (Math.Abs(NaN) < eps is false too) -> must write
+        Assert.True(CrossFadeCurves.ShouldWriteParallax(ref wrote, ref lastScale, ref lastY, double.NaN, 0.0));
+        Assert.True(double.IsNaN(lastScale));
+    }
+
+    private static bool Near(double d, double eps) => d > -eps && d < eps;
+
+    private static double Prev(double d) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(d) - 1);
 }
