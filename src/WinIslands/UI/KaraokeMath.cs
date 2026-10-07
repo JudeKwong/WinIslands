@@ -101,7 +101,7 @@ internal static class KaraokeMath
     internal static (int LitChars, double Blend) WholeLineSplit(double fraction, int length)
     {
         var scaled = fraction * length; // 旧代码此处重复计算 fraction*length（Floor 输入一次、blend 余数一次）
-        var lit = Math.Min((int)Math.Floor(scaled), length);
+        var lit = MinInt((int)Math.Floor(scaled), length); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         var blend = lit >= length ? 1.0 : scaled - lit;
         return (lit, blend);
     }
@@ -215,5 +215,18 @@ internal static class KaraokeMath
         var duration = SpringMath.MaxFloor(nextStartSec - startSec, 0.1); // == Math.Max(0.1, nextStart - start)
         return ClampFraction((posSec - startSec) / duration);             // == Math.Clamp(&#x2026;, 0, 1)
     }
+
+    /// <summary>
+    /// Math.Min(int, int) as a single-comparison branch chain (2.9.4):
+    /// a &lt; b ? a : b. For every int pair the result is bit-identical to the
+    /// runtime Math.Min - on equality (a == b) the bits are the same either way,
+    /// int.MinValue/int.MaxValue and every other value fall through the ordered
+    /// comparison exactly as Math.Min's (val1 &lt; val2) ? val1 : val2 fold. Used by
+    /// WholeLineSplit's per-frame lit-character clamp (the 60/120fps karaoke
+    /// refresh drops one Math.Min range check per visible line) and by the four
+    /// timeline-rebuild array-length guards (FillScaledDenoms / FillInverseDenoms /
+    /// FillScaledAndInverse / FillScaledInverseEnds).
+    /// </summary>
+    internal static int MinInt(int a, int b) => a < b ? a : b;
 
 }

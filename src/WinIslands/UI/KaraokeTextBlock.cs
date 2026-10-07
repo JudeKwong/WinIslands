@@ -704,7 +704,7 @@ public class KaraokeTextBlock : TextBlock
     internal static void FillScaledDenoms(double[] denoms, double scale, double[] scaled)
     {
         var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
-        var n = Math.Min(denoms.Length, scaled.Length);
+        var n = KaraokeMath.MinInt(denoms.Length, scaled.Length); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         for (var i = 0; i < n; i++)
         {
             var d = denoms[i];
@@ -716,7 +716,7 @@ public class KaraokeTextBlock : TextBlock
     /// <summary>2.2.11：由预换算时长生成其倒数（1/d），渲染时把逐字除法换成一次乘法（纯函数，无 UI）。</summary>
     internal static void FillInverseDenoms(double[] scaled, double[] inv)
     {
-        var n = Math.Min(scaled.Length, inv.Length);
+        var n = KaraokeMath.MinInt(scaled.Length, inv.Length); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         for (var i = 0; i < n; i++)
         {
             var d = scaled[i];
@@ -730,7 +730,7 @@ public class KaraokeTextBlock : TextBlock
     internal static void FillScaledAndInverse(double[] denoms, double scale, double[] scaled, double[] inv)
     {
         var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
-        var n = Math.Min(denoms.Length, Math.Min(scaled.Length, inv.Length));
+        var n = KaraokeMath.MinInt(denoms.Length, KaraokeMath.MinInt(scaled.Length, inv.Length)); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         for (var i = 0; i < n; i++)
         {
             var d = denoms[i];
@@ -745,7 +745,7 @@ public class KaraokeTextBlock : TextBlock
     internal static void FillScaledInverseEnds(double[] denoms, double[] starts, double scale, double[] scaled, double[] inv, double[] ends)
     {
         var s = double.IsFinite(scale) && scale > 0 ? scale : 1.0;
-        var n = Math.Min(denoms.Length, Math.Min(starts.Length, Math.Min(scaled.Length, Math.Min(inv.Length, ends.Length))));
+        var n = KaraokeMath.MinInt(denoms.Length, KaraokeMath.MinInt(starts.Length, KaraokeMath.MinInt(scaled.Length, KaraokeMath.MinInt(inv.Length, ends.Length)))); // 2.9.4: 整型分支链，逐位等价 Math.Min(int,int)
         for (var i = 0; i < n; i++)
         {
             var d = denoms[i];

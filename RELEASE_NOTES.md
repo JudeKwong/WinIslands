@@ -1,3 +1,16 @@
+## WinIslands 2.9.4（正式版 / Stable）
+### 更新内容
+
+- 🏃 卡拉OK歌词的逐字点亮又精简了一处：每帧每行“已点亮字数”的取小计算改走整型分支链（与 Math.Min 在所有 int 输入上完全一致），逐字高亮刷新每帧省一次范围判断；时间轴重建的四处数组长度取小也走同一套分支链，重建时更省
+- 🧪 测试：新增 2 项——① MinInt 对照 Math.Min 的 ±1024 稠密网格全组合 + 8 特殊值组合 + 30 万随机 32 位对全一致；② 整行逐字切分对照旧公式的 12 特殊值 + [0,1] 稠密扫描 + 越界邻域 + 每行长 2 万随机，lit/blend 逐位一致；共 588 项单元测试全绿
+
+## WinIslands 2.9.4 (Stable)
+### What's New
+
+- 🏃 The per-frame per-line "lit character count" clamp on karaoke lyrics goes through an int branch chain now (identical to Math.Min on every int input) - the 60/120fps highlight refresh drops one range-check call per visible line, and the four timeline-rebuild array-length guards follow the same branch chain
+- 🧪 Tests: 2 new cases - (1) MinInt vs Math.Min across the dense ±1024 grid plus 8-special combos plus 300000 random 32-bit pairs; (2) WholeLineSplit vs the old formula across 12 specials plus the dense [0,1] sweep plus out-of-range neighbourhoods plus 20000 randoms per length, lit/blend bit-identical; 588 unit tests green
+
+---
 ## WinIslands 2.9.3（正式版 / Stable）
 ### 更新内容
 

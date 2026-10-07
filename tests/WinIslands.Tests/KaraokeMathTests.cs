@@ -834,6 +834,80 @@ public sealed class KaraokeMathTests
         }
     }
 
+
+    // ---- 2.9.4：MinInt 整型分支链与 Math.Min(int,int) 全部输入一致；WholeLineSplit 输出与旧公式逐位一致 ----
+    [Fact]
+    public void MinInt_IdenticalToMathMin_OverGridAndRandom()
+    {
+        // 稠密网格 [-1024..1024] x [-1024..1024]：整型相等即逐位相等
+        for (var a = -1024; a <= 1024; a++)
+        {
+            for (var b = -1024; b <= 1024; b++)
+            {
+                Assert.Equal(Math.Min(a, b), KaraokeMath.MinInt(a, b));
+            }
+        }
+        // 特殊值组合
+        var specials = new[] { int.MinValue, int.MinValue + 1, int.MaxValue, int.MaxValue - 1, -1, 0, 1, 1000 };
+        foreach (var a in specials)
+            foreach (var b in specials)
+                Assert.Equal(Math.Min(a, b), KaraokeMath.MinInt(a, b));
+        // 32 位随机对
+        var rng = new Random(0x9B1F);
+        for (var i = 0; i < 300000; i++)
+        {
+            var a = rng.Next(int.MinValue, int.MaxValue);
+            var b = rng.Next(int.MinValue, int.MaxValue);
+            Assert.Equal(Math.Min(a, b), KaraokeMath.MinInt(a, b));
+        }
+    }
+
+    [Fact]
+    public void WholeLineSplit_MatchesOldFormula_BitForBit()
+    {
+        static (int, double) Old(double fraction, int length)
+        {
+            var scaled = fraction * length;
+            var lit = Math.Min((int)Math.Floor(scaled), length);
+            var blend = lit >= length ? 1.0 : scaled - lit;
+            return (lit, blend);
+        }
+        var lengths = new[] { 0, 1, 2, 7, 33, 100, 1000, 65536 };
+        foreach (var len in lengths)
+        {
+            var specials = new[]
+            {
+                0.0, -0.0, 1.0, 0.9999999999999999, 0.5, 0.0001, -0.0,
+                -0.5, 1.5, double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            };
+            foreach (var f in specials)
+            {
+                var (oLit, oBlend) = Old(f, len);
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                Assert.Equal(oLit, lit);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oBlend), BitConverter.DoubleToInt64Bits(blend));
+            }
+            // [0,1] 稠密扫描 + 越界邻域
+            for (var f = -0.25; f <= 1.25; f += 0.000125)
+            {
+                var (oLit, oBlend) = Old(f, len);
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                Assert.Equal(oLit, lit);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oBlend), BitConverter.DoubleToInt64Bits(blend));
+            }
+            // 随机
+            var rng = new Random(0x4E29 ^ len);
+            for (var i = 0; i < 20000; i++)
+            {
+                var f = (rng.NextDouble() * 2.0) - 0.5;
+                var (oLit, oBlend) = Old(f, len);
+                var (lit, blend) = KaraokeMath.WholeLineSplit(f, len);
+                Assert.Equal(oLit, lit);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(oBlend), BitConverter.DoubleToInt64Bits(blend));
+            }
+        }
+    }
+
     private static double NextSigned(Random rng, double magnitude)
     {
         var v = rng.NextDouble() * magnitude;
