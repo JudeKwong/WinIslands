@@ -1,3 +1,16 @@
+## WinIslands 2.8.6（正式版 / Stable）
+### 更新内容
+
+- 🏃 IOSSpring.Configure 的参数归一化抽到 IOSSpringMath.NormalizeParams（纯函数支可测），三个 Math.Max/Math.Clamp 全部改走分支链：① Mass 用 SpringMath.MaxFloor(mass, 0.01)代替 `Math.Max(0.01, mass)`；② Zeta 用 WaveMath.ClampRange(dampingRatio, 0.01, 2.0)代替 `Math.Clamp(dampingRatio, 0.01, 2.0)`；③ response 用 SpringMath.MaxFloor(responseSeconds, 0.03)代替 `Math.Max(0.03, responseSeconds)`。三条分支链在全部 double 输入上与运行时逐位一致（NaN 位形透传、±Inf 夹到端点、±0 与恰等值按本机验证的 IEEE 语义），花弹姿态每帧不变，每次 Create/Configure 少三次范围检查调用
+- 🧪 测试：新增 3 项——① NormalizeParams 对旧公式的 23 特殊值 × 23 × 23 全矩阵（含 ±NaN 负载、±Inf、±0、±Epsilon、阈值 0.01/0.03/2.0 邻域）逐位一致；② 30 万随机三元组逐位一致；③ Configure 接线测试：Mass/Zeta 属性与纯函数输出一致，且频率换算（欠抑制 Omega0=(2π/r)/√(1-ζ²)、OmegaD=2π/r；过/临界 Omega0=2π/r、OmegaD=0）与旧公式逐位一致；共 572 项单元测试全绿
+
+## WinIslands 2.8.6 (Stable)
+### What's New
+
+- 🏃 IOSSpring.Configure parameter normalization moves to IOSSpringMath.NormalizeParams (a pure testable function) and all three Math.Max/Math.Clamp calls fall onto branch chains: (1) Mass uses SpringMath.MaxFloor(mass, 0.01) in place of `Math.Max(0.01, mass)`; (2) Zeta uses WaveMath.ClampRange(dampingRatio, 0.01, 2.0) in place of `Math.Clamp(dampingRatio, 0.01, 2.0)`; (3) response uses SpringMath.MaxFloor(responseSeconds, 0.03) in place of `Math.Max(0.03, responseSeconds)`. Every branch chain is bitwise identical to the runtime on all double inputs (NaN passes through with identical bits, +/-Inf clamps to the endpoints, +/-0 and exact ties follow the IEEE semantics verified on this machine), so the spring pose is unchanged frame by frame while each Create/Configure pays three fewer range-check calls
+- 🧪 Tests: 3 new cases - (1) NormalizeParams vs the old formulas across a 23-special x 23 x 23 full matrix (incl. +/-NaN payload, +/-Inf, +/-0, +/-Epsilon and threshold neighbourhoods of 0.01/0.03/2.0), bitwise identical; (2) 300000 random triples, bitwise identical; (3) Configure wiring: Mass/Zeta properties match the pure-function outputs and the frequency conversion (underdamped Omega0=(2pi/r)/sqrt(1-zeta^2), OmegaD=2pi/r; over/critical Omega0=2pi/r, OmegaD=0) is bitwise identical to the old formula; 572 unit tests green
+
+---
 ## WinIslands 2.8.5（正式版 / Stable）
 ### 更新内容
 

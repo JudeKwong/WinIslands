@@ -945,4 +945,80 @@ public sealed class IOSSpringTests
         var v = rng.NextDouble() * magnitude;
         return (rng.Next(2) == 0) ? -v : v;
     }
+
+    // ── 2.8.6：Configure 参数归一化抽到 IOSSpringMath（分支链），
+    //    逐位等价旧的 Math.Max/Math.Clamp 公式────────────────────────────
+    [Fact]
+    public void NormalizeParams_Specials_BitwiseIdenticalToMathForms()
+    {
+        // 全矩阵：23 特殊值× 23 × 23，对 Mass/Zeta/Response 三项分别与
+        // Math.Max(0.01, mass) / Math.Clamp(zeta, 0.01, 2.0) / Math.Max(0.03, resp) 逐位一致
+        var spec = new double[]
+        {
+            double.NaN,
+            BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000000001UL)), // 负 NaN / 大负载
+            double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.01, -0.01, 0.03, -0.03, 2.0, -2.0, 0.5, 1.5, 10.0, 1e300, -1e300
+        };
+        foreach (var mass in spec)
+            foreach (var zeta in spec)
+                foreach (var resp in spec)
+                {
+                    var (m, z, r) = IOSSpringMath.NormalizeParams(zeta, resp, mass);
+                    Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Max(0.01, mass)),
+                                 BitConverter.DoubleToInt64Bits(m));
+                    Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Clamp(zeta, 0.01, 2.0)),
+                                 BitConverter.DoubleToInt64Bits(z));
+                    Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Max(0.03, resp)),
+                                 BitConverter.DoubleToInt64Bits(r));
+                }
+    }
+
+    [Fact]
+    public void NormalizeParams_RandomSweep_BitwiseIdenticalToMathForms()
+    {
+        var rnd = new Random(28601);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var mass = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var zeta = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var resp = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var (m, z, r) = IOSSpringMath.NormalizeParams(zeta, resp, mass);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Max(0.01, mass)),
+                         BitConverter.DoubleToInt64Bits(m));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Clamp(zeta, 0.01, 2.0)),
+                         BitConverter.DoubleToInt64Bits(z));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Math.Max(0.03, resp)),
+                         BitConverter.DoubleToInt64Bits(r));
+        }
+    }
+
+    [Fact]
+    public void Configure_WiresNormalizedParamsAndFrequencies()
+    {
+        foreach (var (mass, zeta, resp) in new[] { (1.0, 0.82, 0.5), (1.0, 1.0, 0.4), (1.2, 1.5, 0.3), (0.5, 0.45, 0.05), (3.0, 0.1, 2.0) })
+        {
+            var s = new IOSSpring();
+            s.Configure(zeta, resp, mass);
+            var (m2, z2, r2) = IOSSpringMath.NormalizeParams(zeta, resp, mass);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(m2), BitConverter.DoubleToInt64Bits(s.Mass));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(z2), BitConverter.DoubleToInt64Bits(s.Zeta));
+            if (s.Zeta < 1.0)
+            {
+                var root = Math.Sqrt(1 - s.Zeta * s.Zeta);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(2 * Math.PI / r2),
+                             BitConverter.DoubleToInt64Bits(s.OmegaD));
+                Assert.Equal(BitConverter.DoubleToInt64Bits((2 * Math.PI / r2) / root),
+                             BitConverter.DoubleToInt64Bits(s.Omega0));
+            }
+            else
+            {
+                Assert.Equal(0.0, s.OmegaD);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(2 * Math.PI / r2),
+                             BitConverter.DoubleToInt64Bits(s.Omega0));
+            }
+        }
+    }
+
 }

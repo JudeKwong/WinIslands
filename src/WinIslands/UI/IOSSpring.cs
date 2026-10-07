@@ -108,9 +108,10 @@ public sealed class IOSSpring
     /// <summary>换算物理参数。response 秒为感知收敛时长。</summary>
     public void Configure(double dampingRatio, double responseSeconds, double mass = 1)
     {
-        Mass = Math.Max(0.01, mass);
-        Zeta = Math.Clamp(dampingRatio, 0.01, 2.0);
-        var response = Math.Max(0.03, responseSeconds);
+        // 2.8.6: 参数归一化抽到 IOSSpringMath（分支链），逐位等价旧的 Math.Max/Math.Clamp
+        var (massNorm, zetaNorm, response) = IOSSpringMath.NormalizeParams(dampingRatio, responseSeconds, mass);
+        Mass = massNorm;
+        Zeta = zetaNorm;
 
         // 标准 iOS 换算：ωd = 2π/response，ω0 = ωd/√(1−ζ²)；ζ≥1 时取 ω0 = 2π/response。
         if (Zeta < 1.0)
