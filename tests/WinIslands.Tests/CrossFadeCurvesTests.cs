@@ -682,4 +682,39 @@ public sealed class CrossFadeCurvesTests
     private static bool Near(double d, double eps) => d > -eps && d < eps;
 
     private static double Prev(double d) => BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(d) - 1);
+    // ── 2.8.7：FadeResponse 的 Math.Max(0.03, ·) 改走 SpringMath.MaxFloor 分支链，
+    //    守卫后逐位等价───────────────────────────────────────────────
+    [Fact]
+    public void FadeResponse_BranchChain_BitwiseMatchesMathMaxAfterGuard()
+    {
+        // 入口守卫（非有限/负数 → 0.03）之外的输入，MaxFloor(·, 0.03) 与 Math.Max(0.03, ·) 逐位一致
+        var spec = new double[]
+        {
+            double.NaN,
+            BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000000001UL)), // 负 NaN / 大负载
+            double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.03, -0.03, 0.029, 0.031, 100.0, 1e300, -1e300
+        };
+        foreach (var shape in spec)
+            foreach (var expand in new[] { true, false })
+            {
+                double reference;
+                if (!double.IsFinite(shape) || shape < 0) reference = 0.03;
+                else reference = Math.Max(0.03, shape * (expand ? CrossFadeCurves.ExpandContentFactor : CrossFadeCurves.CollapseContentFactor));
+                Assert.Equal(BitConverter.DoubleToInt64Bits(reference),
+                             BitConverter.DoubleToInt64Bits(CrossFadeCurves.FadeResponse(shape, expand)));
+            }
+        var rnd = new Random(28701);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var shape = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var expand = (rnd.Next() & 1) == 0;
+            double reference;
+            if (!double.IsFinite(shape) || shape < 0) reference = 0.03;
+            else reference = Math.Max(0.03, shape * (expand ? CrossFadeCurves.ExpandContentFactor : CrossFadeCurves.CollapseContentFactor));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(reference),
+                         BitConverter.DoubleToInt64Bits(CrossFadeCurves.FadeResponse(shape, expand)));
+        }
+    }
 }

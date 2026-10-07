@@ -71,7 +71,7 @@ public static class FadeOnTextChange
                 FillBehavior = FillBehavior.Stop,
             };
             // 快跌到 0.25（EaseIn），再柔和弹回 1.0（EaseOut）——iOS 内容刷新手感
-            fade.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Max(0.0, Math.Min(0.25, from)), KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(85)))
+            fade.KeyFrames.Add(new EasingDoubleKeyFrame(SpringMath.ClampZeroToQuarter(from), KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(85))) // 2.8.7: 分支链，逐位等价 Math.Max(0.0, Math.Min(0.25, ·))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
             });

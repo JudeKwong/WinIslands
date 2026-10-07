@@ -34,7 +34,7 @@ public static class CrossFadeCurves
         // NotFinite (NaN/+/-Inf) or negative: fall back to 0.03 floor so UI stays safe.
         if (!double.IsFinite(shapeResponse) || shapeResponse < 0)
             return 0.03;
-        return Math.Max(0.03, shapeResponse * (expand ? ExpandContentFactor : CollapseContentFactor));
+        return SpringMath.MaxFloor(shapeResponse * (expand ? ExpandContentFactor : CollapseContentFactor), 0.03); // 2.8.7: 分支链，逐位等价 Math.Max(0.03, ·)
     }
 
     /// <summary>

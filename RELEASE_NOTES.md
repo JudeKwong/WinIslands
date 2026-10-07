@@ -1,3 +1,16 @@
+## WinIslands 2.8.7（正式版 / Stable）
+### 更新内容
+
+- 🏃 剩余两处 UI Math 调用改走逐位等价分支链：① CrossFadeCurves.FadeResponse 的 `Math.Max(0.03, shapeResponse × factor)` 改走 SpringMath.MaxFloor(·, 0.03)——入口守卫已排除非有限/负数输入，分支链在全部 double 上与运行时 Math.Max 逐位一致（NaN 位形透传、±0 按 IEEE 754-2019 maximum 语义），展开/收起交叉淡入曲线姿态逐帧不变，每次计算响应时长省一次范围检查调用；② FadeOnTextChange 淡入起始透明度的 `Math.Max(0.0, Math.Min(0.25, from))` 改走新增 SpringMath.ClampZeroToQuarter——NaN 位形透传、±0 与负数收敛到 +0（Math.Min(0.25,-0)=-0 后 Math.Max(0.0,-0)=+0）、[0,0.25) 原样返回、0.25 及以上收敛到 0.25、±Inf 按本机验证的 IEEE 极值语义落端点，文本内容刷新的透明度过渡姿态逐帧不变，每次刷新省两次范围检查调用
+- 🧪 测试：新增 4 项——① FadeResponse 分支链对守卫后参考式 `Math.Max(0.03, ·)` 的 19 特殊值 × 展开/收起 + 30 万随机位形 DoubleToInt64Bits 逐位一致；② ClampZeroToQuarter 对 `Math.Max(0.0, Math.Min(0.25, x))` 的 19 特殊值（含 ±NaN 负载、±0、±Epsilon、0.25/0.03 阈值邻域）逐位一致；③ 跨 0 与 0.25 阈值的 20 万点稠密扫描逐位一致；④ 30 万随机位形逐位一致 + 行为断言（-0/±Inf/端点）；共 576 项单元测试全绿
+
+## WinIslands 2.8.7 (Stable)
+### What's New
+
+- 🏃 The last two UI Math calls fall onto bitwise-identical branch chains: (1) CrossFadeCurves.FadeResponse's `Math.Max(0.03, shapeResponse * factor)` becomes SpringMath.MaxFloor(·, 0.03) - the entry guard already excludes non-finite/negative inputs and MaxFloor is bitwise identical to the runtime Math.Max for every double (NaN passes through with identical bits, ±0 follows the IEEE 754-2019 maximum semantics probed on this machine), so the expand/collapse cross-fade curve is unchanged frame by frame while each FadeResponse drops one range-check call; (2) FadeOnTextChange's fade-in start opacity `Math.Max(0.0, Math.Min(0.25, from))` becomes the new SpringMath.ClampZeroToQuarter - NaN passes through with identical bits, ±0 and negatives converge to +0 (Math.Min(0.25,-0)=-0 then Math.Max(0.0,-0)=+0), [0,0.25) stays untouched, 0.25 and above converge to 0.25, ±Inf land on the endpoints, so the text-refresh opacity transition pose is unchanged frame by frame while each refresh drops two range-check calls
+- 🧪 Tests: 4 new cases - (1) FadeResponse branch chain vs the guarded reference `Math.Max(0.03, ·)` bitwise (DoubleToInt64Bits) across 19 specials x expand/collapse plus 300000 random bit patterns; (2) ClampZeroToQuarter vs `Math.Max(0.0, Math.Min(0.25, x))` across 19 specials (incl. +/-NaN payload, +/-0, +/-Epsilon and the 0.25/0.03 threshold neighbourhoods); (3) a 200001-point dense sweep straddling the 0 and 0.25 thresholds, bitwise identical; (4) 300000 random bit patterns plus behavioural assertions (-0/±Inf/endpoints); 576 unit tests green
+
+---
 ## WinIslands 2.8.6（正式版 / Stable）
 ### 更新内容
 

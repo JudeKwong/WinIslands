@@ -38,4 +38,20 @@ internal static class SpringMath
         }
         return floor;
     }
+
+    /// <summary>
+    /// Math.Max(0.0, Math.Min(0.25, x)) 分支链（2.8.7）：x!=x ? x : x&lt;=0.0 ? 0.0 :
+    /// x&gt;=0.25 ? 0.25 : x。逐位等价运行时 Math.Max(0.0, Math.Min(0.25, x))——NaN
+    /// 位形透传（运行时 Math.Min/Math.Max 对 NaN 原样透传）；±0 与负数收敛到 +0
+    /// （Math.Min(0.25,-0)=-0、Math.Max(0.0,-0)=+0，IEEE 754-2019 极值语义，与实参顺序
+    /// 无关）；[0,0.25) 原样返回、0.25 及更大值收敛到 0.25、+Inf 落 0.25、-Inf 落 +0。
+    /// 文本过渡淡入起始透明度走此链，省两次范围检查调用。
+    /// </summary>
+    internal static double ClampZeroToQuarter(double x)
+    {
+        if (x != x) return x;
+        if (x <= 0.0) return 0.0;
+        if (x >= 0.25) return 0.25;
+        return x;
+    }
 }
