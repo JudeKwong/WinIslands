@@ -95,14 +95,14 @@ public static class LyricEmphasis
     {
         if (double.IsNaN(lastWritten)) return true;          // 首次写入
         if (!double.IsFinite(value)) return false;           // 引擎已兜底，这里直接丢弃非法值
-        return Math.Abs(value - lastWritten) >= ScaleWriteEpsilon;
+        return ToleranceMath.AbsAtLeast(value - lastWritten, ScaleWriteEpsilon); // 2.8.4: 双边界分支链，布尔逐位等价 Math.Abs(d) >= eps
     }
 
     /// <summary>归一化进度 → (缩放, 不透明度) 的统一线性映射（纯函数，可测）：进入/退出共用，打断时数值连续。</summary>
     internal static (double Scale, double Opacity) MapProgress(double progress, double targetScale)
     {
-        var p = Math.Clamp(double.IsFinite(progress) ? progress : 0.0, 0.0, 1.0);
-        var ts = Math.Clamp(double.IsFinite(targetScale) ? targetScale : 1.18, 1.0, 1.5);
+        var p = WaveMath.ClampUnit(double.IsFinite(progress) ? progress : 0.0); // 2.8.4: 分支链，逐位等价 Math.Clamp(x,0,1)
+        var ts = WaveMath.ClampRange(double.IsFinite(targetScale) ? targetScale : 1.18, 1.0, 1.5); // 2.8.4: 分支链，逐位等价 Math.Clamp(x,1.0,1.5)
         var scale = 1.0 + (ts - 1.0) * p;
         var opacity = OpacityBase + (OpacityCurrent - OpacityBase) * p;
         return (scale, opacity);

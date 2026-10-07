@@ -25,7 +25,7 @@ internal static class WaveMath
     {
         if (!double.IsFinite(current)) return true;
         if (!double.IsFinite(target) || !double.IsFinite(alpha)) return false;
-        return Math.Abs((target - current) * alpha) >= epsilon;
+        return ToleranceMath.AbsAtLeast((target - current) * alpha, epsilon); // 2.8.4: 双边界分支链，布尔逐位等价 Math.Abs(d) >= eps
     }
 
     /// <summary>指数平滑的下一帧值（纯函数，2.3.9）：current + (target-current)*alpha；任一输入非法时保持当前值不变。</summary>
@@ -83,7 +83,7 @@ internal static class WaveMath
     {
         var bits = BitConverter.SingleToUInt32Bits(x);
         if ((bits & 0x7F800000u) == 0x7F800000u) return 0.0; // 指数位全 1：NaN 或 ±Infinity
-        var v = Math.Abs((double)x);
+        var v = (double)BitConverter.UInt32BitsToSingle(bits & 0x7FFFFFFFu); // 2.8.4: 清符号位，逐位等价 Math.Abs((double)x)，免去绝对值调用
         return v > 1.0 ? 1.0 : v;
     }
     /// <summary>

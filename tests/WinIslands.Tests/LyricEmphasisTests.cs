@@ -174,4 +174,72 @@ public sealed class LyricEmphasisTests
         var (s2, _) = LyricEmphasis.MapProgress(1.0, double.PositiveInfinity);
         Assert.Equal(1.18, s2, 6);
     }
+    // ── 2.8.4：ShouldWriteScale 双边界分支链 + MapProgress 分支链钳制（逐位等价 Math 形式）────────────────
+    private static bool ShouldWriteScaleRef(double value, double lastWritten)
+    {
+        if (double.IsNaN(lastWritten)) return true;
+        if (!double.IsFinite(value)) return false;
+        return Math.Abs(value - lastWritten) >= LyricEmphasis.ScaleWriteEpsilon;
+    }
+
+    [Fact]
+    public void ShouldWriteScale_BranchChain_EquivalentToAbsForm()
+    {
+        var vals = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 1.18, 1.23, 0.5, -0.5, 2.0, -2.0
+        };
+        foreach (var v in vals)
+            foreach (var lw in vals)
+                Assert.Equal(ShouldWriteScaleRef(v, lw), LyricEmphasis.ShouldWriteScale(v, lw));
+        // 阈值边界：与 Math.Abs 参考形式逐位一致（1.0±eps 的差受浮点舍入影响，直接用等价断言而非假设 tie 方向）
+        var near = new double[]
+        {
+            1.0 + LyricEmphasis.ScaleWriteEpsilon, 1.0 - LyricEmphasis.ScaleWriteEpsilon,
+            1.0 + LyricEmphasis.ScaleWriteEpsilon / 2, 1.0 - LyricEmphasis.ScaleWriteEpsilon / 2,
+            1.0, 1.0001, 0.9999
+        };
+        foreach (var v in near)
+            Assert.Equal(ShouldWriteScaleRef(v, 1.0), LyricEmphasis.ShouldWriteScale(v, 1.0));
+        // 首次写入（lastWritten=NaN）必写；非法 value 丢弃
+        Assert.True(LyricEmphasis.ShouldWriteScale(1.1, double.NaN));
+        Assert.False(LyricEmphasis.ShouldWriteScale(double.PositiveInfinity, 1.0));
+    }
+
+    private static (double Scale, double Opacity) MapProgressRef(double progress, double targetScale)
+    {
+        var p = Math.Clamp(double.IsFinite(progress) ? progress : 0.0, 0.0, 1.0);
+        var ts = Math.Clamp(double.IsFinite(targetScale) ? targetScale : 1.18, 1.0, 1.5);
+        var scale = 1.0 + (ts - 1.0) * p;
+        var opacity = LyricEmphasis.OpacityBase + (LyricEmphasis.OpacityCurrent - LyricEmphasis.OpacityBase) * p;
+        return (scale, opacity);
+    }
+
+    [Fact]
+    public void MapProgress_BranchClamps_BitwiseIdenticalToClampForm()
+    {
+        var vals = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, 0.0, -0.0, 1.0, -1.0,
+            0.5, -0.5, 1.18, 1.23, 2.0, -2.0
+        };
+        foreach (var p in vals)
+            foreach (var ts in vals)
+            {
+                var a = LyricEmphasis.MapProgress(p, ts);
+                var b = MapProgressRef(p, ts);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(b.Scale), BitConverter.DoubleToInt64Bits(a.Scale));
+                Assert.Equal(BitConverter.DoubleToInt64Bits(b.Opacity), BitConverter.DoubleToInt64Bits(a.Opacity));
+            }
+        // 边界：恰在钳制边界与内部线性映射
+        var mid = LyricEmphasis.MapProgress(0.5, 1.2);
+        Assert.Equal(1.1, mid.Scale, 10);
+        var under = LyricEmphasis.MapProgress(-0.5, 1.2);
+        Assert.Equal(1.0, under.Scale, 10);
+        var over = LyricEmphasis.MapProgress(1.5, 1.2);
+        Assert.Equal(1.2, over.Scale, 10);
+    }
 }

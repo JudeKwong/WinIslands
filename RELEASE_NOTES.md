@@ -1,3 +1,16 @@
+## WinIslands 2.8.4（正式版 / Stable）
+### 更新内容
+
+- 🚀 歌词强调与声波纹两条逐帧热路径的 Math.Abs/Math.Clamp 继续改走分支链：① ToleranceMath 新增 AbsAtLeast（d >= t || d <= -t），对全部 double 输入与 Math.Abs(d) >= t 布尔逐位一致——NaN 永不越闸（含 t=NaN）、±Inf 落在两侧比较、±0 与恰在 ±t 上按 IEEE >= 语义落位、t=±Inf 时仅 ±Inf 越闸；② LyricEmphasis.ShouldWriteScale（每个活动歌词弹簧每帧的渲染写入去重）改用 AbsAtLeast；③ LyricEmphasis.MapProgress 的两个 Math.Clamp（进度 0..1、目标缩放 1.0..1.5，均为有限值守卫后调用）改用 WaveMath.ClampUnit/ClampRange，逐位等价；④ WaveMath.ShouldWriteEased（声波纹每帧每根条的亚像素写入去重）改用 AbsAtLeast；⑤ WaveMath.EnvelopeSample（WASAPI 10ms 包络窗内逐 PCM 样本）由 Math.Abs((double)x) 改为清符号位后转 double（BitConverter.UInt32BitsToSingle(bits & 0x7FFFFFFF)），对全部 float 输入逐位一致，免去绝对值调用与转换开销
+- 🧪 测试：新增 9 项——① AbsAtLeast 对 Math.Abs(d) >= t 的 22 特异值 × 9 阈值全矩阵（含 ±0/±Inf/±NaN 负载阈值）+ 30 万随机 + 6 万极端 + ±1 区间 10 万点稠密扫描布尔逐位一致；② AbsAtLeast 端点语义（tie 越闸、紧邻内侧不越闸、±0 正阈值不越闸、NaN 恒不越闸）；③ ShouldWriteEased 分支链对参考形式 17×17×17×7 网格 + 20 万随机布尔一致；④ EnvelopeSample 清符号位对 Math.Abs 形式 18 个特殊位形 + 30 万随机位形逐位一致（DoubleToInt64Bits）；⑤ ShouldWriteScale 对参考形式 17×17 网格 + 阈值邻域等价；⑥ MapProgress 分支链钳制对 Math.Clamp 形式 15×15 全矩阵逐位一致；共 567 项单元测试全绿
+
+## WinIslands 2.8.4 (Stable)
+### What's New
+
+- 🚀 Two more per-frame hot paths (lyric emphasis and the sound wave) drop their Math.Abs/Math.Clamp calls onto branch chains: (1) ToleranceMath gains AbsAtLeast (d >= t || d <= -t), boolean-bitwise identical to Math.Abs(d) >= t for every double - NaN never trips the gate (including t=NaN), +-Inf resolves through the two-sided comparisons, +-0 and exact ties land on IEEE >= semantics, and only +-Inf trips when t=+-Inf; (2) LyricEmphasis.ShouldWriteScale (the per-frame render write-dedup for every active lyric spring) now uses AbsAtLeast; (3) LyricEmphasis.MapProgress's two Math.Clamp calls (progress 0..1, target scale 1.0..1.5, both finite-guarded before the call) become WaveMath.ClampUnit/ClampRange, bitwise identical; (4) WaveMath.ShouldWriteEased (the per-frame per-bar sub-pixel write-dedup gate) now uses AbsAtLeast; (5) WaveMath.EnvelopeSample (per PCM sample inside the WASAPI 10ms envelope window) replaces Math.Abs((double)x) with a sign-bit clear then widen (BitConverter.UInt32BitsToSingle(bits & 0x7FFFFFFF)), bitwise identical for every float input while dropping the abs call and the extra conversion
+- 🧪 Tests: 9 new cases - (1) AbsAtLeast vs Math.Abs(d) >= t across a 22-special x 9-threshold full matrix (incl. +-0/+-Inf/+-NaN-payload thresholds), 300000 random pairs, 60000 extreme pairs, and a 100001-point dense sweep over [-1,1], boolean-bitwise identical; (2) AbsAtLeast endpoint semantics (ties trip, just-inside does not, +-0 never trips on a positive threshold, NaN never trips); (3) ShouldWriteEased branch chain vs the reference across a 17x17x17x7 grid plus 200000 random tuples, boolean-equivalent; (4) EnvelopeSample sign-bit clear vs the Math.Abs form bitwise (DoubleToInt64Bits) across 18 special bit patterns plus 300000 random bit patterns; (5) ShouldWriteScale vs the reference across a 17x17 grid plus threshold-neighbourhood values; (6) MapProgress branch clamps vs the Math.Clamp form bitwise across a full 15x15 matrix; 567 unit tests green
+
+---
 ## WinIslands 2.8.3（正式版 / Stable）
 ### 更新内容
 

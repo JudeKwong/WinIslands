@@ -17,4 +17,12 @@ public static class ToleranceMath
         var d = a - b;
         return d < eps && d > -eps;
     }
+
+    /// <summary>|d| ≥ t 判定（等价于 Math.Abs(d) &gt;= t，用单次差值 + 双边界分支链）。</summary>
+    /// <remarks>
+    /// 对全部 double 输入与 Math.Abs(d) &gt;= t 布尔逐位一致：NaN 永不越闸（两侧比较均 false）、
+    /// ±Inf 与 ±0、恰在 ±t 上（含 =）均按 IEEE 语义落位；t 为 NaN 时永不越闸、t 为 ±Inf 时
+    /// 仅 ±Inf 越闸。热路径免去绝对值调用（2.8.4）。
+    /// </remarks>
+    public static bool AbsAtLeast(double d, double t) => d >= t || d <= -t;
 }

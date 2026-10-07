@@ -383,4 +383,79 @@ public sealed class WaveMathTests
         Assert.Equal(0.05, WaveMath.ClampRange(double.NegativeInfinity, 0.05, 1.0));
         Assert.True(double.IsNaN(WaveMath.ClampRange(double.NaN, 0.05, 1.0)));
     }
+    // ── 2.8.4：ShouldWriteEased 双边界分支链 + EnvelopeSample 清符号位（逐位等价 Math.Abs 形式）────────────────
+    private static bool ShouldWriteEasedRef(double current, double target, double alpha, double epsilon)
+    {
+        if (!double.IsFinite(current)) return true;
+        if (!double.IsFinite(target) || !double.IsFinite(alpha)) return false;
+        return Math.Abs((target - current) * alpha) >= epsilon;
+    }
+
+    [Fact]
+    public void ShouldWriteEased_BranchChain_EquivalentToAbsForm_Grid()
+    {
+        var vals = new double[]
+        {
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            double.MaxValue, double.MinValue, double.Epsilon, -double.Epsilon,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 2.0, -2.0, 0.1, -0.1
+        };
+        var epsilons = new double[] { WaveMath.ScaleEpsilon, WaveMath.OffsetEpsilon, 0.5, 1e-9, 0.0, -0.0, double.NaN };
+        foreach (var c in vals)
+            foreach (var ta in vals)
+                foreach (var al in vals)
+                    foreach (var ep in epsilons)
+                        Assert.Equal(ShouldWriteEasedRef(c, ta, al, ep), WaveMath.ShouldWriteEased(c, ta, al, ep));
+    }
+
+    [Fact]
+    public void ShouldWriteEased_BranchChain_EquivalentToAbsForm_Random()
+    {
+        var rnd = new Random(28404);
+        for (var i = 0; i < 200_000; i++)
+        {
+            var c = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var ta = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var al = BitConverter.Int64BitsToDouble(rnd.NextInt64());
+            var ep = rnd.Next(2) == 0 ? WaveMath.ScaleEpsilon : WaveMath.OffsetEpsilon;
+            Assert.Equal(ShouldWriteEasedRef(c, ta, al, ep), WaveMath.ShouldWriteEased(c, ta, al, ep));
+        }
+    }
+
+    private static double EnvelopeSampleRef(float x)
+    {
+        var bits = BitConverter.SingleToUInt32Bits(x);
+        if ((bits & 0x7F800000u) == 0x7F800000u) return 0.0;
+        var v = Math.Abs((double)x);
+        return v > 1.0 ? 1.0 : v;
+    }
+
+    [Fact]
+    public void EnvelopeSample_SignBitClear_BitwiseIdenticalToMathAbsForm()
+    {
+        var bitSpecials = new uint[]
+        {
+            0x7FC00000u, 0xFFC00000u, 0x7F800001u, 0xFF800001u, // ±NaN（含负载）
+            0x7F800000u, 0xFF800000u, // ±Inf
+            0x00000000u, 0x80000000u, // ±0
+            0x3F800000u, 0xBF800000u, // ±1
+            0x7F7FFFFFu, 0xFF7FFFFFu, // ±MaxValue
+            0x00000001u, 0x80000001u, // ±最小次正规
+            0x3F7FFFFFu, 0xBF7FFFFFu, // 1-ulp 临界内侧
+            0x3F800001u, 0xBF800001u  // 1+ulp 临界外侧
+        };
+        foreach (var bits in bitSpecials)
+        {
+            var f = BitConverter.UInt32BitsToSingle(bits);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(EnvelopeSampleRef(f)),
+                         BitConverter.DoubleToInt64Bits(WaveMath.EnvelopeSample(f)));
+        }
+        var rnd = new Random(28409);
+        for (var i = 0; i < 300_000; i++)
+        {
+            var f = BitConverter.UInt32BitsToSingle(unchecked((uint)rnd.NextInt64()));
+            Assert.Equal(BitConverter.DoubleToInt64Bits(EnvelopeSampleRef(f)),
+                         BitConverter.DoubleToInt64Bits(WaveMath.EnvelopeSample(f)));
+        }
+    }
 }
