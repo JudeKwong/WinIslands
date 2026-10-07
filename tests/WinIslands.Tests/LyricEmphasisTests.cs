@@ -263,4 +263,43 @@ public sealed class LyricEmphasisTests
         var over = LyricEmphasis.MapProgress(1.5, 1.2);
         Assert.Equal(1.2, over.Scale, 10);
     }
+
+    // ---- 2.9.3：ClampDuration 走 WaveMath.ClampRange 分支链，与 Math.Clamp(·,60,900) 逐位一致 ----
+    [Fact]
+    public void DurationClamp_BitIdenticalToMathClamp()
+    {
+        static double Reference(double ms) => Math.Clamp(double.IsFinite(ms) ? ms : 240.0, 60.0, 900.0);
+        var specials = new[]
+        {
+            double.NaN, -double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, double.Epsilon, -double.Epsilon, 10.0, 59.0, 60.0, 61.0, 100.0, 240.0,
+            500.0, 899.0, 900.0, 901.0, 5000.0, double.MaxValue, double.MinValue, 1e-300, -1e-300,
+        };
+        foreach (var ms in specials)
+        {
+            var actual = LyricEmphasis.ClampDuration(ms);
+            var expected = Reference(ms);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+        }
+        for (var ms = 59.0; ms <= 61.0; ms += 0.1)
+        {
+            var actual = LyricEmphasis.ClampDuration(ms);
+            var expected = Reference(ms);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+        }
+        for (var ms = 899.0; ms <= 901.0; ms += 0.1)
+        {
+            var actual = LyricEmphasis.ClampDuration(ms);
+            var expected = Reference(ms);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+        }
+        for (var i = 0; i < 60000; i++)
+        {
+            var ms = BitConverter.Int64BitsToDouble(Random.Shared.NextInt64());
+            var actual = LyricEmphasis.ClampDuration(ms);
+            var expected = Reference(ms);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
+        }
+    }
+
 }

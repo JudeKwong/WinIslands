@@ -717,4 +717,34 @@ public sealed class CrossFadeCurvesTests
                          BitConverter.DoubleToInt64Bits(CrossFadeCurves.FadeResponse(shape, expand)));
         }
     }
+
+    [Fact]
+    public void EaseOutQuad_BitIdenticalToMathClamp()
+    {
+        // 2.9.3: EaseOutQuad 的输入钳制改走 WaveMath.ClampUnit（2.7.8 已逐位验证），
+        // 整体输出必须与旧 Math.Clamp(t,0,1) 实现逐位一致（全部 double 输入）。
+        static double Reference(double t)
+        {
+            var c = Math.Clamp(t, 0.0, 1.0);
+            return c * (2.0 - c);
+        }
+        var specials = new[]
+        {
+            double.NaN, -double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 2.0, -2.0, 0.5, 0.9999999999999999, 1.0000000000000002,
+            double.Epsilon, -double.Epsilon, double.MaxValue, double.MinValue, 1e-308, -1e-308,
+        };
+        foreach (var t in specials)
+        {
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Reference(t)),
+                         BitConverter.DoubleToInt64Bits(CrossFadeCurves.EaseOutQuad(t)));
+        }
+        for (var i = 0; i < 60000; i++)
+        {
+            var t = BitConverter.Int64BitsToDouble(Random.Shared.NextInt64());
+            Assert.Equal(BitConverter.DoubleToInt64Bits(Reference(t)),
+                         BitConverter.DoubleToInt64Bits(CrossFadeCurves.EaseOutQuad(t)));
+        }
+    }
+
 }

@@ -1,3 +1,16 @@
+## WinIslands 2.9.3（正式版 / Stable）
+### 更新内容
+
+- 🏃 旋律加粗高亮和淡入淡出的两处小计算再精简了一下：歌词强调的目标时长钳制改走逐位一致的纯函数（对 NaN/±Inf/±0 等所有边界都和原来一模一样），淡入淡出的二次缓出曲线入口的钳制也走同一套分支链。高亮和过渡的每一帧画面都和之前完全一致，但每帧少了几次函数调用，CPU 更省、动画更稳
+- 🧪 测试：新增 2 项——① 目标时长钳制对照旧公式的 23 个特殊值 + 60/900 边界两侧稠密扫描 + 6 万随机位形逐位一致；② 二次缓出入口钳制对照 Math.Clamp 的 18 个特殊值 + 6 万随机位形逐位一致；共 586 项单元测试全绿
+
+## WinIslands 2.9.3 (Stable)
+### What's New
+
+- 🏃 Two small calculations on the lyric-emphasis and cross-fade hot paths are simplified once more: the target-duration clamp on lyric emphasis goes through a bit-identical pure branch chain (NaN/±Inf/±0 and every other boundary behave exactly like before), and the entrance clamp of the ease-out-quad curve follows the same branch-chain family. Every highlight pose and transition frame stays pixel-identical while each frame drops a couple of function calls - lower CPU, steadier animation
+- 🧪 Tests: 2 new cases - (1) the duration clamp vs the old formula across 23 specials plus dense sweeps around the 60/900 edges plus 60000 random bit patterns, all DoubleToInt64Bits-identical; (2) the ease-out entrance clamp vs Math.Clamp across 18 specials plus 60000 random bit patterns; 586 unit tests green
+
+---
 ## WinIslands 2.9.2（正式版 / Stable）
 ### 更新内容
 

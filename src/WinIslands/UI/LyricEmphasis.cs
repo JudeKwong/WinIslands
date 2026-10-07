@@ -87,8 +87,8 @@ public static class LyricEmphasis
         return (ExitZeta, response);
     }
 
-    private static double ClampDuration(double ms)
-        => Math.Clamp(double.IsFinite(ms) ? ms : 240.0, 60.0, 900.0);
+    internal static double ClampDuration(double ms)
+        => WaveMath.ClampRange(double.IsFinite(ms) ? ms : 240.0, 60.0, 900.0); // 2.9.3: 分支链，逐位等价 Math.Clamp(·,60,900)
 
     /// <summary>渲染写入去重判定（纯函数，可测）：NaN（尚未写入）必写；非法值丢弃；与上次写入的差达到阈值才写。</summary>
     internal static bool ShouldWriteScale(double value, double lastWritten)

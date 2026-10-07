@@ -193,7 +193,7 @@ public static class CrossFadeCurves
     /// <summary>二次缓出：起步快、收尾慢（iOS 内容“生长”节奏）。</summary>
     public static double EaseOutQuad(double t)
     {
-        t = Math.Clamp(t, 0.0, 1.0);
+        t = WaveMath.ClampUnit(t); // 2.9.3: 分支链，逐位等价 Math.Clamp(t,0,1)
         return t * (2.0 - t);
     }
 
