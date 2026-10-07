@@ -413,4 +413,179 @@ public sealed class KaraokeMathTests
         Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, double.PositiveInfinity));
         Assert.Equal(bs, KaraokeMath.BlendColor(bs, hl, double.NegativeInfinity));
     }
+    [Fact]
+    public void AtLeastZero_MatchesMathMax_BitForBit()
+    {
+        // 2.8.0: 逐字时间轴每帧的 Math.Max(x, 0.0) 改为单比较分支链 x <= 0 ? 0 : x；
+        // 必须在全部 double 输入上与运行时逐位一致——NaN（含自定义负载）原样透传、
+        // -0.0 映射为 +0.0、±Inf 钳到端点、正数原样返回。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 1.0, -1.0, 0.5, -0.5,
+            double.Epsilon, -double.Epsilon,
+            double.MaxValue, double.MinValue, double.MaxValue / 2, -double.MaxValue / 2,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var x in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(x, 0.0)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.AtLeastZero(x)));
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(0.0, x)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.AtLeastZero(x)));
+        }
+        var rng = new Random(0x2E80);
+        for (var i = 0; i < 30001; i++)
+        {
+            var x = (i % 3) switch
+            {
+                0 => NextSigned(rng, 1e6),
+                1 => rng.NextDouble() * 2.0 - 1.0,
+                _ => rng.NextDouble() < 0.25 ? double.NaN : NextSigned(rng, 1e3),
+            };
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(x, 0.0)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.AtLeastZero(x)));
+        }
+    }
+
+    [Fact]
+    public void MaxDurationFloor_MatchesMathMax_BitForBit()
+    {
+        // 2.8.0: BuildWordTimeline 的时长下限 Math.Max(d, 0.001) 改为
+        // d >= 0.001 || d != d ? d : 0.001；NaN 透传、与 0.001 的精确 tie 返回 d（即 0.001）、
+        // 低于下限的值落在下限、+Inf 保持，与运行时逐位一致。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 0.001, -0.001, 0.002, 0.000999999999999, 0.001000000000001,
+            double.Epsilon, -double.Epsilon, double.MaxValue, double.MinValue,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var d in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(d, 0.001)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MaxDurationFloor(d)));
+        }
+        // 在 0.001 附近的密集扫描：覆盖 tie 两侧及跨数量级邻居
+        for (var i = -2048; i <= 2048; i++)
+        {
+            var d = 0.001 + i * 1e-9;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(d, 0.001)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MaxDurationFloor(d)));
+            var alt = 0.001 + i * 1e-15;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(alt, 0.001)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MaxDurationFloor(alt)));
+            var exp = 0.001 * Math.Pow(2.0, i / 256.0);
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(exp, 0.001)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MaxDurationFloor(exp)));
+        }
+        var rng = new Random(0x2E81);
+        for (var i = 0; i < 30001; i++)
+        {
+            var d = (i % 3) switch
+            {
+                0 => NextSigned(rng, 1e4),
+                1 => rng.NextDouble() * 0.02 - 0.005,
+                _ => rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e-3,
+            };
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Max(d, 0.001)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MaxDurationFloor(d)));
+        }
+    }
+
+    [Fact]
+    public void MinLeadCap_MatchesMathMin_BitForBit()
+    {
+        // 2.8.0: BuildWordTimeline 的字间 lead 上限 Math.Min(0.045, y) 改为
+        // y >= 0.045 ? 0.045 : y；NaN 透传、与 0.045 的精确 tie 返回 0.045 字面量（与
+        // Math.Min 的 val1-on-equality 一致）、低于上限的值原样返回，逐位一致。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var specials = new[]
+        {
+            double.NaN, customNan, -customNan,
+            double.PositiveInfinity, double.NegativeInfinity,
+            0.0, -0.0, 0.045, -0.045, 0.044999999999999, 0.045000000000001, 0.09, 1.0,
+            double.Epsilon, -double.Epsilon, double.MaxValue, double.MinValue,
+            1e-300, -1e-300, 1e300, -1e300,
+        };
+        foreach (var y in specials)
+        {
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Min(0.045, y)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MinLeadCap(y)));
+        }
+        // 0.045 两侧密集扫描：tie 两侧各 4096 点
+        for (var i = -4096; i <= 4096; i++)
+        {
+            var y = 0.045 + i * 1e-12;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Min(0.045, y)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MinLeadCap(y)));
+        }
+        var rng = new Random(0x2E82);
+        for (var i = 0; i < 30001; i++)
+        {
+            var y = (i % 3) switch
+            {
+                0 => NextSigned(rng, 1e2),
+                1 => rng.NextDouble() * 0.09,
+                _ => rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e-3,
+            };
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Min(0.045, y)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MinLeadCap(y)));
+        }
+    }
+
+    [Fact]
+    public void MinNonNegative_MatchesMathMin_BitForBit()
+    {
+        // 2.8.0: ClampWallClockLead 外层 Math.Min(a, b) 改为 MinNonNegative 分支链。
+        // 真实路径两个输入都来自 AtLeastZero（恒 >= +0.0，不含 -0.0），因此
+        // a < b ? a : b 与 Math.Min 在全部可达对上逐位一致；NaN 输入按 Math.Min 的
+        // 语义归一为规范 NaN。
+        var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
+        var vals = new[]
+        {
+            0.0, -0.0, 0.001, 0.045, 0.5, 1.0, 2.0, 1e-300, 1e300, double.Epsilon,
+            double.MaxValue, double.PositiveInfinity, double.NaN, customNan,
+        };
+        foreach (var a in vals)
+        {
+            foreach (var b in vals)
+            {
+                Assert.Equal(
+                    BitConverter.DoubleToInt64Bits(Math.Min(a, b)),
+                    BitConverter.DoubleToInt64Bits(KaraokeMath.MinNonNegative(a, b)));
+            }
+        }
+        // 大量随机非负对 + NaN 混入
+        var rng = new Random(0x2E83);
+        for (var i = 0; i < 60000; i++)
+        {
+            var a = rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e6;
+            var b = rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e6;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(Math.Min(a, b)),
+                BitConverter.DoubleToInt64Bits(KaraokeMath.MinNonNegative(a, b)));
+        }
+    }
+
+    private static double NextSigned(Random rng, double magnitude)
+    {
+        var v = rng.NextDouble() * magnitude;
+        return (rng.Next(2) == 0) ? -v : v;
+    }
 }

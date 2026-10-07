@@ -1,3 +1,19 @@
+## WinIslands 2.8.0（正式版 / Stable）
+### 更新内容
+
+- 🚀 逐字卡拉OK热路径的 Math.Max/Math.Min 全部改走分支链：RenderWords 每帧的字数截断 Math.Min(_wordRuns.Count, _words.Count) 改整数三元；BuildWordTimeline 的时长下限 Math.Max(d, 0.001) → MaxDurationFloor（d >= 0.001 || d != d ? d : 0.001）；字间 lead 上限 Math.Min(0.045, y) → MinLeadCap（y >= 0.045 ? 0.045 : y）；TickAnimation 的 Math.Max(x, 0) → AtLeastZero（x <= 0 ? 0 : x）；ClampWallClockLead 内层两个 Math.Max 与外层 Math.Min → AtLeastZero + MinNonNegative——MinNonNegative 与本机 .NET 8 运行时的 Math.Min 逐位一致（IEEE 754-2019 minimum 语义：第一个 NaN 实参原样胜出含负载、±0 混合返回 -0、等值返回 a），每个函数在全部 double 输入上与运行时逐位一致（NaN 负载透传/±0/±Inf），歌词高亮姿态逐帧不变，同时为每字每帧/每帧的热路径省去多次范围检查调用
+- 🧪 测试：新增 7 项——① AtLeastZero 对 Math.Max(x, 0) 的 21 特殊值（含自定义 NaN 负载）逐位一致 + 30001 点随机扫描；② MaxDurationFloor 对 Math.Max(d, 0.001) 的特殊值 + 0.001 双密度邻域 + 跨数量级指数扫描逐位一致；③ MinLeadCap 对 Math.Min(0.045, y) 的特殊值 + 0.045 两侧 8193 点扫描逐位一致；④ MinNonNegative 对 Math.Min(a, b) 的 14×14 全对矩阵（含 -0/+0 混合与自定义 NaN）+ 60000 对随机逐位一致；⑤ 零长字 0.001 下限与 lead 0.0005 精确断言；⑥ 极端/NaN 时长与旧公式逐位一致；⑦ ClampWallClockLead 相对旧公式的全值 18×18×18 矩阵 + 60000 随机三元组逐位一致；共 538 项单元测试全部通过
+
+---
+
+## WinIslands 2.8.0 (Stable)
+### What's New
+
+- 🚀 Every karaoke hot-path Math.Max/Math.Min moves to a branch chain: RenderWords' per-frame word-count cap Math.Min(_wordRuns.Count, _words.Count) becomes an integer ternary; BuildWordTimeline's duration floor Math.Max(d, 0.001) -> MaxDurationFloor (d >= 0.001 || d != d ? d : 0.001); the per-word cross-lead cap Math.Min(0.045, y) -> MinLeadCap (y >= 0.045 ? 0.045 : y); TickAnimation's Math.Max(x, 0) -> AtLeastZero (x <= 0 ? 0 : x); ClampWallClockLead's two inner Math.Max and the outer Math.Min -> AtLeastZero + MinNonNegative - MinNonNegative is bit-identical to this machine's .NET 8 Math.Min (IEEE 754-2019 minimum semantics: the first NaN argument wins with its payload intact, a mixed -0/+0 pair returns -0, equal values return a). Every function is bit-identical to the runtime on every double input (NaN payload pass-through / ±0 / ±Inf), so the karaoke highlight pose is unchanged frame by frame while the per-frame per-word hot path drops several range-check calls
+- 🧪 Tests: 7 new cases - (1) AtLeastZero vs Math.Max(x, 0) bitwise across 21 special values (incl. custom-NaN payloads) plus a 30001-point random sweep; (2) MaxDurationFloor vs Math.Max(d, 0.001) across specials + a dense dual-neighbourhood around 0.001 + an exponential cross-magnitude sweep; (3) MinLeadCap vs Math.Min(0.045, y) across specials + 8193 points straddling 0.045; (4) MinNonNegative vs Math.Min(a, b) across a 14x14 full-pairing matrix (incl. -0/+0 mixes and custom NaNs) + 60000 random pairs; (5) zero-duration words floor to exactly 0.001 with a 0.0005 lead; (6) extreme/NaN durations bitwise match the old inline formula; (7) ClampWallClockLead vs the old formulation bitwise across a full 18x18x18 value matrix + 60000 random triples; 538 unit tests green
+
+---
+
 ## WinIslands 2.7.9（正式版 / Stable）
 ### 更新内容
 

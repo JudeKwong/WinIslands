@@ -457,7 +457,7 @@ public class KaraokeTextBlock : TextBlock
                 var fps = _cachedFps; // 2.4.5：低功耗帧率上限已缓存
                 if (!AnimationFrameRate.ShouldProcessFrame(now, ref _nextKaraokeFrameTime, fps)) return;
                 var elapsed = (double)(frameTicks - _posBaseTicks) / Stopwatch.Frequency;
-                var sinceUpdate = Math.Max(0.0, elapsed);
+                var sinceUpdate = KaraokeMath.AtLeastZero(elapsed); // 2.8.0：分支链，与 Math.Max(0.0, elapsed) 逐位一致
                 if (sinceUpdate >= StallFreezeSeconds)
                 {
                     // 2.2.2：位置更新停滞（暂停后播放器不再上报进度）→ 冻结在最后确认位置并停绘，
@@ -542,7 +542,7 @@ public class KaraokeTextBlock : TextBlock
         // 两段缓动曲线首尾重叠 → 高亮像光带一样从左到右“流动”，不会在字边界停一下再动一下；
         // 句首第一个字不提前，保证换句时第一个字保持未点亮。
         // 卡拉OK速度倍率：作用在每个字的填充进度上（而非时间轴），因此不会与位置校正互相拉扯。
-        var count = Math.Min(_wordRuns.Count, _words.Count);
+        var count = _wordRuns.Count < _words.Count ? _wordRuns.Count : _words.Count; // 2.8.0：整数分支链，与 Math.Min(int,int) 逐位一致
         for (var i = 0; i < count; i++)
         {
             // 2.1.3：先按词阶段分支——已点亮/未点亮的字直接切共享冻结刷（且仅在阶段切换时才写），
@@ -692,8 +692,8 @@ public class KaraokeTextBlock : TextBlock
         for (var i = 0; i < words.Count; i++)
         {
             var w = words[i];
-            var duration = Math.Max(w.DurationSec, 0.001);
-            var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
+            var duration = KaraokeMath.MaxDurationFloor(w.DurationSec);          // 2.8.0：分支链，与 Math.Max(d, 0.001) 逐位一致
+            var lead = i > 0 ? KaraokeMath.MinLeadCap(duration * 0.5) : 0.0;     // 2.8.0：分支链，与 Math.Min(0.045, y) 逐位一致
             starts[i] = w.BeginSec - lead;
             denoms[i] = duration + lead;
         }
@@ -771,7 +771,7 @@ public class KaraokeTextBlock : TextBlock
         for (var i = 0; i < starts.Length && i < denoms.Length; i++)
         {
             if (pos < starts[i]) continue;                                    // 尚未开始（含 lead 前）：静态即可
-            if ((pos - starts[i]) / Math.Max(denoms[i], 0.001) * speed < 1) return true; // 仍在点亮：需要动画
+            if ((pos - starts[i]) / KaraokeMath.MaxDurationFloor(denoms[i]) * speed < 1) return true; // 2.8.0：分支链；仍在点亮：需要动画
         }
         return false;
     }
@@ -782,7 +782,11 @@ public class KaraokeTextBlock : TextBlock
 
     /// <summary>按指定外推上限限幅（2.2.2：上限由 <see cref="StallAwareLead"/> 按更新间隔动态收紧）。</summary>
     internal static double ClampWallClockLead(double posBase, double elapsedSeconds, double maxLead)
-        => posBase + Math.Min(Math.Max(elapsedSeconds, 0), Math.Max(0.0, maxLead));
+        // 2.8.0：外层 Math.Min 与内层两个 Math.Max 全部改为分支链
+        //（AtLeastZero/MinNonNegative），与旧表达式在全部 double 输入上逐位一致。
+        => posBase + KaraokeMath.MinNonNegative(
+            KaraokeMath.AtLeastZero(elapsedSeconds),
+            KaraokeMath.AtLeastZero(maxLead));
 
     /// <summary>
     /// 按“距最近一次位置更新的时长”计算墙钟外推上限（2.2.2）。

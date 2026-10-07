@@ -499,4 +499,114 @@ public class KaraokeTimelineTests
                 BitConverter.DoubleToInt64Bits(Math.Clamp(x, 0.0, 1.0)),
                 BitConverter.DoubleToInt64Bits(x < 0.0 ? 0.0 : x > 1.0 ? 1.0 : x));
         }
-    }}
+    }
+    [Fact]
+    public void BuildWordTimeline_ZeroDurationWord_UsesMillisecondFloor()
+    {
+        // 2.8.0: 零长字（begin == end）的 TtmlWord.DurationSec 恰好是 0.001 下限；
+        // MaxDurationFloor 在精确 tie 上原样返回该值，lead = MinLeadCap(0.001 * 0.5)
+        // 精确落在 0.0005，starts/denoms 与旧公式逐位一致。
+        var words = new[]
+        {
+            new TtmlWord("作", 0.0, 0.0),
+            new TtmlWord("词", 0.0, 0.0),
+            new TtmlWord("林", 0.5, 0.5),
+        };
+        var starts = new double[3];
+        var denoms = new double[3];
+        KaraokeTextBlock.BuildWordTimeline(words, starts, denoms);
+
+        for (var i = 0; i < words.Length; i++)
+        {
+            var duration = Math.Max(words[i].DurationSec, 0.001);
+            var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(words[i].BeginSec - lead),
+                BitConverter.DoubleToInt64Bits(starts[i]));
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(duration + lead),
+                BitConverter.DoubleToInt64Bits(denoms[i]));
+        }
+        // 明确断言边界值：第一字 denom == 0.001，后续字 lead == 0.0005
+        Assert.Equal(0.001, denoms[0], 9);
+        Assert.Equal(-0.0005, starts[1], 9);
+        Assert.Equal(0.0015, denoms[1], 9);
+    }
+
+    [Fact]
+    public void BuildWordTimeline_ExtremeAndNanDurations_MatchOldFormula()
+    {
+        // 2.8.0: 分支链替换后必须与旧内联公式（Math.Max(w.DurationSec, 0.001) 与
+        // Math.Min(0.045, duration * 0.5)）在全部输入上逐位一致——含 NaN 时长、
+        // 亚毫秒、极大时长与 +Inf 时长。
+        var words = new[]
+        {
+            new TtmlWord("a", 0.0, double.NaN),                // End NaN → DurationSec = NaN
+            new TtmlWord("b", 0.0, 0.0),                       // 零长 → 0.001 下限
+            new TtmlWord("c", 1.0, 1.0000001),                 // 亚毫秒
+            new TtmlWord("d", 2.0, 102.0),                     // 100 秒
+            new TtmlWord("e", 3.0, 3.0 + 1e-300),              // 极小正时长（< 0.001）
+            new TtmlWord("f", 4.0, double.PositiveInfinity),   // Inf 时长
+        };
+        var starts = new double[words.Length];
+        var denoms = new double[words.Length];
+        KaraokeTextBlock.BuildWordTimeline(words, starts, denoms);
+
+        for (var i = 0; i < words.Length; i++)
+        {
+            var duration = Math.Max(words[i].DurationSec, 0.001);
+            var lead = i > 0 ? Math.Min(0.045, duration * 0.5) : 0.0;
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(words[i].BeginSec - lead),
+                BitConverter.DoubleToInt64Bits(starts[i]));
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(duration + lead),
+                BitConverter.DoubleToInt64Bits(denoms[i]));
+        }
+        // NaN 时长的第一个字没有 lead（句首不提前）：start 仍为 begin=0，仅 denom 被 NaN 化；
+        // 后续字的 lead 才会被 NaN 化（旧公式同）。Inf 时长的 denom 保持 +Inf。
+        Assert.Equal(0.0, starts[0], 9);
+        Assert.True(double.IsNaN(denoms[0]));
+        Assert.Equal(double.PositiveInfinity, denoms[5]);
+        Assert.Equal(100.045, denoms[3], 9);
+    }
+
+    [Fact]
+    public void ClampWallClockLead_MatchOldFormula_BitForBit()
+    {
+        // 2.8.0: 外推限幅从 Math.Min(Math.Max(elapsed, 0), Math.Max(0.0, maxLead))
+        // 改为 AtLeastZero/MinNonNegative 分支链组合；必须在全部可达到对上与旧公式
+        // 逐位一致（含 NaN/±Inf/±0 混入）。
+        var vals = new[]
+        {
+            0.0, -0.0, 0.5, 1.0, -1.0, 0.001, 2.5, 1e-300, -1e-300, 1e300, -1e300,
+            double.Epsilon, -double.Epsilon, double.MaxValue, double.MinValue,
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+        };
+        foreach (var posBase in vals)
+        {
+            foreach (var elapsed in vals)
+            {
+                foreach (var maxLead in vals)
+                {
+                    var oldForm = posBase + Math.Min(Math.Max(elapsed, 0), Math.Max(0.0, maxLead));
+                    Assert.Equal(
+                        BitConverter.DoubleToInt64Bits(oldForm),
+                        BitConverter.DoubleToInt64Bits(KaraokeTextBlock.ClampWallClockLead(posBase, elapsed, maxLead)));
+                }
+            }
+        }
+        // 随机非负外推域：elapsed/maxLead 均来自停更时钟（>= 0），posBase 为任意进度
+        var rng = new Random(0x2E84);
+        for (var i = 0; i < 60000; i++)
+        {
+            var posBase = rng.NextDouble() * 3600.0;
+            var elapsed = rng.NextDouble() * 30.0;
+            var maxLead = rng.NextDouble() * 5.0;
+            var oldForm = posBase + Math.Min(Math.Max(elapsed, 0), Math.Max(0.0, maxLead));
+            Assert.Equal(
+                BitConverter.DoubleToInt64Bits(oldForm),
+                BitConverter.DoubleToInt64Bits(KaraokeTextBlock.ClampWallClockLead(posBase, elapsed, maxLead)));
+        }
+    }
+}

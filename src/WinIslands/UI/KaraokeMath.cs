@@ -105,4 +105,61 @@ internal static class KaraokeMath
         var blend = lit >= length ? 1.0 : scaled - lit;
         return (lit, blend);
     }
+
+    /// <summary>
+    /// Math.Max(x, 0.0) / Math.Max(0.0, x) as a single-comparison branch chain
+    /// (2.8.0): x <= 0 ? 0 : x. Bit-identical to the runtime Math.Max on every
+    /// double input - NaN passes through with the same bits (incl. custom NaN
+    /// payloads), -0.0 maps to +0.0, +-Inf clamp to the endpoint, so the
+    /// wall-clock extrapolation pose is unchanged frame by frame while the
+    /// per-frame hot path drops one range-check call. Used by TickAnimation's
+    /// sinceUpdate and ClampWallClockLead's two inner floors.
+    /// </summary>
+    internal static double AtLeastZero(double x) => x <= 0.0 ? 0.0 : x;
+
+    /// <summary>
+    /// Math.Max(d, 0.001) as a branch chain (2.8.0):
+    /// d >= 0.001 || d != d ? d : 0.001. Bit-identical to the runtime Math.Max
+    /// on every double input - NaN passes through with the same bits (the
+    /// self-compare guard), -Inf / -0 / below-floor values land on the floor,
+    /// +Inf stays. Used by BuildWordTimeline's word-duration floor and
+    /// NeedsAnimationFor's per-word per-frame check.
+    /// </summary>
+    internal static double MaxDurationFloor(double d) => d >= 0.001 || d != d ? d : 0.001;
+
+    /// <summary>
+    /// Math.Min(0.045, y) as a single-comparison branch chain (2.8.0):
+    /// y >= 0.045 ? 0.045 : y. Bit-identical to the runtime Math.Min on every
+    /// double input - NaN passes through with the same bits, -Inf stays, +Inf
+    /// lands on the cap, and the exact-cap tie returns the 0.045 literal just
+    /// like Math.Min's val1 on equality. Used by BuildWordTimeline's per-word
+    /// cross-lead cap.
+    /// </summary>
+    internal static double MinLeadCap(double y) => y >= 0.045 ? 0.045 : y;
+
+    /// <summary>
+    /// Math.Min(a, b) as a branch chain (2.8.0) bit-identical to the runtime
+    /// Math.Min on this target (IEEE 754-2019 minimum semantics): the first NaN
+    /// argument wins with its payload intact (both-NaN returns a), a mixed
+    /// -0/+0 pair returns -0 regardless of order, ordered values return the
+    /// smaller, and equal values return a (bit-identical to b on equality).
+    /// The live call site only passes AtLeastZero outputs (>= +0.0, no -0, no
+    /// NaN), so the NaN/-0 arms are defensive; the common path is two NaN
+    /// self-compares plus one ordered compare. Used by ClampWallClockLead's
+    /// outer min.
+    /// </summary>
+    internal static double MinNonNegative(double a, double b)
+    {
+        if (a != a) return a;
+        if (b != b) return b;
+        if (a < b) return a;
+        if (b < a) return b;
+        if (a == 0.0)
+        {
+            var ai = BitConverter.DoubleToInt64Bits(a);
+            var bi = BitConverter.DoubleToInt64Bits(b);
+            return (ai < 0 || bi < 0) ? -0.0 : a;
+        }
+        return a;
+    }
 }
