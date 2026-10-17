@@ -573,4 +573,50 @@ public sealed class WaveMathTests
         }
     }
 
+
+    [Fact]
+    public void WaveOscillator_StepMatchesDirectSin_WithinTolerance()
+    {
+        // 2.9.8: phase accumulation vs direct Math.Sin(13t)/Math.Sin(31t), 8.33ms step, 1 minute = 7200 steps
+        const double step = 0.0083333333;
+        var osc = WaveOscillator.Create(step);
+        double t = 0;
+        for (var i = 0; i < 7200; i++)
+        {
+            osc.Advance();
+            t += step;
+            var (s1, _, s2, _) = osc.State;
+            Assert.True(Math.Abs(s1 - Math.Sin(13.0 * t)) < 1e-9, $"sin1 drift at step {i}: {Math.Abs(s1 - Math.Sin(13.0 * t)):G6}");
+            Assert.True(Math.Abs(s2 - Math.Sin(31.0 * t)) < 1e-9, $"sin2 drift at step {i}: {Math.Abs(s2 - Math.Sin(31.0 * t)):G6}");
+        }
+    }
+
+    [Fact]
+    public void WaveOscillator_UnitNormStable()
+    {
+        var osc = WaveOscillator.Create(0.0083333333);
+        for (var i = 0; i < 7200; i++)
+        {
+            osc.Advance();
+            var (s1, c1, s2, c2) = osc.State;
+            Assert.True(Math.Abs(s1 * s1 + c1 * c1 - 1.0) < 1e-12, $"norm1 drift at step {i}: {Math.Abs(s1 * s1 + c1 * c1 - 1.0):G6}");
+            Assert.True(Math.Abs(s2 * s2 + c2 * c2 - 1.0) < 1e-12, $"norm2 drift at step {i}: {Math.Abs(s2 * s2 + c2 * c2 - 1.0):G6}");
+        }
+    }
+
+    [Fact]
+    public void WaveOscillator_OutputRangeFiniteContinuity()
+    {
+        var osc = WaveOscillator.Create(0.0083333333);
+        double prev = double.NaN;
+        for (var i = 0; i < 7200; i++)
+        {
+            var v = osc.Advance();
+            Assert.True(double.IsFinite(v), $"non-finite noise at step {i}");
+            Assert.InRange(v, 0.01, 0.19);            // 0.10 +/- (0.05 + 0.035) with float slack
+            if (i > 0) Assert.True(Math.Abs(v - prev) < 0.05, $"jump at step {i}: {Math.Abs(v - prev):G6}");
+            prev = v;
+        }
+    }
+
 }
