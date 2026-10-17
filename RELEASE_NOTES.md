@@ -1,3 +1,22 @@
+## WinIslands 3.1.0（正式版 / Stable）
+### 更新内容
+
+- 🛡️ 稳定性大幅强化：修复了 Cider 空闲时被误判为断开、导致每 5 秒反复「连接 → 断连 → 重连」的重连风暴问题（日志中一天曾出现 2864 次连接记录）；现在只要 Cider 接口能通、只是暂无播放内容，程序就会保持连接
+- ⚡ Cider 响应更快：接口请求超时从 5 秒缩短到 2.5 秒，接口卡住时不再拖慢媒体信息刷新；重复的失败日志降频到每 30 秒最多一条
+- 🖼️ 封面加载更稳：失败的封面地址进入 60 秒冷却，同一封面请求去重，不再每次轮询都重复请求刷屏日志
+- 🧩 插件更健壮：插件进程连续失败时按 30 秒 / 1 分钟 / 2 分钟 / 5 分钟逐步退避，不再每 5 秒反复拉起一个必崩的进程；成功后自动恢复正常节奏
+- 🧪 测试：新增 2 项 Cider 集成回归测试（空内容保持连接 / 断连正确标记）；共 601 项单元测试全绿
+
+## WinIslands 3.1.0 (Stable)
+### What's New
+
+- 🛡️ Major stability hardening: fixed a reconnect storm where an idle Cider (API reachable but nothing playing) was mistaken for a dropped connection, causing connect → snapshot-null → reconnect every 5s (2864 connection logs in one day). Now the app keeps the session as long as the endpoint is reachable, and only backs off + reconnects on genuine failures
+- ⚡ Faster Cider response: HTTP timeout cut from 5s to 2.5s so a hung endpoint no longer freezes media updates; repeated snapshot-failure warnings are throttled to one per 30s
+- 🖼️ Steadier artwork loading: failed cover URLs enter a 60s cooldown with per-URL in-flight dedupe; no more repeated fetch-and-WARN every poll tick
+- 🧩 More resilient plugins: consecutive plugin failures back off 30s / 1min / 2min / 5min instead of respawning a crashing process every 5s; success resets the backoff
+- 🧪 Tests: 2 new Cider integration regressions + 601 unit tests green
+
+---
 ## WinIslands 2.9.8（正式版 / Stable）
 ### 更新内容
 
