@@ -44,6 +44,7 @@ public sealed class CiderClient
     private string _token;
     private double _lastCiderPosition = -1;   // 上次 Cider 上报位置（用于按移动判定播放/暂停）
     private string? _lastCiderTrackKey;
+    private DateTime _lastSnapshotErrorLogUtc = DateTime.MinValue;  // 2.9.9: throttle repeated snapshot-failure WARNs
 
     public CiderClient(string token = "")
     {
@@ -51,7 +52,7 @@ public sealed class CiderClient
         var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.All };
         _http = new HttpClient(handler)
         {
-            Timeout = TimeSpan.FromSeconds(5), // localhost: 留足余量（部分环境有安全软件/代理拦截回环 HTTP，2s 会频繁超时）
+            Timeout = TimeSpan.FromMilliseconds(2500) // 2.9.9: 限制最坏阻塞（5s 会冻住媒体 tick）；2s 在个别机器上偏紧，2.5s 折中
         };
     }
 
@@ -64,6 +65,9 @@ public sealed class CiderClient
     /// <summary>更新 API Token（自动检测或用户手动填写）。</summary>
     public void SetToken(string token) => _token = token ?? string.Empty;
     public bool IsConnected => Profile != CiderApiProfile.None;
+    /// <summary>2.9.9: 最近一次快照是否拿到了干净的 HTTP 响应（含 204/404 无内容）。
+    /// 用于区分「连接正常但当前无播放内容」与「连接真正断开」，杜绝空闲时反复重连。</summary>
+    public bool ApiReachable { get; private set; }
     public string? LastError { get; private set; }
 
     private string BaseUrl => $"http://127.0.0.1:{Port}";
@@ -180,6 +184,7 @@ public sealed class CiderClient
             {
                 using var req = Build(HttpMethod.Get, "/api/v1/playback/now-playing");
                 using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                ApiReachable = true; // 拿到了任何 HTTP 响应：连接是通的，只是可能没有播放内容
                 if (resp.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent) return null;
                 if (!resp.IsSuccessStatusCode) return null;
                 var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -192,6 +197,7 @@ public sealed class CiderClient
             {
                 using var req = Build(HttpMethod.Get, "/currentPlayingSong");
                 using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                ApiReachable = true;
                 if (!resp.IsSuccessStatusCode) return null;
                 var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return ParseLegacyNowPlaying(json);
@@ -199,8 +205,18 @@ public sealed class CiderClient
         }
         catch (Exception ex)
         {
+            ApiReachable = false; // 异常/超时：连接可能已断开
             LastError = ex.Message;
-            AppLogger.Warn($"Cider GetSnapshotAsync failed: {ex.Message}");
+            var nowUtc = DateTime.UtcNow;
+            if (nowUtc - _lastSnapshotErrorLogUtc >= TimeSpan.FromSeconds(30))
+            {
+                _lastSnapshotErrorLogUtc = nowUtc;
+                AppLogger.Warn($"Cider GetSnapshotAsync failed: {ex.Message}");
+            }
+            else
+            {
+                AppLogger.Debug($"Cider GetSnapshotAsync failed (repeated): {ex.Message}");
+            }
             return null;
         }
     }

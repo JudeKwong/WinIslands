@@ -584,6 +584,7 @@ $component = @{
     private async Task RunAsync(PluginRuntime runtime, CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref runtime.Running, 1, 0) != 0) return;
+        if (DateTime.UtcNow < runtime.NextRunUtc) { Interlocked.Exchange(ref runtime.Running, 0); return; } // 失败退避生效中
         var startedAt = DateTime.UtcNow;
         runtime.LastError = null; // 新一轮运行开始，清空上次错误（失败次数保留，便于观察稳定性）
         try
@@ -595,6 +596,7 @@ $component = @{
             if (!process.Start())
             {
                 runtime.FailureCount++;
+                BackoffAfterFailure(runtime);
                 runtime.LastError = "启动失败";
                 AppLogger.Warn($"Plugin failed to start: {manifest.Id}");
                 return;
@@ -613,6 +615,7 @@ $component = @{
             {
                 TryKill(process);
                 runtime.FailureCount++;
+                BackoffAfterFailure(runtime);
                 runtime.LastError = "运行超时";
                 AppLogger.Warn($"Plugin timed out: {manifest.Id} ({manifest.TimeoutSeconds}s)");
                 return;
@@ -626,6 +629,7 @@ $component = @{
             if (process.ExitCode != 0)
             {
                 runtime.FailureCount++;
+                BackoffAfterFailure(runtime);
                 runtime.LastError = $"退出码 {process.ExitCode}";
                 AppLogger.Warn($"Plugin exited with code {process.ExitCode}: {manifest.Id}");
             }
@@ -641,10 +645,12 @@ $component = @{
             // 无论是否输出组件，只要正常退出就记为一次成功，方便观察“最后运行时间/耗时”
             runtime.LastSuccessTime = DateTime.UtcNow;
             runtime.LastDurationMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
+            runtime.NextRunUtc = default; // 成功即解除退避
         }
         catch (Exception ex)
         {
             runtime.FailureCount++;
+            BackoffAfterFailure(runtime);
             runtime.LastError = Limit(ex.Message, 300);
             AppLogger.Warn($"Plugin run failed [{(runtime.Manifest.Id)}]: {ex.Message}");
         }
@@ -652,6 +658,14 @@ $component = @{
         {
             Interlocked.Exchange(ref runtime.Running, 0);
         }
+    }
+
+    /// <summary>连续失败退避：30s -> 60s -> 2min -> 5min 封顶，成功后立即复位。</summary>
+    private static void BackoffAfterFailure(PluginRuntime runtime)
+    {
+        var n = runtime.FailureCount;
+        var seconds = n <= 1 ? 30 : n <= 3 ? 60 : n <= 6 ? 120 : 300;
+        runtime.NextRunUtc = DateTime.UtcNow.AddSeconds(seconds);
     }
 
 
@@ -804,6 +818,8 @@ $component = @{
         public long LastDurationMs;
         public int FailureCount;
         public string? LastError;
+        /// <summary>2.9.9: 失败退避——连续失败时跳过本轮到期的运行，避免每 5s 反复拉起失败进程。</summary>
+        public DateTime NextRunUtc;
 
         public PluginRuntime(PluginManifest manifest) => Manifest = manifest;
 

@@ -110,9 +110,18 @@ public sealed class CiderMediaProvider : IDisposable
         var snap = await Client.GetSnapshotAsync(_cts.Token);
         if (snap is null)
         {
-            // Connection may have dropped; force a re-probe on next tick.
-            Client.MarkDisconnected();
-            await EnsureConnectedAsync();
+            // 2.9.9: 区分「连接正常但当前无播放内容」与「连接真正断开」。
+            // 旧逻辑把 Cider 空闲时的 204/404（无内容）误判为断连，导致每 5 秒
+            // 重连一次的循环风暴（实测单日 2864 次 connected）。Cider 可达但无内容时
+            // 保留连接、静默返回 null，让协调器自然回退到 SMTC / 窗口标题。
+            if (!Client.ApiReachable)
+            {
+                // Connection actually failed: back off so a hung/unresponsive endpoint
+                // cannot force a tight connect -> timeout -> reconnect cycle.
+                ScheduleNextProbe(DateTime.UtcNow, failed: true, noProcess: false);
+                Client.MarkDisconnected();
+                await EnsureConnectedAsync();
+            }
             return null;
         }
 

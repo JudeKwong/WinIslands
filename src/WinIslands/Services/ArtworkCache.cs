@@ -19,6 +19,13 @@ public static class ArtworkCache
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> PathCache = new();
     private const int MaxArtworkBytes = 10 * 1024 * 1024;
 
+    // 2.9.9 稳定性：失败冷却 + 并发去重，杜绝“同一 URL 每秒重试下载”造成的
+    // 日志刷屏、网络抖动与线程池膨胀。失败后同一 URL 在冷却期内不再发起请求。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> FailedUntilUtc = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> Inflight = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> LastFailureLogUtc = new();
+    private static readonly TimeSpan FailureCooldown = TimeSpan.FromSeconds(60);
+
     private static HttpClient CreateClient()
     {
         var handler = new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All };
@@ -75,16 +82,46 @@ public static class ArtworkCache
         }
     }
 
+    /// <summary>
+    /// Download artwork with a retry-storm guard: failed URLs are cooled down, only one
+    /// in-flight request per URL is allowed, and repeated failures stop spamming the log.
+    /// Returns a local cache path or empty string on failure/skip.
+    /// </summary>
     public static async Task<string> DownloadAsync(string url, string key, CancellationToken ct = default)
     {
+        var urlKey = url.Trim();
         try
         {
-            var uri = new Uri(url);
+            var uri = new Uri(urlKey);
             if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
 
-            using var resp = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode) return string.Empty;
-            if (resp.Content.Headers.ContentLength is long declared && !IsArtworkSizeAllowed(declared)) return string.Empty;
+        // 1) Cooldown: skip URLs that failed recently instead of retrying every poll tick.
+        var now = DateTime.UtcNow;
+        if (FailedUntilUtc.TryGetValue(urlKey, out var until) && now < until)
+            return string.Empty;
+
+        // 2) In-flight dedupe: never start two downloads of the same URL concurrently.
+        if (!Inflight.TryAdd(urlKey, 0))
+            return string.Empty;
+
+        try
+        {
+            using var resp = await Http.GetAsync(new Uri(urlKey), HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                NoteFailure(urlKey, quiet: true);
+                return string.Empty;
+            }
+            if (resp.Content.Headers.ContentLength is long declared && !IsArtworkSizeAllowed(declared))
+            {
+                NoteFailure(urlKey, quiet: true);
+                return string.Empty;
+            }
 
             await using var input = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var ms = new MemoryStream();
@@ -94,7 +131,11 @@ public static class ArtworkCache
                 int read;
                 while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false)) > 0)
                 {
-                    if (ms.Length + read > MaxArtworkBytes) return string.Empty;
+                    if (ms.Length + read > MaxArtworkBytes)
+                    {
+                        NoteFailure(urlKey, quiet: true);
+                        return string.Empty;
+                    }
                     await ms.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
                 }
             }
@@ -102,13 +143,43 @@ public static class ArtworkCache
             {
                 System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
             }
-            return SaveBytes(ms.ToArray(), key);
+            var path = SaveBytes(ms.ToArray(), key);
+            if (string.IsNullOrEmpty(path))
+                NoteFailure(urlKey, quiet: true);
+            else
+                ClearFailure(urlKey); // 成功后解除冷却，允许下次换图立即下载
+            return path;
         }
         catch (Exception ex)
         {
-            AppLogger.Warn($"Artwork download failed for {url}: {ex.Message}");
+            NoteFailure(urlKey, quiet: false);
+            // 只有“冷却期外的首次失败”才打 WARN；冷却期内的同 URL 重试静默跳过。
+            if (LastFailureLogUtc.TryGetValue(urlKey, out var lastLog) && now - lastLog < FailureCooldown)
+                AppLogger.Debug($"Artwork download retry skipped for {urlKey}: {ex.Message}");
+            else
+            {
+                LastFailureLogUtc[urlKey] = now;
+                AppLogger.Warn($"Artwork download failed for {urlKey}: {ex.Message}");
+            }
             return string.Empty;
         }
+        finally
+        {
+            Inflight.TryRemove(urlKey, out _);
+        }
+    }
+
+    private static void NoteFailure(string urlKey, bool quiet)
+    {
+        FailedUntilUtc[urlKey] = DateTime.UtcNow + FailureCooldown;
+        if (!quiet)
+            LastFailureLogUtc.TryRemove(urlKey, out _); // 强制下一次失败重新记 WARN
+    }
+
+    private static void ClearFailure(string urlKey)
+    {
+        FailedUntilUtc.TryRemove(urlKey, out _);
+        LastFailureLogUtc.TryRemove(urlKey, out _);
     }
 
     public static async Task<string> SaveStreamAsync(Func<Stream, Task> writeTo, string key)
@@ -138,4 +209,3 @@ public static class ArtworkCache
         return ".jpg";
     }
 }
-

@@ -86,6 +86,34 @@ public sealed class CiderClientIntegrationTests : IDisposable
         Assert.Contains("apptoken: test-token", _server.HeadersSeen, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>2.9.9 稳定性回归：Cider 空闲（now-playing 返回 204 无内容）时，
+    /// 快照为 null 但 ApiReachable 必须为 true——上层据此保留连接，不再每 5 秒重连。</summary>
+    [Fact]
+    public async Task NoContent_Is_Reachable_Not_Disconnected()
+    {
+        _server.NowPlayingNoContent = true; // 模拟 Cider 空闲：连接探活正常，但无播放内容
+        var ok = await _client.ConnectAsync(_server.Port, TestContext.Current.CancellationToken);
+        Assert.True(ok, _client.LastError);
+        var snap = await _client.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        Assert.Null(snap);
+        Assert.True(_client.ApiReachable, "204 无内容应视为“可达但无媒体”，绝不能触发重连风暴");
+        Assert.True(_client.IsConnected);
+    }
+
+    /// <summary>2.9.9 稳定性回归：连接真正断开时 ApiReachable 必须为 false，
+    /// 上层才会退避重连，而不是误以为无内容空转。</summary>
+    [Fact]
+    public async Task Broken_Connection_Marks_Unreachable()
+    {
+        var ok = await _client.ConnectAsync(_server.Port, TestContext.Current.CancellationToken);
+        Assert.True(ok, _client.LastError);
+        Assert.NotNull(await _client.GetSnapshotAsync(TestContext.Current.CancellationToken)); // 预热快照
+        _server.Dispose(); // 关闭服务：下一次请求立即被拒
+        var snap = await _client.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        Assert.Null(snap);
+        Assert.False(_client.ApiReachable, "断连必须标记为不可达，触发退避重连");
+    }
+
     /// <summary>极简 HTTP 服务器（TcpListener），记录请求路径与头，模拟 Cider V3 端点。</summary>
     private sealed class MockCiderServer : IDisposable
     {
@@ -96,6 +124,8 @@ public sealed class CiderClientIntegrationTests : IDisposable
         public int Port { get; }
         public ConcurrentQueue<string> Posts { get; } = new();
         public ConcurrentQueue<string> HeadersSeen { get; } = new();
+        /// <summary>2.9.9: true 时 /now-playing 返回 204 No Content（模拟 Cider 空闲）。</summary>
+        public volatile bool NowPlayingNoContent;
 
         public MockCiderServer()
         {
@@ -137,6 +167,15 @@ public sealed class CiderClientIntegrationTests : IDisposable
                         if (idx > 0) HeadersSeen.Enqueue(line[..idx].Trim() + ": " + line[(idx + 1)..].Trim());
                     }
                     if (method == "POST") Posts.Enqueue(path.Split('?')[0]);
+
+                    if (path.Split('?')[0] == "/api/v1/playback/now-playing" && NowPlayingNoContent)
+                    {
+                        var h204 = "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n";
+                        var b204 = Encoding.UTF8.GetBytes(h204);
+                        await stream.WriteAsync(b204);
+                        await stream.FlushAsync();
+                        return;
+                    }
 
                     var body = Respond(path.Split('?')[0]);
                     var bodyBytes = Encoding.UTF8.GetBytes(body);
