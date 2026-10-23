@@ -1,3 +1,20 @@
+## WinIslands 3.1.1（正式版 / Stable）
+### 更新内容
+
+- ⚡ 歌词定位更快：一些歌词文件很长（几百上千行），现在查找当前唱到哪一行改用二分查找，不用再从头一行行扫，进度刷新更省
+- ⏱️ 秒数显示更省刷屏：进度秒数文字只在整秒变化时才刷新（之前每 0.2 秒都重算一次），界面更省、动画更稳
+- 🔵 蓝牙轮询不再占线程：后台检测蓝牙设备的轮询改成异步等待，不再占用后台线程空等
+- 🧪 测试：新增 2 项——1000 行随机歌词下二分查找与原来的逐行扫描逐位一致、空歌词返回 -1；共 603 项单元测试全绿
+
+## WinIslands 3.1.1 (Stable)
+### What's New
+
+- ⚡ Faster lyric indexing: long lyric files (hundreds to thousands of lines) now use binary search to find the active line instead of scanning from the top every 200 ms, so progress ticks are cheaper
+- ⏱️ Less wasted UI refresh for the time label: the "current time" text now only re-renders when the whole second changes (previously recomputed 5x/sec), lighter refresh load, steadier animations
+- 🔵 Non-blocking Bluetooth polling: the periodic device scan now awaits asynchronously instead of occupying a thread-pool thread with a synchronous wait
+- 🧪 Tests: 2 new cases - binary search is bit-identical to the old linear scan across a shuffled 1000-line random timeline, and an empty document returns -1; 603 unit tests green
+
+---
 ## WinIslands 3.1.0（正式版 / Stable）
 ### 更新内容
 

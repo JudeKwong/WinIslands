@@ -97,13 +97,12 @@ public sealed class BluetoothMonitor : IDisposable
     }
 
     // ── 兜底路径：4s 轮询 ──
-    private void Poll()
+    private async void Poll()
     {
         try
         {
-            var devices = DeviceInformation.FindAllAsync(
-                BluetoothDevice.GetDeviceSelector(), new[] { NameKey }, DeviceInformationKind.AssociationEndpoint)
-                .AsTask().GetAwaiter().GetResult();
+            var devices = await DeviceInformation.FindAllAsync(
+                BluetoothDevice.GetDeviceSelector(), new[] { NameKey }, DeviceInformationKind.AssociationEndpoint);
 
             foreach (var d in devices)
             {

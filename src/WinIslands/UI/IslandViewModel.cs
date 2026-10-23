@@ -436,13 +436,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public double DurationSeconds { get => _durationSeconds; private set => Set(ref _durationSeconds, value); }
 
     private TimeSpan _position;
+    private int _positionTextSecond = -1; // 已通知过的整秒；只在整秒变化时才刷新秒文本，避免每 200ms 重复格式化
     public TimeSpan Position
     {
         get => _position;
         private set
         {
             if (!Set(ref _position, value)) return;
-            OnPropertyChanged(nameof(PositionText));
+            var sec = (int)Math.Max(0, value.TotalSeconds);
+            if (sec != _positionTextSecond)
+            {
+                _positionTextSecond = sec;
+                OnPropertyChanged(nameof(PositionText));
+            }
         }
     }
 

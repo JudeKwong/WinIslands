@@ -21,14 +21,15 @@ public sealed class LrcDocument
     public int IndexAt(TimeSpan position)
     {
         var pos = position + TimeSpan.FromMilliseconds(OffsetMs);
-        int idx = -1;
-        for (var i = 0; i < Lines.Count; i++)
+        int lo = 0, hi = Lines.Count;
+        while (lo < hi)
         {
-            if (Lines[i].Time <= pos) idx = i;
-            else break;
+            var mid = lo + ((hi - lo) >> 1);
+            if (Lines[mid].Time <= pos) lo = mid + 1;
+            else hi = mid;
         }
 
-        return idx;
+        return lo - 1; // -1 when no line has started yet
     }
 }
 
