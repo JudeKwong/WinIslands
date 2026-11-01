@@ -73,8 +73,8 @@
 
 ### 构建与测试
 ```powershell
-dotnet build WinIslands.slnx -c Release
-dotnet test  WinIslands.slnx -c Release
+dotnet build src\WinIslands\WinIslands.csproj -c Release
+dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 ```
 
 ### 发布
@@ -283,8 +283,8 @@ All historical versions: [GitHub Releases](https://github.com/JudeKwong/WinIslan
 
 ### Build & test
 ```powershell
-dotnet build WinIslands.slnx -c Release
-dotnet test  WinIslands.slnx -c Release
+dotnet build src\WinIslands\WinIslands.csproj -c Release
+dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 ```
 
 ### Publish
