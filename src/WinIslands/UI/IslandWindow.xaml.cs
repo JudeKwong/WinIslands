@@ -469,6 +469,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 悬停不展开；移出时若已展开则延迟收起
         Card.MouseLeave += (_, _) =>
         {
+            if (_resizing) return; // 边缘缩放拖拽中：指针移出卡片也不收起
+            Cursor = null;
             if (_vm.IsExpanded) _collapseTimer.Start();
         };
 
@@ -492,6 +494,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.PreviewMouseLeftButtonDown += OnCardMouseLeftButtonDown;
         Card.PreviewMouseMove += OnCardMouseMove;
         Card.PreviewMouseLeftButtonUp += OnCardMouseLeftButtonUp;
+        InitializeEdgeResize(); // 边缘拖拽缩放（拖住左右/下边缘调整尺寸）
         Card.PreviewMouseUp += OnCardMiddleMouseUp;   // 中键快捷操作
 
         // 进度条拖拽 seek
@@ -893,6 +896,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnCardMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // 边缘拖拽缩放优先于“点击展开/收起”：命中边缘时进入缩放，不再切换展开状态
+        if (TryBeginEdgeResize(e.GetPosition(this)))
+        {
+            _mouseDownOnCard = false;
+            _draggedCard = false;
+            CancelPendingClick();
+            e.Handled = true;
+            return;
+        }
+
         _mouseDownOnCard = true;
         _draggedCard = false;
         _downPoint = e.GetPosition(this);
@@ -910,7 +923,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnCardMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (!_mouseDownOnCard || e.LeftButton != MouseButtonState.Pressed) return;
+        // 边缘缩放拖拽：实时预览尺寸
+        if (_resizing)
+        {
+            UpdateEdgeResize(e.GetPosition(this));
+            e.Handled = true;
+            return;
+        }
+
+        // 未按下时：靠近左右/下边缘切换为缩放光标，提示此处可拖动调整大小
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            UpdateEdgeResizeCursor(e.GetPosition(this));
+            return;
+        }
+
+        if (!_mouseDownOnCard) return;
         if (_fileDragArmed) return; // 文件中转站组件：拖动由组件自己的拖出逻辑处理
         if (_settings.Current.IsLocked) return; // 上锁不可拖动
 
@@ -934,6 +962,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void OnCardMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // 结束边缘缩放：写入设置并关闭对应方向的自动调整
+        if (_resizing)
+        {
+            EndEdgeResize();
+            e.Handled = true;
+            return;
+        }
+
         if (_draggedCard)
         {
             _draggedCard = false;
@@ -1452,6 +1488,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     public void ApplySize()
     {
+        if (_resizing) return; // 边缘缩放拖拽中：不被内容变化触发的重排覆盖实时尺寸
         // 窗口固定为能容纳最大推送卡片/展开内容的大小：推送时只需动画 Card 形变，避免窗口级 Resize 卡顿
         var targetCompactWidth = CompactWidth;
         var targetCompactHeight = CompactHeight;
@@ -2344,10 +2381,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private bool IsPointOverCard(Point local)
     {
-        var pos = Card.TransformToAncestor(this).Transform(new Point(0, 0));
-        return local.X >= pos.X && local.Y >= pos.Y &&
-               local.X <= pos.X + Card.ActualWidth &&
-               local.Y <= pos.Y + Card.ActualHeight;
+        // 经 LayoutTransform（字号缩放）后的真实视觉矩形；直接用 ActualWidth/Height 会在
+        // 非 100% 字号缩放下把卡片右/下部分误判为窗口外，导致点击穿透、边缘拖拽失效。
+        try
+        {
+            var transform = Card.TransformToAncestor(this);
+            var topLeft = transform.Transform(new Point(0, 0));
+            var bottomRight = transform.Transform(new Point(Card.ActualWidth, Card.ActualHeight));
+            return local.X >= topLeft.X && local.Y >= topLeft.Y &&
+                   local.X <= bottomRight.X && local.Y <= bottomRight.Y;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // ── 显示 / 隐藏 ────────────────────────────────────────────

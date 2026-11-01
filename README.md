@@ -97,9 +97,10 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 1. 启动 `WinIslands.exe`（可设置开机自启），托盘出现图标；关闭主窗口不会退出进程，仅托盘化。
 2. 播放任意音乐：网易云、QQ音乐、Spotify、Apple Music 官方版等自动通过系统媒体会话显示；Cider 详见下文；其它播放器兜底窗口标题识别。
 3. **点击**灵动岛展开完整卡片（悬停不展开）：进度拖拽 seek、播放控制、音量、同步歌词；再点一下收回。
-4. 托盘菜单：显示/隐藏、独立歌词窗口、开机自启、勿扰模式、检查更新、查看日志、设置、退出。
-5. 全局快捷键（均可自定义）：`Ctrl+Alt+P` 播放/暂停 · `Ctrl+Alt+←/→` 上一首/下一首 · `Ctrl+Alt+I` 显示/隐藏 · `Ctrl+Alt+Space` 展开/收起 · `Ctrl+Space` 快速启动器 · `Ctrl+Alt+V` 剪贴板历史面板。
-6. 常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
+4. **拖住边缘调整大小**：左/右边缘改变宽度（以岛中心为锚点对称伸缩），下边缘改变高度；靠近边缘时光标会变成缩放样式。手动调整后对应方向会自动关闭「自动调整尺寸」，可在设置中重新开启。
+5. 托盘菜单：显示/隐藏、独立歌词窗口、开机自启、勿扰模式、检查更新、查看日志、设置、退出。
+6. 全局快捷键（均可自定义）：`Ctrl+Alt+P` 播放/暂停 · `Ctrl+Alt+←/→` 上一首/下一首 · `Ctrl+Alt+I` 显示/隐藏 · `Ctrl+Alt+Space` 展开/收起 · `Ctrl+Space` 快速启动器 · `Ctrl+Alt+V` 剪贴板历史面板。
+7. 常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
 
 ### Cider 集成
 1. 在 Cider 设置中开启「允许外部控制」（Allow external control）。
@@ -307,9 +308,10 @@ Install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then run `iscc.exe bu
 1. Launch `WinIslands.exe` (startup with Windows is optional); a tray icon appears. Closing the main window does not quit the process — it just minimizes to the tray.
 2. Play any music: NetEase Cloud Music, QQ Music, Spotify, Apple Music official app, etc. appear automatically through the system media session; Cider — see below; other players fall back to window-title detection.
 3. **Click** the island to expand the full card (hovering does not expand): draggable seek, playback controls, volume, synced lyrics; click again to collapse.
-4. Tray menu: show/hide, standalone lyrics window, start with Windows, Do Not Disturb, check for updates, view logs, settings, quit.
-5. Global hotkeys (all customizable): `Ctrl+Alt+P` play/pause · `Ctrl+Alt+←/→` previous/next · `Ctrl+Alt+I` show/hide · `Ctrl+Alt+Space` expand/collapse · `Ctrl+Space` quick launcher · `Ctrl+Alt+V` clipboard history panel.
-6. Useful command-line arguments: `--demo` demo mode · `--diagnose` writes a diagnostic report · `--settings` opens settings at startup.
+4. **Drag an edge to resize**: the left/right edges change the width symmetrically around the island's centre, the bottom edge changes the height; the cursor turns into a resize arrow near an edge. A manual resize turns off "auto size" for that direction — re-enable it in Settings.
+5. Tray menu: show/hide, standalone lyrics window, start with Windows, Do Not Disturb, check for updates, view logs, settings, quit.
+6. Global hotkeys (all customizable): `Ctrl+Alt+P` play/pause · `Ctrl+Alt+←/→` previous/next · `Ctrl+Alt+I` show/hide · `Ctrl+Alt+Space` expand/collapse · `Ctrl+Space` quick launcher · `Ctrl+Alt+V` clipboard history panel.
+7. Useful command-line arguments: `--demo` demo mode · `--diagnose` writes a diagnostic report · `--settings` opens settings at startup.
 
 ### Cider integration
 1. Enable "Allow external control" in Cider settings.
