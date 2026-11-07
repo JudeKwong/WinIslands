@@ -29,7 +29,7 @@ public static class AppPaths
 
     public static string LyricsDir => Path.Combine(AppDataDir, "Lyrics");
 
-    /// <summary>用户插件目录：%APPDATA%\\WinIslands\\plugins。</summary>
+    /// <summary>用户插件目录：%APPDATA%\WinIslands\plugins。</summary>
     public static string PluginsDir => Path.Combine(AppDataDir, "plugins");
 
     /// <summary>便携插件目录：程序 exe 同级的 plugins。</summary>
@@ -45,6 +45,9 @@ public static class AppPaths
     /// <summary>崩溃自动恢复标记文件：异常退出时写入，下次启动检测到后提示「已恢复」。</summary>
     public static string CrashMarkerFile => Path.Combine(AppDataDir, "crash-recovery.json");
 
+    /// <summary>崩溃 minidump 输出目录（诊断用，循环保留最近若干份）。</summary>
+    public static string CrashDumpsDir => Path.Combine(AppDataDir, "crashdumps");
+
     public static string ExePath { get; } = Environment.ProcessPath ?? string.Empty;
 
     public static void EnsureDirectories()
@@ -53,7 +56,6 @@ public static class AppPaths
         Directory.CreateDirectory(LogsDir);
         Directory.CreateDirectory(ThumbCacheDir);
         Directory.CreateDirectory(LyricsDir);
+        Directory.CreateDirectory(CrashDumpsDir);
     }
 }
-
-

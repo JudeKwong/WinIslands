@@ -73,14 +73,21 @@ public partial class App : Application
         catch { /* manifest 已声明，忽略 */ }
 
         // ── Crash safety: log everything, never show a raw crash dialog. ──
+        // 3.1.2beta2 稳定性：托管异常链写 minidump + first-chance SEH 诊断日志，
+        // 让 0xc0000005/0x80131506 这类此前不可复现的崩溃可被定位（配合 OS 层 WER LocalDumps）。
+        CrashDump.RegisterFirstChanceLogging();
         DispatcherUnhandledException += (_, args) =>
         {
             AppLogger.Error("Unhandled dispatcher exception", args.Exception);
+            CrashDump.TryWriteDump("dispatcher"); // 诊断：保留崩溃时刻进程快照
             WriteCrashMarker(); // 崩溃自动恢复（1.2.0）：下次启动提示已恢复
             args.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
             AppLogger.Error("Unhandled AppDomain exception", args.ExceptionObject as Exception);
+            CrashDump.TryWriteDump("appdomain");
+        };
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             AppLogger.Error("Unobserved task exception", args.Exception);

@@ -32,6 +32,11 @@ public partial class IslandWindow
     private Point _resizeStartPoint;
     private double _resizeStartVisualW;
     private double _resizeStartVisualH;
+    private bool _inUpdateEdgeResize; // 防止拖拽预览 → 布局 → 鼠标事件 重入
+
+    /// <summary>拖拽起始视觉尺寸必须为有限正值：Card.ActualWidth/Height 在首次布局前为 0 或 NaN，
+    /// Math.Max(1, NaN) 在 .NET 仍返回 NaN，会污染 ComputeSize → Card.Width=NaN → 崩溃。</summary>
+    private static double FiniteStart(double v, double fallback) => double.IsFinite(v) && v > 0 ? v : fallback;
 
     /// <summary>当前是否正处于边缘缩放拖拽中。</summary>
     internal bool IsEdgeResizing => _resizing;
@@ -39,6 +44,13 @@ public partial class IslandWindow
     private void InitializeEdgeResize()
     {
         Card.LostMouseCapture += (_, _) =>
+        {
+            if (_resizing) EndEdgeResize();
+        };
+        // 3.1.2beta2 稳定性：窗口失活（被其他窗口抢占焦点 / 注入弹窗 / 锁屏）时
+        // Mouse.Capture 会静默丢失，_resizing 仍为 true 会留下一个「卡住的捕获」，
+        // 后续鼠标消息走陈旧几何，是 WPF 原生访问违稳的经典诱因。这里强制收尾。
+        Deactivated += (_, _) =>
         {
             if (_resizing) EndEdgeResize();
         };
@@ -95,8 +107,10 @@ public partial class IslandWindow
         _resizeExpanded = _vm.IsExpanded;
         _resizeEdges = edges;
         _resizeStartPoint = local;
-        _resizeStartVisualW = Math.Max(1, Card.ActualWidth) * FontScale;
-        _resizeStartVisualH = Math.Max(1, Card.ActualHeight) * FontScale;
+        // 首次布局前 ActualWidth/Height 可能为 0 或 NaN：Math.Max(1, NaN) 仍为 NaN，
+        // 会把 NaN 灌入 ComputeSize 与 Card.Width，导致后续布局崩溃。用有限正值兜底。
+        _resizeStartVisualW = FiniteStart(Card.ActualWidth, MinCompactVisualW) * FontScale;
+        _resizeStartVisualH = FiniteStart(Card.ActualHeight, MinCompactVisualH) * FontScale;
 
         _collapseTimer.Stop();
 
@@ -109,8 +123,8 @@ public partial class IslandWindow
 
         // 终止正在进行的展开/收起弹簧，避免它继续写回 Card 尺寸
         StopCardSprings();
-        var currentW = Card.ActualWidth;
-        var currentH = Card.ActualHeight;
+        var currentW = FiniteStart(Card.ActualWidth, MinCompactVisualW);
+        var currentH = FiniteStart(Card.ActualHeight, MinCompactVisualH);
         Card.BeginAnimation(FrameworkElement.WidthProperty, null);
         Card.BeginAnimation(FrameworkElement.HeightProperty, null);
         Card.Width = Math.Max(1, currentW);
@@ -140,6 +154,7 @@ public partial class IslandWindow
     private void UpdateEdgeResize(Point local)
     {
         if (!_resizing) return;
+        if (_inUpdateEdgeResize) return; // 布局回写触发鼠标事件重入时直接跳过
 
         var minW = _resizeExpanded ? MinExpandedVisualW : MinCompactVisualW;
         var maxW = _resizeExpanded ? MaxExpandedVisualW : MaxCompactVisualW;
@@ -154,11 +169,20 @@ public partial class IslandWindow
             local.X - _resizeStartPoint.X, local.Y - _resizeStartPoint.Y,
             _resizeEdges, minW, maxW, minH, maxH);
 
-        ApplyEdgeResizePreview(width, height);
+        _inUpdateEdgeResize = true;
+        try
+        {
+            ApplyEdgeResizePreview(width, height);
+        }
+        finally
+        {
+            _inUpdateEdgeResize = false;
+        }
     }
 
     private void ApplyEdgeResizePreview(double visualWidth, double visualHeight)
     {
+        if (!double.IsFinite(visualWidth) || !double.IsFinite(visualHeight)) return;
         var logicalWidth = Math.Max(80, visualWidth / FontScale);
         var logicalHeight = Math.Max(40, visualHeight / FontScale);
 
