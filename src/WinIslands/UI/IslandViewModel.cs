@@ -93,7 +93,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _todo = todo ?? new TodoService();
         _schedule = schedule ?? new ScheduleService();
         _pomodoro = pomodoro ?? new PomodoroService();
-        _wave.Start();
+        // 轻量化：波纹可视化关闭时不启动音频线程（旧代码无条件启动，导致即使关掉波纹仍常驻采集/唤醒）
+        if (_settings.Current.WaveVisualizerEnabled)
+        {
+            _wave.Start();
+            _wave.SetSyncEnabled(_settings.Current.WaveSyncEnabled);
+        }
         _wave.SetPlaying(false);
         _keyboard.StateChanged += OnKeyboardStateChanged;
         _clipboard.Changed += RefreshClipboardSummary;

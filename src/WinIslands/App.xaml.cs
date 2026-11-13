@@ -168,7 +168,7 @@ AppPaths.EnsureDirectories();
         _pomodoro = new PomodoroService();
         _updater = new UpdaterService();
         if (_settings.Current.WaveVisualizerEnabled) _wave.Start();
-        _wave.SetSyncEnabled(_settings.Current.WaveSyncEnabled);
+        _wave.SetSyncEnabled(_settings.Current.WaveVisualizerEnabled && _settings.Current.WaveSyncEnabled);
         _wave.SetSensitivity(_settings.Current.WaveSensitivity);
         _clipboard.SetEnabled(_settings.Current.ClipboardHistoryEnabled);
         _clipboard.MaxEntries = _settings.Current.ClipboardHistoryMax;
@@ -471,7 +471,8 @@ AppPaths.EnsureDirectories();
 
             // 波纹可视化开关
             if (s.WaveVisualizerEnabled) _wave?.Start(); else _wave?.Stop();
-            _wave?.SetSyncEnabled(s.WaveSyncEnabled);
+            // 轻量化：波纹关闭时不再启用 WASAPI 回环采集
+            _wave?.SetSyncEnabled(s.WaveVisualizerEnabled && s.WaveSyncEnabled);
             _wave?.SetSensitivity(s.WaveSensitivity);
 
             // 剪贴板历史开关与保留条数；复制提示（已复制/验证码/进度）无需历史也可轮询

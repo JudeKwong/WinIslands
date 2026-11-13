@@ -142,7 +142,7 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 | `MiddleClickAction` | `PlayPause` | 中键单击灵动岛快捷动作 |
 | `CiderEnabled` / `CiderPort` | `true` / `0` | Cider 本地 API（0=自动检测） |
 | `OnlineLyricsEnabled` | `false` | 在线歌词开关（非官方接口，注意版权） |
-| `AmllTtmlEnabled` | `true` | AMLL 逐字歌词（api.amll.dev，非官方） |
+| `AmllTtmlEnabled` | `false` | AMLL 逐字歌词（api.amll.dev，非官方；默认关，减少联网查询） |
 | `KaraokeHighlight` | `true` | 逐字卡拉OK高亮 |
 | `StandaloneLyricsWindow` | `false` | 独立歌词小窗 |
 | `UseSystemVolume` | `true` | 非 Cider 来源用系统音量 |
@@ -150,6 +150,8 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 | `IslandApiEnabled` / `IslandApiPort` | `true` / `9840` | 上岛 API 开关 / 端口 |
 | `IslandApiToken` | `""` | 上岛 API 可选 Token |
 | `IslandApiDefaultDuration` | `30` | 上岛默认显示时长（秒） |
+| `WaveVisualizerEnabled` | `false` | 音频波纹（默认关，避免常驻音频回环采集） |
+| `WaveSyncEnabled` | `false` | 波纹跟随系统输出（WASAPI 回环，默认关） |
 | `WaveStyle` | `Bars` | 音频波纹样式：`Bars` / `Spectrum` / `Ring` / `Particles` |
 | `WidgetOrder` | `Time,Weather,...` | 组件摆放顺序（逗号分隔键名） |
 | `Components` | 对象 | 各组件「无歌曲 / 有歌曲」两列勾选 |
@@ -157,7 +159,7 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 | `Rules` | `[]` | 自动化规则（条件 + 动作） |
 | `ReduceMotion` | `false` | 减少动态效果（无障碍/省电） |
 | `GlobalHotkeysEnabled` | `true` | 全局快捷键开关 |
-| `LowPowerMode` | `false` | 低功耗模式：空闲降帧、简化动画 |
+| `LowPowerMode` | `true` | 低功耗模式：动画帧率上限 60fps、简化动画（默认开启更轻量） |
 
 ---
 
@@ -353,7 +355,7 @@ Config file: `%APPDATA%\WinIslands\settings.json` (JSON; changes in the settings
 | `MiddleClickAction` | `PlayPause` | Middle-click quick action |
 | `CiderEnabled` / `CiderPort` | `true` / `0` | Cider local API (0 = auto-detect) |
 | `OnlineLyricsEnabled` | `false` | Online lyrics switch (unofficial interface, mind copyright) |
-| `AmllTtmlEnabled` | `true` | AMLL word-by-word lyrics (api.amll.dev, unofficial) |
+| `AmllTtmlEnabled` | `false` | AMLL word-by-word lyrics (api.amll.dev, unofficial; off by default to reduce network queries) |
 | `KaraokeHighlight` | `true` | Word-by-word karaoke highlight |
 | `StandaloneLyricsWindow` | `false` | Standalone lyrics window |
 | `UseSystemVolume` | `true` | Use system volume for non-Cider sources |
@@ -361,6 +363,8 @@ Config file: `%APPDATA%\WinIslands\settings.json` (JSON; changes in the settings
 | `IslandApiEnabled` / `IslandApiPort` | `true` / `9840` | Island API switch / port |
 | `IslandApiToken` | `""` | Optional Island API token |
 | `IslandApiDefaultDuration` | `30` | Default push duration (seconds) |
+| `WaveVisualizerEnabled` | `false` | Audio waveform (off by default to avoid persistent audio loopback capture) |
+| `WaveSyncEnabled` | `false` | Waveform follows system audio (WASAPI loopback, off by default) |
 | `WaveStyle` | `Bars` | Audio waveform style: `Bars` / `Spectrum` / `Ring` / `Particles` |
 | `WidgetOrder` | `Time,Weather,...` | Widget order (comma-separated keys) |
 | `Components` | object | Per-widget "no song / playing" two-column checkboxes |
@@ -368,7 +372,7 @@ Config file: `%APPDATA%\WinIslands\settings.json` (JSON; changes in the settings
 | `Rules` | `[]` | Automation rules (conditions + actions) |
 | `ReduceMotion` | `false` | Reduce motion (accessibility/battery) |
 | `GlobalHotkeysEnabled` | `true` | Global hotkeys switch |
-| `LowPowerMode` | `false` | Low-power mode: lower frame rate when idle, simplified animations |
+| `LowPowerMode` | `true` | Low-power mode: 60fps animation cap, simplified animations (on by default for a lighter footprint) |
 
 ---
 

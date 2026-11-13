@@ -33,7 +33,7 @@ public sealed class ComponentFlags
     public bool LyricsWhenPlaying { get; set; } = true;
     public bool ProgressWhenIdle { get; set; } = false;
     public bool ProgressWhenPlaying { get; set; } = false;
-    public bool DateWhenIdle { get; set; } = true;
+    public bool DateWhenIdle { get; set; } = false;
     public bool DateWhenPlaying { get; set; } = false;
     public bool CpuWhenIdle { get; set; } = false;
     public bool CpuWhenPlaying { get; set; } = false;
@@ -54,14 +54,14 @@ public sealed class ComponentFlags
     public bool CapsLockWhenIdle { get; set; } = false;
     public bool CapsLockWhenPlaying { get; set; } = false;
     public bool ClipboardWhenIdle { get; set; } = false;
-    public bool ClipboardWhenPlaying { get; set; } = true;
-    public bool TodoWhenIdle { get; set; } = true;
+    public bool ClipboardWhenPlaying { get; set; } = false;
+    public bool TodoWhenIdle { get; set; } = false;
     public bool TodoWhenPlaying { get; set; } = false;
     public bool TimerWhenIdle { get; set; } = false;
     public bool TimerWhenPlaying { get; set; } = false;
-    public bool ScheduleWhenIdle { get; set; } = true;
+    public bool ScheduleWhenIdle { get; set; } = false;
     public bool ScheduleWhenPlaying { get; set; } = false;
-    public bool HolidayWhenIdle { get; set; } = true;   // 节假日倒计时：空闲时显示
+    public bool HolidayWhenIdle { get; set; } = false;  // 节假日倒计时：空闲时显示
     public bool HolidayWhenPlaying { get; set; } = false;
     public bool MeetingWhenIdle { get; set; } = false;      // 会议中状态（开会静音助手）
     public bool MeetingWhenPlaying { get; set; } = false;
@@ -82,7 +82,7 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
@@ -132,7 +132,7 @@ public sealed class AppSettings
     // -- 动效与性能（33 动效皮肤 / 37 低功耗模式）--
     public string AnimationStyle { get; set; } = "Spring";   // Spring | Soft | Elastic | Fade（动效皮肤）
     public int IslandAnimationDuration { get; set; } = 700;  // 展开/收起动画时长（毫秒，300~1400，越大越丝滑）
-    public bool LowPowerMode { get; set; } = false;          // 低功耗模式：空闲降帧渲染波纹、简化动画
+    public bool LowPowerMode { get; set; } = true;           // 低功耗模式：降低帧率上限、简化动画（默认开启更轻量）
 
     // -- 全局快捷键（自定义组合键，格式如 Ctrl+Alt+I；35 全局快捷键大全）--
     public string HotkeyToggleVisible { get; set; } = "Ctrl+Alt+I";
@@ -176,7 +176,7 @@ public sealed class AppSettings
 
     // ── Lyrics ─────────────────────────────────────────────────
     // ── Lyrics ─────────────────────────────────────────────────
-    public bool AmllTtmlEnabled { get; set; } = true;         // AMLL TTML 逐字歌词库（api.amll.dev，非官方；基于 LRC/TTML 更精确的逐字卡拉OK）
+    public bool AmllTtmlEnabled { get; set; } = false;        // AMLL TTML 逐字歌词库（api.amll.dev，非官方；基于 LRC/TTML 更精确的逐字卡拉OK）
     public bool OnlineLyricsEnabled { get; set; } = true;    // 在线歌词（网易云非官方接口）；右键灵动岛可一键开关
     public string LyricsFolder { get; set; } = string.Empty; // extra .lrc folder; empty = auto (Music)
     public bool StandaloneLyricsWindow { get; set; } = false;
@@ -265,9 +265,9 @@ public sealed class AppSettings
     public bool MarqueeTextEnabled { get; set; } = false; // 跑马灯：歌名/歌词超宽时自动横向滚动
 
     // ── 波纹可视化（媒体按钮左侧，随声音/播放波动）──
-    public bool WaveVisualizerEnabled { get; set; } = true;
+    public bool WaveVisualizerEnabled { get; set; } = false;
     public string WaveStyle { get; set; } = "Bars";   // 波纹样式：Bars | Spectrum | Ring | Particles
-    public bool WaveSyncEnabled { get; set; } = true;      // 跟随音乐节奏：采集系统输出声音驱动波纹
+    public bool WaveSyncEnabled { get; set; } = false;     // 跟随音乐节奏：采集系统输出声音驱动波纹（默认关，避免常驻音频回环采集）
     public double WaveSensitivity { get; set; } = 1.0;     // 波纹灵敏度 0.2 ~ 3.0
     public double WaveHeight { get; set; } = 1.0;          // 波纹高度 0.4 ~ 1.6
     public bool NetCurveEnabled { get; set; } = true;      // 网络组件显示迷你曲线图（最近 32 秒）
@@ -361,6 +361,70 @@ public sealed class AppSettings
 
     public string ActiveProfile { get; set; } = "Default";   // 当前配置档案名
 
+    /// <summary>
+    /// 配置版本 1 → 2：默认组件精简 + 轻量化。
+    /// 仅在升级旧配置时执行一次；组件仍保持旧默认组合时才精简，用户手动改过的组合原样保留。
+    /// </summary>
+    internal static bool ApplyLeanDefaultsV2(AppSettings s)
+    {
+        if (s.Version >= 2) return false;
+
+        if (s.Components is not null && LooksLikeLegacyComponentDefaults(s.Components))
+        {
+            var c = s.Components;
+            c.DateWhenIdle = false;         // 空闲态只保留时间，减少常驻文字与布局刷新
+            c.TodoWhenIdle = false;
+            c.ScheduleWhenIdle = false;     // 同时停止日程轮询（App 按组件开关启动）
+            c.HolidayWhenIdle = false;
+            c.ClipboardWhenPlaying = false; // 播放态不再常驻剪贴板摘要
+        }
+
+        // 音频回环采集（WASAPI）是旧默认里最重的后台项：仅在仍是旧默认组合时关闭。
+        if (s.WaveVisualizerEnabled && s.WaveSyncEnabled)
+        {
+            s.WaveVisualizerEnabled = false;
+            s.WaveSyncEnabled = false;
+        }
+
+        // AMLL 逐字歌词是额外的联网查询；核心在线歌词保持开启。
+        if (s.AmllTtmlEnabled) s.AmllTtmlEnabled = false;
+
+        // 轻量默认：动画帧率上限 60fps、简化动画。
+        s.LowPowerMode = true;
+
+        s.Version = 2;
+        return true;
+    }
+
+    /// <summary>判定组件是否仍是 3.1.2 及以前的默认组合（用于安全迁移）。</summary>
+    private static bool LooksLikeLegacyComponentDefaults(ComponentFlags c) =>
+        c.TimeWhenIdle && !c.TimeWhenPlaying
+        && !c.WeatherWhenIdle && !c.WeatherWhenPlaying
+        && !c.CoverWhenIdle && c.CoverWhenPlaying
+        && !c.TitleWhenIdle && c.TitleWhenPlaying
+        && !c.ArtistWhenIdle && c.ArtistWhenPlaying
+        && !c.LyricsWhenIdle && c.LyricsWhenPlaying
+        && !c.ProgressWhenIdle && !c.ProgressWhenPlaying
+        && c.DateWhenIdle && !c.DateWhenPlaying
+        && !c.CpuWhenIdle && !c.CpuWhenPlaying
+        && !c.RamWhenIdle && !c.RamWhenPlaying
+        && !c.GpuWhenIdle && !c.GpuWhenPlaying
+        && !c.MicWhenIdle && !c.MicWhenPlaying
+        && !c.CamWhenIdle && !c.CamWhenPlaying
+        && !c.NetWhenIdle && !c.NetWhenPlaying
+        && !c.BatteryWhenIdle && !c.BatteryWhenPlaying
+        && !c.VolumeWhenIdle && c.VolumeWhenPlaying
+        && !c.CapsLockWhenIdle && !c.CapsLockWhenPlaying
+        && !c.ClipboardWhenIdle && c.ClipboardWhenPlaying
+        && c.TodoWhenIdle && !c.TodoWhenPlaying
+        && !c.TimerWhenIdle && !c.TimerWhenPlaying
+        && c.ScheduleWhenIdle && !c.ScheduleWhenPlaying
+        && c.HolidayWhenIdle && !c.HolidayWhenPlaying
+        && !c.MeetingWhenIdle && !c.MeetingWhenPlaying
+        && !c.DiskWhenIdle && !c.DiskWhenPlaying
+        && !c.InputMethodWhenIdle && !c.InputMethodWhenPlaying
+        && !c.QuickTogglesWhenIdle && !c.QuickTogglesWhenPlaying;
+
     /// <summary>清除非法或非有限浮点值，避免 NaN / Infinity 写入 JSON 后导致设置窗口崩溃。</summary>
     public void NormalizeNonFiniteValues()
     {
@@ -433,6 +497,12 @@ public sealed class SettingsService
                     loaded.Components ??= new ComponentFlags();
                     loaded.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
                     loaded.NormalizeNonFiniteValues();
+                    // 3.1.2beta3：默认组件精简 + 轻量化（仅 v1 旧配置迁移一次）
+                    if (AppSettings.ApplyLeanDefaultsV2(loaded))
+                    {
+                        AppLogger.Info("Settings migrated to v2: lean components + lightweight defaults");
+                        TryPersistMigrated(loaded);
+                    }
                     return loaded;
                 }
             }
@@ -443,6 +513,23 @@ public sealed class SettingsService
         }
 
         return new AppSettings();
+    }
+
+    /// <summary>迁移后立即落盘，避免每次启动重复迁移（写临时文件再替换，避免半截 JSON）。</summary>
+    private static void TryPersistMigrated(AppSettings settings)
+    {
+        try
+        {
+            AppPaths.EnsureDirectories();
+            var json = JsonSerializer.Serialize(settings, JsonOptions);
+            var tmp = AppPaths.SettingsFile + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, AppPaths.SettingsFile, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Persist migrated settings failed: {ex.Message}");
+        }
     }
 
     public void Save()
