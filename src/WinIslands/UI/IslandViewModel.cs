@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
+using Brush = System.Windows.Media.Brush;
+using Color = System.Windows.Media.Color;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Collections.ObjectModel;
@@ -74,13 +76,30 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
     // ── 通知历史（展开卡片底部列表，#10；由 ShowEventCard 记录，可点击重新弹出） ──
     private readonly ObservableCollection<EventHistoryItem> _notificationHistory = new();
+    private readonly ObservableCollection<MessengerUnread> _messengerUnreads = new();
+    private static readonly Brush WeChatBadgeBrush = MakeFrozenBrush(0x46, 0xCB, 0x7B);
+    private static readonly Brush QqBadgeBrush = MakeFrozenBrush(0x12, 0xB7, 0xF5);
+    private static readonly Brush BluetoothBadgeBrush = MakeFrozenBrush(0x0A, 0x84, 0xFF);
+    private static readonly Brush DefaultBadgeBrush = MakeFrozenBrush(0x6C, 0x5C, 0xE7);
+
+    private static Brush MakeFrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+    private readonly MessengerUnreadMonitor? _messengerMonitor;
     private readonly Dictionary<string, DateTime> _lastEventTimes = new(); // 通知去抖：记录每种类型最后触发时间
     public ObservableCollection<EventHistoryItem> NotificationHistory => _notificationHistory;
+    public ObservableCollection<MessengerUnread> MessengerUnreads => _messengerUnreads;
+    public bool HasMessengerUnreads => _messengerUnreads.Count > 0;
+    public int MessengerUnreadCount => _messengerUnreads.Count;
 
     public IslandViewModel(MediaCoordinator coordinator, SettingsService settings, LyricsService lyricsService,
         AudioWaveService? wave = null, KeyboardIndicatorMonitor? keyboard = null,
         ClipboardHistoryService? clipboard = null, TodoService? todo = null,
-        ScheduleService? schedule = null, PomodoroService? pomodoro = null)
+        ScheduleService? schedule = null, PomodoroService? pomodoro = null,
+        MessengerUnreadMonitor? messenger = null)
     {
         _coordinator = coordinator;
         _settings = settings;
@@ -93,6 +112,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _todo = todo ?? new TodoService();
         _schedule = schedule ?? new ScheduleService();
         _pomodoro = pomodoro ?? new PomodoroService();
+        _messengerMonitor = messenger;
+        if (_messengerMonitor is not null) _messengerMonitor.Changed += OnMessengerUnreadsChanged;
         // 轻量化：波纹可视化关闭时不启动音频线程（旧代码无条件启动，导致即使关掉波纹仍常驻采集/唤醒）
         if (_settings.Current.WaveVisualizerEnabled)
         {
@@ -1483,6 +1504,10 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             if (!Set(ref _activePush, value)) return;
             OnPropertyChanged(nameof(HasActivePush));
             OnPropertyChanged(nameof(ActivePushIcon));
+        OnPropertyChanged(nameof(ActivePushBadgeGlyph));
+        OnPropertyChanged(nameof(ActivePushBadgeFont));
+        OnPropertyChanged(nameof(ActivePushBadgeBrush));
+        OnPropertyChanged(nameof(ActivePushHasRedDot));
             OnPropertyChanged(nameof(ActivePushTitle));
             OnPropertyChanged(nameof(ActivePushSubtitle));
             OnPropertyChanged(nameof(ActivePushHasSubtitle));
@@ -1510,6 +1535,26 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
     public bool HasActivePush => ActivePush is not null;
     public string ActivePushIcon => string.IsNullOrEmpty(ActivePush?.Icon) ? "\uE7F4" : ActivePush!.Icon;
+    public string ActivePushBadgeGlyph => ActivePush?.Type switch
+    {
+        "wechat" => "\uE8BD",
+        "qq" => "\U0001F427",
+        "bluetooth" => "\uE702",
+        _ => ActivePushIcon,
+    };
+    public string ActivePushBadgeFont => ActivePush?.Type switch
+    {
+        "qq" => "Segoe UI Emoji",
+        _ => "Segoe MDL2 Assets",
+    };
+    public Brush ActivePushBadgeBrush => ActivePush?.Type switch
+    {
+        "wechat" => WeChatBadgeBrush,
+        "qq" => QqBadgeBrush,
+        "bluetooth" => BluetoothBadgeBrush,
+        _ => DefaultBadgeBrush,
+    };
+    public bool ActivePushHasRedDot => ActivePush?.Type is "wechat" or "qq";
     public string ActivePushTitle => ActivePush?.Title ?? string.Empty;
     public string ActivePushSubtitle => ActivePush?.Subtitle ?? string.Empty;
     public bool ActivePushHasSubtitle => !string.IsNullOrEmpty(ActivePush?.Subtitle);
@@ -1914,9 +1959,64 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 subtitle = $"{subtitle}  ·  {Localization.Get("Battery_Level")} {batteryPercent.Value}%";
             ShowEventCard(id,
                 Localization.Get(connected ? "Events_BluetoothConnected" : "Events_BluetoothDisconnected"),
-                subtitle, "\uE702", connected ? "success" : "info", 5);
+                subtitle, "\uE702", "bluetooth", 5);
         }
         catch (Exception ex) { AppLogger.Warn($"ShowDeviceEvent failed: {ex.Message}"); }
+    }
+
+    /// <summary>微信/QQ 未读：加入图标栈并弹出一张岛仔风格通知卡（不读取聊天正文）。</summary>
+    public void ShowMessengerUnread(MessengerUnread unread)
+    {
+        if (DoNotDisturb.IsActive(_settings.Current)) return;
+        if (!_messengerUnreads.Any(x => x.Source == unread.Source && x.Pid == unread.Pid && x.Window == unread.Window))
+        {
+            _messengerUnreads.Add(unread);
+            OnPropertyChanged(nameof(HasMessengerUnreads));
+            OnPropertyChanged(nameof(MessengerUnreadCount));
+        }
+        var type = unread.Source == MessengerSource.WeChat ? "wechat" : "qq";
+        ShowEventCard($"msg:{type}:{unread.Pid}:{unread.Window}", unread.SourceName,
+            "有新消息 · 点击查看", unread.Glyph, type, 6);
+    }
+
+    public void ActivateMessengerUnread(MessengerUnread unread)
+    {
+        _messengerMonitor?.Activate(unread);
+        RemoveMessengerUnread(unread);
+    }
+
+    public void DismissMessengerUnread(MessengerUnread unread)
+    {
+        _messengerMonitor?.Remove(unread);
+        RemoveMessengerUnread(unread);
+    }
+
+    public void ClearMessengerUnreads()
+    {
+        _messengerMonitor?.Clear();
+        if (_messengerUnreads.Count == 0) return;
+        _messengerUnreads.Clear();
+        OnPropertyChanged(nameof(HasMessengerUnreads));
+        OnPropertyChanged(nameof(MessengerUnreadCount));
+    }
+
+    private void RemoveMessengerUnread(MessengerUnread unread)
+    {
+        if (!_messengerUnreads.Remove(unread)) return;
+        OnPropertyChanged(nameof(HasMessengerUnreads));
+        OnPropertyChanged(nameof(MessengerUnreadCount));
+    }
+
+    private void OnMessengerUnreadsChanged(object? sender, EventArgs e)
+    {
+        if (_messengerMonitor is null) return;
+        var snapshot = _messengerMonitor.Items;
+        for (var i = _messengerUnreads.Count - 1; i >= 0; i--)
+            if (!snapshot.Contains(_messengerUnreads[i])) _messengerUnreads.RemoveAt(i);
+        foreach (var item in snapshot)
+            if (!_messengerUnreads.Contains(item)) _messengerUnreads.Add(item);
+        OnPropertyChanged(nameof(HasMessengerUnreads));
+        OnPropertyChanged(nameof(MessengerUnreadCount));
     }
 
     /// <summary>点击通知历史条目：以事件卡片形式重新弹出（去除记录时附加的 sys: 前缀）。</summary>
@@ -3111,6 +3211,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _schedule.Changed -= RefreshScheduleSummary;
         _pomodoro.Tick -= RefreshTimerText;
         _pomodoro.Completed -= OnPomodoroCompleted;
+        if (_messengerMonitor is not null) _messengerMonitor.Changed -= OnMessengerUnreadsChanged;
         Localization.LanguageChanged -= OnLanguageChanged;
         // 释放效率工具服务（Stop/Dispose 幂等，App 退出时再次调用安全）
         _keyboard.Dispose();

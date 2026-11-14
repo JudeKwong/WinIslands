@@ -1620,6 +1620,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ClearNotificationHistory_Click(object sender, RoutedEventArgs e)
         => _vm.ClearNotificationHistory();
 
+    private void MessengerUnread_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is MessengerUnread unread)
+            _vm.ActivateMessengerUnread(unread);
+        e.Handled = true;
+    }
+
+    private void MessengerClearAll_Click(object sender, RoutedEventArgs e)
+        => _vm.ClearMessengerUnreads();
+
     /// <summary>按真实布局边距更新紧凑内容宽度，避免右侧文字和媒体按钮被裁切。</summary>
     private void UpdateCompactContentWidth(double? knownCompactWidth = null)
     {

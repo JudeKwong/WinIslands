@@ -1,4 +1,4 @@
-﻿<Window x:Class="WinIslands.UI.IslandWindow"
+<Window x:Class="WinIslands.UI.IslandWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:WinIslands.UI.Converters"
@@ -193,20 +193,22 @@
                         </Border.RenderTransform>
                         <!-- 单行：图标 + 标题 + 摘要（副标题优先，其次正文），过长省略；不撑宽、不撑高灵动岛 -->
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Width="30" Height="30" CornerRadius="9" Margin="0,0,8,0" ClipToBounds="True"
-                                    Background="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#6C5CE7}">
+                            <Border Width="30" Height="30" CornerRadius="15" Margin="0,0,8,0" ClipToBounds="False"
+                                    Background="{Binding ActivePushBadgeBrush, FallbackValue=#6C5CE7}">
                                 <Grid>
-                                    <TextBlock Text="{Binding ActivePushIcon}" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White"
+                                    <TextBlock Text="{Binding ActivePushBadgeGlyph}" FontFamily="{Binding ActivePushBadgeFont}" FontSize="14" Foreground="White"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVisInvert}}"/>
                                     <Image Source="{Binding ActivePushImageSource}" Stretch="UniformToFill"
                                            Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVis}}"/>
+                                    <Ellipse Width="7" Height="7" Fill="#FF4848" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"
+                                             Visibility="{Binding ActivePushHasRedDot, Converter={StaticResource BoolToVis}}"/>
                                 </Grid>
                             </Border>
-                            <TextBlock Text="{Binding ActivePushTitle}" FontSize="13" FontWeight="SemiBold" MaxWidth="240" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding ActivePushTitle}" FontSize="11.5" FontWeight="SemiBold" MaxWidth="240" VerticalAlignment="Center"
                                        Foreground="{Binding PushCardForeground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding ActivePushSummary}" FontSize="11.5" Margin="8,0,0,0" MaxWidth="200" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding ActivePushSummary}" FontSize="10.5" Margin="8,0,0,0" MaxWidth="200" VerticalAlignment="Center"
                                        Foreground="{Binding PushCardSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                        TextTrimming="CharacterEllipsis"
                                        Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
@@ -214,6 +216,29 @@
                     </Border>
 
                     <!-- 按「组件顺序」动态渲染：歌曲信息 / 时间 / 天气（播放时含歌曲，空闲时去掉） -->
+                    <!-- 微信/QQ 未读图标栈（岛仔同款：图标 + 红点，点击切回窗口） -->
+                    <ItemsControl ItemsSource="{Binding MessengerUnreads}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                  Visibility="{Binding HasMessengerUnreads, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Tag="{Binding}" Click="MessengerUnread_Click" Cursor="Hand"
+                                        Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,4,0"
+                                        ToolTip="{Binding SourceName}">
+                                    <Grid Width="24" Height="24">
+                                        <Border CornerRadius="12" Background="{Binding AccentBrush}">
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="{Binding GlyphFont}" FontSize="12"
+                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Ellipse Width="7" Height="7" Fill="#FF4848"
+                                                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <ItemsControl ItemsSource="{Binding CompactItems}" VerticalAlignment="Center">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -851,17 +876,10 @@
                         </TransformGroup>
                     </ScrollViewer.RenderTransform>
                     <StackPanel>
-                    <!-- 岛仔顶栏：页标题 + 日期/时钟 + 设置齿轮 -->
+                    <!-- 岛仔顶栏：日期/时钟 + 设置齿轮（不显示 WINISLANDS 标题） -->
                     <Grid x:Name="DaozaiHeader" Margin="0,0,0,10"
                           Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="WINISLANDS" FontSize="14.5" FontWeight="Bold" VerticalAlignment="Center"
-                                   Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Border Width="18" Height="18" CornerRadius="9" Margin="0,0,6,0" VerticalAlignment="Center"
                                     BorderBrush="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"
                                     BorderThickness="1.5">
@@ -874,8 +892,37 @@
                             <TextBlock Text="{Binding ClockText}" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"
                                        Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
                         </StackPanel>
-                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" ToolTip="设置">
+                        <Button HorizontalAlignment="Right" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" ToolTip="设置">
                             <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                        </Button>
+                    </Grid>
+                    <!-- 微信/QQ 未读面板（展开时逐个账号/图标，点击直达窗口） -->
+                    <Grid Margin="0,0,0,8" Visibility="{Binding HasMessengerUnreads, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl ItemsSource="{Binding MessengerUnreads}" HorizontalAlignment="Left">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Tag="{Binding}" Click="MessengerUnread_Click" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,6,0"
+                                            ToolTip="{Binding SourceName}">
+                                        <Grid Width="34" Height="34">
+                                            <Border CornerRadius="17" Background="{Binding AccentBrush}">
+                                                <TextBlock Text="{Binding Glyph}" FontFamily="{Binding GlyphFont}" FontSize="16"
+                                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Ellipse Width="8" Height="8" Fill="#FF4848"
+                                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"/>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button HorizontalAlignment="Right" Padding="10,4" Cursor="Hand" Background="Transparent" BorderThickness="0"
+                                Click="MessengerClearAll_Click">
+                            <TextBlock Text="全部已读" FontSize="10.5"
+                                       Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#8E8E99}"/>
                         </Button>
                     </Grid>
                     <!-- 上岛推送详情（第三方软件推送，展开时优先级最高，置于顶部） -->
@@ -886,13 +933,17 @@
                             BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding ActivePushIcon}" FontFamily="Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"
-                                           Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#6C5CE7}"
-                                           Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVisInvert}}"/>
-                                <Border Width="40" Height="40" CornerRadius="10" Margin="0,0,10,0" ClipToBounds="True"
-                                        Background="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#6C5CE7}"
-                                        Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVis}}">
-                                    <Image Source="{Binding ActivePushImageSource}" Stretch="UniformToFill"/>
+                                <Border Width="40" Height="40" CornerRadius="20" Margin="0,0,10,0" ClipToBounds="False"
+                                        Background="{Binding ActivePushBadgeBrush, FallbackValue=#6C5CE7}">
+                                    <Grid>
+                                        <TextBlock Text="{Binding ActivePushBadgeGlyph}" FontFamily="{Binding ActivePushBadgeFont}" FontSize="18"
+                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVisInvert}}"/>
+                                        <Image Source="{Binding ActivePushImageSource}" Stretch="UniformToFill"
+                                               Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVis}}"/>
+                                        <Ellipse Width="8" Height="8" Fill="#FF4848" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"
+                                                 Visibility="{Binding ActivePushHasRedDot, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
                                 </Border>
                                 <TextBlock Text="{Binding ActivePushTitle}" FontSize="15" FontWeight="SemiBold" MaxWidth="560" VerticalAlignment="Center"
                                            Foreground="{Binding PushCardForeground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"

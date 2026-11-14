@@ -28,6 +28,7 @@ public partial class App : Application
     private AppSettings? _lastPositionSettings;
     private BluetoothMonitor? _bluetooth;
     private IncomingCallMonitor? _callMonitor;
+    private MessengerUnreadMonitor? _messenger;
     private NetworkStatusMonitor? _network;
     private GlobalHotkeyService? _hotkeys;
     private QuickLauncherWindow? _launcher;
@@ -138,11 +139,16 @@ AppPaths.EnsureDirectories();
         {
             if (!_settings!.Current.CallNotifyEnabled) return;
             var isIncoming = kind == CallKind.Incoming;
+            var isWechat = appName.Contains("WeChat", StringComparison.OrdinalIgnoreCase)
+                || appName.Contains("Weixin", StringComparison.OrdinalIgnoreCase)
+                || appName.Contains("微信", StringComparison.Ordinal);
+            var messengerType = isWechat ? "wechat" : appName.Contains("QQ", StringComparison.OrdinalIgnoreCase) ? "qq" : "info";
+            var icon = isWechat ? "\uE8BD" : messengerType == "qq" ? "\U0001F427" : "\uE8F2";
             Dispatcher.BeginInvoke(() => _vm?.ShowEventCard(
                 "call:" + appName,
                 Localization.Get(isIncoming ? "Call_NotifyTitle" : "Call_Title"),
                 isIncoming ? $"{appName} · {Localization.Get("Call_Body")}（{Localization.Get("Call_Coming")}）" : $"{appName} · {Localization.Get("Call_Body")}",
-                "\uE8F2", "info", 8));
+                icon, messengerType, 8));
         };
         // 断网 / 网络恢复提醒（每次状态变化只提示一次；去抖在服务内部）
         _network = new NetworkStatusMonitor();
@@ -179,8 +185,11 @@ AppPaths.EnsureDirectories();
         _schedule.Reminder += item => Dispatcher.BeginInvoke(() =>
             _vm?.ShowEventCard("schedule:" + item.Id, Localization.Get("Events_ScheduleReminder"), item.Title, "\uE8B7", "info", 8));
 
+        _messenger = new MessengerUnreadMonitor();
+        _messenger.UnreadAdded += (_, unread) => Dispatcher.BeginInvoke(() => _vm?.ShowMessengerUnread(unread));
         _vm = new IslandViewModel(_coordinator, _settings, _lyrics,
-            _wave, _keyboard, _clipboard, _todo, _schedule, _pomodoro);
+            _wave, _keyboard, _clipboard, _todo, _schedule, _pomodoro, _messenger);
+        if (_settings.Current.CallNotifyEnabled) _messenger.Start();
         TryShowCrashRecoveryCard(); // 崩溃自动恢复（1.2.0）：上次异常退出 → 提示已恢复
         // 番茄钟到点提醒
         _vm.PomodoroCompletedRequested += phase =>
@@ -415,6 +424,7 @@ AppPaths.EnsureDirectories();
             // 通知监控开关
             if (s.BluetoothNotifyEnabled) _bluetooth?.Start(); else _bluetooth?.Stop();
             if (s.CallNotifyEnabled) _callMonitor?.Start(s.CallNotifyApps); else _callMonitor?.Stop();
+            if (s.CallNotifyEnabled) _messenger?.Start(); else _messenger?.Stop();
 
             // 屏幕录制/截图提示：开关或细分项变化时实时生效
             if (_screenCapture is not null)
@@ -571,6 +581,7 @@ AppPaths.EnsureDirectories();
             {
                 if (_settings!.Current.BluetoothNotifyEnabled) _bluetooth?.Start();
                 if (_settings.Current.CallNotifyEnabled) _callMonitor?.Start(_settings.Current.CallNotifyApps);
+                if (_settings.Current.CallNotifyEnabled) _messenger?.Start();
                 _network?.Start(); // 网络监控很轻量，始终启动；是否弹横幅由 NetworkNotifyEnabled 开关控制
 
                 if (_settings.Current.StandaloneLyricsWindow)
@@ -969,6 +980,7 @@ AppPaths.EnsureDirectories();
             _islandApi?.Dispose();
             _screenCapture?.Dispose();
             _callMonitor?.Dispose();
+        _messenger?.Dispose();
             _fullScreenMonitor?.Dispose();
             _calendar?.Dispose();
             _rssMail?.Dispose();
