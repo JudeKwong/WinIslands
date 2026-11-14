@@ -215,6 +215,8 @@ public sealed class SettingsViewModel : ObservableObject
         };
         ThemePresetOptions = new[]
         {
+            new EnumOption<string>("DaozaiLiquid", Localization.Get("Appearance_PresetDaozaiLiquid")),
+            new EnumOption<string>("Daozai", Localization.Get("Appearance_PresetDaozai")),
             new EnumOption<string>("Default", Localization.Get("Appearance_PresetDefault")),
             new EnumOption<string>("Ocean", Localization.Get("Appearance_PresetOcean")),
             new EnumOption<string>("Forest", Localization.Get("Appearance_PresetForest")),

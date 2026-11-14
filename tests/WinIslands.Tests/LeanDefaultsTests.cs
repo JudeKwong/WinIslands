@@ -39,7 +39,7 @@ public class LeanDefaultsTests : IDisposable
     {
         var s = new AppSettings();
 
-        Assert.Equal(2, s.Version);
+        Assert.Equal(3, s.Version);
         Assert.True(s.Components.TimeWhenIdle);
         Assert.False(s.Components.DateWhenIdle);
         Assert.False(s.Components.TodoWhenIdle);
@@ -50,6 +50,7 @@ public class LeanDefaultsTests : IDisposable
         Assert.False(s.WaveSyncEnabled);
         Assert.False(s.AmllTtmlEnabled);
         Assert.True(s.LowPowerMode);
+        Assert.Equal("DaozaiLiquid", s.ThemePreset);
     }
 
     [Fact]
@@ -94,6 +95,30 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
+    public void LegacyAppearance_MigratesToDaozaiLiquid()
+    {
+        var s = new AppSettings
+        {
+            Version = 2,
+            ThemePreset = "Default",
+            Opacity = 0.92,
+            OffsetY = 8,
+            CompactHeight = 72,
+            ExpandedWidth = 400,
+            CornerRadius = 28,
+        };
+
+        Assert.True(AppSettings.ApplyDaozaiDefaultsV3(s));
+        Assert.Equal(3, s.Version);
+        Assert.Equal("DaozaiLiquid", s.ThemePreset);
+        Assert.Equal(1.0, s.Opacity);
+        Assert.Equal(6, s.OffsetY);
+        Assert.Equal(48, s.CompactHeight);
+        Assert.Equal(420, s.ExpandedWidth);
+        Assert.Equal(33, s.CornerRadius);
+    }
+
+    [Fact]
     public void CurrentVersion_IsNoOp()
     {
         var s = new AppSettings { Version = 2 };
@@ -117,14 +142,14 @@ public class LeanDefaultsTests : IDisposable
 
         var service = new SettingsService();
 
-        Assert.Equal(2, service.Current.Version);
+        Assert.Equal(3, service.Current.Version);
         Assert.False(service.Current.Components.DateWhenIdle);
         Assert.False(service.Current.WaveVisualizerEnabled);
         Assert.True(service.Current.LowPowerMode);
 
         // 迁移后已落盘：再读取一次仍是 v2，不会重复迁移
         var again = new SettingsService();
-        Assert.Equal(2, again.Current.Version);
+        Assert.Equal(3, again.Current.Version);
         Assert.False(again.Current.Components.DateWhenIdle);
     }
 }

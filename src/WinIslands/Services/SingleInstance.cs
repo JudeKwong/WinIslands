@@ -10,8 +10,18 @@ namespace WinIslands.Services;
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {
-    private const string MutexName = @"Local\WinIslands_SingleInstance";
-    private const string PipeName = "WinIslands";
+    // 正常运行时固定名称；设置 WINISLANDS_TEST_INSTANCE 时使用独立命名，便于在不干扰
+    // 用户正在运行的实例的情况下做 UI/冒烟测试。
+    private static string InstanceSuffix
+    {
+        get
+        {
+            var v = Environment.GetEnvironmentVariable("WINISLANDS_TEST_INSTANCE");
+            return string.IsNullOrWhiteSpace(v) ? string.Empty : "_test_" + v;
+        }
+    }
+    private static string MutexName => @"Local\WinIslands_SingleInstance" + InstanceSuffix;
+    private static string PipeName => "WinIslands" + InstanceSuffix;
 
     private Mutex? _mutex;
     private CancellationTokenSource _cts = new();

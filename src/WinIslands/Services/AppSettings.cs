@@ -82,7 +82,7 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
@@ -95,8 +95,8 @@ public sealed class AppSettings
     public MonitorSelection Monitor { get; set; } = MonitorSelection.Primary;
     public int MonitorIndex { get; set; } = 0;
     public double OffsetX { get; set; } = 0;
-    public double OffsetY { get; set; } = 8;
-    public double Opacity { get; set; } = 0.92;
+    public double OffsetY { get; set; } = 6;
+    public double Opacity { get; set; } = 1.0;
     public bool EdgeSnapEnabled { get; set; } = true;        // 拖动松手自动吸附屏幕边缘/居中
     public bool FullScreenAutoHideEnabled { get; set; } = true;   // 全屏（视频/游戏/演示）时自动隐藏灵动岛
     public bool HideOnMaximizeEnabled { get; set; } = true;   // 最大化窗口时也隐藏灵动岛（关闭后仅真正全屏才隐藏）
@@ -188,9 +188,9 @@ public sealed class AppSettings
     public double LyricsWindowOpacity { get; set; } = 0.85;   // #5 独立歌词小窗不透明度（0.3~1.0）
     public bool LyricsWindowLocked { get; set; } = false;     // #5 锁定歌词小窗（锁定后不可拖动且鼠标穿透）
     // ── #5 歌词样式调节（灵动岛歌词区 + 独立歌词小窗）──
-    public double LyricFontSize { get; set; } = 13;           // 普通歌词行字号（9~28）
-    public double LyricCurrentFontSize { get; set; } = 20;    // 当前句歌词字号（12~36）
-    public double LyricLineSpacing { get; set; } = 1.0;       // 歌词行间距倍率（0.8~2.0）
+    public double LyricFontSize { get; set; } = 16;           // 普通歌词行字号（9~28）
+    public double LyricCurrentFontSize { get; set; } = 21;    // 当前句歌词字号（12~36）
+    public double LyricLineSpacing { get; set; } = 1.05;       // 歌词行间距倍率（0.8~2.0）
     public string LyricHighlightColor { get; set; } = "";     // 卡拉OK高亮色（#RRGGBB，留空跟随主题）
     public string LyricBaseColor { get; set; } = "";          // 普通歌词颜色（#RRGGBB，留空跟随主题）
     public double KaraokeSpeed { get; set; } = 1.0;           // 卡拉OK推进速度（0.5~2.0）
@@ -201,8 +201,8 @@ public sealed class AppSettings
 
     // ── Island size ────────────────────────────────────────────
     public double CompactWidth { get; set; } = 360;
-    public double CompactHeight { get; set; } = 72;
-    public double ExpandedWidth { get; set; } = 400;
+    public double CompactHeight { get; set; } = 48;
+    public double ExpandedWidth { get; set; } = 420;
     public double MaxExpandedHeight { get; set; } = 384;
 
     // 自动调整：按组件内容自适应尺寸（默认开启；手动拖动滑杆会自动关闭对应项）
@@ -254,12 +254,12 @@ public sealed class AppSettings
     public List<AppRule> Rules { get; set; } = new();   // 条件满足时自动隐藏/收起/强制显示
 
     // ── 外观增强（主题预设 / 字体 / 字号 / 圆角 / 封面取色）──
-    public string ThemePreset { get; set; } = "Default";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
+    public string ThemePreset { get; set; } = "DaozaiLiquid";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
     public string ThemeTint { get; set; } = "";
     // 「Custom」自定义皮肤的背景色（#RRGGBB，留空跟随明暗默认底色）
     public string FontFamily { get; set; } = "Segoe UI";   // 界面字体
     public double FontScale { get; set; } = 1.0;           // 字号缩放 0.8 ~ 1.4
-    public double CornerRadius { get; set; } = 28;         // 胶囊圆角 16 ~ 40
+    public double CornerRadius { get; set; } = 33;         // 胶囊圆角 16 ~ 40
     public bool CoverTintBackground { get; set; } = true;  // 展开背景随专辑封面取色
     public bool WallpaperThemeColorEnabled { get; set; } = false; // 壁纸取色：从当前壁纸提取主色作为主题色（纯本地，不联网）
     public bool MarqueeTextEnabled { get; set; } = false; // 跑马灯：歌名/歌词超宽时自动横向滚动
@@ -396,6 +396,30 @@ public sealed class AppSettings
         return true;
     }
 
+    /// <summary>
+    /// 配置版本 2 → 3：切换到岛仔（Daozai）视觉皮肤。
+    /// 只迁移仍是旧默认值的项，用户手动改过的外观参数保持不变。
+    /// </summary>
+    internal static bool ApplyDaozaiDefaultsV3(AppSettings s)
+    {
+        if (s.Version >= 3) return false;
+
+        if (string.Equals(s.ThemePreset, "Default", StringComparison.OrdinalIgnoreCase))
+            s.ThemePreset = "DaozaiLiquid";
+        if (Math.Abs(s.Opacity - 0.92) < 0.001) s.Opacity = 1.0;
+        if (Math.Abs(s.OffsetY - 8) < 0.001) s.OffsetY = 6;
+        if (Math.Abs(s.CompactHeight - 72) < 0.001) s.CompactHeight = 48;
+        if (Math.Abs(s.ExpandedWidth - 400) < 0.001) s.ExpandedWidth = 420;
+        if (Math.Abs(s.CornerRadius - 28) < 0.001) s.CornerRadius = 33;
+        // LiquidMusic 歌词：更接近参考项目的 16~21px 字号与行距
+        if (Math.Abs(s.LyricFontSize - 13) < 0.001) s.LyricFontSize = 16;
+        if (Math.Abs(s.LyricCurrentFontSize - 20) < 0.001) s.LyricCurrentFontSize = 21;
+        if (Math.Abs(s.LyricLineSpacing - 1.0) < 0.001) s.LyricLineSpacing = 1.05;
+
+        s.Version = 3;
+        return true;
+    }
+
     /// <summary>判定组件是否仍是 3.1.2 及以前的默认组合（用于安全迁移）。</summary>
     private static bool LooksLikeLegacyComponentDefaults(ComponentFlags c) =>
         c.TimeWhenIdle && !c.TimeWhenPlaying
@@ -498,9 +522,12 @@ public sealed class SettingsService
                     loaded.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
                     loaded.NormalizeNonFiniteValues();
                     // 3.1.2beta3：默认组件精简 + 轻量化（仅 v1 旧配置迁移一次）
-                    if (AppSettings.ApplyLeanDefaultsV2(loaded))
+                    var migrated = AppSettings.ApplyLeanDefaultsV2(loaded);
+                    // 3.1.2beta5：切换到岛仔（Daozai）视觉皮肤（仅旧默认外观迁移一次）
+                    migrated |= AppSettings.ApplyDaozaiDefaultsV3(loaded);
+                    if (migrated)
                     {
-                        AppLogger.Info("Settings migrated to v2: lean components + lightweight defaults");
+                        AppLogger.Info("Settings migrated: lean components + Daozai visual skin");
                         TryPersistMigrated(loaded);
                     }
                     return loaded;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -495,6 +495,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.PreviewMouseMove += OnCardMouseMove;
         Card.PreviewMouseLeftButtonUp += OnCardMouseLeftButtonUp;
         InitializeEdgeResize(); // 边缘拖拽缩放（拖住左右/下边缘调整尺寸）
+        // LiquidMusic 歌词：手动滚动时也实时更新逐行焦点缩放/透明度
+        LyricsScroll.ScrollChanged += (_, _) => ApplyLyricsFocusStyles(_lyricsActiveIndex);
         Card.PreviewMouseUp += OnCardMiddleMouseUp;   // 中键快捷操作
 
         // 进度条拖拽 seek
@@ -694,6 +696,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public Brush ButtonHoverBrush => _theme.ButtonHoverBrush;
     public Brush SliderTrackBrush => _theme.SliderTrackBrush;
     public Brush SliderThumbBrush => _theme.SliderThumbBrush;
+
+    // ── 岛仔（Daozai）皮肤 passthrough（颜色/按钮/页码豆均取自参考项目 theme.rs）──
+    public bool IsDaozai => _theme.IsDaozai;
+    public bool IsLiquidGlass => _theme.IsLiquidGlass;
+    public Brush DaozaiSurfaceBrush => _theme.DaozaiSurfaceBrush;
+    public Brush DaozaiButtonBrush => _theme.DaozaiButtonBrush;
+    public Brush DaozaiButtonHoverBrush => _theme.DaozaiButtonHoverBrush;
+    public Brush DaozaiDotBrush => _theme.DaozaiDotBrush;
+    public Brush DaozaiGreenBrush => _theme.DaozaiGreenBrush;
+    public Brush DaozaiRedBrush => _theme.DaozaiRedBrush;
+    public Brush DaozaiBlueBrush => _theme.DaozaiBlueBrush;
+    public Brush DaozaiPurpleBrush => _theme.DaozaiPurpleBrush;
 
     // Lyric style passthrough (1.2.3): adjustable lyric font size, current-line size,
     // line spacing, karaoke speed and highlight/base colors.
@@ -1334,6 +1348,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ApplyGlassLayer()
     {
         if (GlassLayer is null) return;
+        if (_theme.IsLiquidGlass)
+        {
+            // LiquidMusic 内描边高光：顶部 10% 白色高光 -> 透明，增强玻璃层次
+            var sheen = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(0, 1),
+            };
+            sheen.GradientStops.Add(new GradientStop(System.Windows.Media.Color.FromArgb(26, 255, 255, 255), 0));
+            sheen.GradientStops.Add(new GradientStop(Colors.Transparent, 0.55));
+            sheen.Freeze();
+            GlassLayer.Background = sheen;
+            GlassLayer.Opacity = 1;
+            return;
+        }
+        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; } // 岛仔经典黑是实色，无玻璃叠加
         var b = new SolidColorBrush(_theme.TintColor);
         b.Freeze();
         GlassLayer.Background = b;
@@ -1344,6 +1374,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void AnimateGlass(bool expanded)
     {
         if (GlassLayer is null) return;
+        if (_theme.IsLiquidGlass) { GlassLayer.Opacity = 1; return; } // 液态玻璃高光常驻
+        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; } // 岛仔皮肤不使用玻璃层
         var tintActive = expanded && _settings.Current.CoverTintBackground && _vm.Artwork != null;
         var target = tintActive ? 0 : (expanded ? GlassTargetOpacity : 0);
         _glassAnimSb?.Stop();
@@ -1428,6 +1460,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ButtonHoverBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SliderTrackBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SliderThumbBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDaozai)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLiquidGlass)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiSurfaceBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiButtonBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiButtonHoverBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiDotBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiGreenBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiRedBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiBlueBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiPurpleBrush)));
         RaisePushThemeProps();
         ApplyAppearance();
         RefreshWave();
@@ -1597,7 +1639,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             var w = Math.Max(1, Card.ActualWidth);
             var h = Math.Max(1, Card.ActualHeight);
-            var r = ComputeCardRuntimeRadius(h, _settings.Current.CornerRadius);
+            var r = ComputeRuntimeRadius(h);
             if (Math.Abs(_cardClip.Rect.Width - w) < 0.5
                 && Math.Abs(_cardClip.Rect.Height - h) < 0.5
                 && Math.Abs(_cardClip.RadiusX - r) < 0.5)
@@ -1621,7 +1663,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         try { System.Windows.Documents.TextElement.SetFontFamily(Card, new System.Windows.Media.FontFamily(_settings.Current.FontFamily)); } catch { /* 非法字体名忽略 */ }
         var hh = Card.ActualHeight > 4 ? Card.ActualHeight : (double.IsFinite(CompactHeight) ? CompactHeight : 56);
-        var rounded = new CornerRadius(ComputeCardRuntimeRadius(hh, _settings.Current.CornerRadius));
+        var rounded = new CornerRadius(ComputeRuntimeRadius(hh));
         Card.CornerRadius = rounded;
         // 同步圆角裁剪几何：设置变化即刻生效，防止旧几何残留导致方角
         if (_cardClip is not null)
@@ -1633,6 +1675,23 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
         // 字体缩放 = 1 时清空 LayoutTransform（走普通布局路径，动画期间布局更轻、更快）；
         // 只有用户设置缩放时才使用 ScaleTransform，避免无谓的变换开销。
+        Card.BorderThickness = _theme.IsDaozai && !_theme.IsLiquidGlass ? new Thickness(0) : new Thickness(1);
+        // LiquidMusic 程序坞配方：0 8px 30px rgba(0,0,0,.28) 柔和投影 + 半透明玻璃底 + 1px 内高光
+        if (_theme.IsLiquidGlass)
+        {
+            Card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 34,
+                ShadowDepth = 10,
+                Direction = 270,
+                Opacity = 0.45,
+                Color = Colors.Black,
+            };
+        }
+        else if (Card.Effect is System.Windows.Media.Effects.DropShadowEffect)
+        {
+            Card.Effect = null;
+        }
         Card.LayoutTransform = Math.Abs(FontScale - 1.0) < 0.001 ? null : new ScaleTransform(FontScale, FontScale);
         UpdateLyricLineStyle();
         ApplySize();
@@ -2241,6 +2300,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         try
         {
+            if (_theme.IsDaozai) { ClearCoverTint(); SubscribeTintRendering(false); return; } // 岛仔经典黑不随封面取色
             var src = _vm.Artwork;
             if (src is null || !_settings.Current.CoverTintBackground || !IsVisible || !_vm.IsExpanded)
             {
@@ -2726,6 +2786,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// iOS 液态形变圆角（2.0.7）：紧凑胶囊 = 高度/2（完整药丸），展开卡片 = 用户设置半径（封顶）。
     /// 纯函数，便于单元测试。
     /// </summary>
+    /// <summary>岛仔皮肤：胶囊/展开都用参考项目的圆角规则（圆角=min(高/2,33)）。</summary>
+    private double ComputeRuntimeRadius(double height)
+    {
+        if (!_theme.IsDaozai) return ComputeCardRuntimeRadius(height, _settings.Current.CornerRadius);
+        var h = double.IsFinite(height) ? Math.Max(4.0, height) : 4.0;
+        // 岛仔黑：33px 大圆角；岛仔液态玻璃：LiquidMusic 程序坞 16px 圆角
+        return _theme.IsLiquidGlass ? Math.Min(h / 2.0, 16.0) : Math.Min(h / 2.0, 33.0);
+    }
+
     internal static double ComputeCardRuntimeRadius(double height, double settingRadius)
     {
         var s = Math.Clamp(settingRadius, 16.0, 40.0);           // 与设置面板一致：16~40
@@ -2797,7 +2866,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         // iOS 分层弹簧（2.0.7）：圆角弹簧比尺寸快约 18%——"形状先导、尺寸跟随"，形变观感更接近 iOS 灵动岛液态形变；
         // 透明度：展开内容稍快浮现、收起内容先淡出再收拢（与尺寸共用帧循环，文字不额外弹出）。
-        var radiusTo = ComputeCardRuntimeRadius(height, _settings.Current.CornerRadius);
+        var radiusTo = ComputeRuntimeRadius(height);
         var radiusFrom = _cardClip?.RadiusX ?? radiusTo;
 
         if (wasAnimating && _cardWSpring!.IsActive && _cardHSpring!.IsActive)
@@ -2908,7 +2977,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var resp2 = CrossFadeCurves.CompactShapeResponseSec * durScale2 * lm2;
             if (_cardWSpring?.IsActive == true) { _cardWSpring.Configure(0.96, resp2); _cardWSpring.Retarget(targetWidth); }
             if (_cardHSpring?.IsActive == true) { _cardHSpring.Configure(0.96, resp2); _cardHSpring.Retarget(targetHeight); }
-            if (_cardRSpring?.IsActive == true) { _cardRSpring.Configure(0.97, resp2 * 0.85); _cardRSpring.Retarget(ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius)); }
+            if (_cardRSpring?.IsActive == true) { _cardRSpring.Configure(0.97, resp2 * 0.85); _cardRSpring.Retarget(ComputeRuntimeRadius(targetHeight)); }
             _cardTargetW = targetWidth;
             _cardTargetH = targetHeight;
             return;
@@ -2935,7 +3004,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardHSpring.Start(ResolveAnimationFrom(Card.ActualHeight, Card.Height, targetHeight), targetHeight);
         // 圆角随紧凑尺寸同步形变：紧凑态保持药丸形（高/2），收尾圆润不生硬
         _cardRSpring!.Configure(0.97, response * 0.85);
-        _cardRSpring.Start(ResolveAnimationFrom(_cardClip?.RadiusX ?? 0, 0, ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius)), ComputeCardRuntimeRadius(targetHeight, _settings.Current.CornerRadius));
+        _cardRSpring.Start(ResolveAnimationFrom(_cardClip?.RadiusX ?? 0, 0, ComputeRuntimeRadius(targetHeight)), ComputeRuntimeRadius(targetHeight));
     }
 
     // ── iOS 真弹簧物理：窗口位置 / 推送卡片 ─────────────────────────
@@ -3246,8 +3315,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // ── 歌词自动滚动 ──────────────────────────────────────────
 
     private bool _lyricsScrollQueued;
-    private IOSSpring? _lyricsScrollSpring;   // 歌词滚动弹簧：临界阻尼，重定向保持速度连续（2.0.6）
-    private double _lyricsScrollTarget;
+    // ── LiquidMusic 歌词滚动移植：ease-out cubic tween（180~520ms）──
+    private DispatcherTimer? _lyricsTweenTimer;
+    private double _lyricsTweenFrom;
+    private double _lyricsTweenTo;
+    private long _lyricsTweenStartMs;
+    private double _lyricsTweenDurationMs = 380;
+    private int _lyricsActiveIndex = -1;
     /// <summary>上次实际写入 ScrollViewer 的偏移（NaN = 尚未写入）；帧回调与 Settled 落位共用（2.3.3）。</summary>
     private double _lyricsScrollLastWritten = double.NaN;
     /// <summary>滚动写入去重阈值（DIP）：亚像素变化不写，减少 ScrollViewer 布局开销（2.3.3）。</summary>
@@ -3255,6 +3329,33 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     /// <summary>计算歌词行居中的目标滚动偏移（纯函数，可测）：视口相对坐标 + 当前偏移 = 内容坐标，
     /// 再减去半个视口、加上半个行高使当前句居中；双向钳制到 [0, maxOffset]，非法输入兜底 0。</summary>
+    /// <summary>LiquidMusic：滚动时长 = clamp(|delta|*1.6, 180, 520) 毫秒。</summary>
+    internal static double LyricsTweenDuration(double delta)
+        => Math.Clamp(Math.Abs(double.IsFinite(delta) ? delta : 0.0) * 1.6, 180.0, 520.0);
+
+    /// <summary>LiquidMusic：ease-out cubic，e = 1 - (1-p)^3。</summary>
+    internal static double LyricsTweenEase(double p)
+    {
+        var t = double.IsFinite(p) ? Math.Clamp(p, 0.0, 1.0) : 1.0;
+        return 1.0 - Math.Pow(1.0 - t, 3.0);
+    }
+
+    /// <summary>LiquidMusic：距离中心越远越小，下限 0.78；历史行不超过 0.86。</summary>
+    internal static double LyricsFocusScale(double distance, bool past)
+    {
+        var d = double.IsFinite(distance) ? Math.Max(0.0, distance) : 0.0;
+        var scale = Math.Max(0.78, 1.0 - d * 0.24);
+        return past ? Math.Min(scale, 0.86) : scale;
+    }
+
+    /// <summary>LiquidMusic：距离中心越远越淡，下限 0.24；历史行再乘 0.3。</summary>
+    internal static double LyricsFocusOpacity(double distance, bool past)
+    {
+        var d = double.IsFinite(distance) ? Math.Max(0.0, distance) : 0.0;
+        var opacity = Math.Max(0.24, 1.0 - d * 0.8);
+        return past ? opacity * 0.3 : opacity;
+    }
+
     internal static double ComputeLyricsScrollTarget(double offset, double relY, double viewportH, double lineH, double maxOffset)
     {
         if (!double.IsFinite(offset) || !double.IsFinite(relY) || !double.IsFinite(viewportH) ||
@@ -3290,72 +3391,115 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ScrollLyricsTo(int index)
     {
         if (LyricsList.Items.Count == 0) return;
-        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { StopLyricsScroll(); return; } // 仅在展开且可见时滚动，避免空转
+        if (!_vm.IsExpanded || !IsVisible || !IsLoaded) { StopLyricsScroll(); return; }
         index = Math.Clamp(index, 0, LyricsList.Items.Count - 1);
+        _lyricsActiveIndex = index;
         var container = LyricsList.ItemContainerGenerator.ContainerFromIndex(index) as FrameworkElement;
         if (container is null) return;
 
         var viewer = LyricsScroll;
         var relY = container.TransformToAncestor(viewer).Transform(new Point(0, 0)).Y;
-        // 2.3.3：纯函数计算目标偏移并双向钳制到 [0, ScrollableHeight]——
-        // 旧实现只有下界，最后一句会请求超出滚动范围的位置，歌词无法精确落位。
         var target = ComputeLyricsScrollTarget(
             viewer.VerticalOffset, relY, viewer.ViewportHeight, container.ActualHeight,
             Math.Max(0, viewer.ScrollableHeight));
 
-        // 目标与当前十分接近：直接落位，不再启动画（避免高频切句时抖动）
-        if (Math.Abs(target - viewer.VerticalOffset) < 0.5)
+        var from = viewer.VerticalOffset;
+        var delta = target - from;
+        // LiquidMusic：距离小于 2px 直接落位；否则 ease-out cubic，时长 = clamp(|delta|*1.6, 180, 520)
+        if (Math.Abs(delta) < 2)
+        {
+            StopLyricsScroll();
+            viewer.ScrollToVerticalOffset(target);
+            _lyricsScrollLastWritten = target;
+            ApplyLyricsFocusStyles(index);
+            return;
+        }
+
+        StartLyricsTween(from, target, LyricsTweenDuration(delta));
+    }
+
+    private void StartLyricsTween(double from, double to, double durationMs)
+    {
+        _lyricsTweenFrom = from;
+        _lyricsTweenTo = to;
+        _lyricsTweenStartMs = Environment.TickCount64;
+        _lyricsTweenDurationMs = Math.Max(1, durationMs);
+        if (_lyricsTweenTimer is null)
+        {
+            _lyricsTweenTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _lyricsTweenTimer.Tick += OnLyricsTweenTick;
+        }
+        if (!_lyricsTweenTimer.IsEnabled) _lyricsTweenTimer.Start();
+    }
+
+    private void OnLyricsTweenTick(object? sender, EventArgs e)
+    {
+        if (LyricsScroll is null || LyricsList.Items.Count == 0 || !_vm.IsExpanded || !IsVisible || !IsLoaded)
         {
             StopLyricsScroll();
             return;
         }
-        _lyricsScrollTarget = target;
-        EnsureLyricsScrollSpring();
-        if (_lyricsScrollSpring!.IsActive)
+        var p = Math.Min(1.0, (Environment.TickCount64 - _lyricsTweenStartMs) / _lyricsTweenDurationMs);
+        var eased = LyricsTweenEase(p);
+        var v = _lyricsTweenFrom + (_lyricsTweenTo - _lyricsTweenFrom) * eased;
+        if (ShouldWriteScrollOffset(v, _lyricsScrollLastWritten))
         {
-            // 快速连续切句：以当前速度重定向到新目标，滚动连续不"一动一停"
-            _lyricsScrollSpring.Retarget(target);
-        }
-        else
-        {
-            var durScale = _animDurScale;
-            _lyricsScrollSpring.Configure(1.0, 0.34 * durScale); // 临界阻尼：无回弹、丝滑到位
-            _lyricsScrollSpring.Start(viewer.VerticalOffset, target);
-        }
-    }
-
-    private void EnsureLyricsScrollSpring()
-    {
-        if (_lyricsScrollSpring is not null) return;
-        _lyricsScrollSpring = new IOSSpring();
-        _lyricsScrollSpring.SetCallbacks(v =>
-        {
-            if (LyricsScroll is null || LyricsList.Items.Count == 0 || !_vm.IsExpanded || !IsVisible || !IsLoaded)
-            {
-                StopLyricsScroll();
-                return;
-            }
-            // 2.3.3：亚像素去重——收敛尾部的微小变化不再触发 ScrollViewer 布局写；
-            // 最终精确落位由 OnLyricsScrollSettled 完成，视觉不受影响。
-            if (!ShouldWriteScrollOffset(v, _lyricsScrollLastWritten)) return;
             _lyricsScrollLastWritten = v;
             LyricsScroll.ScrollToVerticalOffset(v);
-        }, OnLyricsScrollSettled);
+        }
+        ApplyLyricsFocusStyles(_lyricsActiveIndex);
+        if (p >= 1.0)
+        {
+            StopLyricsScroll();
+            LyricsScroll.ScrollToVerticalOffset(_lyricsTweenTo);
+            _lyricsScrollLastWritten = _lyricsTweenTo;
+            ApplyLyricsFocusStyles(_lyricsActiveIndex);
+        }
     }
 
-    /// <summary>歌词滚动弹簧收敛后：精确落位到目标偏移，不留亚像素偏差。</summary>
-    private void OnLyricsScrollSettled()
+    /// <summary>
+    /// LiquidMusic 同款逐行聚焦：距离视口中心越远越小越淡；已唱过的行再压暗。
+    /// scale = max(0.78, 1-dist*0.24)，opacity = max(0.24, 1-dist*0.8)，历史行 opacity*0.3。
+    /// </summary>
+    private void ApplyLyricsFocusStyles(int activeIndex)
     {
-        if (_lyricsScrollSpring?.IsActive == true) return;
-        if (!IsLoaded || !IsVisible || !_vm.IsExpanded || LyricsScroll is null || LyricsList.Items.Count == 0) return;
-        _lyricsScrollLastWritten = _lyricsScrollTarget;            // 记录最终落位，避免后续去重误判
-        LyricsScroll.ScrollToVerticalOffset(_lyricsScrollTarget);
+        if (LyricsScroll is null || LyricsList.Items.Count == 0) return;
+        var viewer = LyricsScroll;
+        var viewportH = viewer.ViewportHeight;
+        if (!double.IsFinite(viewportH) || viewportH <= 0) return;
+        for (var i = 0; i < LyricsList.Items.Count; i++)
+        {
+            if (LyricsList.ItemContainerGenerator.ContainerFromIndex(i) is not FrameworkElement el) continue;
+            try
+            {
+                var relY = el.TransformToAncestor(viewer).Transform(new Point(0, 0)).Y;
+                var h = Math.Max(30.0, el.ActualHeight);
+                var mid = relY + h / 2.0;
+                var dist = Math.Abs(mid - viewportH * 0.5) / (viewportH * 0.66);
+                var past = activeIndex >= 0 && i < activeIndex;
+                var scale = LyricsFocusScale(dist, past);
+                var opacity = LyricsFocusOpacity(dist, past);
+                // 文本自身有 LyricEmphasis.OpacityBase 基础透明度，容器按比例补偿，避免叠乘过暗
+                el.Opacity = Math.Clamp(opacity / LyricEmphasis.OpacityBase, 0.0, 1.0);
+                el.RenderTransformOrigin = new Point(0.5, 0.5);
+                if (el.RenderTransform is ScaleTransform st)
+                {
+                    st.ScaleX = scale;
+                    st.ScaleY = scale;
+                }
+                else
+                {
+                    el.RenderTransform = new ScaleTransform(scale, scale);
+                }
+            }
+            catch { /* 容器尚未完成布局时忽略 */ }
+        }
     }
 
     /// <summary>停止歌词滚动（收起/隐藏/列表变化时）。</summary>
     private void StopLyricsScroll()
     {
-        _lyricsScrollSpring?.Stop();
+        _lyricsTweenTimer?.Stop();
     }
 
 

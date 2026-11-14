@@ -124,7 +124,8 @@
         </Style>
         <Style x:Key="LyricLineBorder" TargetType="Border">
             <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="Padding" Value="24,8"/>
+            <Setter Property="MinHeight" Value="48"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
     </ResourceDictionary>
@@ -219,10 +220,21 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.Resources>
                             <DataTemplate x:Key="TimeItem">
-                                <TextBlock Text="{Binding DataContext.ClockText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                           FontSize="{Binding DataContext.WidgetTimeFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                           FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"
-                                           Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <!-- 岛仔同款：细描边圆环 + 粗体时间 -->
+                                    <Border Width="18" Height="18" CornerRadius="9" Margin="0,0,6,0" VerticalAlignment="Center"
+                                            BorderBrush="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"
+                                            BorderThickness="1.5"
+                                            Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding DataContext.ClockText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                               FontSize="{Binding DataContext.WidgetTimeFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                               FontWeight="Bold" VerticalAlignment="Center"
+                                               Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
+                                </StackPanel>
                             </DataTemplate>
                             <DataTemplate x:Key="WeatherItem">
                                 <TextBlock Text="{Binding DataContext.WeatherText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -839,6 +851,33 @@
                         </TransformGroup>
                     </ScrollViewer.RenderTransform>
                     <StackPanel>
+                    <!-- 岛仔顶栏：页标题 + 日期/时钟 + 设置齿轮 -->
+                    <Grid x:Name="DaozaiHeader" Margin="0,0,0,10"
+                          Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="WINISLANDS" FontSize="14.5" FontWeight="Bold" VerticalAlignment="Center"
+                                   Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border Width="18" Height="18" CornerRadius="9" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    BorderBrush="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"
+                                    BorderThickness="1.5">
+                                <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"/>
+                            </Border>
+                            <TextBlock Text="{Binding DateText}" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#8E8E99}"/>
+                            <TextBlock Text="{Binding ClockText}" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"
+                                       Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" ToolTip="设置">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                        </Button>
+                    </Grid>
                     <!-- 上岛推送详情（第三方软件推送，展开时优先级最高，置于顶部） -->
                     <Border x:Name="ExpandedPushCard" Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}"
                             CornerRadius="14"
@@ -1116,6 +1155,15 @@
                     <ScrollViewer x:Name="LyricsScroll" Height="180" Margin="0,8,0,0"
                                   VerticalScrollBarVisibility="Hidden"
                                   Visibility="{Binding ExpandedShowLyrics, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <!-- LiquidMusic 歌词滚动同款：上下边缘渐隐，中心对齐当前句 -->
+                        <ScrollViewer.OpacityMask>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#00000000" Offset="0"/>
+                                <GradientStop Color="#FF000000" Offset="0.14"/>
+                                <GradientStop Color="#FF000000" Offset="0.86"/>
+                                <GradientStop Color="#00000000" Offset="1"/>
+                            </LinearGradientBrush>
+                        </ScrollViewer.OpacityMask>
                         <ItemsControl x:Name="LyricsList" ItemsSource="{Binding LyricLines}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -1231,6 +1279,20 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
+                    <!-- 岛仔页码豆（纯视觉语言，与参考项目一致） -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,2"
+                                Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <Border Width="16" Height="4" CornerRadius="2" Margin="2,0"
+                                Background="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
+                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
+                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
+                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
+                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
+                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
+                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
+                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
+                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
+                    </StackPanel>
                     </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

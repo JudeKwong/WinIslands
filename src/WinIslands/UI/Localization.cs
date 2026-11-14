@@ -292,6 +292,8 @@ public static class Localization
 
         ["Appearance_ThemePreset"] = "主题预设",
         ["Appearance_PresetDefault"] = "默认",
+["Appearance_PresetDaozai"] = "岛仔黑（Daozai）",
+["Appearance_PresetDaozaiLiquid"] = "岛仔液态玻璃（Daozai Liquid）",
         ["Appearance_PresetOcean"] = "海洋",
         ["Appearance_PresetForest"] = "森林",
         ["Appearance_PresetSunset"] = "日落",
@@ -812,6 +814,8 @@ public static class Localization
 
         ["Appearance_ThemePreset"] = "Theme preset",
         ["Appearance_PresetDefault"] = "Default",
+["Appearance_PresetDaozai"] = "Daozai Black",
+["Appearance_PresetDaozaiLiquid"] = "Daozai Liquid Glass",
         ["Appearance_PresetOcean"] = "Ocean",
         ["Appearance_PresetForest"] = "Forest",
         ["Appearance_PresetSunset"] = "Sunset",

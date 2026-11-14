@@ -35,6 +35,19 @@ public sealed class ThemeService
     public Color TintColor { get; private set; } = Color.FromRgb(0x1E, 0x1E, 0x2E);
     public double Opacity { get; private set; } = 0.92;
 
+    // ── 岛仔（Daozai）皮肤专用色板：取自参考项目 theme.rs 的逐像素取色 ──
+    public bool IsDaozai { get; private set; }
+    public bool IsLiquidGlass { get; private set; }
+    public Brush DaozaiSurfaceBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x18));
+    public Brush DaozaiButtonBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x28, 0x28, 0x2B));
+    public Brush DaozaiButtonHoverBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x38, 0x38, 0x3C));
+    public Brush DaozaiDotBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x60));
+    public Brush DaozaiGreenBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x30, 0xD1, 0x58));
+    public Brush DaozaiRedBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0xFD, 0x68, 0x5C));
+    public Brush DaozaiBlueBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x3E, 0xAC, 0xF8));
+    public Brush DaozaiPurpleBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x79, 0x55, 0xB8));
+    public Brush DaozaiCardBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x18));
+
     public event EventHandler? ThemeChanged;
 
     /// <summary>皮肤预设表：强调色 + 深/浅两种液态玻璃底色（Hex）。</summary>
@@ -121,11 +134,14 @@ public sealed class ThemeService
     public void Apply(AppSettings settings)
     {
         _settings = settings;
+        IsLiquidGlass = string.Equals(settings.ThemePreset, "DaozaiLiquid", StringComparison.OrdinalIgnoreCase);
+        IsDaozai = IsLiquidGlass || string.Equals(settings.ThemePreset, "Daozai", StringComparison.OrdinalIgnoreCase);
         var dark = settings.Theme switch
         {
             ThemeMode.Light => false,
             ThemeMode.Dark => true,
-            _ => OverrideDark ?? ThemeHelper.IsSystemDark(),
+            // 岛仔默认是纯黑刘海/胶囊，Auto 时固定深色；用户显式选浅色才切浅色
+            _ => IsDaozai ? true : (OverrideDark ?? ThemeHelper.IsSystemDark()),
         };
         IsDark = dark;
         Opacity = Math.Clamp(settings.Opacity, 0.3, 1.0);
@@ -148,6 +164,13 @@ public sealed class ThemeService
             tintResolved = !string.IsNullOrWhiteSpace(settings.ThemeTint);
         }
         // Default（或未知预设）：强调色保持用户自定义，背景色用下面的明暗默认值
+        if (IsDaozai)
+        {
+            AccentColor = Color.FromRgb(0x79, 0x55, 0xB8);
+            TintColor = dark ? Colors.Black : Color.FromRgb(0xF2, 0xF2, 0xF7);
+            tintResolved = true;
+        }
+
         // 壁纸取色（可选）：开启后壁纸主色覆盖强调色（含皮肤预设），失败则保持原色
         if (settings.WallpaperThemeColorEnabled)
         {
@@ -157,23 +180,52 @@ public sealed class ThemeService
 
         if (dark)
         {
-            if (!tintResolved) TintColor = Color.FromRgb(0x2C, 0x2C, 0x2E);
-            TextPrimary = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF7));
-            TextSecondary = new SolidColorBrush(Color.FromArgb(180, 0xD1, 0xD1, 0xD6));
-            CardBorder = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            ButtonHoverBrush = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255));
-            SliderTrackBrush = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255));
-            SliderThumbBrush = new SolidColorBrush(Color.FromArgb(235, 255, 255, 255));
+            if (IsDaozai)
+            {
+                // 岛仔经典黑：纯黑岛体 + 白/灰双层级文字 + 深灰按钮
+                TextPrimary = new SolidColorBrush(Colors.White);
+                TextSecondary = new SolidColorBrush(Color.FromRgb(0x8E, 0x8E, 0x99));
+                // 液态玻璃版：内描边高光 1px rgba(255,255,255,.10)
+                CardBorder = IsLiquidGlass
+                    ? new SolidColorBrush(Color.FromArgb(41, 255, 255, 255))
+                    : new SolidColorBrush(Colors.Transparent);
+                ButtonHoverBrush = new SolidColorBrush(Color.FromRgb(0x38, 0x38, 0x3C));
+                SliderTrackBrush = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x27));
+                SliderThumbBrush = new SolidColorBrush(Colors.White);
+            }
+            else
+            {
+                if (!tintResolved) TintColor = Color.FromRgb(0x2C, 0x2C, 0x2E);
+                TextPrimary = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF7));
+                TextSecondary = new SolidColorBrush(Color.FromArgb(180, 0xD1, 0xD1, 0xD6));
+                CardBorder = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+                ButtonHoverBrush = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255));
+                SliderTrackBrush = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255));
+                SliderThumbBrush = new SolidColorBrush(Color.FromArgb(235, 255, 255, 255));
+            }
         }
         else
         {
-            if (!tintResolved) TintColor = Color.FromRgb(0xF2, 0xF2, 0xF6);
-            TextPrimary = new SolidColorBrush(Color.FromArgb(230, 25, 25, 32));
-            TextSecondary = new SolidColorBrush(Color.FromArgb(150, 25, 25, 32));
-            CardBorder = new SolidColorBrush(Color.FromArgb(70, 255, 255, 255));
-            ButtonHoverBrush = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
-            SliderTrackBrush = new SolidColorBrush(Color.FromArgb(110, 0, 0, 0));
-            SliderThumbBrush = new SolidColorBrush(Color.FromArgb(230, 25, 25, 32));
+            if (IsDaozai)
+            {
+                // 岛仔浅色：接近 iOS 浅灰卡片 + 深色文字
+                TextPrimary = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1E));
+                TextSecondary = new SolidColorBrush(Color.FromRgb(0x6C, 0x6C, 0x70));
+                CardBorder = new SolidColorBrush(Color.FromRgb(0xE5, 0xE5, 0xEA));
+                ButtonHoverBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE5, 0xEA));
+                SliderTrackBrush = new SolidColorBrush(Color.FromRgb(0xD1, 0xD1, 0xD6));
+                SliderThumbBrush = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1E));
+            }
+            else
+            {
+                if (!tintResolved) TintColor = Color.FromRgb(0xF2, 0xF2, 0xF6);
+                TextPrimary = new SolidColorBrush(Color.FromArgb(230, 25, 25, 32));
+                TextSecondary = new SolidColorBrush(Color.FromArgb(150, 25, 25, 32));
+                CardBorder = new SolidColorBrush(Color.FromArgb(70, 255, 255, 255));
+                ButtonHoverBrush = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
+                SliderTrackBrush = new SolidColorBrush(Color.FromArgb(110, 0, 0, 0));
+                SliderThumbBrush = new SolidColorBrush(Color.FromArgb(230, 25, 25, 32));
+            }
         }
 
         var accent = Color.FromArgb((byte)(dark ? 255 : 235), AccentColor.R, AccentColor.G, AccentColor.B);
@@ -182,8 +234,17 @@ public sealed class ThemeService
 
         // iOS 风格液态玻璃胶囊：紧凑态更通透（88%），展开态由 GlassLayer 叠加变实（≈97%）
         // 用户 Opacity 设置（0.3~1.0）整体缩放基础透明度，深色取色仍来自 TintColor
-        var compactAlpha = (byte)Math.Round(224 * Opacity);
-        CardBackground = new SolidColorBrush(Color.FromArgb(compactAlpha, TintColor.R, TintColor.G, TintColor.B));
+        if (IsLiquidGlass)
+        {
+            // LiquidMusic 程序坞配方：rgba(18,18,20,.36) + 内描边高光 + 柔和投影（投影在 IslandWindow 应用）
+            var a = (byte)Math.Round(184 * Opacity);
+            CardBackground = new SolidColorBrush(Color.FromArgb(a, 0x1C, 0x1C, 0x20));
+        }
+        else
+        {
+            var compactAlpha = IsDaozai ? (byte)Math.Round(255 * Opacity) : (byte)Math.Round(224 * Opacity);
+            CardBackground = new SolidColorBrush(Color.FromArgb(compactAlpha, TintColor.R, TintColor.G, TintColor.B));
+        }
 
         FreezeAll();
         ThemeChanged?.Invoke(this, EventArgs.Empty);
@@ -191,7 +252,7 @@ public sealed class ThemeService
 
     private void FreezeAll()
     {
-        foreach (var b in new[] { CardBackground, CardBorder, TextPrimary, TextSecondary, AccentBrush, AccentBorderBrush, ButtonHoverBrush, SliderTrackBrush, SliderThumbBrush })
+        foreach (var b in new[] { CardBackground, CardBorder, TextPrimary, TextSecondary, AccentBrush, AccentBorderBrush, ButtonHoverBrush, SliderTrackBrush, SliderThumbBrush, DaozaiSurfaceBrush, DaozaiButtonBrush, DaozaiButtonHoverBrush, DaozaiDotBrush, DaozaiGreenBrush, DaozaiRedBrush, DaozaiBlueBrush, DaozaiPurpleBrush, DaozaiCardBrush })
             b.Freeze();
     }
 }
