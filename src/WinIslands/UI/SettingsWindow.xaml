@@ -94,6 +94,31 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SwitchCheckBox" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="38" Height="22" Background="Transparent">
+                            <Border x:Name="Track" CornerRadius="11" Background="{DynamicResource ControlBorderBrush}"/>
+                            <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="White" HorizontalAlignment="Left" Margin="3,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#30D158"/>
+                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -418,6 +443,12 @@
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A9;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="24" VerticalAlignment="Center" Opacity="0.9"/>
+                            <TextBlock x:Name="NavPages" Text="页面管理" FontSize="12.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="24" VerticalAlignment="Center" Opacity="0.9"/>
                             <TextBlock x:Name="NavMedia" Text="媒体" FontSize="12.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -727,12 +758,12 @@
                             </StackPanel>
                             <TextBlock x:Name="LblExpandedWidth" Style="{StaticResource Label}"/>
                             <StackPanel Orientation="Horizontal">
-                                <Slider Minimum="340" Maximum="620" Value="{Binding Working.ExpandedWidth}" Width="230" IsSnapToTickEnabled="True" TickFrequency="2" Tag="ExpandedWidth" ValueChanged="SizeSlider_ValueChanged"/>
+                                <Slider Minimum="340" Maximum="820" Value="{Binding Working.ExpandedWidth}" Width="230" IsSnapToTickEnabled="True" TickFrequency="2" Tag="ExpandedWidth" ValueChanged="SizeSlider_ValueChanged"/>
                                 <CheckBox x:Name="ChkExpandedWidthAuto" IsChecked="{Binding Working.ExpandedWidthAuto}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </StackPanel>
                             <TextBlock x:Name="LblExpandedHeight" Style="{StaticResource Label}"/>
                             <StackPanel Orientation="Horizontal">
-                                <Slider Minimum="240" Maximum="620" Value="{Binding Working.MaxExpandedHeight}" Width="230" IsSnapToTickEnabled="True" TickFrequency="2" Tag="ExpandedHeight" ValueChanged="SizeSlider_ValueChanged"/>
+                                <Slider Minimum="240" Maximum="820" Value="{Binding Working.MaxExpandedHeight}" Width="230" IsSnapToTickEnabled="True" TickFrequency="2" Tag="ExpandedHeight" ValueChanged="SizeSlider_ValueChanged"/>
                                 <CheckBox x:Name="ChkExpandedHeightAuto" IsChecked="{Binding Working.MaxExpandedHeightAuto}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </StackPanel>
 
@@ -774,75 +805,56 @@
                 <TabItem x:Name="TabComponents" Header="组件">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="10,6">
-                            <TextBlock x:Name="LblCompOrder" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="2,2,2,4"/>
-                            <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
-                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="0" Margin="0,0,0,8">
-                                <ScrollViewer x:Name="OrderScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                              Padding="8,6" PreviewMouseWheel="OrderScroll_PreviewMouseWheel">
-                                    <ItemsControl x:Name="OrderStrip" ItemsSource="{Binding OrderItems}"
-                                                  >
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border x:Name="Chip" CornerRadius="9" Padding="16,7" Margin="4" Cursor="Hand"
-                                                        Background="{DynamicResource ControlBgBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                                        PreviewMouseLeftButtonDown="Chip_PreviewMouseLeftButtonDown" PreviewMouseMove="Chip_PreviewMouseMove"
-                                                        PreviewMouseLeftButtonUp="Chip_PreviewMouseLeftButtonUp" LostMouseCapture="Chip_LostMouseCapture">
-                                                    <TextBlock Text="{Binding Name}"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
+                            <TextBlock x:Name="LblCompOrder" Text="选择需要的组件，拖动左侧手柄调整顺序。" FontSize="11.5"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="2,2,2,8"/>
                             <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
                                     BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="4,2">
-                                <StackPanel>
-                                    <Grid Margin="2,6,2,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="76"/>
-                                            <ColumnDefinition Width="104"/>
-                                            <ColumnDefinition Width="104"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="LblCompName" Text="组件" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                        <TextBlock x:Name="LblCompIcon" Grid.Column="1" Text="图标" HorizontalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                        <TextBlock x:Name="LblCompIdle" Grid.Column="2" Text="无歌曲播放时" HorizontalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                        <TextBlock x:Name="LblCompPlaying" Grid.Column="3" Text="有歌曲播放时" HorizontalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    </Grid>
-                                    <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding Components}">
+                                <ItemsControl x:Name="ComponentManageList" ItemsSource="{Binding ComponentManageRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="2,4,2,4">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="76"/>
-                                                    <ColumnDefinition Width="104"/>
-                                                    <ColumnDefinition Width="104"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Icon, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="4" FontSize="11"
-                                                         VerticalAlignment="Center" Margin="2,0" Padding="3,2"
-                                                         IsEnabled="{Binding SupportsIcon}" Visibility="{Binding SupportsIcon, Converter={StaticResource BoolToVis}}"
-                                                         ToolTip="{Binding IconPlaceholder, StringFormat={}默认：{0}}"/>
-                                                <CheckBox Grid.Column="2" IsChecked="{Binding Idle, Mode=TwoWay}" HorizontalAlignment="Center"/>
-                                                <CheckBox Grid.Column="3" IsChecked="{Binding Playing, Mode=TwoWay}" HorizontalAlignment="Center"/>
-                                            </Grid>
+                                            <StackPanel>
+                                                <Grid Margin="4,5">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="24"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="58"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border x:Name="ComponentDragHandle" Width="20" Height="36" Background="Transparent" Cursor="SizeNS"
+                                                            PreviewMouseLeftButtonDown="ComponentRow_DragHandleDown"
+                                                            PreviewMouseMove="ComponentRow_DragHandleMove"
+                                                            PreviewMouseLeftButtonUp="ComponentRow_DragHandleUp"
+                                                            LostMouseCapture="ComponentRow_LostMouseCapture">
+                                                        <TextBlock Text="⋮⋮" FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,8,0">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Description}" FontSize="10.5"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBox Grid.Column="2" Text="{Binding Icon, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             MaxLength="4" FontSize="11" Height="28" VerticalAlignment="Center" Padding="3,2"
+                                                             IsEnabled="{Binding SupportsIcon}" Visibility="{Binding SupportsIcon, Converter={StaticResource BoolToVis}}"
+                                                             ToolTip="{Binding IconPlaceholder, StringFormat={}默认：{0}}"/>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                        <TextBlock Text="空闲" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                        <CheckBox Style="{StaticResource SwitchCheckBox}" IsChecked="{Binding Idle, Mode=TwoWay}" Margin="6,0,0,0"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                        <TextBlock Text="播放" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                        <CheckBox Style="{StaticResource SwitchCheckBox}" IsChecked="{Binding Playing, Mode=TwoWay}" Margin="6,0,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                                <Border Height="1" Background="{DynamicResource ControlBorderBrush}" Margin="28,0,4,0"/>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    </ScrollViewer>
-                                </StackPanel>
+                                </ItemsControl>
                             </Border>
-                            <TextBlock x:Name="TxtCompNote" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            <TextBlock x:Name="TxtCompNote" Text="空闲 = 无歌曲播放时；播放 = 有歌曲播放时。" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="2,8,0,0"/>
 
                             <TextBlock x:Name="LblUsageMergeTitle" Style="{StaticResource Label}" Margin="0,16,0,0"/>
                             <CheckBox x:Name="ChkUsageMerge" IsChecked="{Binding Working.UsageMergeEnabled}"/>
@@ -855,6 +867,51 @@
                             </WrapPanel>
                             <TextBlock x:Name="TxtUsageMergeNote" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="520"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem x:Name="TabPages" Header="页面管理">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="10,6">
+                            <TextBlock Text="选择需要的展开页面，拖动左侧手柄调整顺序。" FontSize="11.5"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="2,2,2,8"/>
+                            <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="4,2">
+                                <ItemsControl x:Name="PageManageList" ItemsSource="{Binding PageManageRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <Grid Margin="4,5">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="24"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border x:Name="PageDragHandle" Width="20" Height="36" Background="Transparent" Cursor="SizeNS"
+                                                            PreviewMouseLeftButtonDown="PageRow_DragHandleDown"
+                                                            PreviewMouseMove="PageRow_DragHandleMove"
+                                                            PreviewMouseLeftButtonUp="PageRow_DragHandleUp"
+                                                            LostMouseCapture="PageRow_LostMouseCapture">
+                                                        <TextBlock Text="⋮⋮" FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,12,0">
+                                                        <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Description}" FontSize="10.5"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <CheckBox Grid.Column="2" Style="{StaticResource SwitchCheckBox}"
+                                                              IsChecked="{Binding Visible, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Border Height="1" Background="{DynamicResource ControlBorderBrush}" Margin="28,0,4,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock Text="至少保留一个页面。" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="2,8,0,0"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

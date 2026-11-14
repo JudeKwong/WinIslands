@@ -82,7 +82,7 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 4;
+    public int Version { get; set; } = 5;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
@@ -202,14 +202,14 @@ public sealed class AppSettings
     // ── Island size ────────────────────────────────────────────
     public double CompactWidth { get; set; } = 360;
     public double CompactHeight { get; set; } = 48;
-    public double ExpandedWidth { get; set; } = 420;
-    public double MaxExpandedHeight { get; set; } = 384;
+    public double ExpandedWidth { get; set; } = 600;
+    public double MaxExpandedHeight { get; set; } = 760;
 
     // 自动调整：按组件内容自适应尺寸（默认开启；手动拖动滑杆会自动关闭对应项）
     public bool CompactWidthAuto { get; set; } = true;
     public bool CompactHeightAuto { get; set; } = true;
     public bool ExpandedWidthAuto { get; set; } = true;
-    public bool MaxExpandedHeightAuto { get; set; } = true;
+    public bool MaxExpandedHeightAuto { get; set; } = false;
 
     // ── 迷你播放器（独立小窗口，始终置顶，随媒体自动显示/隐藏）──
     public bool MiniPlayerEnabled { get; set; } = false;
@@ -226,6 +226,9 @@ public sealed class AppSettings
     // ── 组件（灵动岛显示内容，Idle/Playing 可分别勾选）──
     public ComponentFlags Components { get; set; } = new();
     public string WidgetOrder { get; set; } = "Time,Weather"; // 组件摆放顺序（逗号分隔的键）
+    // 展开后的功能页面：顺序 + 隐藏项（岛仔「页面管理」同款）
+    public List<string> PageOrder { get; set; } = new() { "Music", "Focus", "Todo", "Schedule" };
+    public List<string> HiddenPages { get; set; } = new();
     /// <summary>插件组件显隐（键=插件 ID；缺省时默认显示）。</summary>
     public Dictionary<string, PluginComponentFlags> PluginComponents { get; set; } = new();
 
@@ -234,7 +237,7 @@ public sealed class AppSettings
     // ── Notifications ──────────────────────────────────────────
     public bool BluetoothNotifyEnabled { get; set; } = false;   // 蓝牙设备连接/断开提示
     public bool NetworkNotifyEnabled { get; set; } = true;       // 断网/网络恢复提示
-    public bool NotificationTakeoverEnabled { get; set; } = false; // 接管 Windows 通知（尽力而为）
+    public bool NotificationTakeoverEnabled { get; set; } = true; // 接管 Windows 通知（尽力而为）
     public int NotificationTimeoutSeconds { get; set; } = 6;      // 横幅显示时长
     public string NotificationPosition { get; set; } = "TopRight"; // TopRight = 右上角
     public bool NotifyFoldEnabled { get; set; } = true;           // 通知折叠：同来源同标题只保留一条并累加数量
@@ -434,6 +437,23 @@ public sealed class AppSettings
         return true;
     }
 
+    /// <summary>
+    /// 配置版本 4 → 5：开启 Windows 通知中心读取，用于捕获 QQ 系统 Toast。
+    /// 只读取与 QQ 应用标识匹配的 Toast；微信仍走任务栏闪烁。
+    /// </summary>
+    internal static bool ApplyNotificationAccessV5(AppSettings s)
+    {
+        if (s.Version >= 5) return false;
+        if (!s.NotificationTakeoverEnabled) s.NotificationTakeoverEnabled = true;
+        // 分页 UI 需要更大的展开画布，旧默认尺寸一并放大。
+        if (Math.Abs(s.ExpandedWidth - 420) < 0.001) s.ExpandedWidth = 600;
+        if (Math.Abs(s.MaxExpandedHeight - 384) < 0.001) s.MaxExpandedHeight = 760;
+        // 旧版本默认自动测高只按紧凑内容算，会把新分页裁掉；默认改为固定大高度。
+        if (s.MaxExpandedHeightAuto) s.MaxExpandedHeightAuto = false;
+        s.Version = 5;
+        return true;
+    }
+
     /// <summary>判定组件是否仍是 3.1.2 及以前的默认组合（用于安全迁移）。</summary>
     private static bool LooksLikeLegacyComponentDefaults(ComponentFlags c) =>
         c.TimeWhenIdle && !c.TimeWhenPlaying
@@ -486,6 +506,8 @@ public sealed class AppSettings
         c.QuickActionsShown = new List<string>(QuickActionsShown);
         c.CallNotifyApps = new List<string>(CallNotifyApps);
         c.MediaApps = new List<MediaAppEntry>(MediaApps);
+        c.PageOrder = new List<string>(PageOrder ?? new());
+        c.HiddenPages = new List<string>(HiddenPages ?? new());
         c.Rules = Rules.Where(r => r is not null).Select(r => new AppRule
         {
             Enabled = r.Enabled, Name = r.Name, Condition = r.Condition,
@@ -534,6 +556,8 @@ public sealed class SettingsService
                     // 兼容旧配置：补齐新增字段
                     loaded.Components ??= new ComponentFlags();
                     loaded.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
+                    loaded.PageOrder ??= new List<string> { "Music", "Focus", "Todo", "Schedule" };
+                    loaded.HiddenPages ??= new List<string>();
                     loaded.NormalizeNonFiniteValues();
                     // 3.1.2beta3：默认组件精简 + 轻量化（仅 v1 旧配置迁移一次）
                     var migrated = AppSettings.ApplyLeanDefaultsV2(loaded);
@@ -541,6 +565,8 @@ public sealed class SettingsService
                     migrated |= AppSettings.ApplyDaozaiDefaultsV3(loaded);
                     // 3.1.2beta6：默认改为参考项目的纯黑岛体（液态玻璃保留为可选皮肤）
                     migrated |= AppSettings.ApplyBlackDaozaiV4(loaded);
+                    // 3.1.2beta8：开启 QQ 系统 Toast 捕获
+                    migrated |= AppSettings.ApplyNotificationAccessV5(loaded);
                     if (migrated)
                     {
                         AppLogger.Info("Settings migrated: lean components + Daozai black skin");

@@ -160,10 +160,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
     private double ExpandedWidth => _settings.Current.ExpandedWidthAuto
         ? _vm.EstimatedExpandedWidth / FontScale
-        : Math.Clamp(_settings.Current.ExpandedWidth / FontScale, CompactWidth, 800 / FontScale);
+        : Math.Clamp(_settings.Current.ExpandedWidth / FontScale, CompactWidth, 820 / FontScale);
     private double MaxExpandedHeight => _settings.Current.MaxExpandedHeightAuto
         ? _vm.EstimatedExpandedHeight / FontScale
-        : Math.Clamp(_settings.Current.MaxExpandedHeight / FontScale, 240 / FontScale, 620 / FontScale);
+        : Math.Clamp(_settings.Current.MaxExpandedHeight / FontScale, 240 / FontScale, 820 / FontScale);
 
     private const int WM_NCHITTEST = 0x0084;
     private const int HTCLIENT = 1;
@@ -700,6 +700,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // ── 岛仔（Daozai）皮肤 passthrough（颜色/按钮/页码豆均取自参考项目 theme.rs）──
     public bool IsDaozai => _theme.IsDaozai;
     public bool IsLiquidGlass => _theme.IsLiquidGlass;
+    public bool PageNavVisible => _vm.IsExpanded && _vm.HasMultiplePages;
     public Brush DaozaiSurfaceBrush => _theme.DaozaiSurfaceBrush;
     public Brush DaozaiButtonBrush => _theme.DaozaiButtonBrush;
     public Brush DaozaiButtonHoverBrush => _theme.DaozaiButtonHoverBrush;
@@ -1515,11 +1516,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void EnsureWindowSizeFits(double? knownCompactWidth = null)
     {
         if (!IsLoaded) return;
-        var settingExpanded = Math.Clamp(_settings.Current.ExpandedWidth, 300, 620);
-        var settingMaxH = Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 620);
+        var settingExpanded = Math.Clamp(_settings.Current.ExpandedWidth, 300, 820);
+        var settingMaxH = Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 820);
         var compactWidth = knownCompactWidth ?? CompactWidth;
-        var w = Math.Max(settingExpanded, Math.Max(compactWidth * FontScale + 8, 640)) + 24;
-        var h = Math.Max(settingMaxH, 220) + 24;
+        var w = Math.Max(settingExpanded, Math.Max(compactWidth * FontScale + 8, 820)) + 24;
+        var h = Math.Max(settingMaxH, 720) + 24;
         if (Math.Abs(Width - w) > 0.5 || Math.Abs(Height - h) > 0.5)
         {
             Width = w;
@@ -1619,6 +1620,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void ClearNotificationHistory_Click(object sender, RoutedEventArgs e)
         => _vm.ClearNotificationHistory();
+
+    private void PageDot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is IslandPage page) _vm.ActivatePage(page);
+        e.Handled = true;
+    }
 
     private void MessengerUnread_Click(object sender, RoutedEventArgs e)
     {
@@ -1875,11 +1882,28 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 RefreshWave(); // 若启动时已有媒体在播放，确保波纹定时器在岛显示后启动
                 break;
             case nameof(IslandViewModel.IsExpanded):
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PageNavVisible)));
                 AnimateSize();
                 ApplyCoverTint(); // 展开/收起时同步封面取色呼吸（#8 动态主题）
                 if (_vm.IsExpanded && _vm.LyricIndex >= 0)
                     Dispatcher.BeginInvoke(() => ScrollLyricsTo(_vm.LyricIndex), DispatcherPriority.Loaded);
                 if (!_vm.IsExpanded) _compactRestoreTimer.Start(); // 收起后兜底恢复精确尺寸，避免多次切换后上下间距异常
+                break;
+            case nameof(IslandViewModel.HasMultiplePages):
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PageNavVisible)));
+                break;
+            case nameof(IslandViewModel.ActivePage):
+                // 切换功能页后内容高度不同：等绑定/布局完成后再测高，避免专注/待办/日程被裁切。
+                _expandedHeightDirty = true;
+                if (_vm.IsExpanded)
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        _expandedHeightDirty = true;
+                        AnimateSize();
+                        ExpandedContent.ScrollToTop();
+                    }, DispatcherPriority.Loaded);
+                }
                 break;
             case nameof(IslandViewModel.LyricIndex):
                 if (_vm.LyricIndex >= 0) QueueLyricsScroll(_vm.LyricIndex);
@@ -2563,7 +2587,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             ExpandedContent.Measure(new System.Windows.Size(ExpandedContent.Width, double.PositiveInfinity));
             var ch = ExpandedContent.DesiredSize.Height;
-            _expandedTargetHeight = Math.Clamp(ch + 24, 200, MaxExpandedHeight);
+            // 分页内容高度差异大：至少给 600px 画布，内容再多也留 80px 余量，避免任何页面被裁切。
+            _expandedTargetHeight = Math.Clamp(Math.Max(ch + 80, 600), 200, MaxExpandedHeight);
             _expandedHeightValid = true;
             _expandedHeightDirty = false;
         }

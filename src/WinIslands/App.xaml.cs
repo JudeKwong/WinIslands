@@ -29,6 +29,7 @@ public partial class App : Application
     private BluetoothMonitor? _bluetooth;
     private IncomingCallMonitor? _callMonitor;
     private MessengerUnreadMonitor? _messenger;
+    private SystemNotificationMonitor? _systemNotifications;
     private NetworkStatusMonitor? _network;
     private GlobalHotkeyService? _hotkeys;
     private QuickLauncherWindow? _launcher;
@@ -187,9 +188,13 @@ AppPaths.EnsureDirectories();
 
         _messenger = new MessengerUnreadMonitor();
         _messenger.UnreadAdded += (_, unread) => Dispatcher.BeginInvoke(() => _vm?.ShowMessengerUnread(unread));
+        _systemNotifications = new SystemNotificationMonitor();
+        _systemNotifications.NotificationReceived += (_, e) =>
+            Dispatcher.BeginInvoke(() => _vm?.ShowMessengerNotification(e.Source, e.Title, e.Body, e.AppUserModelId));
         _vm = new IslandViewModel(_coordinator, _settings, _lyrics,
             _wave, _keyboard, _clipboard, _todo, _schedule, _pomodoro, _messenger);
         if (_settings.Current.CallNotifyEnabled) _messenger.Start();
+        if (_settings.Current.NotificationTakeoverEnabled) _ = _systemNotifications.StartAsync();
         TryShowCrashRecoveryCard(); // 崩溃自动恢复（1.2.0）：上次异常退出 → 提示已恢复
         // 番茄钟到点提醒
         _vm.PomodoroCompletedRequested += phase =>
@@ -425,6 +430,7 @@ AppPaths.EnsureDirectories();
             if (s.BluetoothNotifyEnabled) _bluetooth?.Start(); else _bluetooth?.Stop();
             if (s.CallNotifyEnabled) _callMonitor?.Start(s.CallNotifyApps); else _callMonitor?.Stop();
             if (s.CallNotifyEnabled) _messenger?.Start(); else _messenger?.Stop();
+            if (s.NotificationTakeoverEnabled) _ = _systemNotifications?.StartAsync(); else _systemNotifications?.Stop();
 
             // 屏幕录制/截图提示：开关或细分项变化时实时生效
             if (_screenCapture is not null)
@@ -582,6 +588,7 @@ AppPaths.EnsureDirectories();
                 if (_settings!.Current.BluetoothNotifyEnabled) _bluetooth?.Start();
                 if (_settings.Current.CallNotifyEnabled) _callMonitor?.Start(_settings.Current.CallNotifyApps);
                 if (_settings.Current.CallNotifyEnabled) _messenger?.Start();
+                if (_settings.Current.NotificationTakeoverEnabled) _ = _systemNotifications?.StartAsync();
                 _network?.Start(); // 网络监控很轻量，始终启动；是否弹横幅由 NetworkNotifyEnabled 开关控制
 
                 if (_settings.Current.StandaloneLyricsWindow)
@@ -600,6 +607,17 @@ AppPaths.EnsureDirectories();
         // ── Diagnostics mode: report and exit. ──
         if (e.Args.Contains("--diagnose", StringComparer.OrdinalIgnoreCase))
             _ = RunDiagnosticsAsync();
+
+        // ── 展开页面预览（UI 截图/诊断用）──
+        if (e.Args.Contains("--expand", StringComparer.OrdinalIgnoreCase))
+            _vm.IsExpanded = true;
+        var pageArg = e.Args.FirstOrDefault(a => a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase));
+        if (pageArg is not null)
+        {
+            var key = pageArg["--page=".Length..];
+            var page = _vm.Pages.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase));
+            if (page is not null) _vm.ActivatePage(page);
+        }
 
         // ── Demo mode: show a fake track for preview / testing. ──
         if (e.Args.Contains("--demo", StringComparer.OrdinalIgnoreCase))
@@ -981,6 +999,7 @@ AppPaths.EnsureDirectories();
             _screenCapture?.Dispose();
             _callMonitor?.Dispose();
         _messenger?.Dispose();
+        _systemNotifications?.Dispose();
             _fullScreenMonitor?.Dispose();
             _calendar?.Dispose();
             _rssMail?.Dispose();

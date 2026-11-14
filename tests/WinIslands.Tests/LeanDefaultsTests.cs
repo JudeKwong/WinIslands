@@ -39,7 +39,7 @@ public class LeanDefaultsTests : IDisposable
     {
         var s = new AppSettings();
 
-        Assert.Equal(4, s.Version);
+        Assert.Equal(5, s.Version);
         Assert.True(s.Components.TimeWhenIdle);
         Assert.False(s.Components.DateWhenIdle);
         Assert.False(s.Components.TodoWhenIdle);
@@ -51,6 +51,7 @@ public class LeanDefaultsTests : IDisposable
         Assert.False(s.AmllTtmlEnabled);
         Assert.True(s.LowPowerMode);
         Assert.Equal("Daozai", s.ThemePreset);
+        Assert.True(s.NotificationTakeoverEnabled);
     }
 
     [Fact]
@@ -129,6 +130,15 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
+    public void NotificationAccess_MigratesToV5()
+    {
+        var s = new AppSettings { Version = 4, NotificationTakeoverEnabled = false };
+        Assert.True(AppSettings.ApplyNotificationAccessV5(s));
+        Assert.Equal(5, s.Version);
+        Assert.True(s.NotificationTakeoverEnabled);
+    }
+
+    [Fact]
     public void CurrentVersion_IsNoOp()
     {
         var s = new AppSettings { Version = 2 };
@@ -152,7 +162,7 @@ public class LeanDefaultsTests : IDisposable
 
         var service = new SettingsService();
 
-        Assert.Equal(4, service.Current.Version);
+        Assert.Equal(5, service.Current.Version);
         Assert.Equal("Daozai", service.Current.ThemePreset);
         Assert.False(service.Current.Components.DateWhenIdle);
         Assert.False(service.Current.WaveVisualizerEnabled);
@@ -160,7 +170,7 @@ public class LeanDefaultsTests : IDisposable
 
         // 迁移后已落盘：再读取一次仍是 v2，不会重复迁移
         var again = new SettingsService();
-        Assert.Equal(4, again.Current.Version);
+        Assert.Equal(5, again.Current.Version);
         Assert.False(again.Current.Components.DateWhenIdle);
     }
 }

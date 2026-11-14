@@ -336,7 +336,7 @@ public partial class SettingsWindow : Window
     /// <summary>左侧导航对应的本地化键（与 TabItem 顺序一致，用于页标题）。</summary>
     private static readonly string[] NavKeys =
     {
-        "Settings_General", "Settings_QuickActions", "Settings_Appearance", "Settings_Components", "Settings_Media",
+        "Settings_General", "Settings_QuickActions", "Settings_Appearance", "Settings_Components", "Settings_Pages", "Settings_Media",
         "Settings_MediaInfo", "Settings_Lyrics", "Settings_Cider", "Settings_Island",
         "Settings_Productivity", "Settings_Update", "Settings_About", "Settings_Events", "Settings_Rules",
     };
@@ -409,10 +409,6 @@ public partial class SettingsWindow : Window
         }
 
         TabComponents.Header = Localization.Get("Settings_Components");
-        LblCompName.Text = Localization.Get("Comp_Header_Name");
-        LblCompIcon.Text = Localization.Get("Comp_Header_Icon");
-        LblCompIdle.Text = Localization.Get("Comp_Header_Idle");
-        LblCompPlaying.Text = Localization.Get("Comp_Header_Playing");
         TxtCompNote.Text = Localization.Get("Comp_Note");
         LblCompOrder.Text = Localization.Get("Comp_OrderHint");
         TabLyrics.Header = Localization.Get("Settings_Lyrics");
@@ -427,6 +423,8 @@ public partial class SettingsWindow : Window
         NavQuick.Text = Localization.Get("Settings_QuickActions");
         NavAppearance.Text = Localization.Get("Settings_Appearance");
         NavComponents.Text = Localization.Get("Settings_Components");
+        NavPages.Text = Localization.Get("Settings_Pages");
+        TabPages.Header = Localization.Get("Settings_Pages");
         NavMedia.Text = Localization.Get("Settings_Media");
         NavMediaInfo.Text = Localization.Get("Settings_MediaInfo");
         NavLyrics.Text = Localization.Get("Settings_Lyrics");
@@ -796,6 +794,130 @@ public partial class SettingsWindow : Window
         {
             try { if (chip.IsMouseCaptured) chip.ReleaseMouseCapture(); } catch { /* ignore */ }
             chip.Opacity = 1;
+        }
+        Mouse.OverrideCursor = null;
+    }
+
+    // ── 页面管理：竖向拖拽排序（岛仔 page_order 交互）──
+    private Point _pageDragStart;
+    private PageManageRow? _pageDragRow;
+    private FrameworkElement? _pageDragHandle;
+    private bool _pageDragActive;
+
+    private void PageRow_DragHandleDown(object sender, MouseButtonEventArgs e)
+    {
+        _pageDragStart = e.GetPosition(null);
+        _pageDragRow = (sender as FrameworkElement)?.DataContext as PageManageRow;
+        _pageDragHandle = sender as FrameworkElement;
+        _pageDragActive = _pageDragRow is not null;
+    }
+
+    private void PageRow_DragHandleMove(object sender, MouseEventArgs e)
+    {
+        if (!_pageDragActive || _pageDragRow is null || _pageDragHandle is null) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndPageRowDrag(); return; }
+        var pos = e.GetPosition(null);
+        if (Math.Abs(pos.X - _pageDragStart.X) < 4 && Math.Abs(pos.Y - _pageDragStart.Y) < 4) return;
+        if (_pageDragHandle.IsMouseCaptured) return;
+        if (!_pageDragHandle.CaptureMouse()) { EndPageRowDrag(); return; }
+        _pageDragHandle.Opacity = 0.55;
+        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeNS;
+    }
+
+    private void PageRow_DragHandleUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_pageDragActive || _pageDragRow is null) return;
+        var list = PageManageList;
+        var y = e.GetPosition(list).Y;
+        var target = _vm.PageManageRows.Count - 1;
+        for (var i = 0; i < _vm.PageManageRows.Count; i++)
+        {
+            if (list.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
+            {
+                var mid = fe.TransformToAncestor(list).Transform(new Point(0, fe.ActualHeight / 2)).Y;
+                if (y < mid) { target = i; break; }
+                target = i;
+            }
+        }
+        _vm.MovePageRowTo(_pageDragRow, target);
+        EndPageRowDrag();
+        e.Handled = true;
+    }
+
+    private void PageRow_LostMouseCapture(object sender, MouseEventArgs e) => EndPageRowDrag();
+
+    private void EndPageRowDrag()
+    {
+        _pageDragActive = false;
+        var handle = _pageDragHandle;
+        _pageDragHandle = null;
+        _pageDragRow = null;
+        if (handle is not null)
+        {
+            try { if (handle.IsMouseCaptured) handle.ReleaseMouseCapture(); } catch { }
+            handle.Opacity = 1;
+        }
+        Mouse.OverrideCursor = null;
+    }
+
+    // ── 组件管理：竖向拖拽排序（岛仔页面管理同款）──
+    private Point _componentDragStart;
+    private ComponentRow? _componentDragRow;
+    private FrameworkElement? _componentDragHandle;
+    private bool _componentDragActive;
+
+    private void ComponentRow_DragHandleDown(object sender, MouseButtonEventArgs e)
+    {
+        _componentDragStart = e.GetPosition(null);
+        _componentDragRow = (sender as FrameworkElement)?.DataContext as ComponentRow;
+        _componentDragHandle = sender as FrameworkElement;
+        _componentDragActive = _componentDragRow is not null;
+    }
+
+    private void ComponentRow_DragHandleMove(object sender, MouseEventArgs e)
+    {
+        if (!_componentDragActive || _componentDragRow is null || _componentDragHandle is null) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndComponentRowDrag(); return; }
+        var pos = e.GetPosition(null);
+        if (Math.Abs(pos.X - _componentDragStart.X) < 4 && Math.Abs(pos.Y - _componentDragStart.Y) < 4) return;
+        if (_componentDragHandle.IsMouseCaptured) return;
+        if (!_componentDragHandle.CaptureMouse()) { EndComponentRowDrag(); return; }
+        _componentDragHandle.Opacity = 0.55;
+        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeNS;
+    }
+
+    private void ComponentRow_DragHandleUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_componentDragActive || _componentDragRow is null) return;
+        var list = ComponentManageList;
+        var y = e.GetPosition(list).Y;
+        var target = _vm.ComponentManageRows.Count - 1;
+        for (var i = 0; i < _vm.ComponentManageRows.Count; i++)
+        {
+            if (list.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
+            {
+                var mid = fe.TransformToAncestor(list).Transform(new Point(0, fe.ActualHeight / 2)).Y;
+                if (y < mid) { target = i; break; }
+                target = i;
+            }
+        }
+        _vm.MoveComponentRowTo(_componentDragRow, target);
+        EndComponentRowDrag();
+        e.Handled = true;
+    }
+
+    private void ComponentRow_LostMouseCapture(object sender, MouseEventArgs e) => EndComponentRowDrag();
+
+    private void EndComponentRowDrag()
+    {
+        _componentDragActive = false;
+        var handle = _componentDragHandle;
+        _componentDragHandle = null;
+        _componentDragRow = null;
+        if (handle is not null)
+        {
+            try { if (handle.IsMouseCaptured) handle.ReleaseMouseCapture(); } catch { }
+            handle.Opacity = 1;
         }
         Mouse.OverrideCursor = null;
     }

@@ -77,6 +77,15 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     // ── 通知历史（展开卡片底部列表，#10；由 ShowEventCard 记录，可点击重新弹出） ──
     private readonly ObservableCollection<EventHistoryItem> _notificationHistory = new();
     private readonly ObservableCollection<MessengerUnread> _messengerUnreads = new();
+    private readonly ObservableCollection<IslandPage> _pages = new();
+    private string _pageSignature = string.Empty;
+    private static readonly (string Key, string Title, string Description, string Accent)[] PageDefs =
+    {
+        ("Music", "音乐", "封面、歌词与播放控制", "#FD685C"),
+        ("Focus", "番茄专注", "专注与休息计时", "#FD685C"),
+        ("Todo", "待办清单", "本地待办事项", "#30D158"),
+        ("Schedule", "日程", "下一项本地日程", "#3EACF8"),
+    };
     private static readonly Brush WeChatBadgeBrush = MakeFrozenBrush(0x46, 0xCB, 0x7B);
     private static readonly Brush QqBadgeBrush = MakeFrozenBrush(0x12, 0xB7, 0xF5);
     private static readonly Brush BluetoothBadgeBrush = MakeFrozenBrush(0x0A, 0x84, 0xFF);
@@ -94,6 +103,31 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public ObservableCollection<MessengerUnread> MessengerUnreads => _messengerUnreads;
     public bool HasMessengerUnreads => _messengerUnreads.Count > 0;
     public int MessengerUnreadCount => _messengerUnreads.Count;
+
+    public ObservableCollection<IslandPage> Pages => _pages;
+    public IslandPage? ActivePage => _pages.FirstOrDefault(p => p.IsActive);
+    public string ActivePageTitle => ActivePage?.Title ?? "音乐";
+    public Brush ActivePageAccentBrush => ActivePage?.AccentBrush ?? new SolidColorBrush(Color.FromRgb(0x79, 0x55, 0xB8));
+    public bool HasMultiplePages => _pages.Count > 1;
+    public bool IsMusicPage => ActivePage?.Key == "Music";
+    public bool IsFocusPage => ActivePage?.Key == "Focus";
+    public bool IsTodoPage => ActivePage?.Key == "Todo";
+    public bool IsSchedulePage => ActivePage?.Key == "Schedule";
+    public IReadOnlyList<TodoItem> TodoItems => _todo.Items;
+    public IReadOnlyList<ScheduleItem> ScheduleItems => _schedule.Items;
+    public string PomodoroClockText => _pomodoro.ClockText;
+    public string PomodoroPhaseText => _pomodoro.Phase switch
+    {
+        PomodoroPhase.Work => _pomodoro.IsPaused ? "专注已暂停" : "专注时间",
+        PomodoroPhase.Break => _pomodoro.IsPaused ? "休息已暂停" : "休息时间",
+        _ => "准备开始",
+    };
+    public RelayCommand PrevPageCommand { get; }
+    public RelayCommand NextPageCommand { get; }
+    public RelayCommand PomodoroWorkCommand { get; }
+    public RelayCommand PomodoroBreakCommand { get; }
+    public RelayCommand PomodoroStopCommand { get; }
+    public RelayCommand PomodoroToggleCommand { get; }
 
     public IslandViewModel(MediaCoordinator coordinator, SettingsService settings, LyricsService lyricsService,
         AudioWaveService? wave = null, KeyboardIndicatorMonitor? keyboard = null,
@@ -114,6 +148,14 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _pomodoro = pomodoro ?? new PomodoroService();
         _messengerMonitor = messenger;
         if (_messengerMonitor is not null) _messengerMonitor.Changed += OnMessengerUnreadsChanged;
+        PrevPageCommand = new RelayCommand(_ => NavigatePage(-1));
+        NextPageCommand = new RelayCommand(_ => NavigatePage(1));
+        PomodoroWorkCommand = new RelayCommand(_ => { _pomodoro.StartWork(_settings.Current.PomodoroWorkMinutes); RefreshTimerText(); });
+        PomodoroBreakCommand = new RelayCommand(_ => { _pomodoro.StartBreak(_settings.Current.PomodoroBreakMinutes); RefreshTimerText(); });
+        PomodoroStopCommand = new RelayCommand(_ => { _pomodoro.Stop(); RefreshTimerText(); });
+        PomodoroToggleCommand = new RelayCommand(_ => { _pomodoro.TogglePause(); RefreshTimerText(); });
+        _settings.Changed += OnPageSettingsChanged;
+        RebuildPages();
         // 轻量化：波纹可视化关闭时不启动音频线程（旧代码无条件启动，导致即使关掉波纹仍常驻采集/唤醒）
         if (_settings.Current.WaveVisualizerEnabled)
         {
@@ -1802,9 +1844,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var w = Math.Max(420, _settings.Current.ExpandedWidth);
+            var w = Math.Max(600, _settings.Current.ExpandedWidth);
             if (HasActivePush) w = Math.Max(w, PushExpandedCardWidth);
-            return Math.Clamp(w, 420, 640);
+            return Math.Clamp(w, 600, 820);
         }
     }
 
@@ -1829,7 +1871,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 if (_settings.Current.ExpandedShowControls) h += 42;
                 if (_settings.Current.ExpandedShowLyrics) h += 190;
             }
-            return Math.Clamp(h, 200, 620);
+            return Math.Clamp(h, 600, 760);
         }
     }
 
@@ -1964,6 +2006,63 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         catch (Exception ex) { AppLogger.Warn($"ShowDeviceEvent failed: {ex.Message}"); }
     }
 
+    public void ActivatePage(IslandPage page)
+    {
+        if (page is null) return;
+        foreach (var p in _pages) p.IsActive = ReferenceEquals(p, page);
+        // 先通知页面可见性，再通知 ActivePage；窗口收到 ActivePage 后才能按新页面测高。
+        OnPropertyChanged(nameof(IsMusicPage));
+        OnPropertyChanged(nameof(IsFocusPage));
+        OnPropertyChanged(nameof(IsTodoPage));
+        OnPropertyChanged(nameof(IsSchedulePage));
+        OnPropertyChanged(nameof(ActivePage));
+        OnPropertyChanged(nameof(ActivePageTitle));
+        OnPropertyChanged(nameof(ActivePageAccentBrush));
+    }
+
+    public void NavigatePage(int delta)
+    {
+        if (_pages.Count < 2) return;
+        var current = ActivePage;
+        var index = current is null ? 0 : Math.Max(0, _pages.IndexOf(current));
+        var next = (index + delta) % _pages.Count;
+        if (next < 0) next += _pages.Count;
+        ActivatePage(_pages[next]);
+    }
+
+    public void RebuildPages()
+    {
+        var order = _settings.Current.PageOrder ?? new List<string>();
+        var known = order.Where(k => PageDefs.Any(d => string.Equals(d.Key, k, StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var d in PageDefs)
+            if (!known.Contains(d.Key, StringComparer.OrdinalIgnoreCase)) known.Add(d.Key);
+        var hidden = _settings.Current.HiddenPages ?? new List<string>();
+        var visible = known.Where(k => !hidden.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (visible.Count == 0) visible.Add("Music");
+
+        var currentKey = ActivePage?.Key;
+        _pages.Clear();
+        foreach (var key in visible)
+        {
+            var def = PageDefs.First(d => string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase));
+            _pages.Add(new IslandPage(def.Key, def.Title, def.Description, def.Accent));
+        }
+        var target = _pages.FirstOrDefault(p => string.Equals(p.Key, currentKey, StringComparison.OrdinalIgnoreCase)) ?? _pages[0];
+        ActivatePage(target);
+        _pageSignature = string.Join(",", _settings.Current.PageOrder ?? new List<string>())
+            + "|" + string.Join(",", _settings.Current.HiddenPages ?? new List<string>());
+        OnPropertyChanged(nameof(Pages));
+        OnPropertyChanged(nameof(HasMultiplePages));
+    }
+
+    private void OnPageSettingsChanged(object? sender, AppSettings s)
+    {
+        var signature = string.Join(",", s.PageOrder ?? new List<string>())
+            + "|" + string.Join(",", s.HiddenPages ?? new List<string>());
+        if (signature != _pageSignature) RebuildPages();
+    }
+
     /// <summary>微信/QQ 未读：加入图标栈并弹出一张岛仔风格通知卡（不读取聊天正文）。</summary>
     public void ShowMessengerUnread(MessengerUnread unread)
     {
@@ -1977,6 +2076,25 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         var type = unread.Source == MessengerSource.WeChat ? "wechat" : "qq";
         ShowEventCard($"msg:{type}:{unread.Pid}:{unread.Window}", unread.SourceName,
             "有新消息 · 点击查看", unread.Glyph, type, 6);
+    }
+
+    /// <summary>QQ 系统 Toast：带标题/正文的未读记录，使用同一个通知卡片与图标栈。</summary>
+    public void ShowMessengerNotification(MessengerSource source, string title, string body, string appUserModelId)
+    {
+        if (DoNotDisturb.IsActive(_settings.Current)) return;
+        var unread = new MessengerUnread(source, 0, IntPtr.Zero, DateTime.UtcNow,
+            title ?? string.Empty, body ?? string.Empty, appUserModelId ?? string.Empty);
+        if (!_messengerUnreads.Any(x => x.Source == source && x.Pid == 0
+            && x.Title == unread.Title && x.Body == unread.Body && x.AppUserModelId == unread.AppUserModelId))
+        {
+            _messengerUnreads.Add(unread);
+            OnPropertyChanged(nameof(HasMessengerUnreads));
+            OnPropertyChanged(nameof(MessengerUnreadCount));
+        }
+        var type = source == MessengerSource.WeChat ? "wechat" : "qq";
+        var displayTitle = string.IsNullOrWhiteSpace(title) ? unread.SourceName : title;
+        var summary = string.IsNullOrWhiteSpace(body) ? "有新消息 · 点击查看" : body;
+        ShowEventCard($"msg:{type}:{appUserModelId}:{title}", displayTitle, summary, unread.Glyph, type, 6);
     }
 
     public void ActivateMessengerUnread(MessengerUnread unread)
@@ -2012,7 +2130,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (_messengerMonitor is null) return;
         var snapshot = _messengerMonitor.Items;
         for (var i = _messengerUnreads.Count - 1; i >= 0; i--)
-            if (!snapshot.Contains(_messengerUnreads[i])) _messengerUnreads.RemoveAt(i);
+        {
+            var item = _messengerUnreads[i];
+            // 只同步 SHELLHOOK 的窗口项；系统 Toast 项（Pid=0）由通知中心自己的生命周期管理。
+            if (item.Pid != 0 && !snapshot.Contains(item)) _messengerUnreads.RemoveAt(i);
+        }
         foreach (var item in snapshot)
             if (!_messengerUnreads.Contains(item)) _messengerUnreads.Add(item);
         OnPropertyChanged(nameof(HasMessengerUnreads));
@@ -2258,11 +2380,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
 
     private void RefreshClipboardSummary() { ClipboardSummary = _clipboard.Summary; RebuildCompactItems(); }
-    private void RefreshTodoSummary() { TodoSummary = _todo.Summary; RebuildCompactItems(); }
-    private void RefreshScheduleSummary() { ScheduleSummary = _schedule.Summary; RebuildCompactItems(); }
+    private void RefreshTodoSummary() { TodoSummary = _todo.Summary; OnPropertyChanged(nameof(TodoItems)); RebuildCompactItems(); }
+    private void RefreshScheduleSummary() { ScheduleSummary = _schedule.Summary; OnPropertyChanged(nameof(ScheduleItems)); RebuildCompactItems(); }
     private void RefreshTimerText()
     {
         TimerPaused = _pomodoro.IsPaused;
+        OnPropertyChanged(nameof(PomodoroClockText));
+        OnPropertyChanged(nameof(PomodoroPhaseText));
         TimerToolTip = Localization.Get("Timer_ToggleHint");
         TimerText = _pomodoro.Phase == PomodoroPhase.Stopped ? string.Empty : _pomodoro.ClockText;
         RebuildCompactItems();
@@ -3212,6 +3336,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _pomodoro.Tick -= RefreshTimerText;
         _pomodoro.Completed -= OnPomodoroCompleted;
         if (_messengerMonitor is not null) _messengerMonitor.Changed -= OnMessengerUnreadsChanged;
+        _settings.Changed -= OnPageSettingsChanged;
         Localization.LanguageChanged -= OnLanguageChanged;
         // 释放效率工具服务（Stop/Dispose 幂等，App 退出时再次调用安全）
         _keyboard.Dispose();

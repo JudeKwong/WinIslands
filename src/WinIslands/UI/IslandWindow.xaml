@@ -1000,6 +1000,10 @@
                         </StackPanel>
                     </Border>
 
+                    <TextBlock Text="{Binding ActivePageTitle}" FontSize="14.5" FontWeight="Bold" Margin="2,0,0,8"
+                               Foreground="{Binding ActivePageAccentBrush}"
+                               Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+                    <StackPanel x:Name="MusicPagePanel" Visibility="{Binding IsMusicPage, Converter={StaticResource BoolToVis}}">
                     <!-- 媒体大卡片模板（Hero）：大封面背景 + 渐变遮罩 + 歌名/歌手/专辑叠加 -->
                     <Border x:Name="HeroCard" CornerRadius="18" Height="190" Margin="0,0,0,10" ClipToBounds="True" Cursor="Hand"
                             Visibility="{Binding ExpandedHeroCard, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}">
@@ -1274,6 +1278,83 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
+                    </StackPanel>
+
+                    <!-- 岛仔功能页：专注 -->
+                    <StackPanel x:Name="FocusPagePanel" Visibility="{Binding IsFocusPage, Converter={StaticResource BoolToVis}}">
+                        <Border CornerRadius="16" Background="#161618" Padding="18" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="88" Height="88" CornerRadius="44" Background="#1A0E10" BorderBrush="#FD685C" BorderThickness="6">
+                                    <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="30" Foreground="#FD685C"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding PomodoroClockText}" FontSize="29" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="{Binding PomodoroPhaseText}" FontSize="11" Foreground="#8E8E99" Margin="0,2,0,0"/>
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroWorkCommand}" Content="专注" Padding="12,5" Margin="0,0,6,6"/>
+                                        <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroBreakCommand}" Content="休息" Padding="12,5" Margin="0,0,6,6"/>
+                                        <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroToggleCommand}" Content="暂停/继续" Padding="12,5" Margin="0,0,6,6"/>
+                                        <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroStopCommand}" Content="停止" Padding="12,5" Margin="0,0,0,6"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- 岛仔功能页：待办 -->
+                    <StackPanel Visibility="{Binding IsTodoPage, Converter={StaticResource BoolToVis}}">
+                        <Border CornerRadius="16" Background="#161618" Padding="18" Margin="0,0,0,8">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding TodoSummary}" FontSize="29" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="已完成" FontSize="11" Foreground="#8E8E99" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding TodoItems}" Margin="0,10,0,0" MaxHeight="190">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="9" Background="#242427" Padding="10,7" Margin="0,0,0,5">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <CheckBox IsChecked="{Binding Done, Mode=OneWay}" IsHitTestVisible="False" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding Text}" FontSize="11.5" Foreground="#E8E8ED" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- 岛仔功能页：日程 -->
+                    <StackPanel Visibility="{Binding IsSchedulePage, Converter={StaticResource BoolToVis}}">
+                        <Border CornerRadius="16" Background="#161618" Padding="18" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="{Binding ScheduleSummary}" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                <ItemsControl ItemsSource="{Binding ScheduleItems}" Margin="0,10,0,0" MaxHeight="190">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="9" Background="#242427" Padding="10,7" Margin="0,0,0,5">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding When, StringFormat={}{0:HH:mm}}" FontSize="12.5" FontWeight="SemiBold" Foreground="#3EACF8" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11.5" Foreground="#E8E8ED" TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
                     <!-- 通知历史：展开卡片底部列表（#10），记录系统事件通知；点击条目可重新弹出，右侧可清空 -->
                     <StackPanel x:Name="NotificationHistoryPanel" Margin="0,6,0,2"
                                 Visibility="{Binding NotificationHistoryVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
@@ -1330,23 +1411,41 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                    <!-- 岛仔页码豆（纯视觉语言，与参考项目一致） -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,2"
-                                Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                        <Border Width="16" Height="4" CornerRadius="2" Margin="2,0"
-                                Background="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
-                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
-                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
-                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
-                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
-                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
-                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
-                        <Border Width="4" Height="4" CornerRadius="2" Margin="2,0"
-                                Background="{Binding DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#5C5C60}"/>
                     </StackPanel>
-                    </StackPanel>
+                    <!-- 岛仔页码豆：真实页面导航 -->
+                    <ItemsControl ItemsSource="{Binding Pages}" HorizontalAlignment="Center" Margin="0,8,0,2"
+                                  Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Tag="{Binding}" Click="PageDot_Click" Cursor="Hand" Background="Transparent"
+                                        BorderThickness="0" Padding="2,6">
+                                    <Border x:Name="Dot" Width="4" Height="4" CornerRadius="2"
+                                            Background="{Binding DataContext.DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue=#5C5C60}"/>
+                                </Button>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter TargetName="Dot" Property="Width" Value="16"/>
+                                        <Setter TargetName="Dot" Property="Background" Value="White"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
+                <Button Style="{StaticResource IconButton}" Command="{Binding PrevPageCommand}"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Width="28" Height="28" Opacity="0.8"
+                        Visibility="{Binding PageNavVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Command="{Binding NextPageCommand}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Width="28" Height="28" Opacity="0.8"
+                        Visibility="{Binding PageNavVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                </Button>
                 </Grid>
             </Grid>
         </Border>

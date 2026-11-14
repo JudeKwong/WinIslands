@@ -29,8 +29,42 @@ public sealed class OrderItem : ObservableObject
     private readonly string _directName;
     public string Key { get; }
     public string Name => string.IsNullOrEmpty(_nameKey) ? _directName : Localization.Get(_nameKey);
+
+    public string Description
+    {
+        get
+        {
+            var en = Localization.CurrentLanguage == "en-US";
+            return Key switch
+            {
+                "Time" => en ? "Current time" : "显示当前时间",
+                "Weather" => en ? "Weather and temperature" : "天气与温度",
+                "Date" => en ? "Date and lunar calendar" : "日期与农历",
+                "Cpu" => en ? "CPU usage" : "CPU 占用",
+                "Ram" => en ? "Memory usage" : "内存占用",
+                "Gpu" => en ? "GPU usage" : "GPU 占用",
+                "Mic" => en ? "Microphone in use" : "麦克风使用中",
+                "Cam" => en ? "Camera in use" : "摄像头使用中",
+                "Net" => en ? "Network speed" : "网络速度",
+                "Battery" => en ? "Battery level" : "电量",
+                "CapsLock" => en ? "Caps Lock state" : "大写锁定状态",
+                "Clipboard" => en ? "Clipboard summary" : "剪贴板摘要",
+                "Todo" => en ? "Todo progress" : "待办进度",
+                "Timer" => en ? "Focus timer" : "专注计时",
+                "Schedule" => en ? "Next schedule item" : "下一项日程",
+                "Holiday" => en ? "Holiday countdown" : "节假日倒计时",
+                "Meeting" => en ? "Meeting status" : "会议状态",
+                "Disk" => en ? "Disk free space" : "磁盘剩余空间",
+                "InputMethod" => en ? "Input method state" : "输入法状态",
+                "QuickToggles" => en ? "Wi-Fi / Bluetooth / night mode" : "Wi-Fi / 蓝牙 / 夜间模式",
+                _ => Key.StartsWith("Plugin:", StringComparison.OrdinalIgnoreCase)
+                    ? (en ? "Local plugin widget" : "本地插件组件")
+                    : (en ? "Widget on the island" : "灵动岛组件"),
+            };
+        }
+    }
     public OrderItem(string key, string nameKey, string? directName = null) { Key = key; _nameKey = nameKey; _directName = directName ?? ""; }
-    public void RefreshName() => OnPropertyChanged(nameof(Name));
+    public void RefreshName() { OnPropertyChanged(nameof(Name)); OnPropertyChanged(nameof(Description)); }
 }
 public sealed class ComponentRow : ObservableObject
 {
@@ -262,6 +296,8 @@ public sealed class SettingsViewModel : ObservableObject
         if (plugins is not null) _components.AddRange(BuildPluginComponents(plugins));
         _orderItems = new List<OrderItem>();
         RebuildOrderItems();
+        RebuildPageManageRows();
+        RebuildComponentManageRows();
         _mediaAppRows = BuildMediaApps(Working.MediaApps, registry);
         _ruleRows = (Working.Rules ?? new List<AppRule>()).Select(r => new RuleRow(r)).ToList();
         RebuildQuickActionRows();
@@ -269,6 +305,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             foreach (var r in Components) r.RefreshName();
             foreach (var o in OrderItems) o.RefreshName();
+            RebuildPageManageRows();
             foreach (var q in _quickActionRows) q.RefreshName();
         };
         Localization.LanguageChanged += _onLanguageChanged;
@@ -339,6 +376,8 @@ public sealed class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> PresetColors { get; }
     public IReadOnlyList<ComponentRow> Components => _components;
     public IReadOnlyList<OrderItem> OrderItems => _orderItems;
+    public IReadOnlyList<PageManageRow> PageManageRows => _pageManageRows;
+    public IReadOnlyList<ComponentRow> ComponentManageRows => _componentManageRows;
     public IReadOnlyList<MediaAppRow> MediaAppRows => _mediaAppRows;
     private List<RuleRow> _ruleRows = new();
     public IReadOnlyList<RuleRow> RuleRows => _ruleRows;
@@ -400,6 +439,8 @@ public sealed class SettingsViewModel : ObservableObject
 
     private List<ComponentRow> _components = new();
     private List<OrderItem> _orderItems = new();
+    private List<PageManageRow> _pageManageRows = new();
+    private List<ComponentRow> _componentManageRows = new();
 
     /// <summary>把已加载的插件作为「组件设置」行追加到列表末尾（名称用插件显示名，显隐写入 PluginComponents）。</summary>
     private List<ComponentRow> BuildPluginComponents(PluginService plugins)
@@ -569,6 +610,91 @@ public sealed class SettingsViewModel : ObservableObject
         _mediaAppRows = list;
         OnPropertyChanged(nameof(MediaAppRows));
         SyncMediaApps();
+    }
+
+    private void RebuildComponentManageRows()
+    {
+        var order = (Working.WidgetOrder ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        foreach (var row in _components)
+            if (!order.Contains(row.Key, StringComparer.OrdinalIgnoreCase)) order.Add(row.Key);
+        _componentManageRows = order.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(k => _components.FirstOrDefault(c => string.Equals(c.Key, k, StringComparison.OrdinalIgnoreCase)))
+            .Where(r => r is not null).Cast<ComponentRow>().ToList();
+        OnPropertyChanged(nameof(ComponentManageRows));
+    }
+
+    public void MoveComponentRowTo(ComponentRow row, int newIndex)
+    {
+        var i = _componentManageRows.IndexOf(row);
+        if (i < 0) return;
+        newIndex = Math.Clamp(newIndex, 0, _componentManageRows.Count - 1);
+        if (i == newIndex) return;
+        var list = new List<ComponentRow>(_componentManageRows);
+        list.RemoveAt(i);
+        list.Insert(newIndex, row);
+        _componentManageRows = list;
+        Working.WidgetOrder = string.Join(",", list.Select(x => x.Key));
+        RebuildOrderItems();
+        OnPropertyChanged(nameof(ComponentManageRows));
+    }
+
+    private void RebuildPageManageRows()
+    {
+        var en = Localization.CurrentLanguage == "en-US";
+        var defs = new (string Key, string Title, string Description)[]
+        {
+            ("Music", en ? "Music" : "音乐", en ? "Artwork, lyrics and playback controls" : "封面、歌词与播放控制"),
+            ("Focus", en ? "Focus" : "番茄专注", en ? "Focus and break timer" : "专注与休息计时"),
+            ("Todo", en ? "Todo" : "待办清单", en ? "Local todo items" : "本地待办事项"),
+            ("Schedule", en ? "Schedule" : "日程", en ? "Next local schedule item" : "下一项本地日程"),
+        };
+        var order = (Working.PageOrder ?? new List<string>())
+            .Where(k => defs.Any(d => string.Equals(d.Key, k, StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var d in defs)
+            if (!order.Contains(d.Key, StringComparer.OrdinalIgnoreCase)) order.Add(d.Key);
+        var hidden = Working.HiddenPages ?? new List<string>();
+        _pageManageRows = order.Select(key =>
+        {
+            var def = defs.First(d => string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase));
+            return new PageManageRow(def.Key, def.Title, def.Description,
+                !hidden.Contains(def.Key, StringComparer.OrdinalIgnoreCase), OnPageVisibilityChanged);
+        }).ToList();
+        OnPropertyChanged(nameof(PageManageRows));
+    }
+
+    private void OnPageVisibilityChanged(PageManageRow row, bool visible)
+    {
+        var order = Working.PageOrder ?? new List<string>();
+        var hidden = new List<string>(Working.HiddenPages ?? new List<string>());
+        if (visible)
+            hidden.RemoveAll(k => string.Equals(k, row.Key, StringComparison.OrdinalIgnoreCase));
+        else
+        {
+            var visibleCount = order.Count(k => !hidden.Contains(k, StringComparer.OrdinalIgnoreCase));
+            if (visibleCount <= 1)
+            {
+                row.SetVisibleSilently(true);
+                return;
+            }
+            if (!hidden.Contains(row.Key, StringComparer.OrdinalIgnoreCase)) hidden.Add(row.Key);
+        }
+        Working.HiddenPages = hidden;
+    }
+
+    public void MovePageRowTo(PageManageRow row, int newIndex)
+    {
+        var i = _pageManageRows.IndexOf(row);
+        if (i < 0) return;
+        newIndex = Math.Clamp(newIndex, 0, _pageManageRows.Count - 1);
+        if (i == newIndex) return;
+        var list = new List<PageManageRow>(_pageManageRows);
+        list.RemoveAt(i);
+        list.Insert(newIndex, row);
+        _pageManageRows = list;
+        Working.PageOrder = list.Select(x => x.Key).ToList();
+        OnPropertyChanged(nameof(PageManageRows));
     }
 
     public void MoveOrderItemTo(OrderItem item, int newIndex)

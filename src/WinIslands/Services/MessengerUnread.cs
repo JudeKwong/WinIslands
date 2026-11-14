@@ -17,12 +17,16 @@ public enum MessengerSource
 /// <summary>一条未读消息（来自微信/QQ 的任务栏闪烁，不读取聊天正文）。</summary>
 public sealed class MessengerUnread
 {
-    public MessengerUnread(MessengerSource source, uint pid, IntPtr window, DateTime atUtc)
+    public MessengerUnread(MessengerSource source, uint pid, IntPtr window, DateTime atUtc,
+        string? title = null, string? body = null, string? appUserModelId = null)
     {
         Source = source;
         Pid = pid;
         Window = window;
         AtUtc = atUtc;
+        Title = title ?? string.Empty;
+        Body = body ?? string.Empty;
+        AppUserModelId = appUserModelId ?? string.Empty;
         AccentBrush = new SolidColorBrush(source == MessengerSource.WeChat
             ? Color.FromRgb(0x46, 0xCB, 0x7B)
             : Color.FromRgb(0x12, 0xB7, 0xF5));
@@ -33,6 +37,9 @@ public sealed class MessengerUnread
     public uint Pid { get; }
     public IntPtr Window { get; }
     public DateTime AtUtc { get; }
+    public string Title { get; }
+    public string Body { get; }
+    public string AppUserModelId { get; }
 
     public string SourceName => Source == MessengerSource.WeChat ? "微信" : "QQ";
     public string Glyph => Source == MessengerSource.WeChat ? "\uE8BD" : "\U0001F427";
@@ -173,7 +180,6 @@ public sealed class MessengerUnreadMonitor : IDisposable
             source = name switch
             {
                 "weixin" or "wechat" => MessengerSource.WeChat,
-                "qq" => MessengerSource.QQ,
                 _ => null,
             };
         }
@@ -198,14 +204,36 @@ public sealed class MessengerUnreadMonitor : IDisposable
     {
         try
         {
-            if (IsWindow(item.Window))
+            if (item.Window != IntPtr.Zero && IsWindow(item.Window))
             {
                 ShowWindowAsync(item.Window, SW_RESTORE);
                 SetForegroundWindow(item.Window);
             }
+            else if (!ActivateProcess(item.Source))
+            {
+                if (!string.IsNullOrWhiteSpace(item.AppUserModelId))
+                    Process.Start(new ProcessStartInfo("explorer.exe", $"shell:AppsFolder\\{item.AppUserModelId}") { UseShellExecute = true });
+            }
         }
         catch (Exception ex) { AppLogger.Debug($"Activate messenger failed: {ex.Message}"); }
         Remove(item);
+    }
+
+    private static bool ActivateProcess(MessengerSource source)
+    {
+        var names = source == MessengerSource.WeChat ? new[] { "WeChat", "Weixin" } : new[] { "QQ" };
+        foreach (var name in names)
+        {
+            foreach (var process in Process.GetProcessesByName(name))
+            {
+                var hwnd = process.MainWindowHandle;
+                if (hwnd == IntPtr.Zero) continue;
+                ShowWindowAsync(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void Remove(MessengerUnread item)
