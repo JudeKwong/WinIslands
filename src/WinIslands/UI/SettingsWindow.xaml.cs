@@ -731,53 +731,75 @@ public partial class SettingsWindow : Window
         }
     }
 
-    // ── 组件顺序：横向拖拽排序 ──
+    // ── 组件顺序：横向拖拽排序（鼠标捕获 + 落点计算，不经过 OLE DragDrop）──
+    // 说明：WPF 的 DragDrop.DoDragDrop 会进入 OLE 嵌套消息循环；在部分注入环境/CLR 组合下
+    // 会触发 0xc0000005/0x80131506（本次崩溃即发生在 Chip_PreviewMouseMove → DoDragDrop）。
+    // 改为纯 WPF 鼠标捕获实现，拖拽排序不再依赖 OLE。
     private Point _dragStart;
     private OrderItem? _dragItem;
+    private FrameworkElement? _dragChip;
     private bool _dragActive;
 
     private void Chip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(null);
         _dragItem = (sender as FrameworkElement)?.DataContext as OrderItem;
-        _dragActive = true;
+        _dragChip = sender as FrameworkElement;
+        _dragActive = _dragItem is not null;
     }
 
     private void Chip_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_dragActive || _dragItem is null) return;
+        if (!_dragActive || _dragItem is null || _dragChip is null) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndChipDrag(); return; }
         var pos = e.GetPosition(null);
         if (Math.Abs(pos.X - _dragStart.X) < 4 && Math.Abs(pos.Y - _dragStart.Y) < 4) return;
-        _dragActive = false;
-        try { DragDrop.DoDragDrop((DependencyObject)sender, _dragItem, DragDropEffects.Move); }
-        catch { /* ignore */ }
+        if (_dragChip.IsMouseCaptured) return;
+        if (!_dragChip.CaptureMouse()) { EndChipDrag(); return; }
+        _dragChip.Opacity = 0.6;
+        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeWE;
     }
 
-    private void OrderStrip_PreviewDragOver(object sender, DragEventArgs e)
+    private void Chip_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        e.Effects = DragDropEffects.Move;
-        e.Handled = true;
-    }
-
-    private void OrderStrip_Drop(object sender, DragEventArgs e)
-    {
-        if (e.Data.GetDataPresent(typeof(OrderItem)) && e.Data.GetData(typeof(OrderItem)) is OrderItem item
-            && sender is System.Windows.Controls.ItemsControl ic)
+        if (!_dragActive || _dragItem is null) return;
+        var chip = sender as FrameworkElement ?? _dragChip;
+        var strip = FindAncestor<System.Windows.Controls.ItemsControl>(chip);
+        if (strip is not null)
         {
-            var x = e.GetPosition(ic).X;
+            var x = e.GetPosition(strip).X;
             var target = _vm.OrderItems.Count - 1;
             for (var i = 0; i < _vm.OrderItems.Count; i++)
             {
-                if (ic.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
+                if (strip.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
                 {
-                    var mid = fe.TransformToAncestor(ic).Transform(new Point(fe.ActualWidth / 2, 0)).X;
+                    var mid = fe.TransformToAncestor(strip).Transform(new Point(fe.ActualWidth / 2, 0)).X;
                     if (x < mid) { target = i; break; }
                     target = i;
                 }
             }
-            _vm.MoveOrderItemTo(item, target);
+            _vm.MoveOrderItemTo(_dragItem, target);
         }
+        EndChipDrag();
+        e.Handled = true;
     }
+
+    private void Chip_LostMouseCapture(object sender, MouseEventArgs e) => EndChipDrag();
+
+    private void EndChipDrag()
+    {
+        _dragActive = false;
+        var chip = _dragChip;
+        _dragChip = null;
+        _dragItem = null;
+        if (chip is not null)
+        {
+            try { if (chip.IsMouseCaptured) chip.ReleaseMouseCapture(); } catch { /* ignore */ }
+            chip.Opacity = 1;
+        }
+        Mouse.OverrideCursor = null;
+    }
+
     private void MediaUp_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is MediaAppRow row) _vm.MoveMediaApp(row, -1);

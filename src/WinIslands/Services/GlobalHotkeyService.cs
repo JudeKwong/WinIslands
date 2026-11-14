@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -26,6 +26,7 @@ public sealed class GlobalHotkeyService : IDisposable
     private HwndSource? _source;
     private IntPtr _hwnd;
     private readonly List<HotkeyBinding> _bindings = new();
+    private readonly HashSet<int> _registeredIds = new(); // 已成功注册的 ID，避免重复注册造成 1409 刷屏
     private bool _enabled = true;
     private bool _disposed;
 
@@ -92,18 +93,40 @@ public sealed class GlobalHotkeyService : IDisposable
     /// <summary>按当前设置重新注册全部快捷键（设置变化时调用）。</summary>
     public void Apply(AppSettings settings)
     {
+        var next = new List<HotkeyBinding>();
+        AddBinding(next, 0xC011, settings.HotkeyPlayPause, PlayPausePressed);
+        AddBinding(next, 0xC012, settings.HotkeyNext, NextPressed);
+        AddBinding(next, 0xC013, settings.HotkeyPrev, PreviousPressed);
+        AddBinding(next, 0xC014, settings.HotkeyToggleVisible, ToggleVisibilityPressed);
+        AddBinding(next, 0xC015, settings.HotkeyExpand, ExpandPressed);
+        AddBinding(next, 0xC016, settings.QuickLauncherEnabled ? settings.HotkeyLauncher : "", LauncherPressed);
+        AddBinding(next, 0xC017, settings.ClipboardPanelEnabled ? settings.HotkeyClipboardPanel : "", ClipboardPanelPressed);
+
+        // 设置窗口的 AutoApply 会频繁调用 Apply：配置完全没变时不要重复 RegisterHotKey，
+        // 否则每次都会返回 1409（已注册）并刷日志，还会放大设置变更的开销。
+        if (_enabled && _registeredIds.Count == _bindings.Count && BindingsEqual(_bindings, next))
+            return;
+
+        UnregisterAll();
         _bindings.Clear();
-        AddBinding(0xC011, settings.HotkeyPlayPause, PlayPausePressed);
-        AddBinding(0xC012, settings.HotkeyNext, NextPressed);
-        AddBinding(0xC013, settings.HotkeyPrev, PreviousPressed);
-        AddBinding(0xC014, settings.HotkeyToggleVisible, ToggleVisibilityPressed);
-        AddBinding(0xC015, settings.HotkeyExpand, ExpandPressed);
-        AddBinding(0xC016, settings.QuickLauncherEnabled ? settings.HotkeyLauncher : "", LauncherPressed);
-        AddBinding(0xC017, settings.ClipboardPanelEnabled ? settings.HotkeyClipboardPanel : "", ClipboardPanelPressed);
+        _bindings.AddRange(next);
         if (_enabled) RegisterAll();
     }
 
-    private void AddBinding(int id, string text, Action? handler)
+    private static bool BindingsEqual(List<HotkeyBinding> a, List<HotkeyBinding> b)
+    {
+        if (a.Count != b.Count) return false;
+        for (var i = 0; i < a.Count; i++)
+        {
+            if (a[i].Id != b[i].Id || a[i].Text != b[i].Text
+                || a[i].Modifiers != b[i].Modifiers || a[i].Vk != b[i].Vk
+                || !Equals(a[i].Handler, b[i].Handler))
+                return false;
+        }
+        return true;
+    }
+
+    private static void AddBinding(List<HotkeyBinding> bindings, int id, string text, Action? handler)
     {
         text = (text ?? string.Empty).Trim();
         if (handler is null || string.IsNullOrWhiteSpace(text)) return;
@@ -112,7 +135,7 @@ public sealed class GlobalHotkeyService : IDisposable
             AppLogger.Warn($"全局快捷键格式无法解析，已忽略：\"{text}\"");
             return;
         }
-        _bindings.Add(new HotkeyBinding { Id = id, Text = text, Modifiers = mods, Vk = vk, Handler = handler });
+        bindings.Add(new HotkeyBinding { Id = id, Text = text, Modifiers = mods, Vk = vk, Handler = handler });
     }
 
     /// <summary>
@@ -195,20 +218,25 @@ public sealed class GlobalHotkeyService : IDisposable
     private void RegisterAll()
     {
         if (_disposed || _hwnd == IntPtr.Zero) return;
+        // 先释放旧注册：Apply/SetEnabled 可能被重复调用，直接 RegisterHotKey 会全部 1409。
+        UnregisterAll();
         foreach (var b in _bindings)
         {
-            if (!RegisterHotKey(_hwnd, b.Id, b.Modifiers | MOD_NOREPEAT, b.Vk))
-            {
+            if (RegisterHotKey(_hwnd, b.Id, b.Modifiers | MOD_NOREPEAT, b.Vk))
+                _registeredIds.Add(b.Id);
+            else
                 AppLogger.Warn($"RegisterHotKey 失败：\"{b.Text}\"（{Marshal.GetLastWin32Error()}）");
-            }
         }
     }
 
     private void UnregisterAll()
     {
-        if (_hwnd == IntPtr.Zero) return;
-        foreach (var b in _bindings)
-            UnregisterHotKey(_hwnd, b.Id);
+        if (_hwnd != IntPtr.Zero)
+        {
+            foreach (var id in _registeredIds)
+                UnregisterHotKey(_hwnd, id);
+        }
+        _registeredIds.Clear();
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

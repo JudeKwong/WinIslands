@@ -1,4 +1,4 @@
-﻿<Window x:Class="WinIslands.UI.SettingsWindow"
+<Window x:Class="WinIslands.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:WinIslands.UI.Converters"
@@ -779,8 +779,8 @@
                                     BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="0" Margin="0,0,0,8">
                                 <ScrollViewer x:Name="OrderScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                               Padding="8,6" PreviewMouseWheel="OrderScroll_PreviewMouseWheel">
-                                    <ItemsControl x:Name="OrderStrip" ItemsSource="{Binding OrderItems}" AllowDrop="True"
-                                                  PreviewDragOver="OrderStrip_PreviewDragOver" PreviewDrop="OrderStrip_Drop">
+                                    <ItemsControl x:Name="OrderStrip" ItemsSource="{Binding OrderItems}"
+                                                  >
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
@@ -788,7 +788,8 @@
                                             <DataTemplate>
                                                 <Border x:Name="Chip" CornerRadius="9" Padding="16,7" Margin="4" Cursor="Hand"
                                                         Background="{DynamicResource ControlBgBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
-                                                        PreviewMouseLeftButtonDown="Chip_PreviewMouseLeftButtonDown" PreviewMouseMove="Chip_PreviewMouseMove">
+                                                        PreviewMouseLeftButtonDown="Chip_PreviewMouseLeftButtonDown" PreviewMouseMove="Chip_PreviewMouseMove"
+                                                        PreviewMouseLeftButtonUp="Chip_PreviewMouseLeftButtonUp" LostMouseCapture="Chip_LostMouseCapture">
                                                     <TextBlock Text="{Binding Name}"/>
                                                 </Border>
                                             </DataTemplate>
