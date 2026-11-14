@@ -1285,11 +1285,6 @@
                                 IsSnapToTickEnabled="True" TickFrequency="1"/>
                         <TextBlock x:Name="TxtMailNote" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap" Margin="0,6,0,0" MaxWidth="520"/>
-                        <TextBlock x:Name="LblHistoryTitle" Style="{StaticResource Label}" Margin="0,16,0,0" Text="通知历史"/>
-                        <CheckBox x:Name="ChkHistoryEnabled" IsChecked="{Binding Working.NotificationHistoryEnabled}"/>
-                        <TextBlock x:Name="LblHistoryMax" Style="{StaticResource Label}" Text="最多保留条数"/>
-                        <Slider Minimum="1" Maximum="100" Value="{Binding Working.NotificationHistoryMax}" Width="300" HorizontalAlignment="Left" IsSnapToTickEnabled="True" TickFrequency="1"/>
-                        <Button x:Name="BtnClearHistory" Padding="10,5" HorizontalAlignment="Left" Margin="0,6,0,0" Content="立即清空历史" Click="ClearHistory_Click"/>
 
                     </StackPanel>
                     </ScrollViewer>

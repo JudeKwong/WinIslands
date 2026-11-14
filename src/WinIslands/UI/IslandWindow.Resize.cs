@@ -8,10 +8,10 @@ namespace WinIslands.UI;
 /// <summary>
 /// 边缘拖拽缩放（参考 BrimDeck 的 ResizeGrips 交互模型）：
 /// - 未展开：左右边缘改变宽度（以岛中心为锚点左右同时伸缩），下边缘改变高度；
-/// - 已展开：左右边缘改变展开宽度，下边缘改变展开高度；
-/// - 鼠标靠近边缘时切换缩放光标，按下即进入缩放，不会误触“点击展开/收起”；
-/// - 手动缩放会关闭对应方向的“自动调整尺寸”，与设置页滑块行为一致；
-/// - 上锁只约束“移动位置”，不约束调整尺寸：上锁时仍可拖边缘改大小，方便随时调整。
+/// - 已展开：所有页面统一固定为参考项目的 419×140；不提供边缘拖拽缩放；
+/// - 未展开时鼠标靠近边缘会切换缩放光标，按下即进入缩放，不会误触“点击展开/收起”；
+/// - 手动缩放仅作用于紧凑态，会关闭对应方向的“自动调整尺寸”；
+/// - 上锁只约束“移动位置”；未展开时仍可拖边缘调整紧凑尺寸。
 /// </summary>
 public partial class IslandWindow
 {
@@ -20,7 +20,7 @@ public partial class IslandWindow
     private const double MaxCompactVisualW = 520;
     private const double MinCompactVisualH = 48;
     private const double MaxCompactVisualH = 140;
-    // 展开态视觉尺寸范围（与 EnsureWindowSizeFits 的窗口容量保持一致，避免超出窗口被裁剪）
+    // 展开态视觉尺寸范围：历史保留，用于透明宿主窗口容量计算；当前展开态统一为 419×140。
     private const double MinExpandedVisualW = 320;
     private const double MaxExpandedVisualW = 620;
     private const double MinExpandedVisualH = 240;
@@ -86,6 +86,7 @@ public partial class IslandWindow
     /// <summary>悬停时切换缩放光标；离开边缘恢复默认光标。</summary>
     private void UpdateEdgeResizeCursor(Point local)
     {
+        if (_vm.IsExpanded) return; // 展开尺寸固定为参考项目的 419×140，不再提供拖拽调整。
         var edges = HitTestResizeEdges(local);
         Cursor = edges switch
         {
@@ -100,6 +101,7 @@ public partial class IslandWindow
     /// <summary>按下时若命中边缘则进入缩放；返回 true 表示事件已被缩放接管。</summary>
     private bool TryBeginEdgeResize(Point local)
     {
+        if (_vm.IsExpanded) return false; // 展开尺寸固定为参考项目的 419×140，不再提供拖拽调整。
         var edges = HitTestResizeEdges(local);
         if (edges == IslandResizeEdges.None) return false;
 
@@ -137,7 +139,7 @@ public partial class IslandWindow
             PillRow.Opacity = 0;
             ExpandedContent.Visibility = Visibility.Visible;
             ExpandedContent.Opacity = 1;
-            ExpandedContent.Width = Math.Max(120, Card.Width - 20);
+            ExpandedContent.Width = Math.Max(120, Card.Width - 20 - ExpandedContentExtraHorizontalMargin);
         }
         else
         {
@@ -191,7 +193,7 @@ public partial class IslandWindow
 
         if (_resizeExpanded)
         {
-            ExpandedContent.Width = Math.Max(120, logicalWidth - 20);
+            ExpandedContent.Width = Math.Max(120, logicalWidth - 20 - ExpandedContentExtraHorizontalMargin);
         }
         else
         {
@@ -241,7 +243,7 @@ public partial class IslandWindow
             });
             _expandedHeightDirty = true;
             _expandedTargetHeight = Math.Max(MinExpandedVisualH, visualHeight / FontScale);
-            ExpandedContent.Width = Math.Max(120, Card.Width - 20);
+            ExpandedContent.Width = Math.Max(120, Card.Width - 20 - ExpandedContentExtraHorizontalMargin);
         }
         else
         {

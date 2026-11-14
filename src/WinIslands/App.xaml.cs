@@ -884,10 +884,7 @@ AppPaths.EnsureDirectories();
             // 验证码高亮提示优先（短信场景，通常很短）
             if (s.CodeToastEnabled && VerificationCodeDetector.TryExtract(text, out var code))
             {
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("clip:code",
-                    Localization.Get("Clipboard_CodeTitle"),
-                    Localization.Get("Clipboard_CodeBody").Replace("{code}", code),
-                    "", "info", 6));
+                Dispatcher.BeginInvoke(() => _vm?.ShowCopyToast(Localization.Get("Clipboard_CodeCopiedToast")));
                 return;
             }
 
@@ -902,8 +899,7 @@ AppPaths.EnsureDirectories();
 
             // 普通复制：已复制提示
             if (s.CopyToastEnabled)
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("clip:copied",
-                    Localization.Get("Clipboard_CopiedTitle"), ClipboardPreview(text), "", "info", 4));
+                Dispatcher.BeginInvoke(() => _vm?.ShowCopyToast(Localization.Get("Clipboard_CopiedTitle")));
         }
         catch (Exception ex)
         {

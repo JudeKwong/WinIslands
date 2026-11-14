@@ -634,10 +634,6 @@ public partial class SettingsWindow : Window
         LblMailPass.Text = Localization.Get("Mail_Pass");
         LblMailInterval.Text = Localization.Get("Mail_Interval");
         TxtMailNote.Text = Localization.Get("Mail_Note");
-        LblHistoryTitle.Text = Localization.Get("History_Title");
-        ChkHistoryEnabled.Content = Localization.Get("History_Enabled");
-        LblHistoryMax.Text = Localization.Get("History_Max");
-        BtnClearHistory.Content = Localization.Get("History_ClearNow");
 
 
         LblProdClipboard.Text = Localization.Get("Prod_Clipboard");
@@ -939,9 +935,6 @@ public partial class SettingsWindow : Window
             AccentBox.Text = color;
         }
     }
-
-    private void ClearHistory_Click(object sender, RoutedEventArgs e)
-        => _island?.ClearNotificationHistory();
 
     private void BrowseLyrics_Click(object sender, RoutedEventArgs e)
     {

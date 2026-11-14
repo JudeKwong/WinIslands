@@ -21,16 +21,28 @@ namespace WinIslands.UI;
 
 /// <summary>
 /// iOS 风格灵动岛窗口。
-/// 窗口尺寸固定（400x400、透明、点击穿透），仅内部卡片（Card）形变：
-/// 紧凑 = 340x56 胶囊，展开 = 400x~384 卡片向下生长。
+/// 透明宿主窗口提供固定画布（点击穿透），仅内部卡片（Card）形变：
+/// 紧凑 = 340x56 胶囊；展开宽度统一 419，音乐页 140，功能页按内容自适应高度向下生长。
 /// 动画只作用于单个元素，由 WPF 合成线程 60fps 驱动，避免窗口级 Resize 卡顿。
 /// 点击穿透通过 WM_NCHITTEST 显式处理：卡片内可交互，卡片外穿透。
 /// </summary>
 public partial class IslandWindow : Window, INotifyPropertyChanged
 {
-    // 尺寸来自设置（可调），带安全钳制
+    // 紧凑尺寸来自设置（可调）；展开宽度统一为参考项目的 419。
     /// <summary>字号缩放系数：整张卡片 LayoutTransform 缩放，逻辑尺寸 = 视觉尺寸 / 缩放比。</summary>
     private double FontScale => Math.Clamp(_settings.Current.FontScale, 0.8, 1.4);
+
+    // xiaotang-daozai dimensions: every expanded page is 419x140 logical pixels.
+    private const double ReferenceExpandedWidth = 419.0;
+    private const double ReferenceExpandedHeight = 140.0;
+    /// <summary>展开内容在 ContentGrid 基础留白外额外增加的左右间距。</summary>
+    private const double ExpandedContentExtraHorizontalMargin = 8.0;
+    // xiaotang-daozai notice/toast dimensions.
+    private const double ReferenceNoticeWidth = 334.0;
+    private const double ReferenceNoticeHeight = 44.0;
+    private const double CopyToastHeight = 22.0;
+    private const double CopyToastBottomGap = 8.0;
+    private double ExpandedHeight => ReferenceExpandedHeight / FontScale;
     private double ManualCompactW => Math.Clamp(_settings.Current.CompactWidth / FontScale, 240 / FontScale, 520 / FontScale);
     private double ManualCompactH => Math.Clamp(_settings.Current.CompactHeight / FontScale, 48 / FontScale, 140 / FontScale);
     /// <summary>
@@ -79,23 +91,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _noPushCompactW;
     private bool _noPushWValid;
 
-    /// <summary>
-    /// 推送卡片在紧凑态所需宽度：单行显示（图标 30 + 间距 8 + 标题 + 单行摘要上限 190），
-    /// 摘要过长由 TextTrimming 省略，整体宽度紧凑、不大幅撑宽灵动岛。
-    /// </summary>
-    private double PushCardCompactWidth()
-    {
-        var p = _vm.ActivePush;
-        if (p is null) return 0;
-        double need = 38; // 图标 30 + 间距 8
-        need += Math.Min(TextW(p.Title, 13, 7), 240); // 标题（SemiBold），上限 240 与 XAML MaxWidth 一致
-        if (!string.IsNullOrEmpty(p.Subtitle) || !string.IsNullOrEmpty(p.Body))
-        {
-            var summary = !string.IsNullOrEmpty(p.Subtitle) ? p.Subtitle : p.Body;
-            need += 8 + Math.Min(TextW(summary, 11.5, 6.2), 200); // 摘要单行上限 200，超出省略（与 XAML MaxWidth 一致）
-        }
-        return (Math.Min(need, 520) + 48) / FontScale; // +48：左右内边距(12+12) + 余量
-    }
+    /// <summary>通知态固定使用参考项目的 334px 宽度，不再按内容自适应撑宽。</summary>
+    private double PushCardCompactWidth() => ReferenceNoticeWidth / FontScale;
 
     /// <summary>估算多行文本的最宽单行宽度：中文/全角按 cjkPx，ASCII 按 asciiPx（换行符按行分离取最大值）。</summary>
     private static double TextW(string? s, double cjkPx, double asciiPx)
@@ -120,6 +117,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         get
         {
+            if (_vm.HasActivePush) return ReferenceNoticeWidth / FontScale;
             if (!_settings.Current.CompactWidthAuto) return ManualCompactW;
             var autoW = MeasureCompactWidthNow();
             if (_vm.HasActivePush)
@@ -144,6 +142,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         get
         {
+            if (_vm.HasActivePush) return ReferenceNoticeHeight / FontScale;
             if (!_settings.Current.CompactHeightAuto) return ManualCompactH; // 手动模式：高度恒定
             if (_vm.HasActivePush)
             {
@@ -158,12 +157,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return _noPushCompactH;
         }
     }
-    private double ExpandedWidth => _settings.Current.ExpandedWidthAuto
-        ? _vm.EstimatedExpandedWidth / FontScale
-        : Math.Clamp(_settings.Current.ExpandedWidth / FontScale, CompactWidth, 820 / FontScale);
-    private double MaxExpandedHeight => _settings.Current.MaxExpandedHeightAuto
-        ? _vm.EstimatedExpandedHeight / FontScale
-        : Math.Clamp(_settings.Current.MaxExpandedHeight / FontScale, 240 / FontScale, 820 / FontScale);
+    private double ExpandedWidth => ReferenceExpandedWidth / FontScale;
 
     private const int WM_NCHITTEST = 0x0084;
     private const int HTCLIENT = 1;
@@ -178,7 +172,30 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly DispatcherTimer _memoryTrimTimer;
     private readonly EventHandler _onThemeChanged;      // 具名处理器：窗口关闭时可退订，防泄漏
     private readonly EventHandler<AppSettings> _onSettingsChanged;
-    private NotifyCollectionChangedEventHandler? _historyChangedHandler;
+    // xiaotang-daozai page transition constants.
+    private const double DaozaiPageSlideDistance = 46.0;
+    private const double DaozaiPageOldSlideDistance = 18.0;
+    private const double DaozaiPageTransitionSeconds = 0.55;
+    private const double DaozaiPageGhostSeconds = 0.12;
+    private const int DaozaiWheelIdleResetMs = 180;
+    private const int DaozaiWheelThreshold = 8;
+    private const int DaozaiWheelNavigationIntervalMs = 200;
+
+    private double _pageWheelDelta;
+    private long _pageWheelLastTick;
+    private long _pageWheelNavigationTick;
+    private readonly DaozaiPageSpring _pageSlideSpring = new(0.0, 260.0, 0.92);
+    private readonly Dictionary<IslandPage, DaozaiPageSpring> _pageDotSprings = new();
+    private readonly Dictionary<IslandPage, Border> _pageDotVisuals = new();
+    private readonly System.Diagnostics.Stopwatch _pageTransitionClock = System.Diagnostics.Stopwatch.StartNew();
+    private IslandPage? _pageTransitionFrom;
+    private IslandPage? _pageTransitionTo;
+    private int _pageTransitionDirection;
+    private double _pageTransitionStartSeconds;
+    private double _pageTransitionLastSeconds;
+    private bool _pageTransitionRendering;
+    private bool _pageTransitionVisualComplete;
+
     private bool _waveRendering;                  // 波纹渲染中（已挂接合成帧事件）
     private DispatcherTimer? _waveTimer;                  // 低功耗模式：波纹定时器（~120fps）
     private double _lastWaveTime;
@@ -220,9 +237,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private double _cardTargetH;
     private Action? _cardSpringCompleted; // 卡片弹簧收敛后的完成回调（兼容旧 Storyboard 语义）
     private bool _expandedFadeIn = true;   // 2.0.9：当前淡入方向（true=展开，false=收起），供胶囊行交叉淡入曲线使用
-    // 2.1.6：展开目标高度缓存——展开动画期间内容（歌词行/封面/推送）变化时复用已测高度，
-    // 不再每次 Expand() 重新 Measure，避免卡片在展开途中“呼吸”抖动；内容变化置脏标记，
-    // 缓存只在 Expand() 时消费，下一次展开前重新测量（展开中更新的脏标记零成本）。
+    // 展开目标高度：音乐页固定为参考高度，其他页按内容测量；保留缓存/脏标记，
+    // 避免展开动画期间反复布局。内容变化置脏，下一次展开或切换页面时重新测量。
     private double _expandedTargetHeight = double.NaN;
     private bool _expandedHeightValid;
     private bool _expandedHeightDirty = true;
@@ -232,6 +248,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private IOSSpring? _pushScaleSpring;  // 推送卡片缩放弹簧
     private Storyboard? _coverTransitionStoryboard;
     private Storyboard? _pushCardStoryboard;
+    private Storyboard? _copyToastStoryboard;
     private Storyboard? _glassAnimSb;               // 玻璃分层不透明度动画（可随时重开/停止）
     /// <summary>展开态玻璃叠加目标不透明度：从基础 88% 叠加到 ≈97%（随用户 Opacity 缩放）。</summary>
     private double GlassTargetOpacity
@@ -404,6 +421,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         DataContext = vm;
         InitializeComponent();
+        // 页面可见性由过渡代码独占控制，防止绑定异步覆盖首帧过渡。
+        ResetPageTransitionVisuals();
 
         // 展开内容交错过渡区块（功能 2）：为各区块挂载位移变换，供展开/收起错峰动画使用
         _cascadeBlocks = BuildCascadeBlocks(ExpandedPushCard, HeroCard, ArtTitleGrid, ProgressGrid,
@@ -436,14 +455,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _compactRestoreTimer.Stop();
             // 注意：这里不要碰 _memoryTrimTimer——内存修剪是常驻节电服务，
             // 若在每次收起时被 Stop，空闲内存回收将永久停用（2.1.5 修复）。
-            if (IsLoaded && !_vm.IsExpanded)
-            {
-                Card.BeginAnimation(FrameworkElement.WidthProperty, null);
-                Card.BeginAnimation(FrameworkElement.HeightProperty, null);
-                Card.Width = CompactWidth;
-                Card.Height = CompactHeight;
-                ContentGrid.RowDefinitions[1].Height = GridLength.Auto;
-            }
+            if (IsLoaded && !_vm.IsExpanded) RestoreCompactLayout();
         };
 
         _memoryTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
@@ -528,12 +540,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
         RefreshAnimationConstants(); // 2.4.4：启动即按当前设置缓存动画常量
         _vm.PropertyChanged += OnVmPropertyChanged;
+        _vm.PageTransitionStarted += OnPageTransitionStarted;
         _theme.ThemeChanged += _onThemeChanged;
         _settings.Changed += _onSettingsChanged;
-        _historyChangedHandler = (_, _) => RefreshNotificationHistoryProps();
-        _vm.NotificationHistory.CollectionChanged += _historyChangedHandler;
-        Localization.LanguageChanged += OnLanguageChanged;
-        RefreshNotificationHistoryProps();
+
 
         Loaded += OnLoaded;
         IsVisibleChanged += (_, _) => ScheduleVisibilityRefresh();
@@ -659,14 +669,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         try
         {
             _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.PageTransitionStarted -= OnPageTransitionStarted;
             _theme.ThemeChanged -= _onThemeChanged;
             _settings.Changed -= _onSettingsChanged;
-            if (_historyChangedHandler is not null)
-                _vm.NotificationHistory.CollectionChanged -= _historyChangedHandler;
-            Localization.LanguageChanged -= OnLanguageChanged;
+
             _collapseTimer.Stop();
             _compactRestoreTimer.Stop();
             _memoryTrimTimer.Stop();
+            StopPageTransition();
+            _pageDotSprings.Clear();
+            _pageDotVisuals.Clear();
             StopLyricsScroll();
             CancelPendingClick();
             StopWaveRender();
@@ -710,26 +722,24 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public Brush DaozaiBlueBrush => _theme.DaozaiBlueBrush;
     public Brush DaozaiPurpleBrush => _theme.DaozaiPurpleBrush;
 
-    // Lyric style passthrough (1.2.3): adjustable lyric font size, current-line size,
-    // line spacing, karaoke speed and highlight/base colors.
-    public double LyricBaseFontSize => Math.Max(9, _settings.Current.LyricFontSize);
-    public double LyricCurrentFontSize => Math.Max(12, Math.Max(LyricBaseFontSize + 3, _settings.Current.LyricCurrentFontSize));
-    public double LyricLineHeight
-    {
-        get
-        {
-            var s = Math.Clamp(_settings.Current.LyricLineSpacing, 0.5, 2.5);
-            return Math.Max(16, LyricBaseFontSize * 1.55 * s);
-        }
-    }
-    public Thickness LyricLineMargin
-    {
-        get
-        {
-            var s = Math.Clamp(_settings.Current.LyricLineSpacing, 0.5, 2.5);
-            return new Thickness(0, 2.5 * s, 0, 2.5 * s);
-        }
-    }
+    // Lyric style passthrough: expanded lyrics use fixed xiaotang-daozai metrics;
+    // standalone lyrics continue to expose the user-adjustable settings.
+    // The expanded island uses the compact visual lyric metrics from xiaotang-daozai.
+    // Divide by FontScale because Card.LayoutTransform also scales the whole island;
+    // this keeps the rendered text at the reference 10px/12px visual size.
+    // Standalone lyrics continue to use the user's larger font-size settings.
+    private const double ReferenceLyricBaseFontSize = 10.0;
+    private const double ReferenceLyricCurrentFontSize = 12.0;
+    private const double ReferenceLyricTextLineHeight = 15.0;
+    private const double ReferenceLyricRowPadding = 6.0; // 15 + 6*2 + Border 2*2 = 29px row pitch
+    private const double ReferenceLyricTranslationFontSize = 8.0;
+    private const double ReferenceLyricsStatusFontSize = 10.0;
+    public double LyricBaseFontSize => ReferenceLyricBaseFontSize / FontScale;
+    public double LyricCurrentFontSize => ReferenceLyricCurrentFontSize / FontScale;
+    public double LyricLineHeight => ReferenceLyricTextLineHeight / FontScale;
+    public Thickness LyricLineMargin => new(0, ReferenceLyricRowPadding / FontScale, 0, ReferenceLyricRowPadding / FontScale);
+    public double LyricTranslationFontSize => ReferenceLyricTranslationFontSize / FontScale;
+    public double LyricsStatusFontSize => ReferenceLyricsStatusFontSize / FontScale;
     public double LyricKaraokeSpeed => Math.Clamp(_settings.Current.KaraokeSpeed, 0.2, 3.0);
 
     private static System.Windows.Media.Color BrushColor(Brush b) => (b as SolidColorBrush)?.Color ?? System.Windows.Media.Colors.White;
@@ -796,9 +806,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
     }
 
-    public bool NotificationHistoryVisible => _settings.Current.NotificationHistoryEnabled && _vm.NotificationHistory.Count > 0;
-    public string NotificationHistoryTitle => Localization.Get("Notifications_History");
-    public string NotificationHistoryClearText => Localization.Get("Notifications_HistoryClear");
+
 
 
     // ── 上岛推送卡片主题（#17：第三方可指定 dark / light，auto 跟随应用明暗）──
@@ -1499,12 +1507,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricCurrentFontSize)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricLineHeight)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricLineMargin)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricTranslationFontSize)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricsStatusFontSize)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LyricKaraokeSpeed)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ExpandedLyricBaseBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ExpandedLyricHighlightBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CompactLyricBaseBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CompactLyricHighlightBrush)));
-        RefreshNotificationHistoryProps();
+
     }
 
     /// <summary>按设置调整窗口与卡片尺寸（紧凑/展开）。仅当窗口尺寸真正变化时才重定位，
@@ -1513,14 +1523,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// 确保透明窗口尺寸足够容纳当前卡片（含紧凑态自动宽度），
     /// 否则卡片超出窗口边界会被裁剪。紧凑卡片视觉宽度 = CompactWidth × FontScale。
     /// </summary>
-    private void EnsureWindowSizeFits(double? knownCompactWidth = null)
+    private double MeasureExpandedTargetHeight()
+    {
+        // xiaotang-daozai uses PW=419 and PH=140 for every standard expanded page. Feature-page
+        // content is compacted into the fixed card instead of growing the host window.
+        return ExpandedHeight;
+    }
+
+    private void EnsureWindowSizeFits(double? knownCompactWidth = null, double? expandedVisualHeight = null)
     {
         if (!IsLoaded) return;
-        var settingExpanded = Math.Clamp(_settings.Current.ExpandedWidth, 300, 820);
-        var settingMaxH = Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 820);
+        // Expanded mode is always the reference 419x140. Compact mode may grow beyond that only when
+        // the pill or push card needs more room.
         var compactWidth = knownCompactWidth ?? CompactWidth;
-        var w = Math.Max(settingExpanded, Math.Max(compactWidth * FontScale + 8, 820)) + 24;
-        var h = Math.Max(settingMaxH, 720) + 24;
+        var compactHeight = CompactHeight;
+        var w = _vm.IsExpanded ? ReferenceExpandedWidth : Math.Max(ReferenceExpandedWidth, compactWidth * FontScale);
+        var h = _vm.IsExpanded ? ReferenceExpandedHeight : Math.Max(ReferenceExpandedHeight, compactHeight * FontScale);
         if (Math.Abs(Width - w) > 0.5 || Math.Abs(Height - h) > 0.5)
         {
             Width = w;
@@ -1535,7 +1553,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 窗口固定为能容纳最大推送卡片/展开内容的大小：推送时只需动画 Card 形变，避免窗口级 Resize 卡顿
         var targetCompactWidth = CompactWidth;
         var targetCompactHeight = CompactHeight;
-        EnsureWindowSizeFits(targetCompactWidth);
+        if (_vm.IsExpanded)
+        {
+            if (!_expandedHeightValid || _expandedHeightDirty)
+            {
+                _expandedTargetHeight = MeasureExpandedTargetHeight();
+                _expandedHeightValid = true;
+                _expandedHeightDirty = false;
+            }
+            EnsureWindowSizeFits(targetCompactWidth, _expandedTargetHeight * FontScale);
+        }
+        else
+        {
+            EnsureWindowSizeFits(targetCompactWidth);
+        }
         if (!_vm.IsExpanded)
         {
             Card.Width = targetCompactWidth;
@@ -1551,7 +1582,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     /// <summary>应用外观参数：圆角 / 字体 / 字号缩放。字号缩放作用于整张卡片（LayoutTransform），
     /// 逻辑尺寸同步除以缩放比，最终视觉尺寸与设置一致、不溢出不裁剪。</summary>
-    /// <summary>Rebuilds the LyricLineText style from user settings (font sizes, spacing, colors).
+    /// <summary>Rebuilds the LyricLineText style using fixed reference metrics and current brushes.
     /// WPF cannot bind DoubleAnimation.To, so the current-line grow/shrink storyboard is built in code.</summary>
     private void UpdateLyricLineStyle()
     {
@@ -1575,7 +1606,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             style.Setters.Add(new Setter(TextBlock.FontSizeProperty, baseSize));
             style.Setters.Add(new Setter(TextBlock.ForegroundProperty, baseBrush));
             style.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
-            style.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
+            // xiaotang-daozai wraps only the active lyric row; inactive rows stay on one line.
+            style.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.NoWrap));
             style.Setters.Add(new Setter(TextBlock.MarginProperty, margin));
             style.Setters.Add(new Setter(TextBlock.LineHeightProperty, lineHeight));
             style.Setters.Add(new Setter(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight));
@@ -1593,6 +1625,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             };
             trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
             trigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, highlightBrush));
+            trigger.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
             trigger.Setters.Add(new Setter(LyricEmphasis.IsCurrentProperty, true));
             style.Triggers.Add(trigger);
 
@@ -1603,27 +1636,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             AppLogger.Error("UpdateLyricLineStyle failed", ex);
         }
     }
-    private void OnLanguageChanged(object? sender, EventArgs e) => RefreshNotificationHistoryProps();
 
-    private void RefreshNotificationHistoryProps()
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NotificationHistoryVisible)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NotificationHistoryTitle)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NotificationHistoryClearText)));
-    }
-
-    private void NotificationHistory_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is EventHistoryItem item)
-            _vm.ReplayNotification(item);
-    }
-
-    private void ClearNotificationHistory_Click(object sender, RoutedEventArgs e)
-        => _vm.ClearNotificationHistory();
 
     private void PageDot_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is IslandPage page) _vm.ActivatePage(page);
+        if ((sender as FrameworkElement)?.Tag is IslandPage page)
+        {
+            var current = _vm.ActivePage;
+            var currentIndex = current is null ? 0 : Math.Max(0, _vm.Pages.IndexOf(current));
+            var nextPageIndex = Math.Max(0, _vm.Pages.IndexOf(page));
+            _vm.ActivatePage(page, nextPageIndex > currentIndex ? 1 : -1);
+        }
         e.Handled = true;
     }
 
@@ -1637,6 +1660,254 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void MessengerClearAll_Click(object sender, RoutedEventArgs e)
         => _vm.ClearMessengerUnreads();
 
+    /// <summary>
+    /// xiaotang-daozai 滚轮切页：停顿 180ms 重置、方向反转重置、阈值 8、
+    /// 两次切页至少间隔 200ms；负方向滚轮进入下一页。
+    /// </summary>
+    private void Card_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!_vm.IsExpanded || !_vm.HasMultiplePages || e.Delta == 0) return;
+
+        var now = Environment.TickCount64;
+        if (_pageWheelDelta != 0
+            && (now - _pageWheelLastTick > DaozaiWheelIdleResetMs
+                || Math.Sign(_pageWheelDelta) != Math.Sign(e.Delta)))
+        {
+            _pageWheelDelta = 0;
+        }
+
+        _pageWheelLastTick = now;
+        _pageWheelDelta += e.Delta;
+        e.Handled = true;
+
+        if (Math.Abs(_pageWheelDelta) < DaozaiWheelThreshold) return;
+        _pageWheelDelta = 0;
+        if (_pageWheelNavigationTick != 0 && now - _pageWheelNavigationTick < DaozaiWheelNavigationIntervalMs) return;
+
+        _vm.NavigatePage(e.Delta < 0 ? 1 : -1);
+        _pageWheelNavigationTick = now;
+    }
+
+    /// <summary>
+    /// xiaotang-daozai 键盘切页：展开且非输入状态时，←/→ 直接切页；
+    /// 与参考项目一致，方向键会清空滚轮余量，不额外加 200ms 间隔。
+    /// </summary>
+    private void Card_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (!_vm.IsExpanded || !_vm.HasMultiplePages) return;
+        if (e.Key != Key.Left && e.Key != Key.Right) return;
+        if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return;
+
+        _pageWheelDelta = 0;
+        _vm.NavigatePage(e.Key == Key.Right ? 1 : -1);
+        e.Handled = true;
+    }
+    private void OnPageTransitionStarted(IslandPage fromPage, IslandPage toPage, int direction)
+    {
+        if (!IsLoaded || !_vm.IsExpanded || _settings.Current.ReduceMotion) return;
+
+        var carry = 0.0;
+        if (_pageTransitionRendering && _pageTransitionFrom is not null)
+        {
+            var elapsed = _pageTransitionClock.Elapsed.TotalSeconds - _pageTransitionStartSeconds;
+            if (elapsed < 0.4) carry = _pageSlideSpring.Position * 0.3;
+        }
+
+        // WPF 保留可视化树；动画被打断时必须先清掉上一次残留的旧页/新页，
+        // 否则第三次快速滚动会短暂看到上上页，最后才回到目标页。
+        StopPageTransition(resetVisuals: true);
+        _pageTransitionFrom = fromPage;
+        _pageTransitionTo = toPage;
+        _pageTransitionDirection = direction;
+        _pageTransitionStartSeconds = _pageTransitionClock.Elapsed.TotalSeconds;
+        _pageTransitionLastSeconds = _pageTransitionStartSeconds;
+        _pageTransitionVisualComplete = false;
+        _pageSlideSpring.Begin(direction * DaozaiPageSlideDistance + carry, 0.0); // 与参考代码一致：保留速度，只改位置和目标
+
+        var oldVisual = GetPageVisual(fromPage);
+        var newVisual = GetPageVisual(toPage);
+        if (oldVisual is null || newVisual is null) return;
+
+        oldVisual.Value.Element.SetCurrentValue(UIElement.VisibilityProperty, Visibility.Visible);
+        oldVisual.Value.Element.Opacity = 1;
+        oldVisual.Value.Element.IsHitTestVisible = false;
+        oldVisual.Value.Transform.X = 0;
+        // 对齐 xiaotang-daozai 的绘制顺序：先画旧页，再画新页，避免反向切换时旧页盖住新页。
+        System.Windows.Controls.Panel.SetZIndex(oldVisual.Value.Element, 0);
+
+        newVisual.Value.Element.SetCurrentValue(UIElement.VisibilityProperty, Visibility.Visible);
+        newVisual.Value.Element.Opacity = 0;
+        newVisual.Value.Element.IsHitTestVisible = false;
+        newVisual.Value.Transform.X = _pageSlideSpring.Position;
+        System.Windows.Controls.Panel.SetZIndex(newVisual.Value.Element, 1);
+
+        PageTransitionTitleSnapshot.Text = fromPage.Title;
+        PageTransitionTitleSnapshot.Foreground = fromPage.AccentBrush;
+        PageTransitionTitleSnapshot.Visibility = IsDaozai && fromPage.Key != "Music" ? Visibility.Visible : Visibility.Collapsed;
+        PageTransitionTitleSnapshot.Opacity = 1;
+        PageTransitionTitleTranslate.X = 0;
+        ActivePageTitleText.Opacity = 0;
+        ActivePageTitleTranslate.X = 0;
+
+        CollectPageDots();
+        RetargetPageDots();
+        CompositionTarget.Rendering += OnPageTransitionFrame;
+        _pageTransitionRendering = true;
+        UpdatePageTransitionFrame();
+    }
+
+    private void OnPageTransitionFrame(object? sender, EventArgs e) => UpdatePageTransitionFrame();
+
+    private void UpdatePageTransitionFrame()
+    {
+        if (!_pageTransitionRendering) return;
+
+        var now = _pageTransitionClock.Elapsed.TotalSeconds;
+        var dt = Math.Max(0, now - _pageTransitionLastSeconds);
+        _pageTransitionLastSeconds = now;
+        _pageSlideSpring.Step(dt);
+        foreach (var spring in _pageDotSprings.Values) spring.Step(dt);
+
+        var elapsed = now - _pageTransitionStartSeconds;
+        var oldAlpha = 1.0 - SmoothStep(0.0, 0.16, elapsed);
+        var newAlpha = SmoothStep(0.03, 0.28, elapsed);
+        var oldX = -_pageTransitionDirection * DaozaiPageOldSlideDistance * EaseOutCubic(elapsed / 0.3);
+        var newX = _pageTransitionVisualComplete ? 0.0 : _pageSlideSpring.Position;
+
+        if (!_pageTransitionVisualComplete && elapsed >= DaozaiPageTransitionSeconds)
+        {
+            _pageTransitionVisualComplete = true;
+            newX = 0;
+            newAlpha = 1;
+        }
+
+        if (_pageTransitionFrom is { } fromPage)
+        {
+            var oldVisual = GetPageVisual(fromPage);
+            if (oldVisual is not null)
+            {
+                if (_pageTransitionVisualComplete)
+                {
+                    oldVisual.Value.Element.SetCurrentValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+                    oldVisual.Value.Element.Opacity = 0;
+                }
+                else
+                {
+                    oldVisual.Value.Element.Opacity = oldAlpha;
+                    oldVisual.Value.Transform.X = oldX;
+                }
+            }
+        }
+
+        if (_pageTransitionTo is { } toPage)
+        {
+            var newVisual = GetPageVisual(toPage);
+            if (newVisual is not null)
+            {
+                newVisual.Value.Element.Opacity = Math.Max(0, Math.Min(1, newAlpha));
+                newVisual.Value.Transform.X = newX;
+                newVisual.Value.Element.IsHitTestVisible = elapsed >= DaozaiPageGhostSeconds;
+            }
+        }
+
+        PageTransitionTitleSnapshot.Opacity = _pageTransitionVisualComplete ? 0 : oldAlpha;
+        PageTransitionTitleTranslate.X = _pageTransitionVisualComplete ? 0 : oldX;
+        ActivePageTitleText.Opacity = _pageTransitionVisualComplete ? 1 : newAlpha;
+        ActivePageTitleTranslate.X = 0;
+
+        foreach (var (page, dot) in _pageDotVisuals)
+        {
+            if (_pageDotSprings.TryGetValue(page, out var spring))
+                dot.Width = Math.Max(0, spring.Position);
+        }
+
+        if (_pageTransitionVisualComplete && _pageDotSprings.Values.All(s => s.Settled(16.0)))
+            StopPageTransition();
+    }
+
+    private (FrameworkElement Element, TranslateTransform Transform)? GetPageVisual(IslandPage page) => page.Key switch
+    {
+        "Music" => (MusicPagePanel, MusicPageTranslate),
+        "Focus" => (FocusPagePanel, FocusPageTranslate),
+        "Todo" => (TodoPagePanel, TodoPageTranslate),
+        "Schedule" => (SchedulePagePanel, SchedulePageTranslate),
+        _ => null,
+    };
+
+    private void StopPageTransition(bool resetVisuals = true)
+    {
+        if (_pageTransitionRendering) CompositionTarget.Rendering -= OnPageTransitionFrame;
+        _pageTransitionRendering = false;
+        _pageTransitionFrom = null;
+        _pageTransitionTo = null;
+        _pageTransitionVisualComplete = false;
+        if (resetVisuals) ResetPageTransitionVisuals();
+    }
+
+    private void ResetPageTransitionVisuals()
+    {
+        var activeKey = _vm.ActivePage?.Key;
+        ResetPageVisual(MusicPagePanel, MusicPageTranslate, activeKey == "Music");
+        ResetPageVisual(FocusPagePanel, FocusPageTranslate, activeKey == "Focus");
+        ResetPageVisual(TodoPagePanel, TodoPageTranslate, activeKey == "Todo");
+        ResetPageVisual(SchedulePagePanel, SchedulePageTranslate, activeKey == "Schedule");
+
+        ActivePageTitleText.Opacity = 1;
+        ActivePageTitleTranslate.X = 0;
+        PageTransitionTitleSnapshot.Opacity = 0;
+        PageTransitionTitleSnapshot.Visibility = Visibility.Collapsed;
+        PageTransitionTitleTranslate.X = 0;
+
+        foreach (var (page, dot) in _pageDotVisuals)
+            dot.Width = page.Key == activeKey ? 16 : 4;
+    }
+
+    private static void ResetPageVisual(FrameworkElement element, TranslateTransform transform, bool visible)
+    {
+        element.Opacity = 1;
+        element.IsHitTestVisible = true;
+        transform.X = 0;
+        element.SetCurrentValue(UIElement.VisibilityProperty, visible ? Visibility.Visible : Visibility.Collapsed);
+        System.Windows.Controls.Panel.SetZIndex(element, 0);
+    }
+
+    private void CollectPageDots()
+    {
+        if (PageDots is null) return;
+        _pageDotVisuals.Clear();
+        foreach (var button in FindVisualChildren<System.Windows.Controls.Button>(PageDots))
+        {
+            if (button.Tag is not IslandPage page) continue;
+            var dot = FindVisualChildren<Border>(button).FirstOrDefault(b => b.Name == "Dot");
+            if (dot is not null) _pageDotVisuals[page] = dot;
+        }
+    }
+
+    private void RetargetPageDots()
+    {
+        var activeKey = _vm.ActivePage?.Key;
+        foreach (var (page, dot) in _pageDotVisuals)
+        {
+            if (!_pageDotSprings.TryGetValue(page, out var spring))
+            {
+                spring = new DaozaiPageSpring(Math.Max(0, dot.Width), 380.0, 0.86);
+                _pageDotSprings[page] = spring;
+            }
+            spring.Retarget(page.Key == activeKey ? 16.0 : 4.0);
+        }
+    }
+
+    private static double SmoothStep(double start, double end, double value)
+    {
+        var t = Math.Clamp((value - start) / (end - start), 0.0, 1.0);
+        return t * t * (3.0 - 2.0 * t);
+    }
+
+    private static double EaseOutCubic(double t)
+    {
+        t = Math.Clamp(t, 0.0, 1.0);
+        return 1.0 - Math.Pow(1.0 - t, 3.0);
+    }
     /// <summary>按真实布局边距更新紧凑内容宽度，避免右侧文字和媒体按钮被裁切。</summary>
     private void UpdateCompactContentWidth(double? knownCompactWidth = null)
     {
@@ -1646,7 +1917,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>卡片尺寸变化时同步圆角裁剪几何（防止亚像素尺寸导致圆角变方框）。</summary>
-    private void OnCardSizeChanged(object sender, SizeChangedEventArgs e) => FinalizeCardShape();
+    private void OnCardSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        FinalizeCardShape();
+        RefreshCopyToastTop();
+    }
 
     /// <summary>重建圆角裁剪 RectangleGeometry 并强制重绘卡片/玻璃层，让动画收尾后圆角干净利落。</summary>
     private void FinalizeCardShape()
@@ -1827,8 +2102,68 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             CompactPushCard.Opacity = 1;
             CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
         };
+    }
+
+    /// <summary>关闭当前紧凑通知；若队列还有下一条，会自动接着显示。</summary>
+    private void DismissPush_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.DismissActivePush();
+        e.Handled = true;
+    }
+
+    /// <summary>复制成功浮层位置：紧凑态在岛下方；展开态放在 140px 画布内，避免被宿主窗口裁剪。</summary>
+    private void RefreshCopyToastTop()
+    {
+        if (CopyToastTranslate is null) return;
+        var cardVisualHeight = Card is not null && Card.ActualHeight > 4
+            ? Card.ActualHeight * FontScale
+            : (_vm.IsExpanded ? ReferenceExpandedHeight : CompactHeight * FontScale);
+        CopyToastTranslate.Y = _vm.IsExpanded
+            ? Math.Max(4, ReferenceExpandedHeight - CopyToastHeight - CopyToastBottomGap)
+            : Math.Max(4, cardVisualHeight + CopyToastBottomGap);
+    }
+
+    /// <summary>复制成功“闪现”提示：2.4 秒总时长，160ms 淡入，2.1s 后 300ms 淡出，并带 6px 上浮。</summary>
+    private void PlayCopyToastAnimation()
+    {
+        if (CopyToast is null || CopyToastTranslate is null) return;
+        _copyToastStoryboard?.Stop();
+        _copyToastStoryboard = null;
+        CopyToast.BeginAnimation(UIElement.OpacityProperty, null);
+        CopyToastTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+        if (!_vm.HasCopyToast)
+        {
+            CopyToast.Opacity = 0;
+            return;
+        }
+
+        CopyToast.Opacity = 0;
+        var targetToastY = CopyToastTranslate.Y;
+        var sb = new Storyboard();
+        var opacity = new DoubleAnimationUsingKeyFrames();
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(160)), CachedCubicEaseOut));
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2100))));
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2400)), CachedCubicEaseOut));
+        Storyboard.SetTarget(opacity, CopyToast);
+        Storyboard.SetTargetProperty(opacity, new PropertyPath(UIElement.OpacityProperty));
+        sb.Children.Add(opacity);
+        AddAnim(sb, CopyToastTranslate, TranslateTransform.YProperty, targetToastY, 300, CachedCubicEaseOut, null, targetToastY + 6);
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
+        _copyToastStoryboard = sb;
+        sb.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_copyToastStoryboard, sb)) return;
+            _copyToastStoryboard = null;
+            CopyToast.BeginAnimation(UIElement.OpacityProperty, null);
+            CopyToastTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+            CopyToast.Opacity = _vm.HasCopyToast ? 1 : 0;
+            if (_vm.HasCopyToast) RefreshCopyToastTop();
+        };
         sb.Begin();
     }
+
+
     /// <summary>右键菜单主题色（圆角液态玻璃）。</summary>
     private void ApplyMenuTheme()
     {
@@ -1884,25 +2219,31 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             case nameof(IslandViewModel.IsExpanded):
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PageNavVisible)));
                 AnimateSize();
+                RefreshCopyToastTop();
                 ApplyCoverTint(); // 展开/收起时同步封面取色呼吸（#8 动态主题）
                 if (_vm.IsExpanded && _vm.LyricIndex >= 0)
                     Dispatcher.BeginInvoke(() => ScrollLyricsTo(_vm.LyricIndex), DispatcherPriority.Loaded);
-                if (!_vm.IsExpanded) _compactRestoreTimer.Start(); // 收起后兜底恢复精确尺寸，避免多次切换后上下间距异常
+                if (!_vm.IsExpanded)
+                {
+                    StopPageTransition(); // 收起时立即恢复单页可见，避免下次展开残留过渡状态
+                    _compactRestoreTimer.Start(); // 收起后兜底恢复精确尺寸，避免多次切换后上下间距异常
+                }
                 break;
             case nameof(IslandViewModel.HasMultiplePages):
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PageNavVisible)));
                 break;
+            case nameof(IslandViewModel.Pages):
+                _pageDotSprings.Clear();
+                _pageDotVisuals.Clear();
+                StopPageTransition();
+                break;
             case nameof(IslandViewModel.ActivePage):
-                // 切换功能页后内容高度不同：等绑定/布局完成后再测高，避免专注/待办/日程被裁切。
-                _expandedHeightDirty = true;
+                if (!_pageTransitionRendering) ResetPageTransitionVisuals(); // 过渡中由动画独占控制
+                // 参考项目切页只跑页面过渡，不重新跑展开动画；
+                // 已展开时再调用 AnimateSize() 会先露出胶囊行/旧内容，造成闪页。
                 if (_vm.IsExpanded)
                 {
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        _expandedHeightDirty = true;
-                        AnimateSize();
-                        ExpandedContent.ScrollToTop();
-                    }, DispatcherPriority.Loaded);
+                    Dispatcher.BeginInvoke(ExpandedContent.ScrollToTop, DispatcherPriority.Loaded);
                 }
                 break;
             case nameof(IslandViewModel.LyricIndex):
@@ -1915,6 +2256,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             case nameof(IslandViewModel.CurrentLyricText):
                 // 当前歌词行变化时，若处于紧凑态则平滑调整宽度，避免长歌词被裁切/遮挡
                 if (!_vm.IsExpanded && _vm.IsVisible) AnimateCompactSize();
+                break;
+            case nameof(IslandViewModel.HasCopyToast):
+                RefreshCopyToastTop();
+                PlayCopyToastAnimation();
                 break;
             case nameof(IslandViewModel.HasActivePush):
                 _expandedHeightDirty = true; // 推送内容会影响展开卡片高度，下次展开前重测（2.1.6）
@@ -2582,17 +2927,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Opacity = 0;
         ExpandedContent.Visibility = Visibility.Visible;
         // 60fps 优化：展开内容固定目标宽度，展开动画期间不随卡片宽度逐帧重排（内容只布局一次）
-        ExpandedContent.Width = Math.Max(120, ExpandedWidth - 20);
+        ExpandedContent.Width = Math.Max(120, ExpandedWidth - 20 - ExpandedContentExtraHorizontalMargin);
         if (!_expandedHeightValid || _expandedHeightDirty)
         {
-            ExpandedContent.Measure(new System.Windows.Size(ExpandedContent.Width, double.PositiveInfinity));
-            var ch = ExpandedContent.DesiredSize.Height;
-            // 分页内容高度差异大：至少给 600px 画布，内容再多也留 80px 余量，避免任何页面被裁切。
-            _expandedTargetHeight = Math.Clamp(Math.Max(ch + 80, 600), 200, MaxExpandedHeight);
+            _expandedTargetHeight = MeasureExpandedTargetHeight();
             _expandedHeightValid = true;
             _expandedHeightDirty = false;
         }
         var targetHeight = _expandedTargetHeight;
+        // 先按目标卡片高度调整宿主，再启动形变动画，避免底部组件被宿主窗口裁剪。
+        EnsureWindowSizeFits(null, targetHeight * FontScale);
 
         // 重新显示胶囊行：动画期间淡出，与展开内容交叉过渡
         PillRow.BeginAnimation(UIElement.OpacityProperty, null);
@@ -2604,6 +2948,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void Collapse()
     {
+        // Restore compact host capacity before shrinking the visible card.
+        EnsureWindowSizeFits(CompactWidth);
         // 先恢复胶囊行（紧凑行占满并垂直居中），再缩回紧凑尺寸
         AnimateGlass(false); // 智能透明度：紧凑态更通透
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
@@ -2621,7 +2967,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Opacity = 1;
         // 60fps 优化：收起动画期间展开内容固定宽度，不随卡片宽度逐帧重排
         // 保持收起动画启动时的展开宽度：文字不瞬间重排（溢出部分由圆角裁剪收住，且随淡化隐藏）
-        ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, CompactWidth) - 20);
+        ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, CompactWidth) - 20 - ExpandedContentExtraHorizontalMargin);
 
         // 尺寸收尾由 OnCardSpringSettled 统一写回 _cardTargetW/H（始终是最新目标，兼容收起途中
         // 被紧凑尺寸重定向连续接管），不再用固定 CompactWidth 回调覆盖，避免收回后宽度/高度错位。
@@ -2889,7 +3235,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Visibility = Visibility.Visible;
         PillRow.Visibility = Visibility.Visible;
         // 动画期间固定展开内容宽度，避免逐帧重排（60fps 保持布局稳定）
-        ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, CompactWidth)) - 20);
+        ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, CompactWidth)) - 20 - ExpandedContentExtraHorizontalMargin);
 
         _expandedFadeIn = expand; // 2.0.9：记录淡入方向，交叉淡入曲线据此解耦胶囊行与内容
         var fadeTo = expand ? 1.0 : 0.0;
@@ -2935,6 +3281,37 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardRSpring.Start(radiusFrom, radiusTo);
     }
 
+    /// <summary>统一恢复紧凑态布局：快速展开/收回后避免尺寸、层级或宽度残留导致胶囊显示不全。</summary>
+    private void RestoreCompactLayout(bool clearAnimations = true)
+    {
+        if (!IsLoaded || _vm.IsExpanded || _cardAnimating) return;
+
+        if (clearAnimations)
+        {
+            Card.BeginAnimation(FrameworkElement.WidthProperty, null);
+            Card.BeginAnimation(FrameworkElement.HeightProperty, null);
+            PillRow.BeginAnimation(UIElement.OpacityProperty, null);
+            ExpandedContent.BeginAnimation(UIElement.OpacityProperty, null);
+            ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+        }
+
+        Card.Width = CompactWidth;
+        Card.Height = CompactHeight;
+        ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+        ContentGrid.RowDefinitions[1].Height = GridLength.Auto;
+        ContentGrid.VerticalAlignment = VerticalAlignment.Center;
+        PillRow.Visibility = Visibility.Visible;
+        PillRow.Opacity = 1;
+        ExpandedContent.Visibility = Visibility.Collapsed;
+        ExpandedContent.Opacity = 0;
+        ExpandedContent.Width = double.NaN;
+        UpdateCompactContentWidth(CompactWidth);
+        ResetContentParallax();
+        FinalizeCardShape();
+    }
+
     /// <summary>卡片三个弹簧全部收敛后的统一收尾（与旧 Storyboard 路径一致的最终状态）。</summary>
     private void OnCardSpringSettled()
     {
@@ -2959,11 +3336,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             }
             else
             {
-                PillRow.Visibility = Visibility.Visible;
-                PillRow.Opacity = 1;
-                ExpandedContent.Visibility = Visibility.Collapsed;
-                ExpandedContent.Opacity = 0;
-                RestoreExpandedContentAutoWidth(); // 下一帧再恢复自适应宽度，避免同帧重排闪动（2.1.5）
+                RestoreCompactLayout(clearAnimations: false);
             }
             var cb = _cardSpringCompleted; // 先取再清，避免回调里再次触发动画导致重复收尾
             _cardSpringCompleted = null;

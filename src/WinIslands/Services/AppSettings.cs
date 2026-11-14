@@ -241,9 +241,6 @@ public sealed class AppSettings
     public int NotificationTimeoutSeconds { get; set; } = 6;      // 横幅显示时长
     public string NotificationPosition { get; set; } = "TopRight"; // TopRight = 右上角
     public bool NotifyFoldEnabled { get; set; } = true;           // 通知折叠：同来源同标题只保留一条并累加数量
-    // ── #10 通知历史（展开卡片底部列表，可点击重新弹出）──
-    public bool NotificationHistoryEnabled { get; set; } = true; // 记录通知历史
-    public int NotificationHistoryMax { get; set; } = 20;        // 通知历史条数上限（1~100）
     public int NotificationQueueMax { get; set; } = 8;   // 通知队列最大深度：超过时自动丢弃最低优先级的旧通知
     public bool NotificationDebounce { get; set; } = true; // 通知去抖：同类型通知 2 秒内只显示最新一条
 

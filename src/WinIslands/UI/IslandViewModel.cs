@@ -23,6 +23,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private readonly LyricsService _lyricsService;
     private readonly DispatcherTimer _progressTimer;
     private readonly DispatcherTimer _widgetTimer;
+    private readonly DispatcherTimer _copyToastTimer;
     private readonly WeatherService _weather = new();
     private int _weatherTick;
     private DateTime _trackStartTime = DateTime.UtcNow;
@@ -57,6 +58,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private readonly List<IslandPush> _pushes = new();
     private IslandPush? _activePush;
     private string _pushInputValue = ""; // 上岛输入框当前文字
+    private string _copyToastText = string.Empty;
+    private bool _hasCopyToast;
+
+    /// <summary>页面过渡开始：旧页、新页、方向（正数表示新页从右侧进入）。</summary>
+    public event Action<IslandPage, IslandPage, int>? PageTransitionStarted;
 
     // ── 效率工具 / 波纹 / 键盘指示灯 ──
     private readonly AudioWaveService _wave;
@@ -74,8 +80,20 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private MediaSessionItem? _selectedMediaSession;
     private bool _suppressSessionSwitch;
 
-    // ── 通知历史（展开卡片底部列表，#10；由 ShowEventCard 记录，可点击重新弹出） ──
-    private readonly ObservableCollection<EventHistoryItem> _notificationHistory = new();
+    /// <summary>复制成功轻量浮层文本；不进入通知队列、不写入通知历史。</summary>
+    public string CopyToastText
+    {
+        get => _copyToastText;
+        private set => Set(ref _copyToastText, value);
+    }
+
+    public bool HasCopyToast
+    {
+        get => _hasCopyToast;
+        private set => Set(ref _hasCopyToast, value);
+    }
+
+    // ── 展开态通知历史已在 3.1.2 beta12 移除；通知仍按队列即时展示。 ──
     private readonly ObservableCollection<MessengerUnread> _messengerUnreads = new();
     private readonly ObservableCollection<IslandPage> _pages = new();
     private string _pageSignature = string.Empty;
@@ -99,7 +117,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
     private readonly MessengerUnreadMonitor? _messengerMonitor;
     private readonly Dictionary<string, DateTime> _lastEventTimes = new(); // 通知去抖：记录每种类型最后触发时间
-    public ObservableCollection<EventHistoryItem> NotificationHistory => _notificationHistory;
     public ObservableCollection<MessengerUnread> MessengerUnreads => _messengerUnreads;
     public bool HasMessengerUnreads => _messengerUnreads.Count > 0;
     public int MessengerUnreadCount => _messengerUnreads.Count;
@@ -203,6 +220,14 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _coordinator.SessionsChanged += OnSessionsChanged;
         RefreshMediaSessions();
         Localization.LanguageChanged += OnLanguageChanged;
+        _copyToastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2400) };
+        _copyToastTimer.Tick += (_, _) =>
+        {
+            _copyToastTimer.Stop();
+            HasCopyToast = false;
+            CopyToastText = string.Empty;
+        };
+
         _progressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) }; // 进度插值 5Hz：进度条按秒显示足够，逐字卡拉OK由控件内部按 CompositionTarget.Rendering 连续推进，降低播放时 CPU 占用
         _progressTimer.Tick += (_, _) => AdvanceProgress();
         // 不立即启动：有媒体快照时（OnSnapshotChanged）才启动，空闲/无媒体时停用，降低后台占用
@@ -1929,6 +1954,16 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>复制成功等轻量提示：2.4 秒后自动消失，不占用通知卡片。</summary>
+    public void ShowCopyToast(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+        CopyToastText = message.Trim();
+        HasCopyToast = true;
+        _copyToastTimer.Stop();
+        _copyToastTimer.Start();
+    }
+
     /// <summary>
     /// 系统事件以「灵动岛卡片」形式展示（iOS 风格）：自动过期、弹簧动画入场、不阻塞主流程。
     /// 复用上岛推送队列：同 id 覆盖；到点后由 CheckPushExpiry 自动回收。
@@ -1951,27 +1986,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
         var dur = Math.Max(2, durationSeconds);
 
-        // 通知历史：记录系统事件供展开卡片底部回看（受设置开关/条数上限控制）
-        try
-        {
-            if (_settings.Current.NotificationHistoryEnabled && !string.IsNullOrWhiteSpace(title))
-            {
-                _notificationHistory.Insert(0, new EventHistoryItem
-                {
-                    Id = "sys:" + id,
-                    Title = title,
-                    Subtitle = subtitle,
-                    Body = body ?? string.Empty,
-                    Icon = icon,
-                    Type = type ?? "info",
-                    TimeUtc = DateTime.Now,
-                    TimeText = DateTime.Now.ToString("HH:mm"),
-                });
-                var max = Math.Max(1, _settings.Current.NotificationHistoryMax);
-                while (_notificationHistory.Count > max) _notificationHistory.RemoveAt(_notificationHistory.Count - 1);
-            }
-        }
-        catch (Exception ex) { AppLogger.Warn($"Record notification history failed: {ex.Message}"); }
         PushIsland(new IslandPush
         {
             Id = "sys:" + id,
@@ -2006,11 +2020,15 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         catch (Exception ex) { AppLogger.Warn($"ShowDeviceEvent failed: {ex.Message}"); }
     }
 
-    public void ActivatePage(IslandPage page)
+    public void ActivatePage(IslandPage page, int? direction = null)
     {
         if (page is null) return;
+        var oldPage = ActivePage;
         foreach (var p in _pages) p.IsActive = ReferenceEquals(p, page);
-        // 先通知页面可见性，再通知 ActivePage；窗口收到 ActivePage 后才能按新页面测高。
+        // 与 xiaotang-daozai 的 go() 一致：先切换页面状态并启动过渡，再发出属性通知，
+        // 避免 WPF 绑定在过渡首帧抢占 Visibility 造成闪烁。
+        if (direction is int dir && oldPage is { } old && !ReferenceEquals(old, page))
+            PageTransitionStarted?.Invoke(old, page, dir);
         OnPropertyChanged(nameof(IsMusicPage));
         OnPropertyChanged(nameof(IsFocusPage));
         OnPropertyChanged(nameof(IsTodoPage));
@@ -2027,7 +2045,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         var index = current is null ? 0 : Math.Max(0, _pages.IndexOf(current));
         var next = (index + delta) % _pages.Count;
         if (next < 0) next += _pages.Count;
-        ActivatePage(_pages[next]);
+        ActivatePage(_pages[next], delta > 0 ? 1 : -1);
     }
 
     public void RebuildPages()
@@ -2139,20 +2157,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             if (!_messengerUnreads.Contains(item)) _messengerUnreads.Add(item);
         OnPropertyChanged(nameof(HasMessengerUnreads));
         OnPropertyChanged(nameof(MessengerUnreadCount));
-    }
-
-    /// <summary>点击通知历史条目：以事件卡片形式重新弹出（去除记录时附加的 sys: 前缀）。</summary>
-    public void ReplayNotification(EventHistoryItem item)
-    {
-        if (item is null) return;
-        var baseId = item.Id.StartsWith("sys:", StringComparison.Ordinal) ? item.Id[4..] : item.Id;
-        ShowEventCard(baseId, item.Title, item.Subtitle, item.Icon, item.Type, 6, item.Body);
-    }
-
-    /// <summary>清空通知历史（设置页按钮/右键菜单）。</summary>
-    public void ClearNotificationHistory()
-    {
-        _notificationHistory.Clear();
     }
 
     /// <summary>上岛 API 收到推送：加入/更新推送队列（同 id 覆盖、保留原过期时间），并按优先级刷新显示。</summary>
@@ -3326,6 +3330,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _progressTimer.Stop();
         _widgetTimer.Stop();
+        _copyToastTimer.Stop();
         _coordinator.SnapshotChanged -= OnSnapshotChanged;
         _coordinator.MediaEnded -= OnMediaEnded;
         _coordinator.SessionsChanged -= OnSessionsChanged;
@@ -3345,6 +3350,23 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _pomodoro.Dispose();
         _wave.Stop();
     }
+}
+
+/// <summary>通知记录项：系统通知中心历史服务使用的通用数据结构。</summary>
+public sealed class EventHistoryItem
+{
+    public string Id { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string? Subtitle { get; init; }
+    public string Body { get; init; } = "";
+    public string Icon { get; init; } = "";
+    public string Type { get; init; } = "info";
+    public DateTime TimeUtc { get; init; }
+    public string TimeText { get; init; } = "";
+    /// <summary>通知来源（exe/AppName），用于勿扰白名单匹配。</summary>
+    public string Source { get; set; } = "";
+    /// <summary>是否已读。</summary>
+    public bool Read { get; set; } = false;
 }
 
 /// <summary>多播放器选择器中的一行（AppId + 名称 + 是否当前跟随）。</summary>
@@ -3368,21 +3390,3 @@ public sealed class MediaSessionItem : ObservableObject
         _isCurrent = isCurrent;
     }
 }
-
-/// <summary>通知历史记录项（展开卡片底部列表显示，点击可重新弹出）。</summary>
-public sealed class EventHistoryItem
-{
-    public string Id { get; init; } = "";
-    public string Title { get; init; } = "";
-    public string? Subtitle { get; init; }
-    public string Body { get; init; } = "";
-    public string Icon { get; init; } = "";
-    public string Type { get; init; } = "info";
-    public DateTime TimeUtc { get; init; }
-    public string TimeText { get; init; } = "";
-    /// <summary>通知来源（exe/AppName），用于勿扰白名单匹配。</summary>
-    public string Source { get; set; } = "";
-    /// <summary>是否已读。</summary>
-    public bool Read { get; set; } = false;
-}
-
