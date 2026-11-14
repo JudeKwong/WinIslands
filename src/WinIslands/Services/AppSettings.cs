@@ -82,7 +82,7 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 3;
+    public int Version { get; set; } = 4;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
@@ -254,7 +254,7 @@ public sealed class AppSettings
     public List<AppRule> Rules { get; set; } = new();   // 条件满足时自动隐藏/收起/强制显示
 
     // ── 外观增强（主题预设 / 字体 / 字号 / 圆角 / 封面取色）──
-    public string ThemePreset { get; set; } = "DaozaiLiquid";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
+    public string ThemePreset { get; set; } = "Daozai";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
     public string ThemeTint { get; set; } = "";
     // 「Custom」自定义皮肤的背景色（#RRGGBB，留空跟随明暗默认底色）
     public string FontFamily { get; set; } = "Segoe UI";   // 界面字体
@@ -405,7 +405,7 @@ public sealed class AppSettings
         if (s.Version >= 3) return false;
 
         if (string.Equals(s.ThemePreset, "Default", StringComparison.OrdinalIgnoreCase))
-            s.ThemePreset = "DaozaiLiquid";
+            s.ThemePreset = "Daozai";
         if (Math.Abs(s.Opacity - 0.92) < 0.001) s.Opacity = 1.0;
         if (Math.Abs(s.OffsetY - 8) < 0.001) s.OffsetY = 6;
         if (Math.Abs(s.CompactHeight - 72) < 0.001) s.CompactHeight = 48;
@@ -417,6 +417,20 @@ public sealed class AppSettings
         if (Math.Abs(s.LyricLineSpacing - 1.0) < 0.001) s.LyricLineSpacing = 1.05;
 
         s.Version = 3;
+        return true;
+    }
+
+    /// <summary>
+    /// 配置版本 3 → 4：默认岛体改为参考项目的纯黑样式。
+    /// 已选择 DaozaiLiquid 的用户也切回纯黑；其它自定义皮肤保持不变。
+    /// </summary>
+    internal static bool ApplyBlackDaozaiV4(AppSettings s)
+    {
+        if (s.Version >= 4) return false;
+        if (string.Equals(s.ThemePreset, "DaozaiLiquid", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(s.ThemePreset, "Default", StringComparison.OrdinalIgnoreCase))
+            s.ThemePreset = "Daozai";
+        s.Version = 4;
         return true;
     }
 
@@ -525,9 +539,11 @@ public sealed class SettingsService
                     var migrated = AppSettings.ApplyLeanDefaultsV2(loaded);
                     // 3.1.2beta5：切换到岛仔（Daozai）视觉皮肤（仅旧默认外观迁移一次）
                     migrated |= AppSettings.ApplyDaozaiDefaultsV3(loaded);
+                    // 3.1.2beta6：默认改为参考项目的纯黑岛体（液态玻璃保留为可选皮肤）
+                    migrated |= AppSettings.ApplyBlackDaozaiV4(loaded);
                     if (migrated)
                     {
-                        AppLogger.Info("Settings migrated: lean components + Daozai visual skin");
+                        AppLogger.Info("Settings migrated: lean components + Daozai black skin");
                         TryPersistMigrated(loaded);
                     }
                     return loaded;

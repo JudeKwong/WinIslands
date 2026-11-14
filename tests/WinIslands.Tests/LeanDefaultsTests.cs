@@ -39,7 +39,7 @@ public class LeanDefaultsTests : IDisposable
     {
         var s = new AppSettings();
 
-        Assert.Equal(3, s.Version);
+        Assert.Equal(4, s.Version);
         Assert.True(s.Components.TimeWhenIdle);
         Assert.False(s.Components.DateWhenIdle);
         Assert.False(s.Components.TodoWhenIdle);
@@ -50,7 +50,7 @@ public class LeanDefaultsTests : IDisposable
         Assert.False(s.WaveSyncEnabled);
         Assert.False(s.AmllTtmlEnabled);
         Assert.True(s.LowPowerMode);
-        Assert.Equal("DaozaiLiquid", s.ThemePreset);
+        Assert.Equal("Daozai", s.ThemePreset);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
-    public void LegacyAppearance_MigratesToDaozaiLiquid()
+    public void LegacyAppearance_MigratesToDaozaiBlack()
     {
         var s = new AppSettings
         {
@@ -110,12 +110,22 @@ public class LeanDefaultsTests : IDisposable
 
         Assert.True(AppSettings.ApplyDaozaiDefaultsV3(s));
         Assert.Equal(3, s.Version);
-        Assert.Equal("DaozaiLiquid", s.ThemePreset);
+        Assert.Equal("Daozai", s.ThemePreset);
         Assert.Equal(1.0, s.Opacity);
         Assert.Equal(6, s.OffsetY);
         Assert.Equal(48, s.CompactHeight);
         Assert.Equal(420, s.ExpandedWidth);
         Assert.Equal(33, s.CornerRadius);
+    }
+
+    [Fact]
+    public void LiquidGlassConfig_MigratesToBlackV4()
+    {
+        var s = new AppSettings { Version = 3, ThemePreset = "DaozaiLiquid" };
+
+        Assert.True(AppSettings.ApplyBlackDaozaiV4(s));
+        Assert.Equal(4, s.Version);
+        Assert.Equal("Daozai", s.ThemePreset);
     }
 
     [Fact]
@@ -142,14 +152,15 @@ public class LeanDefaultsTests : IDisposable
 
         var service = new SettingsService();
 
-        Assert.Equal(3, service.Current.Version);
+        Assert.Equal(4, service.Current.Version);
+        Assert.Equal("Daozai", service.Current.ThemePreset);
         Assert.False(service.Current.Components.DateWhenIdle);
         Assert.False(service.Current.WaveVisualizerEnabled);
         Assert.True(service.Current.LowPowerMode);
 
         // 迁移后已落盘：再读取一次仍是 v2，不会重复迁移
         var again = new SettingsService();
-        Assert.Equal(3, again.Current.Version);
+        Assert.Equal(4, again.Current.Version);
         Assert.False(again.Current.Components.DateWhenIdle);
     }
 }
