@@ -44,8 +44,6 @@
 | Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
 | Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-Setup-3.1.2.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
 
-> ⚠️ macOS 版为实验性版本：部分功能可能不完整，可能存在较多 BUG，且尚未经过充分测试，请谨慎使用。
-
 历史版本见 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
 
 ---
@@ -254,8 +252,6 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 | Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
 | Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
 | Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-Setup-3.1.2.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
-
-> ⚠️ macOS build is experimental: some features may be incomplete, it may contain bugs, and it has not been fully tested. Use with caution.
 
 All historical versions: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
 
