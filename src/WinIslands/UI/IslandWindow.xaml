@@ -10,7 +10,7 @@
         ShowInTaskbar="False"
         Topmost="True"
         ResizeMode="NoResize"
-        Width="419" Height="140"
+        Width="496" Height="190"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         SnapsToDevicePixels="True"
@@ -1039,7 +1039,7 @@
                         <StackPanel.RenderTransform>
                             <TranslateTransform x:Name="MusicPageTranslate" X="0"/>
                         </StackPanel.RenderTransform>
-                        <!-- 对齐 xiaotang-daozai 的 419×140 整卡尺寸：内容 126 + 边框/上下边距 14。 -->
+                        <!-- 页面内容按参考实现的 399×126 排版，由 DaozaiPageHost 的 LayoutTransform 统一放大。 -->
                         <Grid Width="399" Height="126">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="78"/>

@@ -737,12 +737,70 @@ AppPaths.EnsureDirectories();
         });
     }
 
+    /// <summary>打开插件开发指南：优先使用内嵌指南，回退到插件目录 README，最后打开项目主页。</summary>
+    private static void OpenPluginGuide()
+    {
+        try
+        {
+            using var stream = typeof(App).Assembly.GetManifestResourceStream("WinIslands.PluginDevelopment.md");
+            if (stream is not null)
+            {
+                var path = Path.Combine(Path.GetTempPath(), "WinIslands-Plugin-Development.md");
+                using (var file = File.Create(path)) stream.CopyTo(file);
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true,
+                    });
+                }
+                catch
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "notepad.exe",
+                        Arguments = $"\"{path}\"",
+                        UseShellExecute = true,
+                    });
+                }
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Open embedded plugin guide failed: {ex.Message}");
+        }
+
+        foreach (var candidate in new[]
+        {
+            Path.Combine(AppPaths.PortablePluginsDir, "README.md"),
+            Path.Combine(AppPaths.PluginsDir, "README.md"),
+        })
+        {
+            if (!File.Exists(candidate)) continue;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = candidate,
+                UseShellExecute = true,
+            });
+            return;
+        }
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "https://github.com/JudeKwong/WinIslands",
+            UseShellExecute = true,
+        });
+    }
+
     private void OpenSettings()
     {
         if (_settings is null) return;
         var vm = new SettingsViewModel(_settings, _mediaApps, _plugins);
         var win = new SettingsWindow(vm, _settings, _cider,
-            _todo, _schedule, _clipboard, _pomodoro, _updater, _vm);
+            _todo, _schedule, _clipboard, _pomodoro, _updater, _vm,
+            _plugins, OpenPluginManager, OpenPluginFolder, OpenPluginGuide);
         win.ShowDialog();
     }
 

@@ -89,4 +89,9 @@
     <Resource Include="Assets\winislands.ico" />
   </ItemGroup>
 
+  <!-- 插件开发指南：嵌入程序集，设置页可直接打开，发布时无需额外文档文件。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\PLUGIN_DEVELOPMENT.md" Link="docs\PLUGIN_DEVELOPMENT.md" LogicalName="WinIslands.PluginDevelopment.md" />
+  </ItemGroup>
+
 </Project>

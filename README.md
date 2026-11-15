@@ -23,10 +23,10 @@
 
 - **▶ 媒体播放控制**：原生接入 Windows 全局媒体会话（SMTC），兼容网易云、QQ音乐、Spotify、Apple Music、Groove、电影和电视等主流播放器；额外专门支持 Cider 本地 API；无法接入时窗口标题兜底。支持专辑封面、进度拖拽 seek、播放/暂停/切歌、音量调节；多播放器同时打开时可一键切换控制来源。
 - **♪ 卡拉OK逐字歌词**：展开卡片同步滚动高亮、逐字点亮；歌词来源优先级：本地 `.lrc` → AMLL TTML → 播放器歌词接口 → 可选在线歌词，并可一键循环切换来源；支持双语歌词、翻译开关、一句复制、逐首时间微调与独立歌词小窗。
-- **▦ 可定制组件系统**：时间、天气、日期（含农历/节气）、CPU/GPU/内存/磁盘、网络速度、电量、输入法、快捷开关等 30+ 组件；每个组件可自定义图标、勾选显隐与拖拽排序，支持单行/多行模式；还支持本地组件插件（`.exe`/`.cmd`/`.bat`/`.ps1`，独立进程运行）。
+- **▦ 可定制组件系统**：时间、天气、日期（含农历/节气）、CPU/GPU/内存/磁盘、网络速度、电量、输入法、快捷开关等 30+ 组件；每个组件可自定义图标、勾选显隐与拖拽排序，支持单行/多行模式；还支持本地组件插件（`.exe`/`.cmd`/`.bat`/`.ps1`，独立进程运行）；设置 → 插件 可查看已加载插件、打开插件目录、重新扫描，并直接打开插件开发指南。
 - **🏝 上岛 API**：本地 HTTP / WebSocket 接口，让任何第三方软件把信息实时推送到灵动岛（类似 iOS 第三方 App 的灵动岛集成）。支持图片、动态进度、心跳续期、深浅主题、按钮动作、输入框；推送不影响灵动岛长宽，也不遮挡其他组件。
 - **✨ 提示动画**：蓝牙连接/断开、开始/结束充电、低电量、网络恢复、日历/RSS/邮件提醒等事件，以 iOS 风格动画在灵动岛上展示。
-- **✦ 外观与动效**：默认「岛仔黑」皮肤（纯黑岛体、圆形徽标、页标题与页码豆，参考 Daozai 设计；液态玻璃保留为可选皮肤）；保留 18 种主题、自定义强调色、壁纸取色、跑马灯、4 种动效皮肤、4 种音频波纹样式；歌词滚动采用 LiquidMusic 同款 ease-out cubic + 逐行焦点缩放/透明度；PerMonitorV2 高 DPI 适配。
+- **✦ 外观与动效**：默认「经典黑」皮肤（纯黑岛体、圆形徽标、页标题与页码豆，重新设计的视觉语言；液态玻璃保留为可选皮肤）；保留 18 种主题、自定义强调色、壁纸取色、跑马灯、4 种动效皮肤、4 种音频波纹样式；歌词滚动采用 LiquidMusic 同款 ease-out cubic + 逐行焦点缩放/透明度；PerMonitorV2 高 DPI 适配。
 - **🖱 交互与智能**：解锁拖动 + 边缘吸附、全屏/锁屏自动隐藏、双击/中键快捷动作、快捷操作按钮、文件中转站（拖文件上岛、可再拖出到其他应用）、录制智能勿扰、定时明暗主题切换。
 - **⚡ 效率工具与自动化**：番茄钟、待办、剪贴板历史、快速启动器、日程提醒；会议静音助手、屏幕录制/截图提示、文件复制/下载进度上岛；全局快捷键与规则引擎。
 - **🛡 隐私安全**：无遥测、无广告、无数据上报。除用户手动开启的在线歌词/天气外完全离线；所有配置与数据仅存于本机 `%APPDATA%\WinIslands`。
@@ -36,15 +36,13 @@
 
 ---
 
-## 📥 下载（最新稳定版 3.1.1）
+## 📥 下载（最新稳定版 3.1.2）
 
 | 平台 | 下载 | 说明 |
 | --- | --- | --- |
-| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
-| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
-| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-Setup-3.1.1.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
-| macOS (Apple 芯片) | [arm64 版](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-osx-arm64.zip) | Apple 芯片 Mac（M1 及更新机型） |
-| macOS (Intel) | [x64 版](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-osx-x64.zip) | Intel 芯片 Mac |
+| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
+| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
+| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-Setup-3.1.2.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
 
 > ⚠️ macOS 版为实验性版本：部分功能可能不完整，可能存在较多 BUG，且尚未经过充分测试，请谨慎使用。
 
@@ -96,8 +94,8 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 
 1. 启动 `WinIslands.exe`（可设置开机自启），托盘出现图标；关闭主窗口不会退出进程，仅托盘化。
 2. 播放任意音乐：网易云、QQ音乐、Spotify、Apple Music 官方版等自动通过系统媒体会话显示；Cider 详见下文；其它播放器兜底窗口标题识别。
-3. **点击**灵动岛展开完整卡片（悬停不展开）：进度拖拽 seek、播放控制、音量、同步歌词；再点一下收回。
-4. **拖住边缘调整大小**：左/右边缘改变宽度（以岛中心为锚点对称伸缩），下边缘改变高度；靠近边缘时光标会变成缩放样式。手动调整后对应方向会自动关闭「自动调整尺寸」，可在设置中重新开启。
+3. **悬停展开**：鼠标移到灵动岛上停留约 0.2 秒自动展开完整卡片，移开后自动收回；展开后可进度拖拽 seek、播放控制、音量调节与同步歌词。单击不再切换展开。
+4. **未展开时拖住边缘调整大小**：左/右边缘改变宽度（以岛中心为锚点对称伸缩），下边缘改变高度；靠近边缘时光标会变成缩放样式。手动调整后对应方向会自动关闭「自动调整尺寸」，可在设置中重新开启；展开尺寸统一，不再支持边缘缩放。
 5. 托盘菜单：显示/隐藏、独立歌词窗口、开机自启、勿扰模式、检查更新、查看日志、设置、退出。
 6. 全局快捷键（均可自定义）：`Ctrl+Alt+P` 播放/暂停 · `Ctrl+Alt+←/→` 上一首/下一首 · `Ctrl+Alt+I` 显示/隐藏 · `Ctrl+Alt+Space` 展开/收起 · `Ctrl+Space` 快速启动器 · `Ctrl+Alt+V` 剪贴板历史面板。
 7. 常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
@@ -236,7 +234,7 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 
 - **▶ Media playback control**: Native integration with the Windows Global System Media Transport Controls (SMTC) — compatible with NetEase Cloud Music, QQ Music, Spotify, Apple Music, Groove, Movies & TV and more; dedicated support for the Cider local API; window-title fallback when nothing else works. Album artwork, draggable seek, play/pause, previous/next, volume; when several players are open, switch the control source with one click.
 - **♪ Karaoke word-by-word lyrics**: The expanded card shows synced scrolling lyrics with character-by-character highlighting. Lyric sources: local `.lrc` → AMLL TTML → player lyric API → optional online lyrics, switchable with one click. Bilingual lyrics, translation toggle, one-click copy of the current line, per-song time fine-tuning and a standalone lyrics window.
-- **▦ Customizable widget system**: 30+ widgets — clock, weather, date (Chinese calendar/solar terms), CPU/GPU/RAM/disk, network speed, battery, input method, quick toggles and more. Each widget supports a custom icon, show/hide checkboxes and drag-to-reorder; single-line or multi-line layouts; extensible with local component plugins (`.exe`/`.cmd`/`.bat`/`.ps1` running in separate processes).
+- **▦ Customizable widget system**: 30+ widgets — clock, weather, date (Chinese calendar/solar terms), CPU/GPU/RAM/disk, network speed, battery, input method, quick toggles and more. Each widget supports a custom icon, show/hide checkboxes and drag-to-reorder; single-line or multi-line layouts; extensible with local component plugins (`.exe`/`.cmd`/`.bat`/`.ps1` running in separate processes); Settings → Plugins lists loaded plugins and opens the plugin folder, rescan, and the developer guide.
 - **🏝 Island API**: A local HTTP / WebSocket interface that lets any third-party software push live information to the Dynamic Island (like the Island integration of iOS third-party apps). Supports images, animated progress, heartbeat renewal, light/dark themes, buttons and input fields; pushes never change the island width or cover other widgets.
 - **✨ Alert animations**: Bluetooth connect/disconnect, charging start/end, low battery, network recovery, calendar/RSS/mail reminders and more are shown on the island with beautiful iOS-style animations.
 - **✦ Appearance & motion**: 18 theme presets, custom accent color, liquid-glass blur, wallpaper color sampling, marquee, 4 motion styles (iOS spring etc.), 4 audio waveform styles (animated with the music); non-linear easing for expand/collapse at 60fps; PerMonitorV2 high-DPI support.
@@ -249,15 +247,13 @@ dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 
 ---
 
-## 📥 Download (latest stable 3.1.1)
+## 📥 Download (latest stable 3.1.2)
 
 | Platform | Download | Description |
 | --- | --- | --- |
-| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
-| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
-| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-Setup-3.1.1.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
-| macOS (Apple Silicon) | [arm64](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-osx-arm64.zip) | Apple Silicon Macs (M1 and newer) |
-| macOS (Intel) | [x64](https://github.com/JudeKwong/WinIslands/releases/download/3.1.1/WinIslands-3.1.1-osx-x64.zip) | Intel Macs |
+| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
+| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-3.1.2-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
+| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.2/WinIslands-Setup-3.1.2.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
 
 > ⚠️ macOS build is experimental: some features may be incomplete, it may contain bugs, and it has not been fully tested. Use with caution.
 
@@ -309,8 +305,8 @@ Install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then run `iscc.exe bu
 
 1. Launch `WinIslands.exe` (startup with Windows is optional); a tray icon appears. Closing the main window does not quit the process — it just minimizes to the tray.
 2. Play any music: NetEase Cloud Music, QQ Music, Spotify, Apple Music official app, etc. appear automatically through the system media session; Cider — see below; other players fall back to window-title detection.
-3. **Click** the island to expand the full card (hovering does not expand): draggable seek, playback controls, volume, synced lyrics; click again to collapse.
-4. **Drag an edge to resize**: the left/right edges change the width symmetrically around the island's centre, the bottom edge changes the height; the cursor turns into a resize arrow near an edge. A manual resize turns off "auto size" for that direction — re-enable it in Settings.
+3. **Hover to expand**: rest the pointer on the island for about 0.2s and the full card expands automatically; move away and it collapses. Draggable seek, playback controls, volume and synced lyrics are available once expanded. A single click no longer toggles expansion.
+4. **Drag an edge to resize while collapsed**: the left/right edges change the width symmetrically around the island's centre, the bottom edge changes the height; the cursor turns into a resize arrow near an edge. A manual resize turns off "auto size" for that direction — re-enable it in Settings. The expanded size is unified and no longer edge-resizable.
 5. Tray menu: show/hide, standalone lyrics window, start with Windows, Do Not Disturb, check for updates, view logs, settings, quit.
 6. Global hotkeys (all customizable): `Ctrl+Alt+P` play/pause · `Ctrl+Alt+←/→` previous/next · `Ctrl+Alt+I` show/hide · `Ctrl+Alt+Space` expand/collapse · `Ctrl+Space` quick launcher · `Ctrl+Alt+V` clipboard history panel.
 7. Useful command-line arguments: `--demo` demo mode · `--diagnose` writes a diagnostic report · `--settings` opens settings at startup.

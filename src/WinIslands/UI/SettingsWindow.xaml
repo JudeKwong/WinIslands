@@ -443,6 +443,12 @@
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B9;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="24" VerticalAlignment="Center" Opacity="0.9"/>
+                            <TextBlock x:Name="NavPlugins" Text="插件" FontSize="12.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8A9;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="24" VerticalAlignment="Center" Opacity="0.9"/>
                             <TextBlock x:Name="NavPages" Text="页面管理" FontSize="12.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -867,6 +873,69 @@
                             </WrapPanel>
                             <TextBlock x:Name="TxtUsageMergeNote" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="520"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem x:Name="TabPlugins" Header="插件">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="10,6">
+                            <TextBlock x:Name="LblPluginsIntro" Text="本地组件插件可扩展灵动岛常驻内容。插件在独立进程中运行，崩溃或超时不会影响主程序。" FontSize="11.5"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="2,2,2,10"/>
+                            <WrapPanel Margin="0,0,0,10">
+                                <Button x:Name="BtnOpenPluginManager" Content="打开插件管理" Padding="12,5" Click="OpenPluginManager_Click"/>
+                                <Button x:Name="BtnOpenPluginFolder" Content="打开插件目录" Padding="12,5" Margin="8,0,0,0" Click="OpenPluginFolder_Click"/>
+                                <Button x:Name="BtnOpenPluginGuide" Content="插件开发指南" Padding="12,5" Margin="8,0,0,0" Click="OpenPluginGuide_Click"/>
+                                <Button x:Name="BtnReloadPlugins" Content="重新扫描" Padding="12,5" Margin="8,0,0,0" Click="ReloadPlugins_Click"/>
+                            </WrapPanel>
+                            <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="10,4">
+                                <StackPanel>
+                                    <TextBlock x:Name="LblPluginCount" FontSize="11.5" FontWeight="SemiBold" Margin="2,4,0,2"/>
+                                    <ItemsControl x:Name="PluginList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="0,1,0,0" Padding="4,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding VersionText}" FontSize="10.5" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10.8" Margin="0,3,12,0" TextWrapping="Wrap"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            <TextBlock Text="{Binding MetaText}" FontSize="10.2" Margin="0,2,12,0" TextWrapping="Wrap"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="1" CornerRadius="8" Padding="8,3" VerticalAlignment="Top">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#22E74C3C"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Enabled}" Value="True">
+                                                                            <Setter Property="Background" Value="#222ECC71"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding StatusText}" FontSize="10.5"/>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock x:Name="TxtPluginEmpty" FontSize="11" Margin="4,10,4,8" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock x:Name="TxtPluginsHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" Margin="2,10,0,0"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

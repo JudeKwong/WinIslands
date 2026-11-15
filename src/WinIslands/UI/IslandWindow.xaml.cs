@@ -28,13 +28,29 @@ namespace WinIslands.UI;
 /// </summary>
 public partial class IslandWindow : Window, INotifyPropertyChanged
 {
-    // 紧凑尺寸来自设置（可调）；展开宽度统一为参考项目的 419。
+    // 紧凑尺寸来自设置（可调）；展开尺寸统一，按参考画布整体放大后留足边距。
     /// <summary>字号缩放系数：整张卡片 LayoutTransform 缩放，逻辑尺寸 = 视觉尺寸 / 缩放比。</summary>
     private double FontScale => Math.Clamp(_settings.Current.FontScale, 0.8, 1.4);
 
-    // xiaotang-daozai dimensions: every expanded page is 419x140 logical pixels.
-    private const double ReferenceExpandedWidth = 419.0;
-    private const double ReferenceExpandedHeight = 140.0;
+    // 参考项目的展开画布：页面内容按 399×126 排版（DaozaiPageHost）。
+    private const double ReferencePageWidth = 399.0;
+    private const double ReferencePageHeight = 126.0;
+    /// <summary>展开内容整体放大比例：画布连同字体/图标一起放大，不再挤在原来的小尺寸里。</summary>
+    internal const double ExpandedContentScale = 1.15;
+    /// <summary>
+    /// 展开卡片统一视觉尺寸：放大后的画布 + 边框(2) + 内容边距(20/12) + 滚动区边距(8) + 页头(22) + 余量。
+    /// 高度只是下限，打开时按实际内容测量，内容更高会自动加高，保证组件完整显示。
+    /// </summary>
+    private const double ReferenceExpandedWidth = 496.0;
+    private const double ReferenceExpandedHeight = 190.0;
+    // 打开/收起动画参数（对齐参考实现的二阶弹簧：ω0=√k、response=2π/ω0）。
+    private const double OpenWidthStiffness = 330.0;
+    private const double OpenWidthZeta = 0.70;
+    private const double OpenHeightStiffness = 290.0;
+    private const double OpenHeightZeta = 0.74;
+    private const double CloseStiffness = 620.0;
+    private const double CloseZeta = 1.0;
+    private static double ResponseFromStiffness(double stiffness) => 2.0 * Math.PI / Math.Sqrt(stiffness);
     /// <summary>展开内容在 ContentGrid 基础留白外额外增加的左右间距。</summary>
     private const double ExpandedContentExtraHorizontalMargin = 8.0;
     // xiaotang-daozai notice/toast dimensions.
@@ -169,6 +185,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly System.Windows.Forms.Screen _screen;
     private readonly DispatcherTimer _collapseTimer;
     private readonly DispatcherTimer _compactRestoreTimer;
+    private readonly DispatcherTimer _hoverExpandTimer;
+    private readonly DispatcherTimer _pageResizeTimer;
     private readonly DispatcherTimer _memoryTrimTimer;
     private readonly EventHandler _onThemeChanged;      // 具名处理器：窗口关闭时可退订，防泄漏
     private readonly EventHandler<AppSettings> _onSettingsChanged;
@@ -440,12 +458,34 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.Clip = _cardClip;
         Card.SizeChanged += OnCardSizeChanged;
 
-        // 收起延迟（鼠标移出展开态 700ms 后收起）
-        _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        // 悬停交互：进入 200ms 后展开，移开 120ms 后收起，展开/收起全程可被下一次悬停打断。
+        _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _collapseTimer.Tick += (_, _) =>
         {
             _collapseTimer.Stop();
-            _vm.IsExpanded = false;
+            if (Card.IsMouseOver) return;
+            if (_vm.IsExpanded) _vm.IsExpanded = false;
+        };
+
+        _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _hoverExpandTimer.Tick += (_, _) =>
+        {
+            _hoverExpandTimer.Stop();
+            if (!Card.IsMouseOver || _resizing || _mouseDownOnCard || _draggedCard || _fileDragArmed) return;
+            if (_vm.IsExpanded) return;
+            _collapseTimer.Stop();
+            _vm.IsExpanded = true;
+        };
+
+        // 切页过渡结束后按新页面内容重新测量展开高度，避免窗口过小导致组件显示不全；
+        // 延后到过渡结束再调整窗口，避免切页时先闪到旧页/胶囊行。
+        _pageResizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(620) };
+        _pageResizeTimer.Tick += (_, _) =>
+        {
+            _pageResizeTimer.Stop();
+            if (!_vm.IsExpanded) return;
+            _expandedHeightDirty = true;
+            ApplySize();
         };
 
         // 收起动画可能被快速切换打断导致 Card 尺寸残留：动画结束后兜底恢复精确紧凑尺寸
@@ -478,28 +518,27 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         InitWaveVisualStyles();
 
-        // 悬停不展开；移出时若已展开则延迟收起
+        // 悬停展开（200ms 意图延迟），移开后延迟 120ms 收起；与参考实现一致，单击不再切换展开。
+        Card.MouseEnter += (_, _) =>
+        {
+            _collapseTimer.Stop();
+            if (_resizing || _mouseDownOnCard || _draggedCard || _fileDragArmed) return;
+            if (!_vm.IsExpanded) _hoverExpandTimer.Start();
+        };
+
         Card.MouseLeave += (_, _) =>
         {
+            _hoverExpandTimer.Stop();
             if (_resizing) return; // 边缘缩放拖拽中：指针移出卡片也不收起
             Cursor = null;
             if (_vm.IsExpanded) _collapseTimer.Start();
         };
 
-        // 双击检测：单击延迟 280ms 后切换展开/收起；窗口内第二次单击则执行快捷动作
+        // 单击只参与双击判定，不再负责展开/收起；窗口内第二次单击执行快捷动作。
         _clickDebounce.Tick += (_, _) =>
         {
             _clickDebounce.Stop();
-            if (!_pendingClick) return;
             _pendingClick = false;
-            if (_toggleDoneOnDown)
-            {
-                // #7 点击抢先：MouseDown 已立即切换，这里只是等待双击窗口，不再重复切换
-                _toggleDoneOnDown = false;
-                return;
-            }
-            _collapseTimer.Stop();
-            _vm.IsExpanded = !_vm.IsExpanded;
         };
 
         // 点击展开/收起；解锁状态下支持鼠标拖动
@@ -544,6 +583,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _theme.ThemeChanged += _onThemeChanged;
         _settings.Changed += _onSettingsChanged;
 
+
+        // 展开画布整体放大：参考实现的 399×126 排版按统一比例放大，
+        // 字体与图标随之变大，组件不会再挤在一起或显示不全。
+        DaozaiPageHost.LayoutTransform = new ScaleTransform(ExpandedContentScale, ExpandedContentScale);
 
         Loaded += OnLoaded;
         IsVisibleChanged += (_, _) => ScheduleVisibilityRefresh();
@@ -674,6 +717,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _settings.Changed -= _onSettingsChanged;
 
             _collapseTimer.Stop();
+            _hoverExpandTimer.Stop();
+            _pageResizeTimer.Stop();
             _compactRestoreTimer.Stop();
             _memoryTrimTimer.Stop();
             StopPageTransition();
@@ -913,8 +958,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private bool _draggedCard;
     private readonly DispatcherTimer _clickDebounce = new() { Interval = TimeSpan.FromMilliseconds(280) };
     private bool _pendingClick;
-    private bool _toggleDoneOnDown;   // #7 点击抢先：MouseDown 已切换，双击窗口到期后不再重复切换
-    private bool _isExpandedBeforeToggle; // #7 修复：拖动开始时还原按下时已切换的展开状态
     private Point _lastClickUp;
 
     private void OnCardMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -932,16 +975,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _mouseDownOnCard = true;
         _draggedCard = false;
         _downPoint = e.GetPosition(this);
-
-        // #7 点击抢先（A方案）：按下立即切换展开/收起，不等 280ms 双击窗口，手感跟手。
-        // 交互元素（按钮/滑块，按钮自己处理点击）、上岛推送整卡回跳、封面沉浸大图各自处理，不在此切换。
-        if (!IsInteractiveElement(e.OriginalSource) && !IsWithinPushCard(e.OriginalSource) && !IsCoverElement(e.OriginalSource))
-        {
-            _toggleDoneOnDown = true;
-            _isExpandedBeforeToggle = _vm.IsExpanded;
-            _collapseTimer.Stop();
-            _vm.IsExpanded = !_vm.IsExpanded;
-        }
+        _hoverExpandTimer.Stop(); // 按下后不再触发悬停展开；拖动/点击行为由后续逻辑判定
     }
 
     private void OnCardMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
@@ -968,12 +1002,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var pos = e.GetPosition(this);
         if (Math.Abs(pos.X - _downPoint.X) > 4 || Math.Abs(pos.Y - _downPoint.Y) > 4)
         {
-            // #7 修复：解锁拖动时按下已立即切换展开，这里还原，避免「想拖动却展开」
-            if (_toggleDoneOnDown)
-            {
-                _toggleDoneOnDown = false;
-                _vm.IsExpanded = _isExpandedBeforeToggle;
-            }
+            _hoverExpandTimer.Stop();
             _mouseDownOnCard = false;
             _draggedCard = true;
             CancelPendingClick();
@@ -1035,7 +1064,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        // 单击：挂起，等待双击窗口超时后再切换展开/收起
+        // 单击：挂起以等待可能的双击；单击本身不改变展开状态
         _pendingClick = true;
         _lastClickUp = pos;
         _clickDebounce.Stop();
@@ -1056,7 +1085,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         _pendingClick = false;
         _clickDebounce.Stop();
-        _toggleDoneOnDown = false;
     }
 
     /// <summary>双击快捷动作（在设置-通用中配置）：播放/暂停、展开/收起、显示桌面、隐藏/显示、切歌、打开设置或无动作。</summary>
@@ -1074,6 +1102,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 _vm.OpenSettingsCommand.Execute(null);
                 break;
             case "ToggleExpand":
+                _hoverExpandTimer.Stop();
                 _collapseTimer.Stop();
                 _vm.IsExpanded = !_vm.IsExpanded;
                 break;
@@ -1525,20 +1554,29 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// </summary>
     private double MeasureExpandedTargetHeight()
     {
-        // xiaotang-daozai uses PW=419 and PH=140 for every standard expanded page. Feature-page
-        // content is compacted into the fixed card instead of growing the host window.
-        return ExpandedHeight;
+        // 展开内容（页头 + 推送详情 + 页面画布 + 分页圆点）全部参与测量：
+        // 卡片高度取「实测内容高度」与统一最小高度的较大值，任何页面都不会被裁掉。
+        var minHeight = ExpandedHeight;
+        var contentWidth = Math.Max(120, ExpandedWidth - 20 - ExpandedContentExtraHorizontalMargin);
+        ExpandedContent.Width = contentWidth;
+        ExpandedContent.Measure(new System.Windows.Size(contentWidth, double.PositiveInfinity));
+        var measured = ExpandedContent.DesiredSize.Height;
+        if (!double.IsFinite(measured) || measured <= 0) measured = minHeight;
+        var maxHeight = Math.Max(minHeight, Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 1200) / FontScale);
+        return Math.Clamp(measured + 4, minHeight, maxHeight);
     }
 
     private void EnsureWindowSizeFits(double? knownCompactWidth = null, double? expandedVisualHeight = null)
     {
         if (!IsLoaded) return;
-        // Expanded mode is always the reference 419x140. Compact mode may grow beyond that only when
-        // the pill or push card needs more room.
+        // 展开：统一宽度 + 实测高度（失败时回退到统一高度）；紧凑：至少容纳展开宽度，
+        // 推送卡片更宽时继续放大窗口，避免右侧组件被裁切。
         var compactWidth = knownCompactWidth ?? CompactWidth;
         var compactHeight = CompactHeight;
         var w = _vm.IsExpanded ? ReferenceExpandedWidth : Math.Max(ReferenceExpandedWidth, compactWidth * FontScale);
-        var h = _vm.IsExpanded ? ReferenceExpandedHeight : Math.Max(ReferenceExpandedHeight, compactHeight * FontScale);
+        var h = _vm.IsExpanded
+            ? Math.Max(ReferenceExpandedHeight, expandedVisualHeight ?? ReferenceExpandedHeight)
+            : Math.Max(ReferenceExpandedHeight, compactHeight * FontScale);
         if (Math.Abs(Width - w) > 0.5 || Math.Abs(Height - h) > 0.5)
         {
             Width = w;
@@ -2238,12 +2276,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 StopPageTransition();
                 break;
             case nameof(IslandViewModel.ActivePage):
+                _expandedHeightDirty = true; // 新页面内容高度不同，过渡结束后重新测量
                 if (!_pageTransitionRendering) ResetPageTransitionVisuals(); // 过渡中由动画独占控制
                 // 参考项目切页只跑页面过渡，不重新跑展开动画；
                 // 已展开时再调用 AnimateSize() 会先露出胶囊行/旧内容，造成闪页。
                 if (_vm.IsExpanded)
                 {
                     Dispatcher.BeginInvoke(ExpandedContent.ScrollToTop, DispatcherPriority.Loaded);
+                    _pageResizeTimer.Stop();
+                    _pageResizeTimer.Start(); // 过渡结束（约 0.55s）后再调整窗口高度
                 }
                 break;
             case nameof(IslandViewModel.LyricIndex):
@@ -3215,13 +3256,16 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         BeginAnimationSurface();
         EnsureCardSprings();
 
-        // 用户时长调节：默认 700ms ↔ response≈0.5s；低功耗模式整体加快
+        // 用户时长调节：默认 700ms 保持参考实现的原始节奏；低功耗模式整体加快。
         var durScale = _animDurScale;
         var lm = _animLowPowerMp;
-        // 展开：轻微 Q 弹（ζ=0.86，过冲约 0.5%，只有 1-2px 的轻回弹），响应 0.66s 更慢更自然；
-        // 收起：近临界（ζ=0.97 几乎无回弹），响应 0.56s 收尾柔和。
-        var zeta = expand ? 0.86 : 0.97;
-        var response = (expand ? CrossFadeCurves.ExpandShapeResponseSec : CrossFadeCurves.CollapseShapeResponseSec) * durScale * lm;
+        // 打开动画对齐参考实现：宽度 k=330/ζ=0.70、高度 k=290/ζ=0.74（欠阻尼，末段轻微过冲后回落），
+        // 收起 k=620/ζ=1.0（临界阻尼，干净收回）。二阶弹簧 ω0=√k，response=2π/ω0。
+        var widthZeta = expand ? OpenWidthZeta : CloseZeta;
+        var widthResponse = (expand ? ResponseFromStiffness(OpenWidthStiffness) : ResponseFromStiffness(CloseStiffness)) * durScale * lm;
+        var heightZeta = expand ? OpenHeightZeta : CloseZeta;
+        var heightResponse = (expand ? ResponseFromStiffness(OpenHeightStiffness) : ResponseFromStiffness(CloseStiffness)) * durScale * lm;
+        var fadeResponse = Math.Min(widthResponse, heightResponse);
 
         // 清除可能残留的独立缩放/位移动画与交错状态，让内容只随卡片动
         ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
@@ -3256,10 +3300,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             // 展开（欠阻尼、Q弹）与收起（近临界、收尾柔和）的手感参数不同，
             // 只 Retarget 会沿用旧方向参数导致方向切换后过冲/发僵（2.1.5 修复）。
             // Retarget 本身保留当前值+速度，改参数后速度依然连续，完整 iOS 打断语义。
-            _cardWSpring.Configure(zeta, response);
-            _cardHSpring.Configure(zeta, response);
-            _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(response, expand));
-            _cardRSpring!.Configure(expand ? 0.90 : 0.96, response * 0.82);
+            _cardWSpring.Configure(widthZeta, widthResponse);
+            _cardHSpring.Configure(heightZeta, heightResponse);
+            _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(fadeResponse, expand));
+            _cardRSpring!.Configure(expand ? 0.90 : 0.96, fadeResponse * 0.82);
             _cardWSpring.Retarget(width);
             _cardHSpring.Retarget(height);
             _cardFadeSpring!.Retarget(fadeTo);
@@ -3271,13 +3315,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Opacity = expand ? 0 : 1;
         PillRow.Opacity = expand ? 1 : 0;
         var fadeFrom = ExpandedContent.Opacity;
-        _cardWSpring!.Configure(zeta, response);
+        _cardWSpring!.Configure(widthZeta, widthResponse);
         _cardWSpring.Start(fromWidth, width);
-        _cardHSpring!.Configure(zeta, response);
+        _cardHSpring!.Configure(heightZeta, heightResponse);
         _cardHSpring.Start(fromHeight, height);
-        _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(response, expand)); // 临界阻尼：展开内容略滞后形变浮现（形状先导、内容跟随），收起先淡出再收拢；无回弹
+        _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(fadeResponse, expand)); // 临界阻尼：展开内容略滞后形变浮现（形状先导、内容跟随），收起先淡出再收拢；无回弹
         _cardFadeSpring.Start(fadeFrom, fadeTo);
-        _cardRSpring!.Configure(expand ? 0.90 : 0.96, response * 0.82); // 圆角先导：比尺寸快，形变全程连续
+        _cardRSpring!.Configure(expand ? 0.90 : 0.96, fadeResponse * 0.82); // 圆角先导：比尺寸快，形变全程连续
         _cardRSpring.Start(radiusFrom, radiusTo);
     }
 

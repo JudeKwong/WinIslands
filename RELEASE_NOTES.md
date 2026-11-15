@@ -1,3 +1,41 @@
+## WinIslands 3.1.2（正式版 / Stable）
+### 更新内容
+
+- 🎨 **灵动岛界面重新设计**：重新设计灵动岛外观，默认使用纯黑主题，保留液态玻璃主题可选；重做时钟圆环、字号、配色、圆角与展开面板布局
+- 📐 **展开模式重做**：歌词显示更小更紧凑，控制按钮统一放在底部；展开画布统一放大到 496 宽，高度按页面内容测量（最小 190），各页面尺寸一致，组件不再拥挤或显示不全
+- 🕒 **展开信息补全**：展开状态下恢复顶部时间、日期与状态信息，展开/收回后不再出现显示不全
+- 🖱️ **悬停展开**：鼠标移到灵动岛上停留约 0.2 秒自动展开，移开后约 0.12 秒自动收起；单击不再切换展开，拖动、双击快捷动作与边缘缩放保持原样
+- 🔄 **切页稳定**：展开模式支持鼠标滚轮和左右箭头切换页面，切换动画结束后重新测量内容高度，避免闪到旧页面或组件被裁切
+- 🧩 **设置页插件入口**：设置新增“插件”分类，展示插件名称、版本、启用状态、描述、作者、权限与刷新间隔；可打开插件管理、插件目录、插件开发指南，并支持重新扫描
+- 📘 **插件开发指南**：项目内新增插件开发指南并随程序嵌入，设置页可直接打开，涵盖目录结构、plugin.json 字段、stdout JSON 协议与完整示例
+- 🔔 **通知样式升级**：微信、QQ、蓝牙通知改为徽章风格；支持 QQ 系统 Toast 捕获、微信/QQ 未读图标点击跳回原窗口，不读取聊天内容
+- 🧹 **通知历史调整**：展开模式不再显示通知历史，通知仍按队列即时展示
+- ⚡ **复制提示**：复制成功改为 2.4 秒轻量浮层提示，不占用通知卡片，也不写入通知历史
+- 🪟 **窗口调整**：未展开时可拖动左/右/下边缘调整紧凑尺寸，展开尺寸统一固定；加入尺寸计算和拖拽路径保护；修复设置窗口崩溃、快捷键重复注册风暴等问题
+- 🪶 **更轻量的默认配置**：空闲默认只显示时钟；默认关闭波形可视化、波形同步和 AMLL 在线查询，启用低功耗模式；旧配置会安全迁移
+- 🛠️ **稳定性增强**：新增崩溃转储与诊断日志、单实例启动保护，以及展开/收回尺寸保护
+- 🧪 **测试**：642 项单元测试全部通过
+
+## WinIslands 3.1.2 (Stable)
+### What's New
+
+- 🎨 **Redesigned island UI**: a fresh island design with pure black as the default theme and the liquid-glass theme still available; refreshed clock ring, typography, palette, corner radius and expanded layout
+- 📐 **Reworked expanded mode**: smaller, more compact lyrics with controls unified at the bottom; the expanded canvas is now 496 wide and measured from page content (190 minimum), so every page shares the same size and widgets no longer feel cramped or clip
+- 🕒 **Complete expanded header**: time, date and status return to the top of the expanded card; expand/collapse no longer leaves content clipped
+- 🖱️ **Hover to expand**: resting the pointer on the island for about 0.2s expands it, and moving away collapses it after about 0.12s; a single click no longer toggles expansion, while dragging, double-click actions and edge resizing still work
+- 🔄 **Stable page switching**: mouse-wheel and left/right arrow page switching in expanded mode; the window re-measures content height after the transition so it never flashes the old page or clips widgets
+- 🧩 **Plugin settings**: a new Plugins category lists each plugin's name, version, state, description, author, permissions and refresh interval, with buttons to open the plugin manager, plugin folder, developer guide and rescan
+- 📘 **Plugin developer guide**: the in-repo guide is embedded and can be opened from Settings; it covers folder structure, plugin.json fields, the stdout JSON protocol and complete examples
+- 🔔 **Notification upgrade**: badge-style WeChat, QQ and Bluetooth notifications; QQ system Toast capture; clickable WeChat/QQ unread icons that return to the source window; no chat contents are read
+- 🧹 **Notification history**: removed from expanded mode; live notification cards remain
+- ⚡ **Copy feedback**: copy success now uses a 2.4-second lightweight overlay that does not occupy a notification card or enter notification history
+- 🪟 **Window resizing**: drag the left/right/bottom edges to resize the compact island; the expanded size is unified and fixed; added size-calculation and drag-path guards; fixed settings-window crashes and hotkey re-registration storms
+- 🪶 **Leaner defaults**: clock-only idle state; wave visualizer, wave sync and AMLL lookups off by default; low-power mode enabled; safe migration for existing settings
+- 🛠️ **Stability**: crash dumps and diagnostics, single-instance protection, and expand/collapse size guards
+- 🧪 **Tests**: all 642 unit tests passing
+
+---
+
 ## WinIslands 3.1.1（正式版 / Stable）
 ### 更新内容
 

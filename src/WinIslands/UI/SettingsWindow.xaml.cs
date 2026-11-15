@@ -36,6 +36,10 @@ public partial class SettingsWindow : Window
     private readonly PomodoroService? _pomodoro;
     private readonly UpdaterService? _updater;
     private readonly IslandViewModel? _island;
+    private readonly PluginService? _plugins;
+    private readonly Action? _openPluginManager;
+    private readonly Action? _openPluginFolder;
+    private readonly Action? _openPluginGuide;
     private string _lastAppliedJson;
     private bool _sizeSlidersInitialized; // 初始化期间不触发"手动调整关闭自动"
     private bool _audioOutputLoading;     // 音频输出下拉初始化期间不触发切换
@@ -45,6 +49,7 @@ public partial class SettingsWindow : Window
     private Action? _todoChanged;
     private Action? _scheduleChanged;
     private Action? _pomodoroTick;
+    private EventHandler? _pluginsReloaded;
 
     public SettingsWindow(SettingsViewModel vm, SettingsService service, CiderMediaProvider? cider,
         TodoService? todo = null,
@@ -52,7 +57,11 @@ public partial class SettingsWindow : Window
         ClipboardHistoryService? clipboard = null,
         PomodoroService? pomodoro = null,
         UpdaterService? updater = null,
-        IslandViewModel? island = null)
+        IslandViewModel? island = null,
+        PluginService? plugins = null,
+        Action? openPluginManager = null,
+        Action? openPluginFolder = null,
+        Action? openPluginGuide = null)
     {
         _vm = vm;
         _service = service;
@@ -63,6 +72,10 @@ public partial class SettingsWindow : Window
         _pomodoro = pomodoro;
         _updater = updater;
         _island = island;
+        _plugins = plugins;
+        _openPluginManager = openPluginManager;
+        _openPluginFolder = openPluginFolder;
+        _openPluginGuide = openPluginGuide;
         DataContext = vm;
         InitializeComponent();
 
@@ -74,6 +87,17 @@ public partial class SettingsWindow : Window
         TxtMailPass.Password = _vm.Working.MailPassword; // PasswordBox 不支持绑定，回填初值
         InitAudioOutput();
         InitCardStyle();
+
+        // 插件：设置页内展示已加载插件，并连接插件管理器/插件目录/开发指南。
+        BtnOpenPluginManager.IsEnabled = _plugins is not null && _openPluginManager is not null;
+        BtnOpenPluginFolder.IsEnabled = _openPluginFolder is not null;
+        BtnOpenPluginGuide.IsEnabled = _openPluginGuide is not null;
+        BtnReloadPlugins.IsEnabled = _plugins is not null;
+        if (_plugins is not null)
+        {
+            _pluginsReloaded = (_, _) => RefreshPluginList();
+            _plugins.PluginsReloaded += _pluginsReloaded;
+        }
 
         // 效率工具：初值 + 变动刷新
         if (_todo is not null)
@@ -115,6 +139,7 @@ public partial class SettingsWindow : Window
             try { if (_todo is not null && _todoChanged is not null) _todo.Changed -= _todoChanged; } catch { }
             try { if (_schedule is not null && _scheduleChanged is not null) _schedule.Changed -= _scheduleChanged; } catch { }
             try { if (_pomodoro is not null && _pomodoroTick is not null) _pomodoro.Tick -= _pomodoroTick; } catch { }
+            try { if (_plugins is not null && _pluginsReloaded is not null) _plugins.PluginsReloaded -= _pluginsReloaded; } catch { }
             try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
             try { _saveDebounce.Stop(); } catch { }
@@ -336,7 +361,7 @@ public partial class SettingsWindow : Window
     /// <summary>左侧导航对应的本地化键（与 TabItem 顺序一致，用于页标题）。</summary>
     private static readonly string[] NavKeys =
     {
-        "Settings_General", "Settings_QuickActions", "Settings_Appearance", "Settings_Components", "Settings_Pages", "Settings_Media",
+        "Settings_General", "Settings_QuickActions", "Settings_Appearance", "Settings_Components", "Settings_Plugins", "Settings_Pages", "Settings_Media",
         "Settings_MediaInfo", "Settings_Lyrics", "Settings_Cider", "Settings_Island",
         "Settings_Productivity", "Settings_Update", "Settings_About", "Settings_Events", "Settings_Rules",
     };
@@ -410,6 +435,14 @@ public partial class SettingsWindow : Window
 
         TabComponents.Header = Localization.Get("Settings_Components");
         TxtCompNote.Text = Localization.Get("Comp_Note");
+        TabPlugins.Header = Localization.Get("Settings_Plugins");
+        LblPluginsIntro.Text = Localization.Get("Plugins_Intro");
+        BtnOpenPluginManager.Content = Localization.Get("Plugins_OpenManager");
+        BtnOpenPluginFolder.Content = Localization.Get("Plugins_OpenFolder");
+        BtnOpenPluginGuide.Content = Localization.Get("Plugins_OpenGuide");
+        BtnReloadPlugins.Content = Localization.Get("Plugins_Reload");
+        TxtPluginsHint.Text = Localization.Get("Plugins_Hint");
+        RefreshPluginList();
         LblCompOrder.Text = Localization.Get("Comp_OrderHint");
         TabLyrics.Header = Localization.Get("Settings_Lyrics");
         TabCider.Header = Localization.Get("Settings_Cider");
@@ -423,6 +456,7 @@ public partial class SettingsWindow : Window
         NavQuick.Text = Localization.Get("Settings_QuickActions");
         NavAppearance.Text = Localization.Get("Settings_Appearance");
         NavComponents.Text = Localization.Get("Settings_Components");
+        NavPlugins.Text = Localization.Get("Settings_Plugins");
         NavPages.Text = Localization.Get("Settings_Pages");
         TabPages.Header = Localization.Get("Settings_Pages");
         NavMedia.Text = Localization.Get("Settings_Media");
@@ -1108,6 +1142,84 @@ public partial class SettingsWindow : Window
         {
             return about;
         }
+    }
+
+    /// <summary>刷新设置页中的插件列表（名称、版本、状态与描述）。</summary>
+    private void RefreshPluginList()
+    {
+        if (PluginList is null) return;
+        if (_plugins is null)
+        {
+            PluginList.ItemsSource = null;
+            LblPluginCount.Text = string.Empty;
+            TxtPluginEmpty.Text = Localization.Get("Plugins_Unavailable");
+            TxtPluginEmpty.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var rows = _plugins.Plugins
+            .OrderBy(p => string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(p => new PluginRow
+            {
+                Name = string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name,
+                VersionText = string.IsNullOrWhiteSpace(p.Version) ? string.Empty : "v" + p.Version,
+                Description = string.IsNullOrWhiteSpace(p.Description)
+                    ? Localization.Get("Plugins_NoDescription")
+                    : p.Description,
+                MetaText = BuildPluginMeta(p),
+                StatusText = Localization.Get(p.Enabled ? "Plugins_Enabled" : "Plugins_Disabled"),
+                Enabled = p.Enabled,
+            })
+            .ToList();
+
+        PluginList.ItemsSource = rows;
+        LblPluginCount.Text = string.Format(Localization.Get("Plugins_Count"), rows.Count);
+        TxtPluginEmpty.Text = Localization.Get("Plugins_Empty");
+        TxtPluginEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private static string BuildPluginMeta(PluginManifest plugin)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(plugin.Author))
+            parts.Add(string.Format(Localization.Get("Plugins_Author"), plugin.Author));
+        var permissions = plugin.Permissions.Count == 0
+            ? Localization.Get("Plugins_NoPermissions")
+            : string.Join(", ", plugin.Permissions);
+        parts.Add(string.Format(Localization.Get("Plugins_Permissions"), permissions));
+        if (plugin.IntervalSeconds > 0)
+            parts.Add(string.Format(Localization.Get("Plugins_Interval"), plugin.IntervalSeconds));
+        return string.Join("  ·  ", parts);
+    }
+
+    private void OpenPluginManager_Click(object sender, RoutedEventArgs e)
+    {
+        _openPluginManager?.Invoke();
+        RefreshPluginList();
+    }
+
+    private void OpenPluginFolder_Click(object sender, RoutedEventArgs e)
+    {
+        _openPluginFolder?.Invoke();
+        RefreshPluginList();
+    }
+
+    private void OpenPluginGuide_Click(object sender, RoutedEventArgs e) => _openPluginGuide?.Invoke();
+
+    private void ReloadPlugins_Click(object sender, RoutedEventArgs e)
+    {
+        try { _plugins?.Reload(); } catch { }
+        RefreshPluginList();
+    }
+
+    private sealed class PluginRow
+    {
+        public string Name { get; init; } = string.Empty;
+        public string VersionText { get; init; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
+        public string MetaText { get; init; } = string.Empty;
+        public string StatusText { get; init; } = string.Empty;
+        public bool Enabled { get; init; }
     }
 
 }
