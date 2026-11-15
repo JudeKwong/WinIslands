@@ -107,6 +107,10 @@ public sealed class IslandPush
     [JsonPropertyName("input")]
     public IslandPushInput? Input { get; set; }
 
+    /// <summary>微信/QQ 未读关联项：仅界面内存使用，不参与 JSON 序列化。</summary>
+    [JsonIgnore]
+    public MessengerUnread? MessengerUnread { get; set; }
+
     /// <summary>排序用优先级数值（不入 JSON）：high=2 / normal=1 / low=0。</summary>
     [JsonIgnore]
     public int PriorityRank => (Priority ?? "").Trim().ToLowerInvariant() switch

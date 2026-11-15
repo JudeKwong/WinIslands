@@ -87,6 +87,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\winislands.ico" />
+    <Resource Include="Assets\qq-client.png" />
   </ItemGroup>
 
   <!-- 插件开发指南：嵌入程序集，设置页可直接打开，发布时无需额外文档文件。 -->

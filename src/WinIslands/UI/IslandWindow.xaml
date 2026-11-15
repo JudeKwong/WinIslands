@@ -28,6 +28,56 @@
         <conv:NullToVisibilityConverter x:Key="NullToVisInvert" Invert="True"/>
         <conv:Mdl2GlyphFontConverter x:Key="GlyphFont"/>
 
+        <!-- 通知胶囊按钮：与通知条同款 20px 高、10px 圆角 -->
+        <Style x:Key="NoticeCapsuleButton" TargetType="Button">
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NoticeButtonBg" CornerRadius="10" Background="#28282B">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NoticeButtonBg" Property="Background" Value="#38383C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="NoticeButtonBg" Property="Background" Value="#46464B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 通知详情操作按钮：与通知条按钮同色系的 24px 胶囊 -->
+        <Style x:Key="NoticeDetailButton" TargetType="Button">
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NoticeDetailBg" CornerRadius="12" Background="#28282B">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NoticeDetailBg" Property="Background" Value="#38383C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="NoticeDetailBg" Property="Background" Value="#46464B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Icon button (transparent, hover highlight) -->
         <Style x:Key="IconButton" TargetType="Button">
             <Setter Property="Width" Value="32"/>
@@ -179,45 +229,82 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                                Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVisInvert}}">
-                    <!-- 上岛推送（第三方软件推送到灵动岛）：紧凑态即展示全部内容，尺寸自适应 -->
-                    <!-- 上岛推送（第三方软件推送到灵动岛）：紧凑态单行显示（图标 + 标题 + 单行摘要），展开态展示完整详情 -->
-                    <!-- xiaotang-daozai reference notice: fixed 334x44, two-line text, close button, bell + red dot. -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- 上岛通知：统一 334×44 通知条；微信/QQ 用应用图标 + 查看/关闭，普通通知用铃铛 + 关闭 -->
                     <Border x:Name="CompactPushCard" Grid.Column="0" Width="334" Height="44"
                             Margin="-10,-6,-10,-6" HorizontalAlignment="Left" VerticalAlignment="Center"
                             RenderTransformOrigin="0.5,0.5" ClipToBounds="False"
                             Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}">
                         <Border.RenderTransform>
-                            <ScaleTransform x:Name="CompactPushScale" ScaleX="0.94" ScaleY="0.94"/>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="CompactPushScale" ScaleX="1" ScaleY="1"/>
+                                <TranslateTransform x:Name="CompactPushTranslate" X="0"/>
+                            </TransformGroup>
                         </Border.RenderTransform>
-                        <Canvas>
-                            <TextBlock Canvas.Left="16" Canvas.Top="5" Width="198"
-                                       Text="{Binding ActivePushTitle}" FontSize="11" FontWeight="SemiBold" Foreground="White"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Canvas.Left="16" Canvas.Top="21" Width="198"
-                                       Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#9E9EA2"
-                                       TextTrimming="CharacterEllipsis"
-                                       Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
-                            <Button Canvas.Left="226" Canvas.Top="12" Width="60" Height="20"
-                                    Cursor="Hand" Click="DismissPush_Click">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="NoticeButtonBg" CornerRadius="10" Background="#232323">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="NoticeButtonBg" Property="Background" Value="#3A3A3F"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                                <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
-                            </Button>
-                            <TextBlock Canvas.Left="302" Canvas.Top="7" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       Text="&#xE7ED;" Foreground="#9E9EA2"/>
-                            <Ellipse Canvas.Left="312" Canvas.Top="15" Width="4" Height="4" Fill="#FF4848"/>
+                        <Canvas Width="334" Height="44" ClipToBounds="True">
+                            <!-- 微信/QQ：左侧应用圆标 + 双行文字 + 查看/关闭 -->
+                            <Canvas Width="334" Height="44"
+                                    Visibility="{Binding ActivePushIsMessenger, Converter={StaticResource BoolToVis}}">
+                                <!-- 微信双气泡图标（参考实现 22×22）+ QQ 客户端图标 -->
+                                <Canvas Canvas.Left="11" Canvas.Top="11.5" Width="22" Height="22">
+                                    <Canvas Visibility="{Binding ActivePushIsWeChat, Converter={StaticResource BoolToVis}}">
+                                        <Rectangle Canvas.Left="1" Canvas.Top="3.5" Width="14" Height="11" RadiusX="5.5" RadiusY="5.5" Fill="#46CB7B"/>
+                                        <Path Fill="#46CB7B" Data="M 3,11 L 3,16.6 L 8,12.4 Z"/>
+                                        <Ellipse Canvas.Left="4.1" Canvas.Top="6.6" Width="1.8" Height="1.8" Fill="#181818"/>
+                                        <Ellipse Canvas.Left="9.1" Canvas.Top="6.6" Width="1.8" Height="1.8" Fill="#181818"/>
+                                        <Rectangle Canvas.Left="9" Canvas.Top="8.5" Width="13" Height="10" RadiusX="5" RadiusY="5" Fill="#91EBA5"/>
+                                        <Path Fill="#91EBA5" Data="M 16,16.5 L 20,20.5 L 19,15.5 Z"/>
+                                        <Ellipse Canvas.Left="12.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
+                                        <Ellipse Canvas.Left="17.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
+                                    </Canvas>
+                                    <Image Canvas.Left="1.5" Canvas.Top="1.5" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Visibility="{Binding ActivePushIsQq, Converter={StaticResource BoolToVis}}"/>
+                                </Canvas>
+                                <Ellipse Canvas.Left="28.4" Canvas.Top="11.4" Width="5.2" Height="5.2" Fill="#FF4848"
+                                         Visibility="{Binding ActivePushHasRedDot, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Canvas.Left="44" Canvas.Top="4" Width="154" Height="20"
+                                           Text="{Binding ActivePushTitle}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="White" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Canvas.Left="44" Canvas.Top="22" Width="154" Height="16"
+                                           Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                <Button Canvas.Left="206" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
+                                        Click="ViewPushMessenger_Click">
+                                    <TextBlock Text="查看" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                </Button>
+                                <Button Canvas.Left="265" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
+                                        Click="DismissPush_Click">
+                                    <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                </Button>
+                            </Canvas>
+                            <!-- 普通通知：双行文字 + 右侧铃铛红点 + 关闭 -->
+                            <Canvas Width="334" Height="44"
+                                    Visibility="{Binding ActivePushIsMessenger, Converter={StaticResource BoolToVisInvert}}">
+                                <TextBlock Canvas.Left="16" Canvas.Top="4" Width="198" Height="20"
+                                           Text="{Binding ActivePushTitle}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="White" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Canvas.Left="16" Canvas.Top="22" Width="198" Height="16"
+                                           Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                <Button Canvas.Left="226" Canvas.Top="12" Width="60" Style="{StaticResource NoticeCapsuleButton}"
+                                        Click="DismissPush_Click">
+                                    <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                </Button>
+                                <!-- 参考实现的矢量铃铛：0.95s 衰减摆动，由代码启动 -->
+                                <Canvas Canvas.Left="300" Canvas.Top="12" Width="20" Height="20" RenderTransformOrigin="0.5,0.25">
+                                    <Canvas.RenderTransform>
+                                        <RotateTransform x:Name="CompactNoticeBellRotate"/>
+                                    </Canvas.RenderTransform>
+                                    <Path Fill="#B2B2BA" Data="M 6.6,9.4 A 3.4,3.4 0 0 1 13.4,9.4 L 13.6,12.4 L 14.6,13.2 L 5.4,13.2 L 6.4,12.4 Z"/>
+                                    <Ellipse Canvas.Left="8.8" Canvas.Top="13.4" Width="2.4" Height="2.4" Fill="#B2B2BA"/>
+                                </Canvas>
+                                <Ellipse Canvas.Left="312" Canvas.Top="15.5" Width="4" Height="4" Fill="#FF4848"/>
+                            </Canvas>
                         </Canvas>
                     </Border>
 
@@ -245,7 +332,8 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <ItemsControl ItemsSource="{Binding CompactItems}" VerticalAlignment="Center">
+                    <ItemsControl ItemsSource="{Binding CompactItems}" VerticalAlignment="Center"
+                                  Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVisInvert}}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
@@ -932,42 +1020,86 @@
                                        Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#8E8E99}"/>
                         </Button>
                     </Grid>
-                    <!-- 上岛推送详情（第三方软件推送，展开时优先级最高，置于顶部） -->
-                    <Border x:Name="ExpandedPushCard" Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}"
-                            CornerRadius="14"
-                            Background="{Binding PushCardBackground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#221B1B26}"
-                            BorderBrush="{Binding PushCardBorder, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#59FFFFFF}"
-                            BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="40" Height="40" CornerRadius="20" Margin="0,0,10,0" ClipToBounds="False"
-                                        Background="{Binding ActivePushBadgeBrush, FallbackValue=#6C5CE7}">
-                                    <Grid>
-                                        <TextBlock Text="{Binding ActivePushBadgeGlyph}" FontFamily="{Binding ActivePushBadgeFont}" FontSize="18"
-                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVisInvert}}"/>
-                                        <Image Source="{Binding ActivePushImageSource}" Stretch="UniformToFill"
-                                               Visibility="{Binding ActivePushHasImage, Converter={StaticResource BoolToVis}}"/>
-                                        <Ellipse Width="8" Height="8" Fill="#FF4848" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"
-                                                 Visibility="{Binding ActivePushHasRedDot, Converter={StaticResource BoolToVis}}"/>
-                                    </Grid>
-                                </Border>
-                                <TextBlock Text="{Binding ActivePushTitle}" FontSize="15" FontWeight="SemiBold" MaxWidth="560" VerticalAlignment="Center"
-                                           Foreground="{Binding PushCardForeground, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                            <TextBlock Text="{Binding ActivePushSubtitle}" FontSize="11.5" MaxWidth="560" Margin="0,2,0,0"
-                                       Foreground="{Binding PushCardSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
-                                       TextTrimming="CharacterEllipsis"
-                                       Visibility="{Binding ActivePushHasSubtitle, Converter={StaticResource BoolToVis}}"/>
-                            <TextBlock Text="{Binding ActivePushBody}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap" MaxWidth="560"
+                    <!-- 展开通知：沿用 334×44 通知条，富内容推送才在下方补充详情 -->
+                    <StackPanel x:Name="ExpandedPushCard" Margin="0,0,0,10"
+                                Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}">
+                        <Border Width="334" Height="44" HorizontalAlignment="Left" ClipToBounds="True" Background="Transparent">
+                            <Canvas Width="334" Height="44" ClipToBounds="True">
+                                <!-- 微信/QQ：应用圆标 + 双行文字 + 查看/关闭 -->
+                                <Canvas Width="334" Height="44"
+                                        Visibility="{Binding ActivePushIsMessenger, Converter={StaticResource BoolToVis}}">
+                                    <!-- 微信双气泡图标（参考实现 22×22）+ QQ 客户端图标 -->
+                                    <Canvas Canvas.Left="11" Canvas.Top="11.5" Width="22" Height="22">
+                                        <Canvas Visibility="{Binding ActivePushIsWeChat, Converter={StaticResource BoolToVis}}">
+                                            <Rectangle Canvas.Left="1" Canvas.Top="3.5" Width="14" Height="11" RadiusX="5.5" RadiusY="5.5" Fill="#46CB7B"/>
+                                            <Path Fill="#46CB7B" Data="M 3,11 L 3,16.6 L 8,12.4 Z"/>
+                                            <Ellipse Canvas.Left="4.1" Canvas.Top="6.6" Width="1.8" Height="1.8" Fill="#181818"/>
+                                            <Ellipse Canvas.Left="9.1" Canvas.Top="6.6" Width="1.8" Height="1.8" Fill="#181818"/>
+                                            <Rectangle Canvas.Left="9" Canvas.Top="8.5" Width="13" Height="10" RadiusX="5" RadiusY="5" Fill="#91EBA5"/>
+                                            <Path Fill="#91EBA5" Data="M 16,16.5 L 20,20.5 L 19,15.5 Z"/>
+                                            <Ellipse Canvas.Left="12.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
+                                            <Ellipse Canvas.Left="17.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
+                                        </Canvas>
+                                        <Image Canvas.Left="1.5" Canvas.Top="1.5" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality"
+                                               Visibility="{Binding ActivePushIsQq, Converter={StaticResource BoolToVis}}"/>
+                                    </Canvas>
+                                    <Ellipse Canvas.Left="28.4" Canvas.Top="11.4" Width="5.2" Height="5.2" Fill="#FF4848"
+                                             Visibility="{Binding ActivePushHasRedDot, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Canvas.Left="44" Canvas.Top="4" Width="154" Height="20"
+                                               Text="{Binding ActivePushTitle}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="White" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Canvas.Left="44" Canvas.Top="22" Width="154" Height="16"
+                                               Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Canvas.Left="206" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
+                                            Click="ViewPushMessenger_Click">
+                                        <TextBlock Text="查看" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                    </Button>
+                                    <Button Canvas.Left="265" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
+                                            Click="DismissPush_Click">
+                                        <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                    </Button>
+                                </Canvas>
+                                <!-- 普通通知：双行文字 + 铃铛红点 + 关闭 -->
+                                <Canvas Width="334" Height="44"
+                                        Visibility="{Binding ActivePushIsMessenger, Converter={StaticResource BoolToVisInvert}}">
+                                    <TextBlock Canvas.Left="16" Canvas.Top="4" Width="198" Height="20"
+                                               Text="{Binding ActivePushTitle}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="White" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Canvas.Left="16" Canvas.Top="22" Width="198" Height="16"
+                                               Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Canvas.Left="226" Canvas.Top="12" Width="60" Style="{StaticResource NoticeCapsuleButton}"
+                                            Click="DismissPush_Click">
+                                        <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
+                                    </Button>
+                                    <!-- 参考实现的矢量铃铛：0.95s 衰减摆动，由代码启动 -->
+                                    <Canvas Canvas.Left="300" Canvas.Top="12" Width="20" Height="20" RenderTransformOrigin="0.5,0.25">
+                                        <Canvas.RenderTransform>
+                                            <RotateTransform x:Name="ExpandedNoticeBellRotate"/>
+                                        </Canvas.RenderTransform>
+                                        <Path Fill="#B2B2BA" Data="M 6.6,9.4 A 3.4,3.4 0 0 1 13.4,9.4 L 13.6,12.4 L 14.6,13.2 L 5.4,13.2 L 6.4,12.4 Z"/>
+                                        <Ellipse Canvas.Left="8.8" Canvas.Top="13.4" Width="2.4" Height="2.4" Fill="#B2B2BA"/>
+                                    </Canvas>
+                                    <Ellipse Canvas.Left="312" Canvas.Top="15.5" Width="4" Height="4" Fill="#FF4848"/>
+                                </Canvas>
+                            </Canvas>
+                        </Border>
+                        <StackPanel Margin="2,8,2,0"
+                                    Visibility="{Binding ActivePushNeedsDetails, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding ActivePushBody}" FontSize="11.5" TextWrapping="Wrap" MaxWidth="560"
                                        Foreground="{Binding PushCardSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                        Visibility="{Binding ActivePushHasBody, Converter={StaticResource BoolToVis}}"/>
                             <ProgressBar Height="4" Maximum="1" Value="{Binding ActivePushProgress, Mode=OneWay}" Margin="0,8,0,0"
                                          Visibility="{Binding ActivePushHasProgress, Converter={StaticResource BoolToVis}}">
                                 <ProgressBar.Template>
                                     <ControlTemplate TargetType="ProgressBar">
-                                        <Grid>
+                                        <Grid x:Name="PART_Track">
                                             <Border CornerRadius="2" Background="#33FFFFFF"/>
                                             <Border x:Name="PART_Indicator" CornerRadius="2" HorizontalAlignment="Left"
                                                     Background="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#6C5CE7}"/>
@@ -982,8 +1114,8 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Style="{StaticResource IconButton}" Padding="10,5" Margin="0,0,8,0" Click="PushButton_Click">
-                                            <TextBlock Text="{Binding Label}" FontSize="12"/>
+                                        <Button Style="{StaticResource NoticeDetailButton}" Margin="0,0,8,0" Click="PushButton_Click">
+                                            <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
                                         </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -1005,7 +1137,7 @@
                                 </Button>
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </StackPanel>
 
                     <Grid x:Name="PageTitleHost">
                         <TextBlock x:Name="ActivePageTitleText" Text="{Binding ActivePageTitle}" FontSize="12.5" FontWeight="Bold" Margin="2,0,0,0"

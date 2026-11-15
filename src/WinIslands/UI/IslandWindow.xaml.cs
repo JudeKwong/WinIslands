@@ -2102,16 +2102,17 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void PlayPushCardAnimation()
     {
         if (!IsLoaded || CompactPushCard is null || !_vm.HasActivePush) return;
+        // 先清掉上一条通知可能仍在运行的动画，避免透明度停在 0。
+        _pushCardStoryboard?.Stop();
+        _pushCardStoryboard = null;
+        CompactPushCard.BeginAnimation(UIElement.OpacityProperty, null);
+        CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         CompactPushCard.Opacity = 0;
         CompactPushScale.ScaleX = CompactPushScale.ScaleY = 0.94;
         // 默认 Spring 动效：真实弹簧淡入 + 轻微缩放，推送卡片自然"上岛"
         if (_settings.Current.AnimationStyle == "Spring")
         {
-            _pushCardStoryboard?.Stop();
-            _pushCardStoryboard = null;
-            CompactPushCard.BeginAnimation(UIElement.OpacityProperty, null);
-            CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             EnsurePushSprings();
             var lmPush = _animLowPowerMp;
             _pushOpacitySpring!.Configure(1.0, 0.3 * lmPush);
@@ -2140,6 +2141,43 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             CompactPushCard.Opacity = 1;
             CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
         };
+        sb.Begin();
+    }
+
+    /// <summary>
+    /// 普通通知铃铛摆动：参考实现为 0.95 秒、两圈衰减正弦，角度峰值约 0.48rad。
+    /// 按 60fps 采样成关键帧，结束后回到静止角度。
+    /// </summary>
+    private void PlayNoticeBellSwing()
+    {
+        if (!IsLoaded || !_vm.HasActivePush) return;
+        const double duration = 0.95;
+        const int steps = 57;
+        foreach (var rotate in new[] { CompactNoticeBellRotate, ExpandedNoticeBellRotate })
+        {
+            if (rotate is null) continue;
+            rotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            rotate.Angle = 0;
+            var anim = new DoubleAnimationUsingKeyFrames
+            {
+                Duration = TimeSpan.FromSeconds(duration),
+                FillBehavior = FillBehavior.Stop,
+            };
+            for (var i = 0; i <= steps; i++)
+            {
+                var t = (double)i / steps;
+                var angle = Math.Sin(t * Math.PI * 4.0) * (180.0 / Math.PI) * 0.48 * Math.Sqrt(Math.Max(0.0, 1.0 - t));
+                anim.KeyFrames.Add(new LinearDoubleKeyFrame(angle, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t * duration))));
+            }
+            rotate.BeginAnimation(RotateTransform.AngleProperty, anim);
+        }
+    }
+
+    /// <summary>微信/QQ 通知上的「查看」：切回对应聊天窗口并收起通知。</summary>
+    private void ViewPushMessenger_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.ActivateActivePushMessenger();
+        e.Handled = true;
     }
 
     /// <summary>关闭当前紧凑通知；若队列还有下一条，会自动接着显示。</summary>
@@ -2307,6 +2345,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 ApplySize();           // 确保窗口足够大（首次）
                 AnimateCompactSize();  // 尺寸变化：弹簧动画，丝滑
                 PlayPushCardAnimation(); // 上岛卡片：淡入 + 缩放动画
+                PlayNoticeBellSwing();   // 普通通知：铃铛衰减摆动
                 ApplyExpandedSectionVisibility();
                 RaisePushThemeProps();
                 break;

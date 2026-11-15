@@ -1582,6 +1582,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(ActivePushHasBody));
             OnPropertyChanged(nameof(ActivePushSummary));
             OnPropertyChanged(nameof(ActivePushHasSummary));
+            OnPropertyChanged(nameof(ActivePushIsMessenger));
+            OnPropertyChanged(nameof(ActivePushMessengerSource));
+            OnPropertyChanged(nameof(ActivePushIsWeChat));
+            OnPropertyChanged(nameof(ActivePushIsQq));
+            OnPropertyChanged(nameof(ActivePushNeedsDetails));
             OnPropertyChanged(nameof(ActivePushHasProgress));
             OnPropertyChanged(nameof(ActivePushProgress));
             OnPropertyChanged(nameof(ActivePushHasImage));
@@ -1621,7 +1626,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         "bluetooth" => BluetoothBadgeBrush,
         _ => DefaultBadgeBrush,
     };
-    public bool ActivePushHasRedDot => ActivePush?.Type is "wechat" or "qq";
+    public bool ActivePushHasRedDot => ActivePushIsMessenger;
     public string ActivePushTitle => ActivePush?.Title ?? string.Empty;
     public string ActivePushSubtitle => ActivePush?.Subtitle ?? string.Empty;
     public bool ActivePushHasSubtitle => !string.IsNullOrEmpty(ActivePush?.Subtitle);
@@ -1629,6 +1634,32 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public bool ActivePushHasBody => !string.IsNullOrEmpty(ActivePush?.Body);
     public string ActivePushSummary => !string.IsNullOrEmpty(ActivePush?.Subtitle) ? ActivePush!.Subtitle! : (ActivePush?.Body ?? string.Empty);
     public bool ActivePushHasSummary => !string.IsNullOrEmpty(ActivePushSummary);
+
+    /// <summary>
+    /// 当前通知是否采用微信/QQ 样式（应用图标 + 查看/关闭）。
+    /// 未读监控产生的通知带 MessengerUnread；第三方 API 直接以 type=wechat/qq 推送时也走同一套样式。
+    /// </summary>
+    public bool ActivePushIsMessenger => ActivePushMessengerSource is not null;
+
+    /// <summary>当前通知对应的具体客户端；未读监控对象优先，其次看推送 type。</summary>
+    public MessengerSource? ActivePushMessengerSource =>
+        ActivePush?.MessengerUnread?.Source ??
+        (ActivePush?.Type ?? "").Trim().ToLowerInvariant() switch
+        {
+            "wechat" or "weixin" => MessengerSource.WeChat,
+            "qq" => MessengerSource.QQ,
+            _ => (MessengerSource?)null,
+        };
+
+    public bool ActivePushIsWeChat => ActivePushMessengerSource == MessengerSource.WeChat;
+    public bool ActivePushIsQq => ActivePushMessengerSource == MessengerSource.QQ;
+
+    /// <summary>
+    /// 当前通知是否需要额外详情区：只有图片/进度/按钮/输入框这类富内容才向下展开。
+    /// 纯文字通知本身就是 334×44 的双行通知条（标题 + 正文），不再额外挂一张详情卡。
+    /// </summary>
+    public bool ActivePushNeedsDetails => ActivePush is not null &&
+        (ActivePushHasImage || ActivePushHasProgress || ActivePushHasButtons || HasPushInput);
     public bool ActivePushHasProgress => ActivePush?.EffectiveProgress is not null;
     public double ActivePushProgress => Math.Clamp(ActivePush?.EffectiveProgress ?? 0, 0, 1);
 
@@ -1883,8 +1914,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             double h = 24;
             if (HasActivePush)
             {
-                h += 96;
-                if (!string.IsNullOrEmpty(ActivePushBody)) h += 34;
+                h += 52; // 334×44 通知条 + 间距
+                if (ActivePushNeedsDetails) h += 34;
                 if (ActivePushHasButtons) h += 40;
                 if (HasPushInput) h += 42; // 展开状输入框行
                 if (ActivePushHasProgress) h += 12;
@@ -1969,7 +2000,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// 复用上岛推送队列：同 id 覆盖；到点后由 CheckPushExpiry 自动回收。
     /// </summary>
     public void ShowEventCard(string id, string title, string? subtitle, string icon,
-        string type = "info", int durationSeconds = 5, string? body = null)
+        string type = "info", int durationSeconds = 5, string? body = null, MessengerUnread? unread = null)
     {
         // 勿扰模式：灵动岛事件卡片不展示（白名单仍展示由上层决定，这里只做总开关）
         if (DoNotDisturb.IsActive(_settings.Current)) return;
@@ -1997,6 +2028,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             Priority = "high", // 系统事件优先于普通第三方推送展示
             DurationSeconds = dur,
             ExpiresAt = DateTime.UtcNow.AddSeconds(dur),
+            MessengerUnread = unread,
         });
     }
 
@@ -2093,7 +2125,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
         var type = unread.Source == MessengerSource.WeChat ? "wechat" : "qq";
         ShowEventCard($"msg:{type}:{unread.Pid}:{unread.Window}", unread.SourceName,
-            "有新消息 · 点击查看", unread.Glyph, type, 6);
+            "有新消息 · 点击查看", unread.Glyph, type, 6, unread: unread);
     }
 
     /// <summary>QQ 系统 Toast：带标题/正文的未读记录，使用同一个通知卡片与图标栈。</summary>
@@ -2102,23 +2134,33 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (DoNotDisturb.IsActive(_settings.Current)) return;
         var unread = new MessengerUnread(source, 0, IntPtr.Zero, DateTime.UtcNow,
             title ?? string.Empty, body ?? string.Empty, appUserModelId ?? string.Empty);
-        if (!_messengerUnreads.Any(x => x.Source == source && x.Pid == 0
-            && x.Title == unread.Title && x.Body == unread.Body && x.AppUserModelId == unread.AppUserModelId))
+        var existing = _messengerUnreads.FirstOrDefault(x => x.Source == source && x.Pid == 0
+            && x.Title == unread.Title && x.Body == unread.Body && x.AppUserModelId == unread.AppUserModelId);
+        if (existing is null)
         {
             _messengerUnreads.Add(unread);
+            existing = unread;
             OnPropertyChanged(nameof(HasMessengerUnreads));
             OnPropertyChanged(nameof(MessengerUnreadCount));
         }
         var type = source == MessengerSource.WeChat ? "wechat" : "qq";
         var displayTitle = string.IsNullOrWhiteSpace(title) ? unread.SourceName : title;
         var summary = string.IsNullOrWhiteSpace(body) ? "有新消息 · 点击查看" : body;
-        ShowEventCard($"msg:{type}:{appUserModelId}:{title}", displayTitle, summary, unread.Glyph, type, 6);
+        ShowEventCard($"msg:{type}:{appUserModelId}:{title}", displayTitle, summary, unread.Glyph, type, 6, unread: existing);
     }
 
     public void ActivateMessengerUnread(MessengerUnread unread)
     {
         _messengerMonitor?.Activate(unread);
         RemoveMessengerUnread(unread);
+    }
+
+    /// <summary>通知卡片上的「查看」：切回微信/QQ 对应窗口，并收起当前通知。</summary>
+    public void ActivateActivePushMessenger()
+    {
+        if (ActivePush?.MessengerUnread is not MessengerUnread unread) return;
+        ActivateMessengerUnread(unread);
+        DismissActivePush();
     }
 
     public void DismissMessengerUnread(MessengerUnread unread)
