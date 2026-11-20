@@ -1,3 +1,23 @@
+## WinIslands 3.1.3（正式版 / Stable）
+### 更新内容
+
+- 🔔 **通知卡片重新设计**：微信、QQ 与普通通知统一为 334×44 双行胶囊布局；重新对齐应用图标、红点、标题、摘要和操作区，长文本自动省略，避免拥挤与溢出
+- 🎛️ **通知按钮交互统一**：「查看」「关闭」统一为 20px 胶囊按钮，规范悬停底色与按压缩放反馈，紧凑态和展开态保持一致
+- ✨ **通知动效与跳转完善**：普通通知加入矢量铃铛衰减摆动；微信/QQ 通知可直接点「查看」切回对应窗口，关闭后继续展示队列中的下一条
+- 🧩 **富内容通知布局修复**：纯文本通知只占用标准通知条，图片、进度、按钮和输入框等富内容才按需展开详情，避免展开高度不足或内容被裁切
+- 🖤 **展开态通知适配**：展开模式使用完整黑色圆角通知卡，通知条尺寸与详情间距保持稳定
+- 🧪 **质量验证**：Release 编译通过，642 项测试全部通过
+
+## WinIslands 3.1.3 (Stable)
+### What's New
+
+- 🔔 **Redesigned notification cards**: WeChat, QQ and regular notifications now share one consistent 334×44 two-line capsule layout, with realigned app badges, unread dots, titles, summaries and action areas plus ellipsis for long text
+- 🎛️ **Unified notification buttons**: View and Close are now consistent 20px capsules with matching hover colors and pressed-scale feedback in compact and expanded modes
+- ✨ **Improved notification motion and actions**: regular notifications use a vector bell with damped swing animation, while WeChat/QQ notifications can jump straight back to the source window and continue through the queue after dismissal
+- 🧩 **Rich-notification layout fix**: plain-text notifications stay within the standard bar, while images, progress, buttons and inputs expand only when needed so content is no longer clipped
+- 🖤 **Expanded notification polish**: expanded mode uses a complete black rounded notification card with stable bar dimensions and detail spacing
+- 🧪 **Verification**: Release build succeeded and all 642 tests passed
+
 ## WinIslands 3.1.2（正式版 / Stable）
 ### 更新内容
 
