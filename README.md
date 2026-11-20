@@ -1,425 +1,267 @@
 <div align="center">
 
-**选择语言 / Select Language**
+<img src="docs/winislands-logo.png" width="104" alt="WinIslands" />
 
-[简体中文](#简体中文) · [English](#english)
+# WinIslands · Windows 灵动岛
+
+**一抬眼，桌面信息都在岛上。**
+
+把媒体、歌词、通知、系统状态和第三方信息，收进一颗会呼吸的胶囊。
+
+[![最新版本](https://img.shields.io/github/v/release/JudeKwong/WinIslands?color=6C5CE7&label=最新版本)](https://github.com/JudeKwong/WinIslands/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4)](#下载安装)
+[![开源许可](https://img.shields.io/badge/License-MIT-3cbf91)](LICENSE)
+[![.NET 与 WPF](https://img.shields.io/badge/.NET%208-WPF-8b6ca8)](#从源码构建)
+
+**[下载 Windows 版](https://github.com/JudeKwong/WinIslands/releases/latest)** · [快速上手](#快速上手) · [插件开发](docs/PLUGIN_DEVELOPMENT.md) · [上岛 API](docs/IslandAPI.md) · [更新记录](RELEASE_NOTES.md) · [反馈问题](https://github.com/JudeKwong/WinIslands/issues)
 
 </div>
 
----
+WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶部，鼠标靠近就展开；切歌、看歌词、处理通知、查看系统状态，都能在抬手之间完成。
 
-## 简体中文
+它使用 **.NET 8 + WPF** 原生构建，不依赖 Electron，支持 Windows 10 / 11 与 x64 / ARM64。界面、组件和交互都可以按自己的习惯调整。
 
-# WinIslands — Windows 灵动岛
 
-> **把 iOS 的灵动岛带到 Windows 11 / 10 —— 一款现代化、多功能的 Windows 灵动岛组件。**
-> 基于 **.NET 8 + WPF**，免费开源（MIT），**无广告 · 无遥测 · 不上报数据**。
+## 听歌时，歌词就在抬眼处
 
-🌐 官网：https://WinIslands.JudeKwong.com ｜ GitHub：https://github.com/JudeKwong/WinIslands
+播放、暂停、切歌、调节音量和拖动进度，都能直接在岛上操作。展开时看完整歌词，收起后只留一行，让桌面继续做自己的事。
 
----
+<div align="center">
+  <img src="docs/screenshot-compact.png" width="430" alt="WinIslands 收起状态下的音乐组件" />
+</div>
 
-## ✨ 功能亮点
+- **主流播放器兼容**：通过 Windows 全局媒体会话（SMTC）接入网易云音乐、QQ 音乐、Spotify、Apple Music 等播放器，并额外支持 Cider 本地 API。
+- **逐字歌词与双语显示**：本地 LRC、AMLL TTML、播放器歌词接口和可选在线歌词统一管理，支持逐字高亮、翻译、一句复制和逐首时间微调。
+- **歌词源随手切换**：在自动、本地 LRC、AMLL TTML、Cider API 和在线歌词之间循环切换，立即重新加载当前歌曲。
+- **独立歌词窗口**：需要把歌词放到别处时，可以单独打开歌词小窗。
 
-- **▶ 媒体播放控制**：原生接入 Windows 全局媒体会话（SMTC），兼容网易云、QQ音乐、Spotify、Apple Music、Groove、电影和电视等主流播放器；额外专门支持 Cider 本地 API；无法接入时窗口标题兜底。支持专辑封面、进度拖拽 seek、播放/暂停/切歌、音量调节；多播放器同时打开时可一键切换控制来源。
-- **♪ 卡拉OK逐字歌词**：展开卡片同步滚动高亮、逐字点亮；歌词来源优先级：本地 `.lrc` → AMLL TTML → 播放器歌词接口 → 可选在线歌词，并可一键循环切换来源；支持双语歌词、翻译开关、一句复制、逐首时间微调与独立歌词小窗。
-- **▦ 可定制组件系统**：时间、天气、日期（含农历/节气）、CPU/GPU/内存/磁盘、网络速度、电量、输入法、快捷开关等 30+ 组件；每个组件可自定义图标、勾选显隐与拖拽排序，支持单行/多行模式；还支持本地组件插件（`.exe`/`.cmd`/`.bat`/`.ps1`，独立进程运行）；设置 → 插件 可查看已加载插件、打开插件目录、重新扫描，并直接打开插件开发指南。
-- **🏝 上岛 API**：本地 HTTP / WebSocket 接口，让任何第三方软件把信息实时推送到灵动岛（类似 iOS 第三方 App 的灵动岛集成）。支持图片、动态进度、心跳续期、深浅主题、按钮动作、输入框；推送不影响灵动岛长宽，也不遮挡其他组件。
-- **✨ 提示动画**：蓝牙连接/断开、开始/结束充电、低电量、网络恢复、日历/RSS/邮件提醒等事件，以 iOS 风格动画在灵动岛上展示。
-- **✦ 外观与动效**：默认「经典黑」皮肤（纯黑岛体、圆形徽标、页标题与页码豆，重新设计的视觉语言；液态玻璃保留为可选皮肤）；保留 18 种主题、自定义强调色、壁纸取色、跑马灯、4 种动效皮肤、4 种音频波纹样式；歌词滚动采用 LiquidMusic 同款 ease-out cubic + 逐行焦点缩放/透明度；PerMonitorV2 高 DPI 适配。
-- **🖱 交互与智能**：解锁拖动 + 边缘吸附、全屏/锁屏自动隐藏、双击/中键快捷动作、快捷操作按钮、文件中转站（拖文件上岛、可再拖出到其他应用）、录制智能勿扰、定时明暗主题切换。
-- **⚡ 效率工具与自动化**：番茄钟、待办、剪贴板历史、快速启动器、日程提醒；会议静音助手、屏幕录制/截图提示、文件复制/下载进度上岛；全局快捷键与规则引擎。
-- **🛡 隐私安全**：无遥测、无广告、无数据上报。除用户手动开启的在线歌词/天气外完全离线；所有配置与数据仅存于本机 `%APPDATA%\WinIslands`。
-- **🔁 多歌词源一键切换**：在「自动 / 本地 LRC / AMLL TTML / Cider API / 在线歌词」之间一键循环切换，立即重新加载当前歌曲歌词。
-- **🛡️ 崩溃自动恢复**：异常退出后下次启动自动提示已恢复，不再无响应、黑屏、状态丢失。
-- **⏱️ 动画时长可调**：展开/收起动画时长滑杆（300–1400ms），自由调节快慢，适配个人喜好。
+## 消息来了，看一眼岛边
 
----
+普通通知、微信和 QQ 提醒会以统一的胶囊样式出现。红点、应用图标、标题和摘要重新对齐，紧凑态与展开态使用同一套交互。
 
-## 📥 下载（最新稳定版 3.1.3）
+- **通知卡片重新设计**：统一为双行胶囊布局，长文本自动省略，图片、进度、按钮和输入框等富内容按需展开。
+- **操作按钮统一在下方**：「查看」和「关闭」使用一致的尺寸、悬停底色和按压缩放反馈。
+- **微信 / QQ 快速跳转**：点「查看」切回对应窗口，关闭后继续展示队列中的下一条。
+- **通知动效**：普通通知带矢量铃铛衰减摆动，复制完成等操作提供轻量反馈。
 
-| 平台 | 下载 | 说明 |
-| --- | --- | --- |
-| Windows x64 | [x64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-3.1.3-win-x64.exe) | 主流 64 位电脑首选，单文件免安装，直接运行 |
-| Windows ARM64 | [ARM64 便携版](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-3.1.3-win-arm64.exe) | Surface Pro X / 骁龙机型等 ARM 设备 |
-| Windows 通用 | [通用安装包](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-Setup-3.1.3.exe) | Inno Setup 安装向导，x64 / ARM64 自动按架构安装 |
+## 把常用信息摆在手边
 
-历史版本见 [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases)。
+时间、天气、日期、CPU / GPU / 内存 / 磁盘、网络速度、电量、输入法和快捷开关等 30+ 组件，都可以自由组合。
 
----
-
-## 📊 性能指标
-
-| 指标 | 数值 |
+| 想看的 | WinIslands 能做什么 |
 | --- | --- |
-| 常驻内存（Private） | ~72 MB |
-| 冷启动 | < 1 s |
-| 空闲 CPU | ≈ 0% |
-| 动效帧率 | 60 fps |
-| 多实例 | 单实例防重复运行 |
-| 遥测 | 0 遥测 · 无上报 · 无广告 |
+| 今天的时间和天气 | 时间、日期、农历、节气与天气组件，单行或多行排列 |
+| 电脑现在怎么样 | CPU、GPU、内存、磁盘、网络、电量和音频波纹状态 |
+| 常用操作快一点 | 快捷开关、快速启动器、剪贴板历史、番茄钟和待办 |
+| 只看自己需要的 | 组件显隐、图标、排序、播放 / 空闲状态分别配置 |
 
----
+组件支持拖拽排序、单行 / 多行模式、自定义图标和字体缩放。完整布局可以在 **设置 → 组件** 中调整。
 
-## 🔧 构建
+## 插件，把岛变成自己的
 
-### 环境要求
-- Windows 10 1809+ / Windows 11
-- .NET 8 SDK
+WinIslands 支持本地组件插件。插件以独立进程运行，读取标准输出后更新组件，不会加载进主进程；插件崩溃、超时或返回错误 JSON 也不会拖垮应用。
 
-### 构建与测试
+- 支持 `.exe`、`.cmd`、`.bat`、`.ps1` 和 `.com` 入口。
+- 可设置启动运行、定时刷新、超时和最大输出大小。
+- 用户插件目录与便携插件目录同时扫描，同名插件以用户目录优先。
+- **设置 → 插件** 可以查看已加载插件、打开插件目录、重新扫描，并直接打开开发指南。
+
+插件结构与输出协议见 [插件开发指南](docs/PLUGIN_DEVELOPMENT.md)。
+
+## 任何应用，都能把信息送上岛
+
+通过本地 HTTP / WebSocket 接口，第三方软件可以把下载进度、任务状态、播放通知或其他实时信息推送到灵动岛。
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| `POST` | `/v1/island/push` | 推送或更新一张卡片 |
+| `POST` | `/v3/island/push` | 支持图片、动态进度和心跳续期 |
+| `PATCH` | `/v3/island/push/{id}` | 部分更新卡片 |
+| `DELETE` | `/v1/island/push/{id}` | 移除卡片 |
+| `GET` | `/v1/island/active` | 查询当前活跃卡片 |
+| `GET` | `/v3/ws` | WebSocket 双向通道 |
+| `GET` | `/v1/health` | 健康检查 |
+
+支持标题、正文、图标、副标题、进度、按钮、输入框、图片、主题、强调色和优先级队列。推送不会改变灵动岛宽度。
+
+完整接口与示例见 [上岛 API 文档](docs/IslandAPI.md) 和 [SDK 示例](docs/sdk-examples)。
+
+## 展开是面板，收起是状态
+
+- **悬停展开**：鼠标靠近自动展开，移开后收回，无需额外点击。
+- **滚轮切换页面**：展开模式下用鼠标滚轮横向切换，动画保持连续。
+- **尺寸统一**：展开状态使用固定尺寸，避免不同页面之间跳动或显示不全。
+- **控制区固定在下方**：播放、切歌、音量和页面切换放在统一位置。
+- **多主题与高 DPI**：内置多套主题、自定义强调色和壁纸取色，适配 PerMonitorV2 高 DPI。
+- **贴近桌面习惯**：支持边缘吸附、全屏 / 锁屏自动隐藏、开机自启、勿扰模式和全局快捷键。
+
+## 下载安装
+
+**[前往 GitHub Releases 下载最新版](https://github.com/JudeKwong/WinIslands/releases/latest)**
+
+| 下载文件 | 使用方式 |
+| --- | --- |
+| `WinIslands-Setup-版本号.exe` | **推荐**。通用安装包，自动按 x64 / ARM64 安装，可选择桌面快捷方式和开机自启 |
+| `WinIslands-版本号-win-x64.exe` | x64 便携版，单文件免安装，适合主流 64 位电脑 |
+| `WinIslands-版本号-win-arm64.exe` | ARM64 便携版，适合 Surface Pro X、骁龙 PC 等设备 |
+
+**系统要求**：Windows 10 1809+ / Windows 11，x64 或 ARM64。发布包已包含 .NET 8 运行时，无需另外安装。
+
+**升级与卸载**：直接从新版本安装包覆盖安装即可保留设置和数据；卸载默认保留 `%APPDATA%\WinIslands` 中的个人配置。
+
+当前程序未做商业代码签名，Windows 可能提示“未知发布者”。请从本仓库 Releases 下载，并用 Release 页面提供的 SHA256 校验文件。
+
+<details>
+<summary id="快速上手"><b>快速上手</b></summary>
+
+1. 下载并运行安装包或便携版，托盘出现 WinIslands 图标。
+2. 播放任意音乐，灵动岛会通过系统媒体会话显示播放信息。
+3. 鼠标移到岛上展开面板，移开后自动收回。
+4. 打开 **设置**，选择主题、组件、插件、通知和开机自启。
+5. 关闭主窗口只会隐藏到托盘；需要完全退出时使用托盘菜单中的「退出」。
+
+常用快捷键：
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+Alt+P` | 播放 / 暂停 |
+| `Ctrl+Alt+←` / `Ctrl+Alt+→` | 上一首 / 下一首 |
+| `Ctrl+Alt+I` | 显示 / 隐藏灵动岛 |
+| `Ctrl+Alt+Space` | 展开 / 收起 |
+| `Ctrl+Space` | 快速启动器 |
+| `Ctrl+Alt+V` | 剪贴板历史 |
+
+常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
+
+</details>
+
+<details>
+<summary><b>插件开发</b></summary>
+
+插件放在以下任一目录：
+
+```text
+%APPDATA%\WinIslands\plugins\<plugin-id>\plugin.json
+<WinIslands.exe 所在目录>\plugins\<plugin-id>\plugin.json
+```
+
+最小结构：
+
+```text
+hello-world/
+├─ plugin.json
+└─ run.ps1
+```
+
+插件向标准输出返回 UTF-8 JSON，例如：
+
+```json
+{
+  "components": [
+    {
+      "id": "hello",
+      "text": "本地组件 · 08:53:10",
+      "icon": "🧩",
+      "tooltip": "这是一个由本地插件贡献的 WinIslands 组件。",
+      "show_when_playing": true,
+      "show_when_idle": true,
+      "order": 50
+    }
+  ]
+}
+```
+
+字段、刷新策略、示例脚本和错误处理见 [插件开发指南](docs/PLUGIN_DEVELOPMENT.md)。
+
+</details>
+
+<details>
+<summary><b>上岛 API 示例</b></summary>
+
+默认基址为 `http://127.0.0.1:9840`，端口可在设置中修改。
+
+```powershell
+$body = @{
+    id = "download-1"
+    title = "正在下载"
+    body = "WinIslands-3.1.3-win-x64.exe"
+    progress = 0.65
+    type = "info"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post `
+    -Uri "http://127.0.0.1:9840/v1/island/push" `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+按钮、图片、动态进度、心跳续期、WebSocket 和输入框用法见 [上岛 API 文档](docs/IslandAPI.md)。
+
+</details>
+
+<details>
+<summary><b>配置、数据与隐私</b></summary>
+
+- 配置文件位于 `%APPDATA%\WinIslands\settings.json`，设置界面的改动会即时生效。
+- 插件位于 `%APPDATA%\WinIslands\plugins`。
+- 无遥测、无广告、无数据上报。除用户主动开启的在线歌词和天气外，应用保持离线。
+- 唯一联网场景包括 Cider 封面、AMLL 逐字歌词、在线歌词和天气查询。
+- 所有配置、日志与用户数据只保存在本机。
+
+</details>
+
+<details>
+<summary id="从源码构建"><b>从源码构建与参与开发</b></summary>
+
+需要 Windows 10 1809+ / Windows 11 和 .NET 8 SDK。
+
 ```powershell
 dotnet build src\WinIslands\WinIslands.csproj -c Release
-dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
+dotnet test tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
 ```
 
-### 发布
-```powershell
-# 自包含（含 .NET 8 运行时，免安装运行）
-.\build\publish.ps1
+发布自包含版本：
 
-# 框架依赖（体积小，需安装 .NET 8 Desktop Runtime）
+```powershell
+.\build\publish.ps1
+```
+
+框架依赖版本：
+
+```powershell
 .\build\publish.ps1 -FrameworkDependent
 ```
-产物位于 `publish\win-x64\`。正式版按版本放到 `releases\<版本>\win-x64\` 并按版本号重命名。
 
-### 安装包（可选）
-安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php) 后执行 `iscc.exe build\release-<版本>.iss`，生成 `releases\<版本>\WinIslands-Setup-<版本>.exe`（通用安装包，x64 / ARM64 自动按架构安装）。
+生成安装包需要 [Inno Setup 6](https://jrsoftware.org/isinfo.php)：
 
----
-
-## 🚀 使用说明
-
-1. 启动 `WinIslands.exe`（可设置开机自启），托盘出现图标；关闭主窗口不会退出进程，仅托盘化。
-2. 播放任意音乐：网易云、QQ音乐、Spotify、Apple Music 官方版等自动通过系统媒体会话显示；Cider 详见下文；其它播放器兜底窗口标题识别。
-3. **悬停展开**：鼠标移到灵动岛上停留约 0.2 秒自动展开完整卡片，移开后自动收回；展开后可进度拖拽 seek、播放控制、音量调节与同步歌词。单击不再切换展开。
-4. **未展开时拖住边缘调整大小**：左/右边缘改变宽度（以岛中心为锚点对称伸缩），下边缘改变高度；靠近边缘时光标会变成缩放样式。手动调整后对应方向会自动关闭「自动调整尺寸」，可在设置中重新开启；展开尺寸统一，不再支持边缘缩放。
-5. 托盘菜单：显示/隐藏、独立歌词窗口、开机自启、勿扰模式、检查更新、查看日志、设置、退出。
-6. 全局快捷键（均可自定义）：`Ctrl+Alt+P` 播放/暂停 · `Ctrl+Alt+←/→` 上一首/下一首 · `Ctrl+Alt+I` 显示/隐藏 · `Ctrl+Alt+Space` 展开/收起 · `Ctrl+Space` 快速启动器 · `Ctrl+Alt+V` 剪贴板历史面板。
-7. 常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
-
-### Cider 集成
-1. 在 Cider 设置中开启「允许外部控制」（Allow external control）。
-2. WinIslands 设置 → 媒体 → 启用 Cider（端口默认自动检测 `10767` 并扫描本机，也可手动填写）。
-3. 播放时灵动岛来源显示 `Cider`，可显示封面/进度/歌词并控制播放、seek、音量。
-
----
-
-## ⚙️ 配置项说明
-
-配置文件：`%APPDATA%\WinIslands\settings.json`（JSON；设置界面改动即时生效，可导出/导入）。
-
-| 键 | 默认 | 说明 |
-| --- | --- | --- |
-| `Language` | `zh-CN` | 界面语言：`zh-CN` / `en-US` |
-| `Position` | `Center` | 位置：`Center` 顶部居中 / `Right` 顶部右侧 |
-| `Monitor` | `Primary` | 显示器：`Primary` 主屏 / `All` 所有屏 / `Index` 指定屏 |
-| `MonitorIndex` | `0` | 指定屏幕编号 |
-| `OffsetX` / `OffsetY` | `0` / `8` | 位置偏移（像素） |
-| `Opacity` | `0.92` | 不透明度 0.3–1.0 |
-| `Theme` | `Auto` | `Auto` / `Light` / `Dark` |
-| `ThemePreset` | `Default` | 主题皮肤（18 种预设 + Custom） |
-| `AccentColor` | `#6C5CE7` | 主题色 `#RRGGBB` |
-| `FontScale` / `CornerRadius` | `1.0` / `28` | 字号缩放 0.8–1.4 / 圆角 16–40 |
-| `AnimationStyle` | `Spring` | 动效皮肤：`Spring` / `Soft` / `Elastic` / `Fade` |
-| `CompactWidth` / `CompactHeight` | `360` / `72` | 紧凑长度 / 宽度 |
-| `CompactWidthAuto` / `CompactHeightAuto` | `true` | 紧凑尺寸自动调整 |
-| `ExpandedWidth` / `MaxExpandedHeight` | `400` / `384` | 展开长度 / 展开最大高度 |
-| `HideWhenNoMedia` | `true` | 无媒体播放时隐藏灵动岛 |
-| `IslandAlwaysVisible` | `false` | 灵动岛常驻（无媒体时也显示组件） |
-| `ShowWhenPaused` | `true` | 暂停时仍显示 |
-| `StartWithWindows` | `false` | 开机自启 |
-| `IsLocked` | `true` | 上锁（解锁后鼠标可拖动） |
-| `EdgeSnapEnabled` | `true` | 拖动松手自动吸附屏幕边缘/居中 |
-| `FullScreenAutoHideEnabled` | `true` | 全屏时自动隐藏 |
-| `LockScreenAutoHideEnabled` | `true` | 锁屏（Win+L / 远程桌面断开）时自动隐藏，解锁后恢复 |
-| `SingleLineMode` | `true` | 单行模式：紧凑态所有组件一行显示 |
-| `DoubleClickAction` | `PlayPause` | 双击灵动岛快捷动作 |
-| `MiddleClickAction` | `PlayPause` | 中键单击灵动岛快捷动作 |
-| `CiderEnabled` / `CiderPort` | `true` / `0` | Cider 本地 API（0=自动检测） |
-| `OnlineLyricsEnabled` | `false` | 在线歌词开关（非官方接口，注意版权） |
-| `AmllTtmlEnabled` | `false` | AMLL 逐字歌词（api.amll.dev，非官方；默认关，减少联网查询） |
-| `KaraokeHighlight` | `true` | 逐字卡拉OK高亮 |
-| `StandaloneLyricsWindow` | `false` | 独立歌词小窗 |
-| `UseSystemVolume` | `true` | 非 Cider 来源用系统音量 |
-| `LowBatteryThreshold` | `20` | 低电量提醒阈值（%），0 关闭 |
-| `IslandApiEnabled` / `IslandApiPort` | `true` / `9840` | 上岛 API 开关 / 端口 |
-| `IslandApiToken` | `""` | 上岛 API 可选 Token |
-| `IslandApiDefaultDuration` | `30` | 上岛默认显示时长（秒） |
-| `WaveVisualizerEnabled` | `false` | 音频波纹（默认关，避免常驻音频回环采集） |
-| `WaveSyncEnabled` | `false` | 波纹跟随系统输出（WASAPI 回环，默认关） |
-| `WaveStyle` | `Bars` | 音频波纹样式：`Bars` / `Spectrum` / `Ring` / `Particles` |
-| `WidgetOrder` | `Time,Weather,...` | 组件摆放顺序（逗号分隔键名） |
-| `Components` | 对象 | 各组件「无歌曲 / 有歌曲」两列勾选 |
-| `MediaApps` | `[]` | 媒体程序启用/禁用与优先级 |
-| `Rules` | `[]` | 自动化规则（条件 + 动作） |
-| `ReduceMotion` | `false` | 减少动态效果（无障碍/省电） |
-| `GlobalHotkeysEnabled` | `true` | 全局快捷键开关 |
-| `LowPowerMode` | `true` | 低功耗模式：动画帧率上限 60fps、简化动画（默认开启更轻量） |
-
----
-
-## 🏝 上岛 API（第三方集成）
-
-任何软件都可通过本地 HTTP / WebSocket 接口把信息推送到灵动岛，类似 iOS 第三方 App 的“上岛”。
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/v1/island/push` | 推送/更新一张卡片 |
-| POST | `/v3/island/push` | v1 超集：图片 / 动态进度 / 心跳 |
-| PATCH | `/v3/island/push/{id}` | 部分更新 |
-| DELETE | `/v1/island/push/{id}` | 移除卡片 |
-| GET | `/v1/island/active` | 查询当前活跃卡片 |
-| GET | `/v3/ws` | WebSocket 双向通道 |
-| GET | `/v1/health` | 健康检查 |
-
-支持：标题/正文/图标/副标题、进度、按钮（打开链接 / 启动程序 / 执行命令 / notify 回调）、输入框、图片、动态进度、心跳续期、深浅主题、自定义强调色、优先级队列。**推送不会改变灵动岛宽度**。
-
-完整文档：[docs/IslandAPI.md](docs/IslandAPI.md)
-
----
-
-## 🛡 隐私与安全
-
-- **无遥测、无广告、无上报**。除用户手动开启的“在线歌词”“天气”外，应用不进行任何网络请求。
-- 唯一联网场景：Cider 封面下载、AMLL 逐字歌词（api.amll.dev）、用户开启后的在线歌词与天气（Open-Meteo）。
-- 所有数据本地存储于 `%APPDATA%\WinIslands\`；日志仅记录本地运行信息。
-
----
-
-## ⚠️ 已知限制
-
-- 逐字卡拉OK依赖歌词来源与进度：有 AMLL TTML / LRC 逐字时间轴时按字高亮，否则降级为整句高亮。
-- 播放器偶发回退进度（如 Cider/SMTC 瞬间上报 0）：已做位置守卫，瞬间回退会被忽略。
-- SMTC 覆盖范围取决于播放器是否注册全局媒体会话；个别旧播放器仅能通过窗口标题兜底（无控制按钮）。
-- Cider 1.x（旧 API）未适配，仅支持 2.x 及以上。
-- 在线歌词 / AMLL / 天气均为非官方接口，可能随版本变动而失效。
-
----
-
-## ❓ 常见问题
-
-**Q: 灵动岛没有出现？**
-确认正在播放；`HideWhenNoMedia` 默认开启，无媒体时隐藏属正常。运行 `--diagnose` 查看会话列表。
-
-**Q: Cider 显示“未连接”？**
-确认 Cider 设置中开启“允许外部控制”，检查端口（默认 10767），并在 WinIslands 设置中确认已启用 Cider。
-
-**Q: 退出后托盘图标仍在？**
-托盘菜单 → 退出；直接关闭灵动岛窗口仅隐藏（托盘常驻设计）。
-
----
-
-## 📄 开源许可
-
-- 应用本体：MIT（见 [LICENSE](LICENSE)）
-- 第三方组件：见 [THIRD_PARTY.md](THIRD_PARTY.md)
-
----
-
-## English
-
-# WinIslands — Dynamic Island for Windows
-
-> **Bring the iOS Dynamic Island to Windows 11 / 10 — a modern, multi-functional Dynamic Island widget for Windows.**
-> Built with **.NET 8 + WPF**, free and open source (MIT), **no ads · no telemetry · no data collection**.
-
-🌐 Website: https://WinIslands.JudeKwong.com ｜ GitHub: https://github.com/JudeKwong/WinIslands
-
----
-
-## ✨ Highlights
-
-- **▶ Media playback control**: Native integration with the Windows Global System Media Transport Controls (SMTC) — compatible with NetEase Cloud Music, QQ Music, Spotify, Apple Music, Groove, Movies & TV and more; dedicated support for the Cider local API; window-title fallback when nothing else works. Album artwork, draggable seek, play/pause, previous/next, volume; when several players are open, switch the control source with one click.
-- **♪ Karaoke word-by-word lyrics**: The expanded card shows synced scrolling lyrics with character-by-character highlighting. Lyric sources: local `.lrc` → AMLL TTML → player lyric API → optional online lyrics, switchable with one click. Bilingual lyrics, translation toggle, one-click copy of the current line, per-song time fine-tuning and a standalone lyrics window.
-- **▦ Customizable widget system**: 30+ widgets — clock, weather, date (Chinese calendar/solar terms), CPU/GPU/RAM/disk, network speed, battery, input method, quick toggles and more. Each widget supports a custom icon, show/hide checkboxes and drag-to-reorder; single-line or multi-line layouts; extensible with local component plugins (`.exe`/`.cmd`/`.bat`/`.ps1` running in separate processes); Settings → Plugins lists loaded plugins and opens the plugin folder, rescan, and the developer guide.
-- **🏝 Island API**: A local HTTP / WebSocket interface that lets any third-party software push live information to the Dynamic Island (like the Island integration of iOS third-party apps). Supports images, animated progress, heartbeat renewal, light/dark themes, buttons and input fields; pushes never change the island width or cover other widgets.
-- **✨ Alert animations**: Bluetooth connect/disconnect, charging start/end, low battery, network recovery, calendar/RSS/mail reminders and more are shown on the island with beautiful iOS-style animations.
-- **✦ Appearance & motion**: 18 theme presets, custom accent color, liquid-glass blur, wallpaper color sampling, marquee, 4 motion styles (iOS spring etc.), 4 audio waveform styles (animated with the music); non-linear easing for expand/collapse at 60fps; PerMonitorV2 high-DPI support.
-- **🖱 Interaction & smarts**: unlock-and-drag with edge snapping, auto-hide in fullscreen/locked screen, double/middle-click actions, quick action buttons, a file relay (drag files onto the island, then drag them out to other apps), smart DND while recording, scheduled light/dark switching.
-- **⚡ Productivity & automation**: Pomodoro timer, to-do list, clipboard history, quick launcher, calendar reminders; mute assistant for meetings, screen recording/screenshot alerts, file copy/download progress on the island; global hotkeys and a rules engine.
-- **🛡 Privacy & security**: No telemetry, no ads, no data collection. Fully offline except for user-enabled online lyrics/weather; all config and data stay local in `%APPDATA%\WinIslands`.
-- **🔁 One-click lyric source switching**: Cycle through `Auto / Local LRC / AMLL TTML / Cider API / Online lyrics` and instantly reload the current song's lyrics.
-- **🛡️ Crash recovery**: After an abnormal exit, the next launch automatically notifies you that the app has recovered — no more freezes, black screens or lost state.
-- **⏱️ Adjustable animation duration**: Expand/collapse duration slider (300–1400ms) to match your preference.
-
----
-
-## 📥 Download (latest stable 3.1.3)
-
-| Platform | Download | Description |
-| --- | --- | --- |
-| Windows x64 | [x64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-3.1.3-win-x64.exe) | For mainstream 64-bit PCs; single file, no install needed |
-| Windows ARM64 | [ARM64 portable](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-3.1.3-win-arm64.exe) | For Surface Pro X / Snapdragon ARM devices |
-| Windows Universal | [Universal installer](https://github.com/JudeKwong/WinIslands/releases/download/v3.1.3/WinIslands-Setup-3.1.3.exe) | Inno Setup wizard; auto-installs x64 / ARM64 by architecture |
-
-All historical versions: [GitHub Releases](https://github.com/JudeKwong/WinIslands/releases).
-
----
-
-## 📊 Performance
-
-| Metric | Value |
-| --- | --- |
-| Resident memory (Private) | ~72 MB |
-| Cold start | < 1 s |
-| Idle CPU | ≈ 0% |
-| Animation frame rate | 60 fps |
-| Multiple instances | Single instance, prevents duplicates |
-| Telemetry | 0 telemetry · no uploads · no ads |
-
----
-
-## 🔧 Building
-
-### Requirements
-- Windows 10 1809+ / Windows 11
-- .NET 8 SDK
-
-### Build & test
 ```powershell
-dotnet build src\WinIslands\WinIslands.csproj -c Release
-dotnet test  tests\WinIslands.Tests\WinIslands.Tests.csproj -c Release
+iscc.exe build\release-<版本>.iss
 ```
 
-### Publish
-```powershell
-# Self-contained (includes the .NET 8 runtime, no install needed)
-.\build\publish.ps1
+关键目录：
 
-# Framework-dependent (small, requires .NET 8 Desktop Runtime)
-.\build\publish.ps1 -FrameworkDependent
+```text
+src\WinIslands\             应用主体
+tests\WinIslands.Tests\     测试
+docs\IslandAPI.md           上岛 API 文档
+docs\PLUGIN_DEVELOPMENT.md  插件开发指南
+build\                      发布与安装脚本
 ```
-Output goes to `publish\win-x64\`. For stable releases, place the build under `releases\<version>\win-x64\` and rename it with the version number.
 
-### Installer (optional)
-Install [Inno Setup 6](https://jrsoftware.org/isinfo.php), then run `iscc.exe build\release-<version>.iss` to produce `releases\<version>\WinIslands-Setup-<version>.exe` (universal installer; auto-installs x64 / ARM64 by architecture).
+</details>
 
----
+## 开源与致谢
 
-## 🚀 Usage
+WinIslands 原创代码采用 [MIT License](LICENSE)。.NET、WPF、Windows SDK 以及开发测试依赖的许可说明见 [THIRD_PARTY.md](THIRD_PARTY.md)。
 
-1. Launch `WinIslands.exe` (startup with Windows is optional); a tray icon appears. Closing the main window does not quit the process — it just minimizes to the tray.
-2. Play any music: NetEase Cloud Music, QQ Music, Spotify, Apple Music official app, etc. appear automatically through the system media session; Cider — see below; other players fall back to window-title detection.
-3. **Hover to expand**: rest the pointer on the island for about 0.2s and the full card expands automatically; move away and it collapses. Draggable seek, playback controls, volume and synced lyrics are available once expanded. A single click no longer toggles expansion.
-4. **Drag an edge to resize while collapsed**: the left/right edges change the width symmetrically around the island's centre, the bottom edge changes the height; the cursor turns into a resize arrow near an edge. A manual resize turns off "auto size" for that direction — re-enable it in Settings. The expanded size is unified and no longer edge-resizable.
-5. Tray menu: show/hide, standalone lyrics window, start with Windows, Do Not Disturb, check for updates, view logs, settings, quit.
-6. Global hotkeys (all customizable): `Ctrl+Alt+P` play/pause · `Ctrl+Alt+←/→` previous/next · `Ctrl+Alt+I` show/hide · `Ctrl+Alt+Space` expand/collapse · `Ctrl+Space` quick launcher · `Ctrl+Alt+V` clipboard history panel.
-7. Useful command-line arguments: `--demo` demo mode · `--diagnose` writes a diagnostic report · `--settings` opens settings at startup.
+感谢所有使用、反馈和参与改进 WinIslands 的朋友。
 
-### Cider integration
-1. Enable "Allow external control" in Cider settings.
-2. WinIslands Settings → Media → enable Cider (port auto-detected from `10767` with a local scan, or set manually).
-3. While playing, the island source shows `Cider`; you can display artwork/progress/lyrics and control play, seek and volume.
+## 感谢支持
 
----
+如果 WinIslands 让你的桌面顺手了一点，欢迎点一个 **Star**，也欢迎通过 [Issues](https://github.com/JudeKwong/WinIslands/issues) 反馈问题和建议。
 
-## ⚙️ Configuration
+<div align="center">
 
-Config file: `%APPDATA%\WinIslands\settings.json` (JSON; changes in the settings UI apply instantly, export/import supported).
+**[下载 WinIslands](https://github.com/JudeKwong/WinIslands/releases/latest)** · [官网](https://WinIslands.JudeKwong.com) · [更新记录](RELEASE_NOTES.md)
 
-| Key | Default | Description |
-| --- | --- | --- |
-| `Language` | `zh-CN` | UI language: `zh-CN` / `en-US` |
-| `Position` | `Center` | Position: `Center` top-center / `Right` top-right |
-| `Monitor` | `Primary` | Monitor: `Primary` / `All` / `Index` |
-| `MonitorIndex` | `0` | Specific monitor number |
-| `OffsetX` / `OffsetY` | `0` / `8` | Position offset (pixels) |
-| `Opacity` | `0.92` | Opacity 0.3–1.0 |
-| `Theme` | `Auto` | `Auto` / `Light` / `Dark` |
-| `ThemePreset` | `Default` | Theme preset (18 presets + Custom) |
-| `AccentColor` | `#6C5CE7` | Accent color `#RRGGBB` |
-| `FontScale` / `CornerRadius` | `1.0` / `28` | Font scale 0.8–1.4 / corner radius 16–40 |
-| `AnimationStyle` | `Spring` | Motion style: `Spring` / `Soft` / `Elastic` / `Fade` |
-| `CompactWidth` / `CompactHeight` | `360` / `72` | Compact width / height |
-| `CompactWidthAuto` / `CompactHeightAuto` | `true` | Auto-adjust compact size |
-| `ExpandedWidth` / `MaxExpandedHeight` | `400` / `384` | Expanded width / max expanded height |
-| `HideWhenNoMedia` | `true` | Hide the island when no media is playing |
-| `IslandAlwaysVisible` | `false` | Keep the island visible without media |
-| `ShowWhenPaused` | `true` | Keep showing while paused |
-| `StartWithWindows` | `false` | Start with Windows |
-| `IsLocked` | `true` | Locked (unlock to drag with the mouse) |
-| `EdgeSnapEnabled` | `true` | Snap to screen edge/center when released |
-| `FullScreenAutoHideEnabled` | `true` | Auto-hide in fullscreen |
-| `LockScreenAutoHideEnabled` | `true` | Auto-hide on lock screen (Win+L / RDP disconnect), restore on unlock |
-| `SingleLineMode` | `true` | Single-line mode: all widgets in one row when collapsed |
-| `DoubleClickAction` | `PlayPause` | Double-click quick action |
-| `MiddleClickAction` | `PlayPause` | Middle-click quick action |
-| `CiderEnabled` / `CiderPort` | `true` / `0` | Cider local API (0 = auto-detect) |
-| `OnlineLyricsEnabled` | `false` | Online lyrics switch (unofficial interface, mind copyright) |
-| `AmllTtmlEnabled` | `false` | AMLL word-by-word lyrics (api.amll.dev, unofficial; off by default to reduce network queries) |
-| `KaraokeHighlight` | `true` | Word-by-word karaoke highlight |
-| `StandaloneLyricsWindow` | `false` | Standalone lyrics window |
-| `UseSystemVolume` | `true` | Use system volume for non-Cider sources |
-| `LowBatteryThreshold` | `20` | Low-battery reminder threshold (%), 0 = disabled |
-| `IslandApiEnabled` / `IslandApiPort` | `true` / `9840` | Island API switch / port |
-| `IslandApiToken` | `""` | Optional Island API token |
-| `IslandApiDefaultDuration` | `30` | Default push duration (seconds) |
-| `WaveVisualizerEnabled` | `false` | Audio waveform (off by default to avoid persistent audio loopback capture) |
-| `WaveSyncEnabled` | `false` | Waveform follows system audio (WASAPI loopback, off by default) |
-| `WaveStyle` | `Bars` | Audio waveform style: `Bars` / `Spectrum` / `Ring` / `Particles` |
-| `WidgetOrder` | `Time,Weather,...` | Widget order (comma-separated keys) |
-| `Components` | object | Per-widget "no song / playing" two-column checkboxes |
-| `MediaApps` | `[]` | Media app enable/disable and priority |
-| `Rules` | `[]` | Automation rules (conditions + actions) |
-| `ReduceMotion` | `false` | Reduce motion (accessibility/battery) |
-| `GlobalHotkeysEnabled` | `true` | Global hotkeys switch |
-| `LowPowerMode` | `true` | Low-power mode: 60fps animation cap, simplified animations (on by default for a lighter footprint) |
-
----
-
-## 🏝 Island API (third-party integration)
-
-Any software can push information to the Dynamic Island through the local HTTP / WebSocket interface, similar to iOS third-party App "Island" integration.
-
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/v1/island/push` | Push/update a card |
-| POST | `/v3/island/push` | v1 superset: image / animated progress / heartbeat |
-| PATCH | `/v3/island/push/{id}` | Partial update |
-| DELETE | `/v1/island/push/{id}` | Remove a card |
-| GET | `/v1/island/active` | Query the active card |
-| GET | `/v3/ws` | WebSocket two-way channel |
-| GET | `/v1/health` | Health check |
-
-Supports: title/body/icon/subtitle, progress, buttons (open link / launch app / run command / notify callback), input fields, images, animated progress, heartbeat renewal, light/dark themes, custom accent color and a priority queue. **Pushes never change the island's width.**
-
-Full documentation: [docs/IslandAPI.md](docs/IslandAPI.md)
-
----
-
-## 🛡 Privacy & security
-
-- **No telemetry, no ads, no uploads**. The app makes no network requests except user-enabled "online lyrics" and "weather".
-- The only networked scenarios: Cider artwork download, AMLL word-by-word lyrics (api.amll.dev), user-enabled online lyrics and weather (Open-Meteo).
-- All data is stored locally in `%APPDATA%\WinIslands\`; logs only record local runtime information.
-
----
-
-## ⚠️ Known limitations
-
-- Word-by-word karaoke depends on the lyrics source and progress; it highlights per character when AMLL TTML / LRC timing exists, otherwise falls back to whole-line highlighting.
-- Players occasionally report regressing progress (e.g. Cider/SMTC momentarily reporting 0): a position guard ignores momentary regressions.
-- SMTC coverage depends on whether the player registers a global media session; some old players can only be detected via window title (no control buttons).
-- Cider 1.x (old API) is not supported; only 2.x and above.
-- Online lyrics / AMLL / weather are unofficial interfaces and may break as versions change.
-
----
-
-## ❓ FAQ
-
-**Q: The island does not appear?**
-Make sure media is playing; `HideWhenNoMedia` is enabled by default, so hiding without media is expected. Run `--diagnose` to see the session list.
-
-**Q: Cider shows "Not connected"?**
-Make sure "Allow external control" is enabled in Cider settings, check the port (default 10767), and confirm Cider is enabled in WinIslands settings.
-
-**Q: The tray icon is still there after quitting?**
-Use Tray menu → Quit; closing the island window only hides it (tray-resident by design).
-
----
-
-## 📄 License
-
-- Application: MIT (see [LICENSE](LICENSE))
-- Third-party components: see [THIRD_PARTY.md](THIRD_PARTY.md)
+</div>
