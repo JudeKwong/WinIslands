@@ -37,7 +37,11 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="NoticeButtonBg" CornerRadius="10" Background="#28282B">
+                        <Border x:Name="NoticeButtonBg" CornerRadius="10" Background="#232323"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -45,7 +49,11 @@
                                 <Setter TargetName="NoticeButtonBg" Property="Background" Value="#38383C"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="NoticeButtonBg" Property="Background" Value="#46464B"/>
+                                <Setter TargetName="NoticeButtonBg" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -53,16 +61,20 @@
             </Setter>
         </Style>
 
-        <!-- 通知详情操作按钮：与通知条按钮同色系的 24px 胶囊 -->
+        <!-- 通知详情操作按钮：与通知条按钮同款 20px 胶囊 -->
         <Style x:Key="NoticeDetailButton" TargetType="Button">
-            <Setter Property="Height" Value="24"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="10,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="NoticeDetailBg" CornerRadius="12" Background="#28282B">
+                        <Border x:Name="NoticeDetailBg" CornerRadius="10" Background="#232323"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -70,7 +82,11 @@
                                 <Setter TargetName="NoticeDetailBg" Property="Background" Value="#38383C"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="NoticeDetailBg" Property="Background" Value="#46464B"/>
+                                <Setter TargetName="NoticeDetailBg" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -257,7 +273,7 @@
                                         <Ellipse Canvas.Left="12.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
                                         <Ellipse Canvas.Left="17.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
                                     </Canvas>
-                                    <Image Canvas.Left="1.5" Canvas.Top="1.5" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
+                                    <Image Canvas.Left="1.5" Canvas.Top="1" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality"
                                            Visibility="{Binding ActivePushIsQq, Converter={StaticResource BoolToVis}}"/>
                                 </Canvas>
@@ -1023,7 +1039,7 @@
                     <!-- 展开通知：沿用 334×44 通知条，富内容推送才在下方补充详情 -->
                     <StackPanel x:Name="ExpandedPushCard" Margin="0,0,0,10"
                                 Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVis}}">
-                        <Border Width="334" Height="44" HorizontalAlignment="Left" ClipToBounds="True" Background="Transparent">
+                        <Border Width="334" Height="44" HorizontalAlignment="Left" ClipToBounds="True" Background="#000000" CornerRadius="22">
                             <Canvas Width="334" Height="44" ClipToBounds="True">
                                 <!-- 微信/QQ：应用圆标 + 双行文字 + 查看/关闭 -->
                                 <Canvas Width="334" Height="44"
@@ -1040,7 +1056,7 @@
                                             <Ellipse Canvas.Left="12.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
                                             <Ellipse Canvas.Left="17.2" Canvas.Top="10.7" Width="1.6" Height="1.6" Fill="#181818"/>
                                         </Canvas>
-                                        <Image Canvas.Left="1.5" Canvas.Top="1.5" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
+                                        <Image Canvas.Left="1.5" Canvas.Top="1" Width="19" Height="19" Source="/Assets/qq-client.png" Stretch="Uniform"
                                                RenderOptions.BitmapScalingMode="HighQuality"
                                                Visibility="{Binding ActivePushIsQq, Converter={StaticResource BoolToVis}}"/>
                                     </Canvas>
