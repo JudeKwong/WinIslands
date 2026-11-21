@@ -154,7 +154,9 @@ public sealed class AmllTtmlApiService
             var lines = new List<LyricLine>(ttml.Lines.Count);
             foreach (var line in ttml.Lines)
             {
-                var text = string.Concat(line.Words.Select(w => w.Text)).Trim();
+                var text = string.IsNullOrWhiteSpace(line.Text)
+                    ? TtmlParser.JoinWordTexts(line.Words.Select(w => w.Text))
+                    : line.Text.Trim();
                 if (text.Length == 0) continue;
                 lines.Add(new LyricLine(TimeSpan.FromSeconds(line.BeginSec), text));
             }

@@ -1,3 +1,24 @@
+## WinIslands 3.1.4（正式版 / Stable）
+### 更新内容
+
+- 🪟 **展开布局重新设计**：统一展开窗口尺寸，压缩歌词行高与间距，确保上一句、当前句、翻译、背景和声与下一句同时完整显示；顶部时间、日期、设置按钮与底部播放控制不再被裁切
+- 🔔 **通知系统重新设计**：通知改为紧凑双行胶囊卡片，统一应用图标、未读红点、标题、摘要与操作按钮；通知到期后卡片和图标状态同步清理，不再残留圆形应用图标
+- 🖱️ **交互方式升级**：鼠标悬停即可展开，滚轮可横向切换页面；左右切换动画重新调校，切换过程中不再闪到其他页面
+- 🧩 **插件入口完善**：设置页新增插件管理区域，可直接查看、启用与管理插件，并可从应用内打开插件开发指南
+- 🎨 **品牌与视觉更新**：应用、窗口、托盘与发布资源统一使用新的 WinIslands LOGO；通知、歌词与展开卡片采用更一致的圆角、间距和层次
+- 🪟 **展开与收回稳定性修正**：统一卡片、玻璃层与裁剪区域的圆角计算，连续展开、收回、快速切换和减少动态效果模式下均保持完整胶囊圆角
+- ✅ **质量验证**：Release 编译通过，654 项单元测试全部通过；展开/收起圆角回归检查通过
+
+## WinIslands 3.1.4 (Stable)
+### What's New
+
+- 🪟 **Expanded layout redesigned**: the expanded window now uses a consistent size with tighter lyric spacing, keeping the previous line, active line, translation, backing vocals and next line fully visible. The clock, date, settings button and bottom playback controls no longer get clipped
+- 🔔 **Notification system redesigned**: notifications now use compact two-line pill cards with aligned app icon, unread dot, title, summary and action buttons. Expired notifications clean up their card and icon state together, leaving no floating circular app icon behind
+- 🖱️ **Improved interaction**: hover to expand and scroll horizontally to switch pages. Left/right page transitions were retuned so switching no longer flashes through another page
+- 🧩 **Plugin access completed**: Settings now includes plugin management, with in-app access to the plugin development guide
+- 🎨 **Brand and visual refresh**: the app, window, tray and release assets now share the new WinIslands logo, with more consistent corners, spacing and depth across notifications, lyrics and expanded cards
+- 🪟 **Expand/collapse stability fixed**: card, glass and clip layers now share one corner-radius calculation, keeping the full pill shape through repeated expand/collapse cycles, fast switching and reduced-motion mode
+- ✅ **Verification**: Release build succeeded with all 654 unit tests passing, and the expand/collapse corner regression check passed
 ## WinIslands 3.1.3（正式版 / Stable）
 ### 更新内容
 
@@ -6,7 +27,10 @@
 - ✨ **通知动效与跳转完善**：普通通知加入矢量铃铛衰减摆动；微信/QQ 通知可直接点「查看」切回对应窗口，关闭后继续展示队列中的下一条
 - 🧩 **富内容通知布局修复**：纯文本通知只占用标准通知条，图片、进度、按钮和输入框等富内容才按需展开详情，避免展开高度不足或内容被裁切
 - 🖤 **展开态通知适配**：展开模式使用完整黑色圆角通知卡，通知条尺寸与详情间距保持稳定
-- 🧪 **质量验证**：Release 编译通过，642 项测试全部通过
+- 🧹 **通知生命周期修正**：消息提醒到期后，通知卡片与未读状态同步清理；移除脱离通知卡片独立存在的圆形图标栈，通知消失后不会再留下圆形应用图标
+- 🛠️ **展开顶栏修正**：设置按钮的尺寸与 20px 顶栏对齐，不再被上下裁切，悬停与点击区域完整显示
+- 🪟 **收回圆角修正**：展开后收回时裁剪矩形立即跟随卡片目标尺寸，并在布局完成后二次校正，左右边缘与圆角不再被切掉
+- 🧪 **质量验证**：Release 编译通过，645 项测试全部通过
 
 ## WinIslands 3.1.3 (Stable)
 ### What's New
@@ -16,7 +40,10 @@
 - ✨ **Improved notification motion and actions**: regular notifications use a vector bell with damped swing animation, while WeChat/QQ notifications can jump straight back to the source window and continue through the queue after dismissal
 - 🧩 **Rich-notification layout fix**: plain-text notifications stay within the standard bar, while images, progress, buttons and inputs expand only when needed so content is no longer clipped
 - 🖤 **Expanded notification polish**: expanded mode uses a complete black rounded notification card with stable bar dimensions and detail spacing
-- 🧪 **Verification**: Release build succeeded and all 642 tests passed
+- 🧹 **Notification lifecycle fix**: expired reminders now clear the notification card and unread state together, and the standalone circular icon strip has been removed so no app icon remains after the notice disappears
+- 🛠️ **Expanded header fix**: the settings button now fits the 20px header cleanly without vertical clipping, keeping its full hover and click area visible
+- 🪟 **Collapse shape fix**: the clip rectangle now follows the card target size immediately and reconciles once more after layout, so the rounded corners and side edges no longer get cut off after collapsing
+- 🧪 **Verification**: Release build succeeded and all 645 tests passed
 
 ## WinIslands 3.1.2（正式版 / Stable）
 ### 更新内容

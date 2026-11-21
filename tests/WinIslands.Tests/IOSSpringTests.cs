@@ -1,4 +1,4 @@
-﻿using WinIslands.UI;
+using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
@@ -157,6 +157,18 @@ public sealed class IOSSpringTests
         // 极端高度不产生负值/NaN
         Assert.True(double.IsFinite(IslandWindow.ComputeCardRuntimeRadius(double.NaN, 28)));
         Assert.True(IslandWindow.ComputeCardRuntimeRadius(-5, 28) >= 4);
+    }
+
+    [Fact]
+    public void ResolveCardClipLength_PrefersLiveTargetSizeOverStaleLayout()
+    {
+        // 收回动画结束时 Actual 可能仍是展开尺寸：裁剪必须立即采用紧凑目标尺寸，
+        // 否则矩形与圆角会停在展开态，表现为左右边缘被裁掉或圆角异常。
+        Assert.Equal(334.0, IslandWindow.ResolveCardClipLength(334.0, 496.0), 4);
+        Assert.Equal(44.0, IslandWindow.ResolveCardClipLength(44.0, 190.0), 4);
+        Assert.Equal(496.0, IslandWindow.ResolveCardClipLength(double.NaN, 496.0), 4);
+        Assert.Equal(190.0, IslandWindow.ResolveCardClipLength(0, 190.0), 4);
+        Assert.Equal(1.0, IslandWindow.ResolveCardClipLength(double.NaN, 0), 4);
     }
     [Fact]
     public void OpacitySpanSpring_RunsToNaturalEnd_NoEarlySnap()

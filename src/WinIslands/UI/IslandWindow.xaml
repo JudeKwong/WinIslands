@@ -4,6 +4,7 @@
         xmlns:conv="clr-namespace:WinIslands.UI.Converters"
         xmlns:karaoke="clr-namespace:WinIslands.UI"
         Title="WinIslands"
+        Icon="pack://application:,,,/Assets/winislands.ico"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -167,13 +168,11 @@
         <!-- 逐句卡拉OK歌词：非当前句淡化，当前句醒目；展开态固定使用参考项目的紧凑 10/12px 字号。 -->
         <!-- 展开歌词每行样式：字号/行距/行高绑定窗口属性（固定参考布局），当前句动画放大+高亮。 -->
         <!-- 注意：此样式由 UpdateLyricLineStyle() 按参考字号动态重建；XAML 默认值仅在启动瞬间兜底 -->
-                <Style x:Key="LyricLineText" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="{Binding LyricBaseFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=10}"/>
+                <Style x:Key="LyricLineText" TargetType="karaoke:AppleMusicLyricLine">
+            <Setter Property="FontSize" Value="{Binding LyricBaseFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=9.5}"/>
             <Setter Property="Foreground" Value="{Binding ExpandedLyricBaseBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-            <Setter Property="TextWrapping" Value="NoWrap"/>
-            <Setter Property="Margin" Value="{Binding LyricLineMargin, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=&quot;0,6&quot;}"/>
-            <Setter Property="LineHeight" Value="{Binding LyricLineHeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=15}"/>
+            <Setter Property="Margin" Value="{Binding LyricLineMargin, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=&quot;0,2&quot;}"/>
+            <Setter Property="LineHeight" Value="{Binding LyricLineHeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=13}"/>
             <Setter Property="Opacity" Value="0.28"/>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="karaoke:LyricEmphasis.TargetScale" Value="1.2"/>
@@ -185,13 +184,16 @@
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="Foreground" Value="{Binding ExpandedLyricHighlightBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
                     <Setter Property="karaoke:LyricEmphasis.IsCurrent" Value="True"/>
-                    <Setter Property="TextWrapping" Value="Wrap"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsBackground}" Value="True">
+                    <Setter Property="FontSize" Value="9"/>
+                    <Setter Property="Opacity" Value="0.2"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="LyricLineBorder" TargetType="Border">
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="2,2"/>
+            <Setter Property="Padding" Value="2,1"/>
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
@@ -325,29 +327,6 @@
                     </Border>
 
                     <!-- 按「组件顺序」动态渲染：歌曲信息 / 时间 / 天气（播放时含歌曲，空闲时去掉） -->
-                    <!-- 微信/QQ 未读图标栈（岛仔同款：图标 + 红点，点击切回窗口） -->
-                    <ItemsControl ItemsSource="{Binding MessengerUnreads}" VerticalAlignment="Center" Margin="0,0,8,0"
-                                  Visibility="{Binding HasMessengerUnreads, Converter={StaticResource BoolToVis}}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Tag="{Binding}" Click="MessengerUnread_Click" Cursor="Hand"
-                                        Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,4,0"
-                                        ToolTip="{Binding SourceName}">
-                                    <Grid Width="24" Height="24">
-                                        <Border CornerRadius="12" Background="{Binding AccentBrush}">
-                                            <TextBlock Text="{Binding Glyph}" FontFamily="{Binding GlyphFont}" FontSize="12"
-                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <Ellipse Width="7" Height="7" Fill="#FF4848"
-                                                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"/>
-                                    </Grid>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
                     <ItemsControl ItemsSource="{Binding CompactItems}" VerticalAlignment="Center"
                                   Visibility="{Binding HasActivePush, Converter={StaticResource BoolToVisInvert}}">
                         <ItemsControl.ItemsPanel>
@@ -990,7 +969,12 @@
                     <!-- 岛仔顶栏：日期/时钟 + 设置齿轮（不显示 WINISLANDS 标题） -->
                     <Grid x:Name="DaozaiHeader" Height="20" Margin="0,0,0,2"
                           Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Border Width="18" Height="18" CornerRadius="9" Margin="0,0,6,0" VerticalAlignment="Center"
                                     BorderBrush="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"
                                     BorderThickness="1.5">
@@ -1003,37 +987,8 @@
                             <TextBlock Text="{Binding ClockText}" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0"
                                        Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"/>
                         </StackPanel>
-                        <Button HorizontalAlignment="Right" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" ToolTip="设置">
+                        <Button Grid.Column="2" Width="20" Height="20" Padding="0" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource IconButton}" Command="{Binding OpenSettingsCommand}" ToolTip="设置">
                             <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
-                        </Button>
-                    </Grid>
-                    <!-- 微信/QQ 未读面板（展开时逐个账号/图标，点击直达窗口） -->
-                    <Grid Margin="0,0,0,8" Visibility="{Binding HasMessengerUnreads, Converter={StaticResource BoolToVis}}">
-                        <ItemsControl ItemsSource="{Binding MessengerUnreads}" HorizontalAlignment="Left">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Tag="{Binding}" Click="MessengerUnread_Click" Cursor="Hand"
-                                            Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,6,0"
-                                            ToolTip="{Binding SourceName}">
-                                        <Grid Width="34" Height="34">
-                                            <Border CornerRadius="17" Background="{Binding AccentBrush}">
-                                                <TextBlock Text="{Binding Glyph}" FontFamily="{Binding GlyphFont}" FontSize="16"
-                                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <Ellipse Width="8" Height="8" Fill="#FF4848"
-                                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-1,0"/>
-                                        </Grid>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Button HorizontalAlignment="Right" Padding="10,4" Cursor="Hand" Background="Transparent" BorderThickness="0"
-                                Click="MessengerClearAll_Click">
-                            <TextBlock Text="全部已读" FontSize="10.5"
-                                       Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#8E8E99}"/>
                         </Button>
                     </Grid>
                     <!-- 展开通知：沿用 334×44 通知条，富内容推送才在下方补充详情 -->
@@ -1202,7 +1157,7 @@
                                 <ColumnDefinition Width="39"/>
                             </Grid.ColumnDefinitions>
 
-                            <Grid Grid.Row="0" Grid.ColumnSpan="5">
+                            <Grid Grid.Row="0" Grid.RowSpan="3" Grid.ColumnSpan="5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="34"/>
                                     <ColumnDefinition Width="186"/>
@@ -1269,27 +1224,27 @@
                                     <ScrollViewer.OpacityMask>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                             <GradientStop Color="#00000000" Offset="0"/>
-                                            <GradientStop Color="#FF000000" Offset="0.12"/>
-                                            <GradientStop Color="#FF000000" Offset="0.88"/>
+                                            <GradientStop Color="#FF000000" Offset="0.08"/>
+                                            <GradientStop Color="#FF000000" Offset="0.94"/>
                                             <GradientStop Color="#00000000" Offset="1"/>
                                         </LinearGradientBrush>
                                     </ScrollViewer.OpacityMask>
-                                    <ItemsControl x:Name="LyricsList" ItemsSource="{Binding LyricLines}">
+                                    <ItemsControl x:Name="LyricsList" ItemsSource="{Binding LyricLines}" Margin="0,42,0,42">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Style="{StaticResource LyricLineBorder}" HorizontalAlignment="Center">
+                                                <Border Style="{StaticResource LyricLineBorder}" HorizontalAlignment="Stretch">
                                                     <StackPanel>
-                                                        <karaoke:KaraokeTextBlock
-                                                            KaraokeText="{Binding Text}"
-                                                            HighlightFraction="{Binding HighlightFraction}"
+                                                        <karaoke:AppleMusicLyricLine
                                                             Words="{Binding Words}"
+                                                            IsEmpty="{Binding Empty}"
                                                             PositionSeconds="{Binding DataContext.KaraokePositionSeconds, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             IsPlaying="{Binding DataContext.IsPlaying, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"
                                                             KaraokeSpeed="{Binding LyricKaraokeSpeed, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=1}"
+                                                            Foreground="{Binding ExpandedLyricBaseBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                                             HighlightBrush="{Binding ExpandedLyricHighlightBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
-                                                            BaseBrush="{Binding ExpandedLyricBaseBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                                             Style="{DynamicResource LyricLineText}"/>
-                                                        <TextBlock Text="{Binding Translation}" FontSize="{Binding LyricTranslationFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=8}" Margin="0,1,0,0" Opacity="0.7" HorizontalAlignment="Center"
+                                                        <TextBlock Text="{Binding Translation}" FontSize="{Binding LyricTranslationFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=7.5}" Margin="0,0.5,0,0" Opacity="0.6" HorizontalAlignment="Center"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
                                                                    Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
@@ -1317,7 +1272,7 @@
                                            Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVisInvert}}"/>
                             </Grid>
 
-                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.ColumnSpan="5" Width="176" Margin="34,0,0,0"
+                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.ColumnSpan="5" Width="176" Margin="34,0,0,0" HorizontalAlignment="Left"
                                   Visibility="{Binding ExpandedShowProgress, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="14"/>

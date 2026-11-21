@@ -93,10 +93,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         try
         {
             if (!IsLoaded || !_vm.IsVisible) return fallback;
+            // 回归修复：动画期间 PillRow 带有显式 Width（固定行宽避免逐帧重排）。
+            // FrameworkElement.Measure 会把显式 Width 直接当成 DesiredSize 返回，
+            // 于是 (DesiredSize + 56) 每次调用都会把紧凑宽度再撑大约 56px；
+            // 多次展开/收起后卡片会一路涨到 800px，超出宿主窗口被裁成直角。
+            // 测量自然内容宽度前必须临时解除显式宽度，避免把上一轮结果当成内容。
+            var pinnedWidth = PillRow.Width;
+            PillRow.Width = double.NaN;
             PillRow.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
             var w = PillRow.DesiredSize.Width;
+            PillRow.Width = pinnedWidth;
             // 字号缩放：逻辑宽度按比例缩小，卡片渲染时再放大，最终视觉宽度不变
-            return w >= 20 ? Math.Clamp((w + 56) / FontScale, 240 / FontScale, MaxCompactVisualWidth / FontScale) : fallback; // 总留白 56（左侧 22 + 右侧 24，右侧略多）
+            return double.IsFinite(w) && w >= 20
+                ? Math.Clamp((w + 56) / FontScale, 240 / FontScale, MaxCompactVisualWidth / FontScale)
+                : fallback; // 总留白 56（左侧 22 + 右侧 24，右侧略多）
         }
         catch
         {
@@ -249,7 +259,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private IOSSpring? _cardWSpring;      // 卡片宽度弹簧
     private IOSSpring? _cardHSpring;      // 卡片高度弹簧
     private IOSSpring? _cardFadeSpring;   // 展开↔收起内容交叉淡入弹簧（与尺寸同步，文字不"额外弹出"）
-    private IOSSpring? _cardRSpring;      // 卡片圆角弹簧（2.0.7）：圆角随形变连续过渡，消除"圆角变方框"与形变结束时圆角闪变
     private bool _cardAnimating;          // 卡片弹簧进行中（声波 / 取色渲染让路）
     private double _cardTargetW;
     private double _cardTargetH;
@@ -448,10 +457,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         // 圆角裁剪：ClipToBounds 只是矩形裁剪，动画中亚像素尺寸会导致圆角边缘被矩形截断（"圆角变方框"）。
         // 用 RectangleGeometry 做 Card.Clip，从根源保证任何子内容都画不出圆角边界。
-        var clipRadius = Math.Clamp(_settings.Current.CornerRadius, 16, 40);
+        var initialClipHeight = ResolveCardClipLength(Card.Height, Card.ActualHeight);
+        var clipRadius = ComputeRuntimeRadius(initialClipHeight);
         _cardClip = new RectangleGeometry
         {
-            Rect = new Rect(0, 0, Math.Max(1, Card.ActualWidth), Math.Max(1, Card.ActualHeight)),
+            Rect = new Rect(0, 0,
+                ResolveCardClipLength(Card.Width, Card.ActualWidth),
+                initialClipHeight),
             RadiusX = clipRadius,
             RadiusY = clipRadius,
         };
@@ -463,7 +475,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _collapseTimer.Tick += (_, _) =>
         {
             _collapseTimer.Stop();
-            if (Card.IsMouseOver) return;
+            if (Card.IsMouseOver || KeepExpandedForPreview) return;
             if (_vm.IsExpanded) _vm.IsExpanded = false;
         };
 
@@ -529,7 +541,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.MouseLeave += (_, _) =>
         {
             _hoverExpandTimer.Stop();
-            if (_resizing) return; // 边缘缩放拖拽中：指针移出卡片也不收起
+            if (_resizing || KeepExpandedForPreview) return; // 预览截图保持展开，不影响正常悬停收回
             Cursor = null;
             if (_vm.IsExpanded) _collapseTimer.Start();
         };
@@ -757,6 +769,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // ── 岛仔（Daozai）皮肤 passthrough（颜色/按钮/页码豆均取自参考项目 theme.rs）──
     public bool IsDaozai => _theme.IsDaozai;
     public bool IsLiquidGlass => _theme.IsLiquidGlass;
+    public bool KeepExpandedForPreview { get; set; }
+
     public bool PageNavVisible => _vm.IsExpanded && _vm.HasMultiplePages;
     public Brush DaozaiSurfaceBrush => _theme.DaozaiSurfaceBrush;
     public Brush DaozaiButtonBrush => _theme.DaozaiButtonBrush;
@@ -773,12 +787,12 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     // Divide by FontScale because Card.LayoutTransform also scales the whole island;
     // this keeps the rendered text at the reference 10px/12px visual size.
     // Standalone lyrics continue to use the user's larger font-size settings.
-    private const double ReferenceLyricBaseFontSize = 10.0;
-    private const double ReferenceLyricCurrentFontSize = 12.0;
-    private const double ReferenceLyricTextLineHeight = 15.0;
-    private const double ReferenceLyricRowPadding = 6.0; // 15 + 6*2 + Border 2*2 = 29px row pitch
-    private const double ReferenceLyricTranslationFontSize = 8.0;
-    private const double ReferenceLyricsStatusFontSize = 10.0;
+    private const double ReferenceLyricBaseFontSize = 9.5;
+    private const double ReferenceLyricCurrentFontSize = 11.0;
+    private const double ReferenceLyricTextLineHeight = 12.0;
+    private const double ReferenceLyricRowPadding = 0.5;
+    private const double ReferenceLyricTranslationFontSize = 7.5;
+    private const double ReferenceLyricsStatusFontSize = 9.5;
     public double LyricBaseFontSize => ReferenceLyricBaseFontSize / FontScale;
     public double LyricCurrentFontSize => ReferenceLyricCurrentFontSize / FontScale;
     public double LyricLineHeight => ReferenceLyricTextLineHeight / FontScale;
@@ -1574,6 +1588,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         var compactWidth = knownCompactWidth ?? CompactWidth;
         var compactHeight = CompactHeight;
         var w = _vm.IsExpanded ? ReferenceExpandedWidth : Math.Max(ReferenceExpandedWidth, compactWidth * FontScale);
+        // 宿主窗口必须始终容纳当前（含动画中的）卡片；否则 Root 会把卡片左右裁掉，
+        // 圆角因此变成直角（快速展开/收起 + 宽度变化时最容易复现）。
+        if (Card is not null && double.IsFinite(Card.ActualWidth) && Card.ActualWidth > 0)
+            w = Math.Max(w, Card.ActualWidth);
         var h = _vm.IsExpanded
             ? Math.Max(ReferenceExpandedHeight, expandedVisualHeight ?? ReferenceExpandedHeight)
             : Math.Max(ReferenceExpandedHeight, compactHeight * FontScale);
@@ -1640,17 +1658,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var targetScale = LyricEmphasis.ComputeTargetScale(baseSize, currentSize);
             const double emphasisMs = 240;
 
-            var style = new Style(typeof(TextBlock));
-            style.Setters.Add(new Setter(TextBlock.FontSizeProperty, baseSize));
-            style.Setters.Add(new Setter(TextBlock.ForegroundProperty, baseBrush));
-            style.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
-            // xiaotang-daozai wraps only the active lyric row; inactive rows stay on one line.
-            style.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.NoWrap));
-            style.Setters.Add(new Setter(TextBlock.MarginProperty, margin));
-            style.Setters.Add(new Setter(TextBlock.LineHeightProperty, lineHeight));
-            style.Setters.Add(new Setter(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight));
-            style.Setters.Add(new Setter(TextBlock.OpacityProperty, LyricEmphasis.OpacityBase)); // 2.3.2：与渲染映射常量保持一致
-            style.Setters.Add(new Setter(TextBlock.RenderTransformOriginProperty, new Point(0.5, 0.5)));
+            var style = new Style(typeof(AppleMusicLyricLine));
+            style.Setters.Add(new Setter(System.Windows.Controls.Control.FontSizeProperty, baseSize));
+            style.Setters.Add(new Setter(System.Windows.Controls.Control.ForegroundProperty, baseBrush));
+            style.Setters.Add(new Setter(FrameworkElement.MarginProperty, margin));
+            style.Setters.Add(new Setter(AppleMusicLyricLine.LineHeightProperty, lineHeight));
+            style.Setters.Add(new Setter(UIElement.OpacityProperty, LyricEmphasis.OpacityBase)); // 2.3.2：与渲染映射常量保持一致
+            style.Setters.Add(new Setter(UIElement.RenderTransformOriginProperty, new Point(0.5, 0.5)));
             style.Setters.Add(new Setter(LyricEmphasis.TargetScaleProperty, targetScale));
             style.Setters.Add(new Setter(LyricEmphasis.DurationMsProperty, emphasisMs));
 
@@ -1661,11 +1675,20 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 Binding = new System.Windows.Data.Binding(nameof(LyricLineViewModel.IsCurrent)) { Mode = BindingMode.OneWay },
                 Value = true,
             };
-            trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-            trigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, highlightBrush));
-            trigger.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
+            trigger.Setters.Add(new Setter(System.Windows.Controls.Control.FontWeightProperty, FontWeights.Bold));
+            trigger.Setters.Add(new Setter(System.Windows.Controls.Control.ForegroundProperty, highlightBrush));
             trigger.Setters.Add(new Setter(LyricEmphasis.IsCurrentProperty, true));
             style.Triggers.Add(trigger);
+
+            // 背景和声：比主歌词更小、更淡，避免抢主行视觉焦点
+            var backgroundTrigger = new DataTrigger
+            {
+                Binding = new System.Windows.Data.Binding(nameof(LyricLineViewModel.IsBackground)) { Mode = BindingMode.OneWay },
+                Value = true,
+            };
+            backgroundTrigger.Setters.Add(new Setter(System.Windows.Controls.Control.FontSizeProperty, Math.Max(8.0, baseSize * 0.85)));
+            backgroundTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, LyricEmphasis.OpacityBase * 0.7));
+            style.Triggers.Add(backgroundTrigger);
 
             Resources["LyricLineText"] = style;
         }
@@ -1687,16 +1710,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         }
         e.Handled = true;
     }
-
-    private void MessengerUnread_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is MessengerUnread unread)
-            _vm.ActivateMessengerUnread(unread);
-        e.Handled = true;
-    }
-
-    private void MessengerClearAll_Click(object sender, RoutedEventArgs e)
-        => _vm.ClearMessengerUnreads();
 
     /// <summary>
     /// xiaotang-daozai 滚轮切页：停顿 180ms 重置、方向反转重置、阈值 8、
@@ -1957,36 +1970,220 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// <summary>卡片尺寸变化时同步圆角裁剪几何（防止亚像素尺寸导致圆角变方框）。</summary>
     private void OnCardSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        FinalizeCardShape();
+        // SizeChanged 可能晚于收尾携带旧的展开尺寸；始终以 Card.Width/Height 的最新目标为准。
+        FinalizeCardShape(Card.Width, Card.Height);
         RefreshCopyToastTop();
     }
 
+    /// <summary>裁剪尺寸优先使用目标/弹簧尺寸，布局尚未完成时再用 Actual 尺寸兜底。</summary>
+    internal static double ResolveCardClipLength(double preferred, double fallback)
+    {
+        if (double.IsFinite(preferred) && preferred > 0) return preferred;
+        if (double.IsFinite(fallback) && fallback > 0) return fallback;
+        return 1;
+    }
+
+    /// <summary>同步裁剪矩形。尺寸变化时立即执行，避免收回动画结束后仍沿用展开态的旧矩形。</summary>
+    private bool SyncCardClipRect(double? preferredWidth = null, double? preferredHeight = null)
+    {
+        if (_cardClip is null || Card is null) return false;
+        var w = ResolveCardClipLength(preferredWidth ?? Card.Width, Card.ActualWidth);
+        var h = ResolveCardClipLength(preferredHeight ?? Card.Height, Card.ActualHeight);
+        if (Math.Abs(_cardClip.Rect.Width - w) < 0.5
+            && Math.Abs(_cardClip.Rect.Height - h) < 0.5)
+            return false;
+        _cardClip.Rect = new Rect(0, 0, w, h);
+        return true;
+    }
+
     /// <summary>重建圆角裁剪 RectangleGeometry 并强制重绘卡片/玻璃层，让动画收尾后圆角干净利落。</summary>
-    private void FinalizeCardShape()
+    private void FinalizeCardShape(double? preferredWidth = null, double? preferredHeight = null, bool force = false)
     {
         if (_cardClip is null || Card is null) return;
         try
         {
-            var w = Math.Max(1, Card.ActualWidth);
-            var h = Math.Max(1, Card.ActualHeight);
+            var w = ResolveCardClipLength(preferredWidth ?? Card.Width, Card.ActualWidth);
+            var h = ResolveCardClipLength(preferredHeight ?? Card.Height, Card.ActualHeight);
             var r = ComputeRuntimeRadius(h);
-            if (Math.Abs(_cardClip.Rect.Width - w) < 0.5
-                && Math.Abs(_cardClip.Rect.Height - h) < 0.5
-                && Math.Abs(_cardClip.RadiusX - r) < 0.5)
-                return; // 几何未变化，无需重绘
-            _cardClip.Rect = new Rect(0, 0, w, h);
-            // 形变中圆角由 _cardRSpring 驱动；空闲时（或设置变化）按最终尺寸直接写，避免两者抢写打架
-            if (_cardRSpring is not { IsActive: true })
+            var rounded = new CornerRadius(r);
+            var rectChanged = force
+                || Math.Abs(_cardClip.Rect.Width - w) >= 0.001
+                || Math.Abs(_cardClip.Rect.Height - h) >= 0.001;
+            var radiusChanged = force
+                || Math.Abs(_cardClip.RadiusX - r) >= 0.05
+                || Math.Abs(_cardClip.RadiusY - r) >= 0.05
+                || Math.Abs(Card.CornerRadius.TopLeft - r) >= 0.05
+                || (GlassLayer is not null && Math.Abs(GlassLayer.CornerRadius.TopLeft - r) >= 0.05);
+            if (!rectChanged && !radiusChanged)
+                return;
+
+            if (force)
             {
-                _cardClip.RadiusX = r;
-                _cardClip.RadiusY = r;
-                Card.CornerRadius = new CornerRadius(r);
-                if (GlassLayer is not null) GlassLayer.CornerRadius = new CornerRadius(r);
+                // Rebuild on completion: WPF can cache the old rectangular clip geometry.
+                var rebuiltClip = new RectangleGeometry(new Rect(0, 0, w, h), r, r);
+                _cardClip = rebuiltClip;
+                Card.Clip = rebuiltClip;
             }
+            else if (rectChanged)
+            {
+                _cardClip.Rect = new Rect(0, 0, w, h);
+            }
+
+            // There must be exactly one radius writer. It always follows the current
+            // animated height, so a shrinking card can never briefly become rectangular.
+            _cardClip.RadiusX = r;
+            _cardClip.RadiusY = r;
+            Card.CornerRadius = rounded;
+            if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
+            _lastAppliedCardRadius = r;
             Card.InvalidateVisual();
             if (GlassLayer is not null) GlassLayer.InvalidateVisual();
         }
-        catch { /* 布局过程中的瞬时异常直接忽略 */ }
+        catch { /* transient layout exceptions are ignored */ }
+    }
+
+    /// <summary>动画收尾后再等一次 WPF 布局，用最终 Actual 尺寸校正裁剪，消除收回后的裁边残留。</summary>
+    private void ScheduleCardShapeReconcile()
+    {
+        try
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (!IsLoaded || _cardAnimating || _currentStoryboard is not null) return;
+                Card.UpdateLayout();
+                // Actual 可能仍停留在展开态；收尾使用目标尺寸并强制校正裁剪与圆角。
+                FinalizeCardShape(Card.Width, Card.Height, force: true);
+            }, DispatcherPriority.Loaded);
+        }
+        catch { /* 窗口已关闭时忽略 */ }
+    }
+
+    /// <summary>Full rendered diagnostic result, including the radius expected from the current height.</summary>
+    internal readonly record struct CardDiagnosticResult(
+        double Width, double Height, double WindowWidth, double OffsetX, double Radius, double ClipWidth,
+        double GlassRadius, double ClipRadius, double ExpectedRadius, bool RadiusMatches,
+        bool CornersTransparent, string Detail);
+
+    /// <summary>Lightweight per-frame geometry probe used while the spring is moving.</summary>
+    internal readonly record struct CardShapeProbe(
+        double Width, double Height, double Radius, double GlassRadius, double ClipRadius,
+        double ExpectedRadius, bool RadiusMatches, bool FitsWindow, string Detail);
+
+    /// <summary>
+    /// Reads the live geometry without forcing layout. This is deliberately used between
+    /// animation ticks so the test observes the same values that the next composition pass
+    /// will consume, rather than a repaired post-layout state.
+    /// </summary>
+    internal CardShapeProbe CaptureCardShapeProbe()
+    {
+        try
+        {
+            var width = Card.ActualWidth > 1 ? Card.ActualWidth : Math.Max(0, Card.Width);
+            var height = Card.ActualHeight > 1 ? Card.ActualHeight : Math.Max(0, Card.Height);
+            var radiusHeight = double.IsFinite(height) && height > 0 ? height : Card.Height;
+            var expectedRadius = ComputeRuntimeRadius(radiusHeight);
+            var clip = Card.Clip as RectangleGeometry;
+            var cardRadius = Card.CornerRadius.TopLeft;
+            var glassRadius = GlassLayer?.CornerRadius.TopLeft ?? double.NaN;
+            var clipRadius = clip?.RadiusX ?? double.NaN;
+            var cardOk = Math.Abs(cardRadius - expectedRadius) <= 0.75;
+            var glassOk = GlassLayer is null || Math.Abs(glassRadius - expectedRadius) <= 0.75;
+            var clipOk = clip is null || Math.Abs(clipRadius - expectedRadius) <= 0.75;
+            var radiusOk = cardOk && glassOk && clipOk;
+
+            double offsetX = 0, offsetY = 0;
+            try
+            {
+                var origin = Card.TransformToAncestor(Root).Transform(new System.Windows.Point(0, 0));
+                offsetX = origin.X;
+                offsetY = origin.Y;
+            }
+            catch { /* visual tree not connected yet */ }
+
+            var fitsWindow = offsetX >= -0.5 && offsetY >= -0.5
+                && offsetX + width <= ActualWidth + 0.5
+                && offsetY + height <= ActualHeight + 0.5;
+
+            var detail =
+                $"expanded={_vm.IsExpanded}, card={Card.Width:0.###}x{Card.Height:0.###}, " +
+                $"actual={Card.ActualWidth:0.###}x{Card.ActualHeight:0.###}, " +
+                $"radius={cardRadius:0.###}, glass={glassRadius:0.###}, clipRadius={clipRadius:0.###}, " +
+                $"expected={expectedRadius:0.###}, radiusOk={radiusOk}, fitsWindow={fitsWindow}, " +
+                $"offset={offsetX:0.###},{offsetY:0.###}, animating={_cardAnimating}";
+
+            return new CardShapeProbe(width, height, cardRadius, glassRadius, clipRadius,
+                expectedRadius, radiusOk, fitsWindow, detail);
+        }
+        catch (Exception ex)
+        {
+            return new CardShapeProbe(double.NaN, double.NaN, double.NaN, double.NaN, double.NaN,
+                double.NaN, false, false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Full diagnostic snapshot: renders the host window, verifies corner transparency,
+    /// and checks that all three radius consumers match the current card height.
+    /// </summary>
+    internal CardDiagnosticResult CaptureCardDiagnostic(string path, string stage)
+    {
+        try
+        {
+            UpdateLayout();
+            Root.UpdateLayout();
+            Card.UpdateLayout();
+            var probe = CaptureCardShapeProbe();
+            var clip = Card.Clip as RectangleGeometry;
+            var cardW = Math.Max(1, (int)Math.Ceiling(probe.Width > 1 ? probe.Width : Card.Width));
+            var cardH = Math.Max(1, (int)Math.Ceiling(probe.Height > 1 ? probe.Height : Card.Height));
+            var winW = Math.Max(1, (int)Math.Ceiling(Root.ActualWidth));
+            var winH = Math.Max(1, (int)Math.Ceiling(Root.ActualHeight));
+            double offsetX = 0, offsetY = 0;
+            try
+            {
+                var origin = Card.TransformToAncestor(Root).Transform(new System.Windows.Point(0, 0));
+                offsetX = origin.X;
+                offsetY = origin.Y;
+            }
+            catch { /* visual tree not connected yet */ }
+
+            var bitmap = new RenderTargetBitmap(winW, winH, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(Root);
+
+            var stride = winW * 4;
+            var pixels = new byte[stride * winH];
+            bitmap.CopyPixels(pixels, stride, 0);
+            var x0 = (int)Math.Round(offsetX);
+            var y0 = (int)Math.Round(offsetY);
+            var x1 = x0 + cardW - 2;
+            var y1 = y0 + cardH - 2;
+            var inBounds = x0 >= 0 && y0 >= 0 && x1 < winW && y1 < winH;
+            byte AlphaAt(int x, int y) => inBounds ? pixels[y * stride + x * 4 + 3] : (byte)255;
+            var cornerAlpha = inBounds
+                ? new[] { AlphaAt(x0 + 1, y0 + 1), AlphaAt(x1, y0 + 1), AlphaAt(x0 + 1, y1), AlphaAt(x1, y1) }
+                : new byte[] { 255, 255, 255, 255 };
+            var cornersOk = inBounds
+                && cornerAlpha[0] <= 24 && cornerAlpha[1] <= 24 && cornerAlpha[2] <= 24 && cornerAlpha[3] <= 24;
+            var detail = probe.Detail + $", corners=[{string.Join(",", cornerAlpha)}]";
+            AppLogger.Info($"Card shape [{stage}]: {detail}");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var stream = File.Create(path))
+                encoder.Save(stream);
+
+            return new CardDiagnosticResult(
+                probe.Width, probe.Height, ActualWidth, offsetX, probe.Radius,
+                clip?.Rect.Width ?? double.NaN, probe.GlassRadius, probe.ClipRadius,
+                probe.ExpectedRadius, probe.RadiusMatches, cornersOk && probe.FitsWindow, detail);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"Card diagnostic capture failed: {stage}", ex);
+            return new CardDiagnosticResult(double.NaN, double.NaN, double.NaN, double.NaN,
+                double.NaN, double.NaN, double.NaN, double.NaN, double.NaN, false, false, ex.Message);
+        }
     }
 
     private void ApplyAppearance()
@@ -2093,7 +2290,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
             Card.Width = targetWidth;
             Card.Height = targetHeight;
-            FinalizeCardShape(); // 收尾：圆角裁剪与最终尺寸精确对齐
+            FinalizeCardShape(targetWidth, targetHeight, force: true); // 收尾：强制校正最终几何
         };
         sb.Begin();
     }
@@ -2301,6 +2498,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                     Dispatcher.BeginInvoke(() => ScrollLyricsTo(_vm.LyricIndex), DispatcherPriority.Loaded);
                 if (!_vm.IsExpanded)
                 {
+                    StopLyricsScroll(); // 收起时立即停止歌词补间，避免在隐藏状态下继续写入滚动位置
                     StopPageTransition(); // 收起时立即恢复单页可见，避免下次展开残留过渡状态
                     _compactRestoreTimer.Start(); // 收起后兜底恢复精确尺寸，避免多次切换后上下间距异常
                 }
@@ -2327,6 +2525,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 break;
             case nameof(IslandViewModel.LyricIndex):
                 if (_vm.LyricIndex >= 0) QueueLyricsScroll(_vm.LyricIndex);
+                break;
+            case nameof(IslandViewModel.ShowLyricTranslation):
+                // 翻译行显隐会改变当前行高度：切换后按新的行高重新把当前句对齐到视口中心
+                if (_vm.IsExpanded && _vm.LyricIndex >= 0)
+                    Dispatcher.BeginInvoke(() => ScrollLyricsTo(_vm.LyricIndex), DispatcherPriority.Loaded);
                 break;
             case nameof(IslandViewModel.CompactItems):
                 // 组件列表变化（如音量指示出现/消失、临时状态胶囊增删）时平滑调整尺寸
@@ -3077,7 +3280,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _animationSurfaceActive = false;
         Card.UseLayoutRounding = _cardLayoutRoundingBeforeAnimation;
         Card.SnapsToDevicePixels = _cardSnapsBeforeAnimation;
-        FinalizeCardShape(); // 恢复像素对齐后重建圆角裁剪，消除亚像素圆角走样
+        FinalizeCardShape(Card.Width, Card.Height, force: true); // 恢复像素对齐后强制重建圆角裁剪
     }
     private void AnimateCard(double width, double height, bool expand, Action? onCompleted = null)
     {
@@ -3101,7 +3304,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             ExpandedScale.ScaleX = ExpandedScale.ScaleY = 1;
             ExpandedTranslate.Y = 0;
             ApplyCascadeState(expand ? 1 : 0, expand ? 0 : 10);
-            FinalizeCardShape();
+            FinalizeCardShape(width, height, force: true);
+            ScheduleCardShapeReconcile();
             onCompleted?.Invoke();
             return;
         }
@@ -3181,7 +3385,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 // 必须写回最终尺寸：清除动画后若只依赖本地值，Card 会回退到紧凑时设置的本地尺寸
                 Card.Width = width;
                 Card.Height = height;
-                FinalizeCardShape();
+                FinalizeCardShape(width, height, force: true);
                 ExpandedScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
                 ExpandedScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
                 ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
@@ -3201,6 +3405,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                     ExpandedContent.Opacity = 0;
                     ExpandedContent.Width = double.NaN; // 恢复自适应布局
                 }
+                ScheduleCardShapeReconcile();
                 onCompleted?.Invoke();
             }
             catch (Exception ex)
@@ -3226,11 +3431,11 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring = new IOSSpring();
         _cardHSpring = new IOSSpring();
         _cardFadeSpring = new IOSSpring();
-        _cardRSpring = new IOSSpring();
-        _cardWSpring.SetCallbacks(v => Card.Width = v, OnCardSpringSettled);
-        _cardHSpring.SetCallbacks(v => Card.Height = v, OnCardSpringSettled);
+        // Radius is not a separate spring: derive it from the live animated height on
+        // every size tick. This keeps the pill fully rounded throughout collapse/expand.
+        _cardWSpring.SetCallbacks(v => { Card.Width = v; FinalizeCardShape(Card.Width, Card.Height); }, OnCardSpringSettled);
+        _cardHSpring.SetCallbacks(v => { Card.Height = v; FinalizeCardShape(Card.Width, Card.Height); }, OnCardSpringSettled);
         _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); ApplyContentParallax(v, _expandedFadeIn); ApplyPillRowParallax(v, _expandedFadeIn); }, OnCardSpringSettled);
-        _cardRSpring.SetCallbacks(ApplyCardRadius, OnCardSpringSettled);
     }
 
     private void StopCardSprings()
@@ -3238,9 +3443,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring?.Stop();
         _cardHSpring?.Stop();
         _cardFadeSpring?.Stop();
-        _cardRSpring?.Stop();
         _cardAnimating = false;
-        _cardSpringCompleted = null; // 动画被强制终止，丢弃未完成的回调
+        _cardSpringCompleted = null;
     }
 
     /// <summary>
@@ -3265,23 +3469,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     /// <summary>逐帧统一应用圆角：裁剪几何 + 卡片边框 + 玻璃层三者同步，形变全程圆角连续（消除"圆角变方框"）。</summary>
     private double _lastAppliedCardRadius = double.NaN;   // 2.1.2：圆角写入去抖，收敛/静止帧不再刷布局
-
-    private void ApplyCardRadius(double r)
-    {
-        // 亚像素内的重复写入跳过：每帧写 CornerRadius 会触发边框/玻璃重绘，
-        // 已收敛到目标值或差值 <0.05px 时直接忽略，减少动画尾部与静止时的布局开销。
-        if (!double.IsNaN(_lastAppliedCardRadius) && Math.Abs(r - _lastAppliedCardRadius) < 0.05)
-            return;
-        _lastAppliedCardRadius = r;
-        if (_cardClip is not null)
-        {
-            _cardClip.RadiusX = r;
-            _cardClip.RadiusY = r;
-        }
-        var rounded = new CornerRadius(r);
-        Card.CornerRadius = rounded;
-        if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
-    }
 
     /// <summary>
     /// iOS 真弹簧展开/收起（默认 Spring 动效）：
@@ -3330,8 +3517,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
         // iOS 分层弹簧（2.0.7）：圆角弹簧比尺寸快约 18%——"形状先导、尺寸跟随"，形变观感更接近 iOS 灵动岛液态形变；
         // 透明度：展开内容稍快浮现、收起内容先淡出再收拢（与尺寸共用帧循环，文字不额外弹出）。
-        var radiusTo = ComputeRuntimeRadius(height);
-        var radiusFrom = _cardClip?.RadiusX ?? radiusTo;
 
         if (wasAnimating && _cardWSpring!.IsActive && _cardHSpring!.IsActive)
         {
@@ -3342,11 +3527,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _cardWSpring.Configure(widthZeta, widthResponse);
             _cardHSpring.Configure(heightZeta, heightResponse);
             _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(fadeResponse, expand));
-            _cardRSpring!.Configure(expand ? 0.90 : 0.96, fadeResponse * 0.82);
             _cardWSpring.Retarget(width);
             _cardHSpring.Retarget(height);
             _cardFadeSpring!.Retarget(fadeTo);
-            _cardRSpring!.Retarget(radiusTo); // 圆角同步连续改道（iOS 打断语义）
             return;
         }
 
@@ -3360,14 +3543,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardHSpring.Start(fromHeight, height);
         _cardFadeSpring!.Configure(1.0, CrossFadeCurves.FadeResponse(fadeResponse, expand)); // 临界阻尼：展开内容略滞后形变浮现（形状先导、内容跟随），收起先淡出再收拢；无回弹
         _cardFadeSpring.Start(fadeFrom, fadeTo);
-        _cardRSpring!.Configure(expand ? 0.90 : 0.96, fadeResponse * 0.82); // 圆角先导：比尺寸快，形变全程连续
-        _cardRSpring.Start(radiusFrom, radiusTo);
     }
 
     /// <summary>统一恢复紧凑态布局：快速展开/收回后避免尺寸、层级或宽度残留导致胶囊显示不全。</summary>
     private void RestoreCompactLayout(bool clearAnimations = true)
     {
         if (!IsLoaded || _vm.IsExpanded || _cardAnimating) return;
+
+        // 回到紧凑态前保证宿主窗口容纳最终宽度（宽度变化后窗口可能尚未跟上）。
+        EnsureWindowSizeFits(CompactWidth);
 
         if (clearAnimations)
         {
@@ -3392,23 +3576,29 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Width = double.NaN;
         UpdateCompactContentWidth(CompactWidth);
         ResetContentParallax();
-        FinalizeCardShape();
+        FinalizeCardShape(CompactWidth, CompactHeight, force: true);
+        ScheduleCardShapeReconcile();
     }
 
     /// <summary>卡片三个弹簧全部收敛后的统一收尾（与旧 Storyboard 路径一致的最终状态）。</summary>
     private void OnCardSpringSettled()
     {
         if (!_cardAnimating) return;
-        if (_cardWSpring?.IsActive == true || _cardHSpring?.IsActive == true || _cardFadeSpring?.IsActive == true || _cardRSpring?.IsActive == true)
+        if (_cardWSpring?.IsActive == true || _cardHSpring?.IsActive == true || _cardFadeSpring?.IsActive == true)
             return; // 还有弹簧在收敛，等最后一个结束再收尾
         try
         {
             _cardAnimating = false;
             Card.BeginAnimation(FrameworkElement.WidthProperty, null);
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
+            // 收尾前先把宿主窗口扩到最终卡片宽度，避免窗口尺寸落后导致左右裁边。
+            EnsureWindowSizeFits(_cardTargetW);
             Card.Width = _cardTargetW;
             Card.Height = _cardTargetH;
-            FinalizeCardShape();
+            _lastAppliedCardRadius = double.NaN;
+            // 收尾强制写最终几何：圆角弹簧最后一帧与目标可能差 <0.5px，
+            // 普通 Finalize 会早退，残留旧裁剪就会让紧凑态四角变方。
+            FinalizeCardShape(_cardTargetW, _cardTargetH, force: true);
             ResetContentParallax(); // 收尾：圆角裁剪与最终尺寸精确对齐
             if (_vm.IsExpanded)
             {
@@ -3416,6 +3606,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 PillRow.Opacity = 0;
                 ExpandedContent.Opacity = 1;
                 RestoreExpandedContentAutoWidth(); // 下一帧再恢复自适应宽度，避免同帧重排闪动（2.1.5）
+                ScheduleCardShapeReconcile();
             }
             else
             {
@@ -3468,7 +3659,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             var resp2 = CrossFadeCurves.CompactShapeResponseSec * durScale2 * lm2;
             if (_cardWSpring?.IsActive == true) { _cardWSpring.Configure(0.96, resp2); _cardWSpring.Retarget(targetWidth); }
             if (_cardHSpring?.IsActive == true) { _cardHSpring.Configure(0.96, resp2); _cardHSpring.Retarget(targetHeight); }
-            if (_cardRSpring?.IsActive == true) { _cardRSpring.Configure(0.97, resp2 * 0.85); _cardRSpring.Retarget(ComputeRuntimeRadius(targetHeight)); }
             _cardTargetW = targetWidth;
             _cardTargetH = targetHeight;
             return;
@@ -3493,9 +3683,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring.Start(ResolveAnimationFrom(Card.ActualWidth, Card.Width, targetWidth), targetWidth);
         _cardHSpring!.Configure(0.96, response);
         _cardHSpring.Start(ResolveAnimationFrom(Card.ActualHeight, Card.Height, targetHeight), targetHeight);
-        // 圆角随紧凑尺寸同步形变：紧凑态保持药丸形（高/2），收尾圆润不生硬
-        _cardRSpring!.Configure(0.97, response * 0.85);
-        _cardRSpring.Start(ResolveAnimationFrom(_cardClip?.RadiusX ?? 0, 0, ComputeRuntimeRadius(targetHeight)), ComputeRuntimeRadius(targetHeight));
     }
 
     // ── iOS 真弹簧物理：窗口位置 / 推送卡片 ─────────────────────────
@@ -3894,6 +4081,19 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             viewer.VerticalOffset, relY, viewer.ViewportHeight, container.ActualHeight,
             Math.Max(0, viewer.ScrollableHeight));
 
+        if (_settings.Current.ReduceMotion)
+        {
+            // 减少动态效果：不作补间，直接落位到当前句
+            StopLyricsScroll();
+            if (ShouldWriteScrollOffset(target, _lyricsScrollLastWritten))
+            {
+                _lyricsScrollLastWritten = target;
+                viewer.ScrollToVerticalOffset(target);
+            }
+            ApplyLyricsFocusStyles(index);
+            return;
+        }
+
         var from = viewer.VerticalOffset;
         var delta = target - from;
         // LiquidMusic：距离小于 2px 直接落位；否则 ease-out cubic，时长 = clamp(|delta|*1.6, 180, 520)
@@ -3964,7 +4164,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             try
             {
                 var relY = el.TransformToAncestor(viewer).Transform(new Point(0, 0)).Y;
-                var h = Math.Max(30.0, el.ActualHeight);
+                var h = Math.Max(1.0, el.ActualHeight);
                 var mid = relY + h / 2.0;
                 var dist = Math.Abs(mid - viewportH * 0.5) / (viewportH * 0.66);
                 var past = activeIndex >= 0 && i < activeIndex;

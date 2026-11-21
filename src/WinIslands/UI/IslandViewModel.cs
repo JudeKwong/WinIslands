@@ -19,6 +19,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 {
     private int _disposed;
     private readonly MediaCoordinator _coordinator;
+    private bool _demoInjected;
     private readonly SettingsService _settings;
     private readonly LyricsService _lyricsService;
     private readonly DispatcherTimer _progressTimer;
@@ -31,7 +32,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
     private MediaSnapshot? _snapshot;
     private LyricsResult _lyrics = LyricsResult.Empty;
-    private Dictionary<double, TtmlLine> _ttmlLineIndex = new(); // 当前歌词的 TTML 行索引（按行开始秒，双语合并后按时间取逐字词）
     private DateTime _lastPositionTime = DateTime.UtcNow;
     private double _interpolatedPosition;
     private int _lyricIndex = -1;
@@ -612,14 +612,15 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             _lyricIndex = value;
             if (old >= 0 && old < LyricLines.Count) LyricLines[old].IsCurrent = false;
             if (value >= 0 && value < LyricLines.Count) LyricLines[value].IsCurrent = true;
+            RefreshLyricTranslationVisibility();
             // 换句时解除暂停冻结，让 UpdateKaraokeHighlight 按当前（正确）位置重算一次
             _karaokeFrozen = false;
-            // 换句时按「行开始秒」取该句逐字时间轴（时间匹配兼容双语合并后的行序变化）
+            // 每行 ViewModel 自带逐词时间轴（TTML 直接采用，LRC 自动补齐），无需再按时间反查
             CurrentLyricWords = value >= 0 && value < LyricLines.Count
-                ? WordsForLine(_ttmlLineIndex, LyricLines[value].Time.TotalSeconds)
+                ? LyricLines[value].Words
                 : Array.Empty<TtmlWord>();
-            CurrentLyricText = LyricLines.Count > 0
-                ? LyricLines[Math.Clamp(value, 0, LyricLines.Count - 1)].Text
+            CurrentLyricText = value >= 0 && value < LyricLines.Count
+                ? LyricLines[value].Text
                 : string.Empty;
             OnPropertyChanged();
         }
@@ -641,12 +642,21 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             if (Set(ref _showLyricTranslation, value))
             {
-                // 同步到每一行歌词（翻译行显隐）
-                foreach (var l in LyricLines) l.ShowTranslation = value;
+                // 展开歌词只给当前句显示翻译，保证上一句 / 当前句+翻译 / 下一句同时可见
+                RefreshLyricTranslationVisibility();
                 OnPropertyChanged(nameof(LyricTranslateText));
             }
         }
     }
+    /// <summary>
+    /// 展开歌词只给当前句显示翻译行：74px 视口内可同时呈现上一句、当前句+翻译、下一句。
+    /// </summary>
+    private void RefreshLyricTranslationVisibility()
+    {
+        for (var i = 0; i < LyricLines.Count; i++)
+            LyricLines[i].ShowTranslation = _showLyricTranslation && i == _lyricIndex;
+    }
+
     /// <summary>翻译开关按钮文本（如「翻译：开」）。</summary>
     public string LyricTranslateText => Localization.Get("Lyric_Translation") + "：" + (ShowLyricTranslation ? Localization.Get("Quick_On") : Localization.Get("Quick_Off"));
     /// <summary>「复制当前句」按钮文本。</summary>
@@ -2270,7 +2280,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _pushes.AddRange(sorted);
         ActivePush = _pushes.FirstOrDefault();
     }
-
     /// <summary>通知类型优先级数值：error=10 > warning=8 > success=5 > info=3。</summary>
     private static int TypePriorityRank(string? type)
     {
@@ -2521,8 +2530,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>每秒检查上岛推送是否过期（由 _widgetTimer 调用）。</summary>
     private void CheckPushExpiry()
     {
-        if (_pushes.Any(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow))
-            RecomputeActivePush();
+        if (!_pushes.Any(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow)) return;
+        RecomputeActivePush();
     }
 
     // ── Visibility / expansion ─────────────────────────────────
@@ -2555,6 +2564,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     // ── Coordinator events ─────────────────────────────────────
     private void OnSnapshotChanged(object? sender, MediaSnapshot snapshot)
     {
+        // README screenshot / manual preview: keep the injected demo track stable even when
+        // a real SMTC or window-title session appears in the background.
+        if (_demoInjected && !ReferenceEquals(sender, this)) return;
         // 用「歌手+歌名+专辑」判断换曲，而不是整条 TrackInfo 结构相等：
         // 封面 URL 等字段抖动不应触发换曲（否则会重置进度并把歌词打回开头）。
         var previous = _snapshot;
@@ -2748,7 +2760,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _wave.SetPlaying(false);
         LyricLines = Array.Empty<LyricLineViewModel>();
         _lyrics = LyricsResult.Empty;
-        _ttmlLineIndex = new();
         LyricIndex = -1;
         CurrentLyricText = string.Empty;
         OnPropertyChanged(nameof(IsPlaying));
@@ -2764,35 +2775,48 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (key == _lyricsKey) return;
         _lyricsKey = key;
 
+        // 切歌立即清空旧歌词，避免新歌词加载完成前旧歌词继续显示/闪回
+        LyricLines = Array.Empty<LyricLineViewModel>();
+        LyricIndex = -1;
+        CurrentLyricWords = Array.Empty<TtmlWord>();
+        CurrentLyricText = string.Empty;
+        OnPropertyChanged(nameof(HasLyrics));
+
         var result = await _lyricsService.GetLyricsAsync(snapshot);
         if (_lyricsKey != key) return; // track changed while loading
         _lyrics = result;
-        _ttmlLineIndex = BuildTtmlLineIndex(result.Ttml); // 供按时间取逐字词
-        if (_settings.Current.BilingualLyrics)
+
+        if (result.Ttml is { IsEmpty: false })
         {
-            // 双语歌词：相邻时间戳的翻译行自动合并到主句下方显示；
-            // 逐字时间轴按「行开始秒」与 TTML 行对齐（翻译行是翻译文本，不参与卡拉OK）。
+            // Apple Music TTML：直接采用解析器输出的行与逐词时间轴（含空行 / 对唱 / 背景和声）
+            LyricLines = result.Ttml.Lines.Select(line => new LyricLineViewModel(line)).ToList();
+        }
+        else if (_settings.Current.BilingualLyrics)
+        {
+            // 双语 LRC：相邻时间戳的翻译行合并到主句下方；结束时间取下一句开始
             var pairs = LrcParser.PairLines(result.Document.Lines, TimeSpan.FromMilliseconds(250), enable: true);
-            LyricLines = pairs.Select(x => new LyricLineViewModel(x.Main, x.Translation,
-                WordsForLine(_ttmlLineIndex, x.Main.Time.TotalSeconds))).ToList();
+            LyricLines = BuildLrcLines(pairs.Select(p => (p.Main, p.Translation)));
         }
         else
         {
-            LyricLines = result.Document.Lines
-                .Select(l => new LyricLineViewModel(l, null, WordsForLine(_ttmlLineIndex, l.Time.TotalSeconds)))
-                .ToList();
+            var lines = result.Document.Lines;
+            LyricLines = BuildLrcLines(lines.Select(l => (l, (string?)null)));
         }
+
+        RefreshLyricTranslationVisibility();
+
         if (LyricLines.Count > 0)
         {
             // 直接按当前（已恢复的）位置定位当前句，避免启动瞬间先显示第 0 行再跳；
             // #4：叠加用户校准的时间偏移
-            var idx = result.Document.IndexAt(LyricsAdjustedPosition(TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition))));
-            LyricIndex = idx < 0 ? -1 : idx;
-            // 显式对齐（LyricIndex 可能未变化）；按时间取词兼容双语合并行序
-            CurrentLyricWords = idx >= 0 && idx < LyricLines.Count
-                ? WordsForLine(_ttmlLineIndex, LyricLines[idx].Time.TotalSeconds)
-                : Array.Empty<TtmlWord>();
-            CurrentLyricText = LyricLines[Math.Clamp(idx, 0, LyricLines.Count - 1)].Text;
+            var idx = IndexAtPosition(
+                LyricsAdjustedPosition(TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition))).TotalSeconds);
+            LyricIndex = idx;
+            if (idx >= 0 && idx < LyricLines.Count)
+            {
+                CurrentLyricWords = LyricLines[idx].Words;
+                CurrentLyricText = LyricLines[idx].Text;
+            }
         }
         else
         {
@@ -2813,6 +2837,47 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LyricOffsetText)); // 本曲可能带已保存的偏移
     }
 
+    /// <summary>LRC 行 → ViewModel：用下一句开始时间补齐 EndSec，供均分逐字时间轴。</summary>
+    private static IReadOnlyList<LyricLineViewModel> BuildLrcLines(
+        IEnumerable<(LyricLine Line, string? Translation)> entries)
+    {
+        var source = entries.ToList();
+        var result = new List<LyricLineViewModel>(source.Count);
+        for (var i = 0; i < source.Count; i++)
+        {
+            var start = Math.Max(0.0, source[i].Line.Time.TotalSeconds);
+            var end = i + 1 < source.Count
+                ? source[i + 1].Line.Time.TotalSeconds
+                : start + 4.0;
+            if (!double.IsFinite(end) || end <= start) end = start + 4.0;
+            result.Add(new LyricLineViewModel(source[i].Line, source[i].Translation, null, end));
+        }
+        return result;
+    }
+
+    /// <summary>按播放秒定位当前歌词行（找不到返回 -1）。同一时刻优先主歌词，避免背景和声抢行。</summary>
+    private int IndexAtPosition(double seconds)
+    {
+        if (LyricLines.Count == 0 || !double.IsFinite(seconds)) return -1;
+        var idx = -1;
+        for (var i = 0; i < LyricLines.Count; i++)
+        {
+            if (LyricLines[i].StartSec > seconds + 0.0005) break;
+            idx = i;
+        }
+        if (idx < 0) return -1;
+        // TTML 中主歌词和背景和声可能共享同一开始时间：优先返回主歌词行
+        if (LyricLines[idx].IsBackground)
+        {
+            var start = LyricLines[idx].StartSec;
+            for (var i = idx - 1; i >= 0; i--)
+            {
+                if (Math.Abs(LyricLines[i].StartSec - start) > 0.05) break;
+                if (!LyricLines[i].IsBackground) return i;
+            }
+        }
+        return idx;
+    }
     // #4 ── 歌词时间微调 ────────────────────────────────────────
     /// <summary>当前曲目的歌词时间偏移（秒），未校准为 0。</summary>
     public double CurrentLyricOffset
@@ -2845,9 +2910,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             _lyricTimeOffsets[_lyricsKey] = off;
             _settings.Update(s => s.LyricTimeOffsets = new Dictionary<string, double>(_lyricTimeOffsets));
             OnPropertyChanged(nameof(LyricOffsetText));
-            if (HasLyrics && _lyrics.Document.Lines.Count > 0)
+            if (HasLyrics && LyricLines.Count > 0)
             {
-                var idx = _lyrics.Document.IndexAt(LyricsAdjustedPosition(Position));
+                var idx = IndexAtPosition(LyricsAdjustedPosition(Position).TotalSeconds);
                 if (idx != LyricIndex) LyricIndex = idx;
                 UpdateKaraokeHighlight();
             }
@@ -2885,7 +2950,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
         if (HasLyrics)
         {
-            var idx = _lyrics.Document.IndexAt(LyricsAdjustedPosition(Position)); // #4 叠加歌词偏移
+            var idx = IndexAtPosition(LyricsAdjustedPosition(Position).TotalSeconds); // #4 叠加歌词偏移
             if (idx != LyricIndex) LyricIndex = idx;
             UpdateKaraokeHighlight();
         }
@@ -2894,12 +2959,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>逐字卡拉OK：把当前句的时长按字符均分，推进已点亮字符数。</summary>
     private void UpdateKaraokeHighlight()
     {
-        if (LyricIndex < 0 || LyricIndex >= _lyrics.Document.Lines.Count) return;
-        var lines = _lyrics.Document.Lines;
-        var cur = lines[LyricIndex];
-        var nextStart = (LyricIndex + 1 < lines.Count) ? lines[LyricIndex + 1].Time.TotalSeconds : cur.Time.TotalSeconds + 5.0;
+        if (LyricIndex < 0 || LyricIndex >= LyricLines.Count) return;
+        var cur = LyricLines[LyricIndex];
+        var nextStart = LyricIndex + 1 < LyricLines.Count
+            ? LyricLines[LyricIndex + 1].StartSec
+            : Math.Max(cur.EndSec, cur.StartSec + 0.1);
         var posSec = Position.TotalSeconds + CurrentLyricOffset; // #4 叠加歌词偏移
-        var frac = KaraokeMath.LineFraction(posSec, cur.Time.TotalSeconds, nextStart);
+        var frac = KaraokeMath.LineFraction(posSec, cur.StartSec, nextStart);
 
         if (Status == PlaybackStatus.Playing)
         {
@@ -2930,38 +2996,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (KaraokeMath.AbsGreaterThan(CompactHighlightFraction - frac, 0.0005)) CompactHighlightFraction = frac;
     }
 
-    // ── AMLL TTML 逐字时间轴辅助 ──────────────────────────────
-    /// <summary>按「行开始秒」（round 2 位）建立 TTML 行索引，供双语合并后按时间定位逐字词。</summary>
-    private static Dictionary<double, TtmlLine> BuildTtmlLineIndex(TtmlDocument? ttml)
-    {
-        var map = new Dictionary<double, TtmlLine>();
-        if (ttml is null) return map;
-        foreach (var line in ttml.Lines)
-        {
-            var key = Math.Round(line.BeginSec, 2);
-            if (!map.ContainsKey(key)) map[key] = line;
-        }
-        return map;
-    }
-
-    /// <summary>按行开始秒查找该行逐字词（容差 50ms；找不到返回空 → 优雅降级为整行均分）。</summary>
-    private static IReadOnlyList<TtmlWord> WordsForLine(Dictionary<double, TtmlLine> index, double beginSec)
-    {
-        var key = Math.Round(beginSec, 2);
-        if (index.TryGetValue(key, out var line)) return line.Words;
-        foreach (var kv in index)
-        {
-            if (Math.Abs(kv.Key - key) <= 0.05) return kv.Value.Words;
-        }
-        return Array.Empty<TtmlWord>();
-    }
-
     /// <summary>保存当前播放位置（退出/暂停/切歌时调用，供下次启动恢复）。</summary>
     public void SavePlaybackState()
     {
         try
         {
-            if (_snapshot is null) return;
+            // Demo previews must not overwrite the user's real playback resume state.
+            if (_snapshot is null || _demoInjected) return;
             new PlaybackStateStore
             {
                 TrackKey = LyricsService.TrackKey(_snapshot.Track),
@@ -3179,27 +3220,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// Demo mode (--demo): injects a fake track so the island can be previewed
     /// without any media playing. Also writes a sample .lrc for lyrics.
     /// </summary>
-    public void InjectDemoMedia()
+    public void InjectDemoMedia(double startSeconds = 12.4)
     {
+        _demoInjected = true;
         var artPath = CreateDemoArtwork();
-        var lyricsDir = AppPaths.LyricsDir;
-        Directory.CreateDirectory(lyricsDir);
-        var lrcPath = Path.Combine(lyricsDir, "Demo Artist - Demo Song.lrc");
-        if (!File.Exists(lrcPath))
-        {
-            File.WriteAllText(lrcPath,
-                "[ti:Demo Song]\n[ar:Demo Artist]\n[al:Demo Album]\n" +
-                "[00:00.00]Welcome to WinIslands\n[00:04.00]This is a demo track\n[00:08.00]Hover to expand\n[00:12.00]Drag the progress bar to seek\n[00:16.00]Lyrics scroll automatically\n[00:20.00]Enjoy your Dynamic Island\n[00:24.00]Thanks for trying WinIslands\n");
-        }
 
-        var track = new TrackInfo("Demo Song", "Demo Artist", "Demo Album", "Demo Artist",
-            "Demo", "demo-source", artPath, string.Empty, TimeSpan.FromSeconds(210));
+        var track = new TrackInfo("暂无音乐", "WinIslands", "宋词精选", "苏轼",
+            "古典诗词", "demo-source", artPath, string.Empty, TimeSpan.FromSeconds(210));
         var snap = new MediaSnapshot
         {
             Track = track,
             Source = MediaSourceKind.Smtc,
             Status = PlaybackStatus.Playing,
-            PositionSeconds = 5,
+            PositionSeconds = double.IsFinite(startSeconds) ? Math.Max(0, startSeconds) : 12.4,
             DurationSeconds = 210,
             CanPlayPause = true,
             CanNext = true,
@@ -3209,26 +3242,144 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             Volume = 0.6,
             HasLyrics = true,
         };
+
+        // Demo previews must be deterministic: drop any playback position restored from a
+        // previous run, otherwise --demo-at is silently overridden by stale state.
+        _restoredTrackKey = null;
+        _restoredPosition = 0;
+        _restoredMode = false;
+        _restoredStatus = PlaybackStatus.Closed;
+
         OnSnapshotChanged(this, snap);
+        ApplyDemoLyrics(snap.PositionSeconds);
+    }
+
+    /// <summary>
+    /// Demo-only word-level lyrics (Apple Music TTML): Chinese characters, spaced Latin
+    /// syllables, a translated line and a background-harmony line. Used by --demo so the
+    /// karaoke layout can be verified without a real media session.
+    /// </summary>
+    private void ApplyDemoLyrics(double positionSeconds)
+    {
+        const string demoTtml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xml:lang="zh">
+              <body>
+                <div>
+                  <p begin="00:00.000" end="00:04.000" ttm:agent="v1"><span begin="00:00.000" end="00:00.800">明</span><span begin="00:00.800" end="00:01.600">月</span><span begin="00:01.600" end="00:02.400">几</span><span begin="00:02.400" end="00:03.200">时</span><span begin="00:03.200" end="00:04.000">有</span></p>
+                  <p begin="00:04.000" end="00:08.000" ttm:agent="v1"><span begin="00:04.000" end="00:04.800">把</span><span begin="00:04.800" end="00:05.600">酒</span><span begin="00:05.600" end="00:06.400">问</span><span begin="00:06.400" end="00:07.200">青</span><span begin="00:07.200" end="00:08.000">天</span></p>
+                  <p begin="00:08.000" end="00:12.000" ttm:agent="v1"><span begin="00:08.000" end="00:08.667">不</span><span begin="00:08.667" end="00:09.333">知</span><span begin="00:09.333" end="00:10.000">天</span><span begin="00:10.000" end="00:10.667">上</span><span begin="00:10.667" end="00:11.333">宫</span><span begin="00:11.333" end="00:12.000">阙</span></p>
+                  <p begin="00:12.000" end="00:16.000" ttm:agent="v1"><span begin="00:12.000" end="00:12.800">今</span><span begin="00:12.800" end="00:13.600">夕</span><span begin="00:13.600" end="00:14.400">是</span><span begin="00:14.400" end="00:15.200">何</span><span begin="00:15.200" end="00:16.000">年</span>
+                    <span ttm:role="x-translation">What year is it tonight</span>
+                  </p>
+                  <p begin="00:16.000" end="00:20.000" ttm:agent="v1"><span begin="00:16.000" end="00:16.667">我</span><span begin="00:16.667" end="00:17.333">欲</span><span begin="00:17.333" end="00:18.000">乘</span><span begin="00:18.000" end="00:18.667">风</span><span begin="00:18.667" end="00:19.333">归</span><span begin="00:19.333" end="00:20.000">去</span></p>
+                  <p begin="00:16.000" end="00:20.000" ttm:role="x-bg"><span begin="00:16.000" end="00:18.000">啊</span><span begin="00:18.000" end="00:20.000">啊</span></p>
+                  <p begin="00:20.000" end="00:24.000" ttm:agent="v1"><span begin="00:20.000" end="00:20.571">Re</span> <span begin="00:20.571" end="00:21.143">So</span> <span begin="00:21.143" end="00:21.714">So</span> <span begin="00:21.714" end="00:22.286">Si</span> <span begin="00:22.286" end="00:22.857">Do</span> <span begin="00:22.857" end="00:23.429">Si</span> <span begin="00:23.429" end="00:24.000">La</span></p>
+                  <p begin="00:24.000" end="00:28.000" ttm:agent="v1"><span begin="00:24.000" end="00:24.800">起</span><span begin="00:24.800" end="00:25.600">舞</span><span begin="00:25.600" end="00:26.400">弄</span><span begin="00:26.400" end="00:27.200">清</span><span begin="00:27.200" end="00:28.000">影</span></p>
+                  <p begin="00:28.000" end="00:32.000" ttm:agent="v1"><span begin="00:28.000" end="00:28.800">何</span><span begin="00:28.800" end="00:29.600">似</span><span begin="00:29.600" end="00:30.400">在</span><span begin="00:30.400" end="00:31.200">人</span><span begin="00:31.200" end="00:32.000">间</span></p>
+                </div>
+              </body>
+            </tt>
+            """;
+
+        var doc = TtmlParser.Parse(demoTtml);
+        if (doc.IsEmpty) return;
+
+        // Invalidate the in-flight lookup for this demo track so an empty online result
+        // cannot clear the preview lyrics when it finishes.
+        var key = _snapshot is null ? "demo" : LyricsService.TrackKey(_snapshot.Track);
+        _lyricsKey = key + "#demo";
+
+        _lyrics = new LyricsResult(new LrcDocument(), LyricsSourceKind.AmllTtml, "Demo TTML", doc);
+        LyricLines = doc.Lines.Select(line => new LyricLineViewModel(line)).ToList();
+        RefreshLyricTranslationVisibility();
+
+        var seconds = LyricsAdjustedPosition(
+            TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(positionSeconds))).TotalSeconds;
+        var index = IndexAtPosition(seconds);
+        LyricIndex = index;
+        CurrentLyricWords = index >= 0 ? LyricLines[index].Words : Array.Empty<TtmlWord>();
+        CurrentLyricText = index >= 0 ? LyricLines[index].Text : string.Empty;
+        LyricsStatus = Localization.Get("Lyrics_Amll");
+        OnPropertyChanged(nameof(HasLyrics));
     }
 
     private static string CreateDemoArtwork()
     {
         try
         {
-            var path = Path.Combine(AppPaths.ThumbCacheDir, "demo-art.jpg");
+            Directory.CreateDirectory(AppPaths.ThumbCacheDir);
+            var path = Path.Combine(AppPaths.ThumbCacheDir, "demo-art-shuidiaogetou.jpg");
             if (File.Exists(path)) return path;
-            using var bmp = new System.Drawing.Bitmap(320, 320);
-            using (var g = System.Drawing.Graphics.FromImage(bmp))
+
+            using var bmp = new System.Drawing.Bitmap(512, 512);
+            using var g = System.Drawing.Graphics.FromImage(bmp);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            var rect = new System.Drawing.Rectangle(0, 0, 512, 512);
+            using (var sky = new System.Drawing.Drawing2D.LinearGradientBrush(rect,
+                System.Drawing.Color.FromArgb(255, 10, 16, 38),
+                System.Drawing.Color.FromArgb(255, 48, 34, 82), 125f))
+                g.FillRectangle(sky, rect);
+
+            // Moon glow and surface.
+            for (var i = 5; i >= 1; i--)
             {
-                var rect = new System.Drawing.Rectangle(0, 0, 320, 320);
-                var brush = new System.Drawing.Drawing2D.LinearGradientBrush(rect,
-                    System.Drawing.Color.FromArgb(255, 99, 102, 241),
-                    System.Drawing.Color.FromArgb(255, 34, 211, 238), 45f);
-                g.FillRectangle(brush, rect);
-                g.DrawString("WinIslands", new System.Drawing.Font("Segoe UI", 28, System.Drawing.FontStyle.Bold),
-                    System.Drawing.Brushes.White, 70, 130);
+                var size = 170 + i * 34;
+                using var halo = new System.Drawing.SolidBrush(
+                    System.Drawing.Color.FromArgb(9 + (5 - i) * 3, 196, 220, 255));
+                g.FillEllipse(halo, 266 - size / 2f, 92 - size / 2f, size, size);
             }
+            using (var moon = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new System.Drawing.Rectangle(196, 22, 140, 140),
+                System.Drawing.Color.FromArgb(255, 255, 247, 214),
+                System.Drawing.Color.FromArgb(255, 244, 203, 156), 55f))
+                g.FillEllipse(moon, 196, 22, 140, 140);
+            using (var crater = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(22, 116, 92, 118)))
+            {
+                g.FillEllipse(crater, 232, 60, 28, 20);
+                g.FillEllipse(crater, 282, 94, 34, 24);
+                g.FillEllipse(crater, 252, 122, 18, 14);
+            }
+
+            // Layered mountains.
+            using (var far = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(235, 29, 39, 70)))
+                g.FillPolygon(far, new[]
+                {
+                    new System.Drawing.PointF(0, 352), new System.Drawing.PointF(88, 272),
+                    new System.Drawing.PointF(154, 328), new System.Drawing.PointF(238, 236),
+                    new System.Drawing.PointF(326, 326), new System.Drawing.PointF(412, 250),
+                    new System.Drawing.PointF(512, 332), new System.Drawing.PointF(512, 512),
+                    new System.Drawing.PointF(0, 512),
+                });
+            using (var near = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new System.Drawing.Rectangle(0, 330, 512, 182),
+                System.Drawing.Color.FromArgb(255, 13, 24, 46),
+                System.Drawing.Color.FromArgb(255, 7, 12, 26), 90f))
+                g.FillPolygon(near, new[]
+                {
+                    new System.Drawing.PointF(0, 414), new System.Drawing.PointF(96, 342),
+                    new System.Drawing.PointF(186, 398), new System.Drawing.PointF(286, 312),
+                    new System.Drawing.PointF(388, 396), new System.Drawing.PointF(512, 334),
+                    new System.Drawing.PointF(512, 512), new System.Drawing.PointF(0, 512),
+                });
+
+            using (var star = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(170, 220, 230, 255)))
+            {
+                foreach (var (x, y, r) in new[] { (62, 84, 2), (118, 154, 1), (356, 70, 1), (430, 150, 2), (88, 230, 1), (470, 238, 1) })
+                    g.FillEllipse(star, x, y, r, r);
+            }
+
+            using var titleFont = new System.Drawing.Font("Microsoft YaHei UI", 26, System.Drawing.FontStyle.Bold,
+                System.Drawing.GraphicsUnit.Pixel);
+            using var titleBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(238, 255, 250, 235));
+            var title = "\u6C34\u8C03\u6B4C\u5934";
+            for (var i = 0; i < title.Length; i++)
+                g.DrawString(title[i].ToString(), titleFont, titleBrush, 55, 92 + i * 32);
+
+            using var smallFont = new System.Drawing.Font("Microsoft YaHei UI", 13, System.Drawing.FontStyle.Regular,
+                System.Drawing.GraphicsUnit.Pixel);
+            using var smallBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(180, 215, 226, 245));
+            g.DrawString("\u82CF\u8F7C \u00B7 \u5B8B", smallFont, smallBrush, 62, 226);
 
             bmp.Save(path, System.Drawing.Imaging.ImageFormat.Jpeg);
             return path;
@@ -3240,8 +3391,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
     }
 
-    // ── Helpers ────────────────────────────────────────────────
-    /// <summary>按路径取封面：优先命中缓存，未命中才解码一次并缓存（近似 LRU 淘汰）。</summary>
+    // Helpers
+    /// <summary>Get artwork by path, with a small in-memory LRU cache.</summary>
     private ImageSource? GetArtwork(string path)
     {
         if (string.IsNullOrEmpty(path)) return null;

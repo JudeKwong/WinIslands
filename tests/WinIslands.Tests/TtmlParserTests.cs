@@ -1,4 +1,4 @@
-﻿using WinIslands.Services;
+using WinIslands.Services;
 
 namespace WinIslands.Tests;
 
@@ -49,7 +49,7 @@ public class TtmlParserTests
         Assert.Single(doc.Lines);
 
         var line = doc.Lines[0];
-        Assert.Equal("HelloWorld", line.Text);
+        Assert.Equal("Hello World", line.Text);
         Assert.Equal(1.0, line.BeginSec);
         Assert.Equal(4.0, line.EndSec);
         Assert.Equal(2, line.Words.Count);
@@ -61,6 +61,41 @@ public class TtmlParserTests
         Assert.Equal(2.0, line.Words[1].EndSec);
     }
 
+    [Fact]
+    public void Adjacent_Spans_Without_Text_Are_Grouped_Into_One_Word()
+    {
+        // 两个 span 完全相邻（中间没有文本节点）→ 属于同一个词的多个音节，应合并。
+        var xml = $"""
+        <tt xmlns="{NsTt}">
+          <body><div><p begin="00:01.000" end="00:03.000"><span begin="00:01.000" end="00:01.500">歌</span><span begin="00:01.500" end="00:02.000">词</span></p></div></body>
+        </tt>
+        """;
+
+        var line = Assert.Single(TtmlParser.Parse(xml).Lines);
+
+        Assert.Equal("歌词", line.Text);
+        var word = Assert.Single(line.Words);
+        Assert.Equal("歌词", word.Text);
+        Assert.Equal(1.0, word.BeginSec);
+        Assert.Equal(2.0, word.EndSec);
+    }
+
+    [Fact]
+    public void Spans_Separated_By_Text_Node_Stay_Separate()
+    {
+        // 中间有文本（哪怕是空白）→ 不合并。
+        var xml = $"""
+        <tt xmlns="{NsTt}">
+          <body><div><p begin="00:01.000" end="00:03.000"><span begin="00:01.000" end="00:01.500">Hello</span> <span begin="00:01.500" end="00:02.000">world</span></p></div></body>
+        </tt>
+        """;
+
+        var line = Assert.Single(TtmlParser.Parse(xml).Lines);
+
+        Assert.Equal(2, line.Words.Count);
+        Assert.Equal("Hello", line.Words[0].Text);
+        Assert.Equal("world", line.Words[1].Text);
+    }
     [Fact]
     public void Parses_Direct_Text_As_Single_Word()
     {
@@ -194,8 +229,11 @@ public class TtmlParserTests
         Assert.Single(doc.Lines);
         var line = doc.Lines[0];
         Assert.Equal(2, line.Words.Count);
-        // Spans without begin/end should inherit parent p's times.
-        Assert.All(line.Words, w => Assert.Equal(5.0, w.BeginSec));
+        // 两个 span 共用一个行时间窗时，按拉丁词均分 5.0–8.0。
+        Assert.Equal(5.0, line.Words[0].BeginSec, 3);
+        Assert.Equal(6.5, line.Words[0].EndSec, 3);
+        Assert.Equal(6.5, line.Words[1].BeginSec, 3);
+        Assert.Equal(8.0, line.Words[1].EndSec, 3);
     }
 
     [Fact]
@@ -250,4 +288,117 @@ public class TtmlParserTests
         Assert.Equal("A", line.Words[0].Text);
         Assert.Equal("B", line.Words[1].Text);
     }
-}
+
+    [Fact]
+    public void Cjk_Fallback_UsesSingleCharacters_WithoutSpaces()
+    {
+        var words = TtmlParser.FillWordGaps("你好世界", 2.0, 6.0);
+
+        Assert.Equal(4, words.Count);
+        Assert.Equal(new[] { "你", "好", "世", "界" }, words.Select(w => w.Text));
+        Assert.Equal("你好世界", TtmlParser.JoinWordTexts(words.Select(w => w.Text)));
+        Assert.Equal(2.0, words[0].BeginSec, 3);
+        Assert.Equal(3.0, words[0].EndSec, 3);
+        Assert.Equal(6.0, words[^1].EndSec, 3);
+    }
+
+    [Fact]
+    public void Mixed_Fallback_Splits_Latin_Words_And_Cjk()
+    {
+        var words = TtmlParser.FillWordGaps("Hello 你好 world", 0.0, 4.0);
+
+        Assert.Equal(new[] { "Hello", "你", "好", "world" }, words.Select(w => w.Text));
+        Assert.Equal("Hello 你好 world", TtmlParser.JoinWordTexts(words.Select(w => w.Text)));
+    }
+
+    [Fact]
+    public void Paragraph_Without_Word_Times_Falls_Back_To_Even_Gaps()
+    {
+        var xml = $"""
+        <tt xmlns="{NsTt}">
+          <body><div>
+            <p begin="00:05.000" end="00:08.000">
+              <span>Hello</span>
+              <span>world</span>
+            </p>
+          </div></body>
+        </tt>
+        """;
+
+        var line = Assert.Single(TtmlParser.Parse(xml).Lines);
+        Assert.Equal("Hello world", line.Text);
+        Assert.Equal(2, line.Words.Count);
+        Assert.Equal(5.0, line.Words[0].BeginSec, 3);
+        Assert.Equal(6.5, line.Words[0].EndSec, 3);
+        Assert.Equal(8.0, line.Words[1].EndSec, 3);
+    }
+
+    [Fact]
+    public void Long_Gap_Inserts_Empty_Instrumental_Line()
+    {
+        var xml = $"""
+        <tt xmlns="{NsTt}">
+          <body><div>
+            <p begin="00:01.000" end="00:03.000">first</p>
+            <p begin="00:10.000" end="00:12.000">second</p>
+          </div></body>
+        </tt>
+        """;
+
+        var doc = TtmlParser.Parse(xml);
+        Assert.Equal(3, doc.Lines.Count);
+        Assert.True(doc.Lines[1].Empty);
+        Assert.Equal(string.Empty, doc.Lines[1].Text);
+        Assert.Empty(doc.Lines[1].Words);
+        Assert.Equal(3.0, doc.Lines[1].BeginSec, 3);
+    }
+
+    [Fact]
+    public void Extracts_Translation_Without_Mixing_It_Into_Words()
+    {
+        var xml = $"""
+        <tt xmlns="{NsTt}" xmlns:ttm="{NsTtm}">
+          <body><div>
+            <p begin="00:01.000" end="00:03.000">
+              <span begin="00:01.000" end="00:02.000">hello</span>
+              <span ttm:role="x-translation">你好</span>
+            </p>
+          </div></body>
+        </tt>
+        """;
+
+        var line = Assert.Single(TtmlParser.Parse(xml).Lines);
+        Assert.Equal("hello", line.Text);
+        Assert.Equal("你好", line.Translation);
+        Assert.Single(line.Words);
+    }
+
+    [Fact]
+    public void Background_Vocal_Is_Split_Into_Its_Own_Line()
+    {
+        var xml = $"""
+        <tt xmlns="{NsTt}" xmlns:ttm="{NsTtm}">
+          <body><div>
+            <p begin="00:01.000" end="00:04.000" ttm:agent="v2">
+              <span begin="00:01.000" end="00:02.000">main</span>
+              <span begin="00:02.000" end="00:03.000" ttm:role="x-bg">echo</span>
+            </p>
+          </div></body>
+        </tt>
+        """;
+
+        var doc = TtmlParser.Parse(xml);
+        Assert.Equal(2, doc.Lines.Count);
+        Assert.False(doc.Lines[0].IsBackground);
+        Assert.Equal("main", doc.Lines[0].Text);
+        Assert.True(doc.Lines[0].IsDuet);
+        Assert.True(doc.Lines[1].IsBackground);
+        Assert.Equal("echo", doc.Lines[1].Text);
+    }
+
+    [Fact]
+    public void Plain_Seconds_Are_Accepted_By_Clock_Parser()
+    {
+        Assert.Equal(12.5, TtmlParser.ParseClock("12.5"));
+        Assert.Equal(3.0, TtmlParser.ParseClock("3"));
+    }}

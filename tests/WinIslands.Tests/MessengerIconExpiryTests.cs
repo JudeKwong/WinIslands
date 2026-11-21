@@ -51,4 +51,24 @@ public class MessengerIconExpiryTests : IDisposable
         Assert.Empty(vm.MessengerUnreads);
         Assert.False(vm.HasMessengerUnreads);
     }
+
+    [Fact]
+    public void ExpiredShellHookUnread_AlsoClearsUnreadState()
+    {
+        using var vm = new IslandViewModel(_coordinator, _settings, new LyricsService(_settings, _cider));
+        var unread = new MessengerUnread(MessengerSource.WeChat, 1234, new IntPtr(4321), DateTime.UtcNow);
+        vm.ShowMessengerUnread(unread);
+
+        Assert.NotNull(vm.ActivePush);
+        Assert.Single(vm.MessengerUnreads);
+        vm.ActivePush!.ExpiresAt = DateTime.UtcNow.AddSeconds(-1);
+
+        typeof(IslandViewModel)
+            .GetMethod("CheckPushExpiry", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(vm, null);
+
+        Assert.Null(vm.ActivePush);
+        Assert.Empty(vm.MessengerUnreads);
+        Assert.False(vm.HasMessengerUnreads);
+    }
 }
