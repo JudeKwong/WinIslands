@@ -181,7 +181,7 @@ hello-world/
 $body = @{
     id = "download-1"
     title = "正在下载"
-    body = "WinIslands-3.1.3-win-x64.exe"
+    body = "WinIslands-3.1.5-win-x64.exe"
     progress = 0.65
     type = "info"
 } | ConvertTo-Json

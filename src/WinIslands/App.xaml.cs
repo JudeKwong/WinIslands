@@ -782,6 +782,8 @@ AppPaths.EnsureDirectories();
                 }
                 if (!r.CornersTransparent)
                     failures.Add($"{stage}: corners are not transparent or card is clipped ({r.Detail})");
+                if (!r.ExpandedLayoutOk)
+                    failures.Add($"{stage}: expanded cover/progress overlap ({r.Detail})");
                 if (r.Width > r.WindowWidth + 0.5)
                     failures.Add($"{stage}: card width {r.Width:0.##} exceeds window width {r.WindowWidth:0.##}");
                 if (!r.RadiusMatches)

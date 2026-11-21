@@ -19,10 +19,11 @@ public sealed class IncomingCallMonitor : IDisposable
 {
     private readonly object _gate = new();
     private System.Threading.Timer? _timer;
-    private bool _started;
+    private volatile bool _started;
     private readonly HashSet<IntPtr> _activeCalls = new();
     private readonly HashSet<uint> _pidCache = new();
     private int _scanTick;
+    private int _generation;
     private string[] _apps = Array.Empty<string>();
 
     /// <summary>检测到通话窗口（参数：进程名, 窗口标题, 类型）。</summary>
@@ -31,6 +32,9 @@ public sealed class IncomingCallMonitor : IDisposable
     /// <summary>启动轮询（间隔 1.5s，去抖窗口出现时序）。</summary>
     public void Start(System.Collections.Generic.IEnumerable<string> apps)
     {
+        // 先让旧回调失效，再切换状态，避免连续 Start/Stop 时两个扫描同时存活。
+        _started = false;
+        var generation = Interlocked.Increment(ref _generation);
         lock (_gate)
         {
             _started = true;
@@ -39,23 +43,38 @@ public sealed class IncomingCallMonitor : IDisposable
             _pidCache.Clear();
             _scanTick = 0;
         }
-        _timer?.Dispose();
-        _timer = new System.Threading.Timer(_ => Scan(), null, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1500));
+
+        var previous = _timer;
+        _timer = new System.Threading.Timer(_ => Scan(generation), null,
+            TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(1500));
+        RetireTimer(previous);
         AppLogger.Info($"Incoming call monitor started (apps: {string.Join(",", _apps)}).");
     }
 
     public void Stop()
     {
+        _started = false;
+        Interlocked.Increment(ref _generation);
         lock (_gate)
         {
-            _started = false;
             _activeCalls.Clear();
             _pidCache.Clear();
             _scanTick = 0;
         }
-        _timer?.Dispose();
+        var timer = _timer;
         _timer = null;
+        RetireTimer(timer);
     }
+
+    private static void RetireTimer(System.Threading.Timer? timer)
+    {
+        if (timer is null) return;
+        try { timer.Change(Timeout.Infinite, Timeout.Infinite); } catch (ObjectDisposedException) { }
+        timer.Dispose();
+    }
+
+    private bool IsCurrent(int generation)
+        => _started && generation == Volatile.Read(ref _generation);
 
     /// <summary>把 "Weixin.exe, QQ" 规范化成不含 .exe 的小写进程名数组。</summary>
     internal static string[] NormalizeApps(IEnumerable<string>? apps)
@@ -94,13 +113,13 @@ public sealed class IncomingCallMonitor : IDisposable
 
     internal static bool ShouldRefreshPidCache(int scanTick) => scanTick == 1 || scanTick % 4 == 0;
 
-    private void Scan()
+    private void Scan(int generation)
     {
         if (Monitor.TryEnter(_gate))
         {
             try
             {
-                if (!_started) return;
+                if (!IsCurrent(generation)) return;
                 string[] apps;
                 lock (_gate) apps = _apps;
                 if (apps.Length == 0) return;
@@ -142,6 +161,7 @@ public sealed class IncomingCallMonitor : IDisposable
                 var newCalls = new List<(string App, string Title, CallKind Kind)>();
                 EnumWindows((h, _) =>
                 {
+                    if (!IsCurrent(generation)) return false;
                     if (!IsWindowVisible(h)) return true;
                     GetWindowThreadProcessId(h, out var pid);
                     if (!pids.Contains(pid)) return true;
@@ -166,6 +186,7 @@ public sealed class IncomingCallMonitor : IDisposable
                 // 事件在锁外触发，避免订阅方回调用到本服务时死锁
                 foreach (var (app, title, kind) in newCalls)
                 {
+                    if (!IsCurrent(generation)) break;
                     AppLogger.Info($"Call window detected: '{title}' ({app}, kind={kind})");
                     try { CallStarted?.Invoke(app, title, kind); } catch { /* 订阅方异常不影响轮询 */ }
                 }

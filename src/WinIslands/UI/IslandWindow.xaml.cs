@@ -260,6 +260,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private IOSSpring? _cardHSpring;      // 卡片高度弹簧
     private IOSSpring? _cardFadeSpring;   // 展开↔收起内容交叉淡入弹簧（与尺寸同步，文字不"额外弹出"）
     private bool _cardAnimating;          // 卡片弹簧进行中（声波 / 取色渲染让路）
+    private bool _cardSizeTickPending;    // 本帧已有尺寸变化，待宽高都推进后统一提交裁剪
     private double _cardTargetW;
     private double _cardTargetH;
     private Action? _cardSpringCompleted; // 卡片弹簧收敛后的完成回调（兼容旧 Storyboard 语义）
@@ -585,6 +586,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         };
         // 2.3.0：启动时立即按当前低功耗设置同步一次（不等待设置变更事件）
         SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
+        SpringTicker.FrameUpdated += OnSpringFrameUpdated;
         KaraokeTextBlock.LowPowerModeOverride = _settings.Current.LowPowerMode;
         FadeOnTextChange.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
         LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
@@ -727,6 +729,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _vm.PageTransitionStarted -= OnPageTransitionStarted;
             _theme.ThemeChanged -= _onThemeChanged;
             _settings.Changed -= _onSettingsChanged;
+            SpringTicker.FrameUpdated -= OnSpringFrameUpdated;
 
             _collapseTimer.Stop();
             _hoverExpandTimer.Stop();
@@ -1970,8 +1973,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// <summary>卡片尺寸变化时同步圆角裁剪几何（防止亚像素尺寸导致圆角变方框）。</summary>
     private void OnCardSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // SizeChanged 可能晚于收尾携带旧的展开尺寸；始终以 Card.Width/Height 的最新目标为准。
-        FinalizeCardShape(Card.Width, Card.Height);
+        // 动画期间宽、高由不同弹簧推进；SizeChanged 只负责非动画态。动画帧末统一
+        // 在 OnSpringFrameUpdated 中提交裁剪，避免先到的宽度帧搭配旧高度写出矩形几何。
+        if (!_cardAnimating)
+            FinalizeCardShape(Card.Width, Card.Height);
         RefreshCopyToastTop();
     }
 
@@ -2062,7 +2067,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     internal readonly record struct CardDiagnosticResult(
         double Width, double Height, double WindowWidth, double OffsetX, double Radius, double ClipWidth,
         double GlassRadius, double ClipRadius, double ExpectedRadius, bool RadiusMatches,
-        bool CornersTransparent, string Detail);
+        bool CornersTransparent, bool ExpandedLayoutOk, string Detail);
 
     /// <summary>Lightweight per-frame geometry probe used while the spring is moving.</summary>
     internal readonly record struct CardShapeProbe(
@@ -2122,6 +2127,42 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 校验展开页封面与进度区域没有几何相交。不可见或尚未测量时视为不适用。
+    /// </summary>
+    private (bool Ok, string Detail) CaptureExpandedCoverProgressLayout()
+    {
+        try
+        {
+            if (!_vm.IsExpanded || BigArt is null || ProgressGrid is null)
+                return (true, "coverProgress=not-applicable");
+
+            if (BigArt.Visibility != Visibility.Visible || ProgressGrid.Visibility != Visibility.Visible)
+                return (true,
+                    $"coverProgress=not-applicable(art={BigArt.Visibility},progress={ProgressGrid.Visibility})");
+
+            if (BigArt.ActualWidth < 1 || BigArt.ActualHeight < 1
+                || ProgressGrid.ActualWidth < 1 || ProgressGrid.ActualHeight < 1)
+                return (true, "coverProgress=not-measured");
+
+            var art = BigArt.TransformToAncestor(Card).TransformBounds(
+                new Rect(0, 0, BigArt.ActualWidth, BigArt.ActualHeight));
+            var progress = ProgressGrid.TransformToAncestor(Card).TransformBounds(
+                new Rect(0, 0, ProgressGrid.ActualWidth, ProgressGrid.ActualHeight));
+            var overlap = Rect.Intersect(art, progress);
+            var ok = overlap.IsEmpty || overlap.Width <= 1 || overlap.Height <= 1;
+            var overlapText = overlap.IsEmpty ? "none" : $"{overlap.Width:0.#}x{overlap.Height:0.#}";
+            return (ok,
+                $"art={art.X:0.#},{art.Y:0.#},{art.Width:0.#}x{art.Height:0.#}, " +
+                $"progress={progress.X:0.#},{progress.Y:0.#},{progress.Width:0.#}x{progress.Height:0.#}, " +
+                $"overlap={overlapText}");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Expanded cover/progress layout probe failed", ex);
+            return (true, "coverProgress=probe-failed: " + ex.Message);
+        }
+    }
+    /// <summary>
     /// Full diagnostic snapshot: renders the host window, verifies corner transparency,
     /// and checks that all three radius consumers match the current card height.
     /// </summary>
@@ -2164,7 +2205,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                 : new byte[] { 255, 255, 255, 255 };
             var cornersOk = inBounds
                 && cornerAlpha[0] <= 24 && cornerAlpha[1] <= 24 && cornerAlpha[2] <= 24 && cornerAlpha[3] <= 24;
-            var detail = probe.Detail + $", corners=[{string.Join(",", cornerAlpha)}]";
+            var layout = CaptureExpandedCoverProgressLayout();
+            var detail = probe.Detail + $", corners=[{string.Join(",", cornerAlpha)}]"
+                + $", coverProgressOk={layout.Ok}, {layout.Detail}";
             AppLogger.Info($"Card shape [{stage}]: {detail}");
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -2176,13 +2219,14 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return new CardDiagnosticResult(
                 probe.Width, probe.Height, ActualWidth, offsetX, probe.Radius,
                 clip?.Rect.Width ?? double.NaN, probe.GlassRadius, probe.ClipRadius,
-                probe.ExpectedRadius, probe.RadiusMatches, cornersOk && probe.FitsWindow, detail);
+                probe.ExpectedRadius, probe.RadiusMatches, cornersOk && probe.FitsWindow,
+                layout.Ok, detail);
         }
         catch (Exception ex)
         {
             AppLogger.Error($"Card diagnostic capture failed: {stage}", ex);
             return new CardDiagnosticResult(double.NaN, double.NaN, double.NaN, double.NaN,
-                double.NaN, double.NaN, double.NaN, double.NaN, double.NaN, false, false, ex.Message);
+                double.NaN, double.NaN, double.NaN, double.NaN, double.NaN, false, false, true, ex.Message);
         }
     }
 
@@ -3231,8 +3275,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void Collapse()
     {
-        // Restore compact host capacity before shrinking the visible card.
-        EnsureWindowSizeFits(CompactWidth);
+        // 宿主窗口保持固定展开画布，直到卡片收回完成；提前缩窗口会把动画中的
+        // 圆角卡片裁成直角。
         // 先恢复胶囊行（紧凑行占满并垂直居中），再缩回紧凑尺寸
         AnimateGlass(false); // 智能透明度：紧凑态更通透
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
@@ -3433,8 +3477,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardFadeSpring = new IOSSpring();
         // Radius is not a separate spring: derive it from the live animated height on
         // every size tick. This keeps the pill fully rounded throughout collapse/expand.
-        _cardWSpring.SetCallbacks(v => { Card.Width = v; FinalizeCardShape(Card.Width, Card.Height); }, OnCardSpringSettled);
-        _cardHSpring.SetCallbacks(v => { Card.Height = v; FinalizeCardShape(Card.Width, Card.Height); }, OnCardSpringSettled);
+        // 宽、高各自写入后只记脏；SpringTicker 在本帧所有弹簧推进完后统一提交一次
+        // FinalizeCardShape，确保裁剪矩形和圆角始终来自同一帧的宽高组合。
+        _cardWSpring.SetCallbacks(v => { Card.Width = v; _cardSizeTickPending = true; }, OnCardSpringSettled);
+        _cardHSpring.SetCallbacks(v => { Card.Height = v; _cardSizeTickPending = true; }, OnCardSpringSettled);
         _cardFadeSpring.SetCallbacks(v => { ExpandedContent.Opacity = v; PillRow.Opacity = CrossFadeCurves.PillOpacity(v, _expandedFadeIn); ApplyContentParallax(v, _expandedFadeIn); ApplyPillRowParallax(v, _expandedFadeIn); }, OnCardSpringSettled);
     }
 
@@ -3443,8 +3489,18 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _cardWSpring?.Stop();
         _cardHSpring?.Stop();
         _cardFadeSpring?.Stop();
+        _cardSizeTickPending = false;
         _cardAnimating = false;
         _cardSpringCompleted = null;
+    }
+
+    /// <summary>所有弹簧完成本帧推进后，把宽、高合并成一次裁剪/圆角提交。</summary>
+    private void OnSpringFrameUpdated()
+    {
+        if (!_cardSizeTickPending) return;
+        _cardSizeTickPending = false;
+        if (!IsLoaded || _cardClip is null || Card is null) return;
+        FinalizeCardShape(Card.Width, Card.Height);
     }
 
     /// <summary>
@@ -3550,9 +3606,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (!IsLoaded || _vm.IsExpanded || _cardAnimating) return;
 
-        // 回到紧凑态前保证宿主窗口容纳最终宽度（宽度变化后窗口可能尚未跟上）。
-        EnsureWindowSizeFits(CompactWidth);
-
         if (clearAnimations)
         {
             Card.BeginAnimation(FrameworkElement.WidthProperty, null);
@@ -3576,6 +3629,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Width = double.NaN;
         UpdateCompactContentWidth(CompactWidth);
         ResetContentParallax();
+        // 等卡片尺寸与内容布局都落定后再校正宿主窗口，避免动画尾部出现裁边。
+        EnsureWindowSizeFits(CompactWidth);
         FinalizeCardShape(CompactWidth, CompactHeight, force: true);
         ScheduleCardShapeReconcile();
     }
@@ -3589,6 +3644,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         try
         {
             _cardAnimating = false;
+            _cardSizeTickPending = false;
             Card.BeginAnimation(FrameworkElement.WidthProperty, null);
             Card.BeginAnimation(FrameworkElement.HeightProperty, null);
             // 收尾前先把宿主窗口扩到最终卡片宽度，避免窗口尺寸落后导致左右裁边。

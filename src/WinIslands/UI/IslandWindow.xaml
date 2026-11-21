@@ -1272,7 +1272,7 @@
                                            Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVisInvert}}"/>
                             </Grid>
 
-                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.ColumnSpan="5" Width="176" Margin="34,0,0,0" HorizontalAlignment="Left"
+                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1" Width="131" Margin="55,0,0,0" HorizontalAlignment="Left"
                                   Visibility="{Binding ExpandedShowProgress, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="14"/>

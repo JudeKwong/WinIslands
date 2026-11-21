@@ -33,8 +33,11 @@ public sealed class SystemNotificationMonitor : IDisposable
     private readonly object _gate = new();
     private UserNotificationListener? _listener;
     private bool _primed;
-    private bool _started;
+    private volatile bool _started;
     private bool _disposed;
+    private int _starting;
+    private int _polling;
+    private int _generation;
 
     public event EventHandler<SystemNotificationEventArgs>? NotificationReceived;
 
@@ -48,12 +51,15 @@ public sealed class SystemNotificationMonitor : IDisposable
     {
         if (_disposed) return false;
         if (_started) return true;
+        if (Interlocked.CompareExchange(ref _starting, 1, 0) != 0) return false;
         try
         {
             _listener = UserNotificationListener.Current;
             var access = await _listener.RequestAccessAsync().AsTask().ConfigureAwait(true);
             AppLogger.Info($"System notification listener access: {access}");
             if (access != UserNotificationListenerAccessStatus.Allowed) return false;
+            if (_disposed) return false;
+            Interlocked.Increment(ref _generation);
             _started = true;
             _timer.Start();
             _ = PollAsync(); // 立即建立基线
@@ -64,14 +70,23 @@ public sealed class SystemNotificationMonitor : IDisposable
             AppLogger.Warn($"System notification listener start failed: {ex.Message}");
             return false;
         }
+        finally
+        {
+            Interlocked.Exchange(ref _starting, 0);
+        }
     }
 
     private async Task PollAsync()
     {
         if (!_started || _listener is null) return;
+        if (Interlocked.CompareExchange(ref _polling, 1, 0) != 0) return;
+
+        var generation = Volatile.Read(ref _generation);
         try
         {
             var notifications = await _listener.GetNotificationsAsync(NotificationKinds.Toast).AsTask().ConfigureAwait(true);
+            if (!IsCurrent(generation)) return;
+
             var current = new HashSet<uint>();
             foreach (var notification in notifications)
             {
@@ -95,6 +110,7 @@ public sealed class SystemNotificationMonitor : IDisposable
                         ?? new List<string>();
                     var title = texts.Count > 0 ? texts[0] : source == MessengerSource.QQ ? "QQ" : "微信";
                     var body = texts.Count > 1 ? texts[1] : string.Empty;
+                    if (!IsCurrent(generation)) return;
                     AppLogger.Info($"System notification captured: app={appName} aumid={aumid} title={title}");
                     NotificationReceived?.Invoke(this, new SystemNotificationEventArgs(source.Value, title, body, aumid));
                 }
@@ -104,6 +120,7 @@ public sealed class SystemNotificationMonitor : IDisposable
                 }
             }
 
+            if (!IsCurrent(generation)) return;
             lock (_gate)
             {
                 // 通知被清除后从 seen 中移除，避免 Id 复用后永久跳过。
@@ -115,7 +132,14 @@ public sealed class SystemNotificationMonitor : IDisposable
         {
             AppLogger.Debug($"System notification poll failed: {ex.Message}");
         }
+        finally
+        {
+            Interlocked.Exchange(ref _polling, 0);
+        }
     }
+
+    private bool IsCurrent(int generation)
+        => _started && generation == Volatile.Read(ref _generation);
 
     private static MessengerSource? DetectSource(string appName, string aumid)
     {
@@ -131,6 +155,7 @@ public sealed class SystemNotificationMonitor : IDisposable
     public void Stop()
     {
         _started = false;
+        Interlocked.Increment(ref _generation);
         _timer.Stop();
         lock (_gate)
         {

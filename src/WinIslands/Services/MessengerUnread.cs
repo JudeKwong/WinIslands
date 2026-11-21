@@ -109,6 +109,9 @@ public sealed class MessengerUnreadMonitor : IDisposable
     {
         if (_disposed) return false;
         if (_started) return true;
+
+        // 上次启动若在注册阶段失败，先清掉遗留的隐藏窗口，避免每次重试累积钩子。
+        ReleaseHook();
         try
         {
             var parameters = new HwndSourceParameters("WinIslandsMessengerHook")
@@ -126,6 +129,7 @@ public sealed class MessengerUnreadMonitor : IDisposable
             if (!RegisterShellHookWindow(_hwnd))
             {
                 AppLogger.Warn($"RegisterShellHookWindow failed: {Marshal.GetLastWin32Error()}");
+                ReleaseHook();
                 return false;
             }
             _started = true;
@@ -135,6 +139,7 @@ public sealed class MessengerUnreadMonitor : IDisposable
         }
         catch (Exception ex)
         {
+            ReleaseHook();
             AppLogger.Warn($"Messenger unread monitor start failed: {ex.Message}");
             return false;
         }
@@ -142,22 +147,44 @@ public sealed class MessengerUnreadMonitor : IDisposable
 
     public void Stop()
     {
-        if (!_started) return;
+        var hadResources = _started || _source is not null || _hwnd != IntPtr.Zero;
         _started = false;
         _cleanupTimer.Stop();
-        try { if (_hwnd != IntPtr.Zero) DeregisterShellHookWindow(_hwnd); } catch { }
-        try { if (_source is not null) { _source.RemoveHook(WndProc); _source.Dispose(); } } catch { }
+        ReleaseHook();
+        lock (_gate)
+        {
+            hadResources |= _items.Count > 0;
+            _items.Clear();
+        }
+        if (hadResources) Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ReleaseHook()
+    {
+        var source = _source;
+        var hwnd = _hwnd;
         _source = null;
         _hwnd = IntPtr.Zero;
-        lock (_gate) _items.Clear();
-        Changed?.Invoke(this, EventArgs.Empty);
+        _shellHookMessage = 0;
+
+        try { if (hwnd != IntPtr.Zero) DeregisterShellHookWindow(hwnd); } catch { }
+        try
+        {
+            if (source is not null)
+            {
+                source.RemoveHook(WndProc);
+                source.Dispose();
+            }
+        }
+        catch { }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         try
         {
-            if (msg == _shellHookMessage && wParam.ToInt32() == HSHELL_FLASH)
+            if (_started && !_disposed && _shellHookMessage != 0
+                && msg == _shellHookMessage && wParam.ToInt32() == HSHELL_FLASH)
                 OnFlash(lParam);
         }
         catch (Exception ex)

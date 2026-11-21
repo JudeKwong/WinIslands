@@ -1,3 +1,19 @@
+## WinIslands 3.1.5（正式版 / Stable）
+### 更新内容
+
+- 🪟 **展开与收起动画重新设计**：宽高、圆角与裁剪区域改为同一帧统一提交，修复展开后收回时短暂变为长方形直角的问题；连续往返、快速切换和减少动态效果模式下均保持完整胶囊形状
+- 🎵 **展开页进度条布局重新设计**：进度条与播放时间移到歌名/歌手下方，与专辑封面保持固定间距，彻底避免进度条、时间文字与封面重合，同时保持底部播放控制完整显示
+- 🧩 **后台监听稳定性提升**：优化来电、微信/QQ 消息与系统通知监听的启动、停止和轮询生命周期，防止重复扫描、旧回调残留及查询任务叠加；设置页文本遍历改为安全遍历，降低长时间使用后无响应或崩溃的风险
+- ✅ **质量验证**：Release 编译通过，654 项单元测试全部通过；多轮展开/收起、快速切换、减少动态效果和发布版 exe 回归检查通过；新增封面与进度区域几何相交自动检测
+
+## WinIslands 3.1.5 (Stable)
+### What's New
+
+- 🪟 **Expand and collapse animation redesigned**: width, height, corner radius and clip geometry are now committed together per frame, fixing the brief rectangular, sharp-cornered state after collapse. Repeated transitions, fast toggles and reduced-motion mode keep the full pill shape
+- 🎵 **Expanded progress layout redesigned**: the progress bar and playback times now sit below the track title/artist with a fixed gap from the album cover, eliminating any overlap with the artwork or time labels while keeping the bottom playback controls fully visible
+- 🧩 **More resilient background monitoring**: incoming-call, WeChat/QQ and system-notification listeners now have safer start/stop lifecycles and non-overlapping polling, preventing duplicate scans, stale callbacks and query pile-ups. Settings-page text traversal is now loop-safe, reducing the risk of unresponsiveness or crashes during long sessions
+- ✅ **Verification**: Release build succeeded with all 654 unit tests passing; repeated expand/collapse, fast-toggle, reduced-motion and published-exe regression checks passed. Cover/progress overlap is now detected automatically
+
 ## WinIslands 3.1.4（正式版 / Stable）
 ### 更新内容
 

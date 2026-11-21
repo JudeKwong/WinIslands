@@ -356,6 +356,9 @@ public static class SpringTicker
 
     public static int ActiveCount => _active.Count;
 
+    /// <summary>所有活跃弹簧完成本帧推进后触发一次；用于把同一帧内的多个尺寸更新合并成一次布局/裁剪提交。</summary>
+    internal static event Action? FrameUpdated;
+
     internal static void Add(IOSSpring spring)
     {
         if (!_hooked)
@@ -404,6 +407,8 @@ public static class SpringTicker
         // 倒序遍历，允许 Tick 内部 Complete 摘除
         for (var i = _active.Count - 1; i >= 0; i--)
             _active[i].Tick(dt);
+
+        try { FrameUpdated?.Invoke(); } catch { /* 调用方自行兜底，单帧异常不影响弹簧引擎 */ }
     }
 }
 

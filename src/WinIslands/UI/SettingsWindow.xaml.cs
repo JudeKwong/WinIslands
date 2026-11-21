@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -50,6 +51,7 @@ public partial class SettingsWindow : Window
     private Action? _scheduleChanged;
     private Action? _pomodoroTick;
     private EventHandler? _pluginsReloaded;
+    private SelectionChangedEventHandler? _onTabChanged;
 
     public SettingsWindow(SettingsViewModel vm, SettingsService service, CiderMediaProvider? cider,
         TodoService? todo = null,
@@ -144,6 +146,7 @@ public partial class SettingsWindow : Window
             try { _autoApply.Stop(); } catch { }
             try { _saveDebounce.Stop(); } catch { }
             try { Localization.LanguageChanged -= _onLanguageChanged; } catch { }
+            try { if (MainTabs != null && _onTabChanged is not null) MainTabs.SelectionChanged -= _onTabChanged; } catch { }
         };
 
         // 初始化完成后才允许"手动调整关闭自动"
@@ -154,8 +157,10 @@ public partial class SettingsWindow : Window
             // Tab 切换后可能延迟创建可视元素，重新执行黑字兜底修复
             if (MainTabs != null)
             {
-                MainTabs.SelectionChanged += (_, _) =>
+                _onTabChanged ??= (_, _) =>
                     Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(FixInheritedBlackText));
+                MainTabs.SelectionChanged -= _onTabChanged;
+                MainTabs.SelectionChanged += _onTabChanged;
             }
         };
     }
@@ -173,24 +178,34 @@ public partial class SettingsWindow : Window
             }
         }
 
-        private void WalkTextBlocks(DependencyObject parent)
+        private void WalkTextBlocks(DependencyObject root)
         {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            var pending = new Stack<DependencyObject>();
+            var visited = new HashSet<DependencyObject>(ReferenceEqualityComparer.Instance);
+            pending.Push(root);
+
+            while (pending.Count > 0)
             {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is System.Windows.Controls.TextBlock tb)
+                var parent = pending.Pop();
+                if (!visited.Add(parent)) continue;
+
+                if (parent is System.Windows.Controls.TextBlock tb
+                    && tb.ReadLocalValue(System.Windows.Controls.TextBlock.ForegroundProperty) == DependencyProperty.UnsetValue)
                 {
-                    if (tb.ReadLocalValue(System.Windows.Controls.TextBlock.ForegroundProperty) == DependencyProperty.UnsetValue)
-                    {
-                        var eff = tb.Foreground as SolidColorBrush;
-                        if (eff != null && eff.Color == Colors.Black)
-                        {
-                            tb.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
-                            AppLogger.Info($"Fix black text: '{tb.Text}' name={tb.Name}");
-                        }
-                    }
+                    var eff = tb.Foreground as SolidColorBrush;
+                    if (eff != null && eff.Color == Colors.Black)
+                        tb.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
                 }
-                WalkTextBlocks(child);
+
+                int count;
+                try { count = VisualTreeHelper.GetChildrenCount(parent); }
+                catch (InvalidOperationException) { continue; }
+
+                for (int i = 0; i < count; i++)
+                {
+                    try { pending.Push(VisualTreeHelper.GetChild(parent, i)); }
+                    catch (InvalidOperationException) { }
+                }
             }
         }
 
