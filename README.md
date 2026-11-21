@@ -26,9 +26,6 @@ WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶
 
 播放、暂停、切歌、调节音量和拖动进度，都能直接在岛上操作。展开时看完整歌词，收起后只留一行，让桌面继续做自己的事。
 
-<div align="center">
-  <img src="docs/screenshot-compact.png" width="430" alt="WinIslands 收起状态下的音乐组件" />
-</div>
 
 - **主流播放器兼容**：通过 Windows 全局媒体会话（SMTC）接入网易云音乐、QQ 音乐、Spotify、Apple Music 等播放器，并额外支持 Cider 本地 API。
 - **逐字歌词与双语显示**：本地 LRC、AMLL TTML、播放器歌词接口和可选在线歌词统一管理，支持逐字高亮、翻译、一句复制和逐首时间微调。
