@@ -2237,24 +2237,29 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>按 优先级高→低、入队 早→晚 重排队列并选出当前显示项（过期项同时清除）。</summary>
     private void RecomputeActivePush()
     {
-        _pushes.RemoveAll(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow);
-
-        // 通知队列管理：超过最大深度时丢弃最低优先级的旧通知
+        var dropped = _pushes
+            .Where(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow)
+            .ToList();
         var maxQueue = Math.Clamp(_settings.Current.NotificationQueueMax, 3, 20);
-        while (_pushes.Count > maxQueue)
+        while (_pushes.Count - dropped.Count > maxQueue)
         {
-            // 找到优先级最低的（PriorityRank 最小，同优先级取最早插入的）
             var minIdx = 0;
             var minRank = int.MaxValue;
             for (var j = 0; j < _pushes.Count; j++)
             {
+                if (dropped.Contains(_pushes[j])) continue;
                 var rank = _pushes[j].PriorityRank + TypePriorityRank(_pushes[j].Type);
                 if (rank < minRank) { minRank = rank; minIdx = j; }
             }
-            _pushes.RemoveAt(minIdx);
+            dropped.Add(_pushes[minIdx]);
         }
-
-        // 排序：优先级高 > 类型优先级（error > warning > success > info） > 插入顺序
+        foreach (var push in dropped)
+        {
+            _pushes.Remove(push);
+            if (push.MessengerUnread is not MessengerUnread unread) continue;
+            _messengerMonitor?.Remove(unread);
+            RemoveMessengerUnread(unread);
+        }
         var sorted = _pushes
             .Select((p, i) => (p, i))
             .OrderByDescending(t => t.p.PriorityRank + TypePriorityRank(t.p.Type))
