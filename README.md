@@ -21,11 +21,13 @@ WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶
 
 它使用 **.NET 8 + WPF** 原生构建，不依赖 Electron，支持 Windows 10 / 11 与 x64 / ARM64。界面、组件和交互都可以按自己的习惯调整。
 
+![WinIslands 品牌主视觉：Windows 上的灵动岛](docs/images/readme/hero.webp)
 
 ## 听歌时，歌词就在抬眼处
 
 播放、暂停、切歌、调节音量和拖动进度，都能直接在岛上操作。展开时看完整歌词，收起后只留一行，让桌面继续做自己的事。
 
+![音乐播放控制、展开歌词与逐字高亮](docs/images/readme/music.webp)
 
 - **主流播放器兼容**：通过 Windows 全局媒体会话（SMTC）接入网易云音乐、QQ 音乐、Spotify、Apple Music 等播放器，并额外支持 Cider 本地 API。
 - **逐字歌词与双语显示**：本地 LRC、AMLL TTML、播放器歌词接口和可选在线歌词统一管理，支持逐字高亮、翻译、一句复制和逐首时间微调。
@@ -44,6 +46,8 @@ WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶
 ## 把常用信息摆在手边
 
 时间、天气、日期、CPU / GPU / 内存 / 磁盘、网络速度、电量、输入法和快捷开关等 30+ 组件，都可以自由组合。
+
+![紧凑态与展开态：组件、歌词和媒体控制](docs/images/readme/components.webp)
 
 | 想看的 | WinIslands 能做什么 |
 | --- | --- |
@@ -68,6 +72,8 @@ WinIslands 支持本地组件插件。插件以独立进程运行，读取标准
 ## 任何应用，都能把信息送上岛
 
 通过本地 HTTP / WebSocket 接口，第三方软件可以把下载进度、任务状态、播放通知或其他实时信息推送到灵动岛。
+
+![本地 API 推送卡片与灵动岛实时展示](docs/images/readme/api.webp)
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
@@ -254,6 +260,8 @@ WinIslands 原创代码采用 [MIT License](LICENSE)。.NET、WPF、Windows SDK 
 感谢所有使用、反馈和参与改进 WinIslands 的朋友。
 
 ## 感谢支持
+
+![WinIslands 分享卡片：免费、开源、无遥测](docs/images/readme/share.webp)
 
 如果 WinIslands 让你的桌面顺手了一点，欢迎点一个 **Star**，也欢迎通过 [Issues](https://github.com/JudeKwong/WinIslands/issues) 反馈问题和建议。
 
