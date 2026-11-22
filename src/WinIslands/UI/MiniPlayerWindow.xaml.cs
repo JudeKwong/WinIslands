@@ -36,7 +36,7 @@ public partial class MiniPlayerWindow : Window
         };
     }
 
-    /// <summary>应用主题刷子（圆角液态玻璃外壳 + 文字颜色）。</summary>
+    /// <summary>应用主题刷子（圆角毛玻璃外壳 + 文字颜色）。</summary>
     private void ApplyTheme()
     {
         Root.Background = _theme.CardBackground;

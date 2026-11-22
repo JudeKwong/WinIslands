@@ -12,8 +12,6 @@ public static class DoNotDisturb
     {
         if (IsAllowlisted(s, source)) return false;
         if (s.DoNotDisturbManual) return true;
-        // 开会静音助手：检测到会议时自动勿扰（仅本机前台窗口检测，不联网）
-        if (s.MeetingAssistantEnabled && s.MeetingAutoDnd && MeetingMonitor.IsInMeeting) return true;
         if (!s.DoNotDisturbEnabled) return false;
         var start = TimeOfDay(s.DoNotDisturbStartHour, s.DoNotDisturbStartMinute);
         var end = TimeOfDay(s.DoNotDisturbEndHour, s.DoNotDisturbEndMinute);

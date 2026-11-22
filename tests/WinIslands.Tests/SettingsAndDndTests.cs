@@ -24,7 +24,11 @@ public class SettingsAndDndTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { /* ignore */ }
     }
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        WriteIndented = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
 
     [Fact]
     public void Settings_RoundTrip_Preserves_Values()
@@ -45,10 +49,8 @@ public class SettingsAndDndTests : IDisposable
             DnDAllowlist = new List<string> { "QQ.exe", "Bluetooth" },
             UsageMergeItems = new List<string> { "Mic", "Cam" },
             MediaApps = new List<MediaAppEntry> { new() { Key = "Spotify.exe", Enabled = false } },
-            Rules = new List<AppRule>
-            {
-                new() { Name = "晚上隐藏", Condition = RuleCondition.TimeRange, StartHour = 22, EndHour = 8, Action = RuleAction.Hide },
-            },
+            NotificationAppFilterMode = NotificationAppFilterMode.Whitelist,
+            NotificationAppFilters = new List<string> { "WeChat", "com.tencent.qq" },
             Components = new ComponentFlags { TimeWhenIdle = true, LyricsWhenPlaying = true },
         };
 
@@ -71,8 +73,8 @@ public class SettingsAndDndTests : IDisposable
         Assert.Contains("Mic", back.UsageMergeItems);
         Assert.Single(back.MediaApps);
         Assert.False(back.MediaApps[0].Enabled);
-        Assert.Single(back.Rules);
-        Assert.Equal(RuleAction.Hide, back.Rules[0].Action);
+        Assert.Equal(NotificationAppFilterMode.Whitelist, back.NotificationAppFilterMode);
+        Assert.Equal(new[] { "WeChat", "com.tencent.qq" }, back.NotificationAppFilters);
         Assert.True(back.Components.TimeWhenIdle);
         Assert.True(back.Components.LyricsWhenPlaying);
     }
@@ -85,7 +87,8 @@ public class SettingsAndDndTests : IDisposable
         var s = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts)!;
         Assert.NotNull(s.Components);
         Assert.Empty(s.MediaApps);
-        Assert.Empty(s.Rules);
+        Assert.Empty(s.NotificationAppFilters);
+        Assert.Equal(NotificationAppFilterMode.All, s.NotificationAppFilterMode);
         Assert.Empty(s.LyricTimeOffsets);
         Assert.True(s.CompactWidthAuto);
         Assert.Equal(360, s.CompactWidth);
@@ -99,24 +102,29 @@ public class SettingsAndDndTests : IDisposable
         // 白名单来源不受手动勿扰影响
         s.DnDAllowlist.Add("Bluetooth");
         Assert.False(DoNotDisturb.IsActive(s, "Bluetooth"));
+        Assert.False(DoNotDisturb.IsActive(s, "bluetooth"));
         Assert.True(DoNotDisturb.IsActive(s, "QQ.exe"));
     }
 
     [Fact]
-    public void Dnd_Time_Range_Cross_Midnight()
+    public void Dnd_Time_Range_Uses_Current_Clock()
     {
-        // 跨天反向区间（22:00-08:00）与正向区间（09:00-18:00）的整点判定
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 23));
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 3));
-        Assert.False(RuleEngine.InTimeRange(22, 8, nowHour: 12));
-        Assert.True(RuleEngine.InTimeRange(9, 18, nowHour: 12));
-        Assert.False(RuleEngine.InTimeRange(9, 18, nowHour: 20));
-        // 相同小时：仅该整点小时命中
-        Assert.True(RuleEngine.InTimeRange(20, 20, nowHour: 20));
-        Assert.False(RuleEngine.InTimeRange(20, 20, nowHour: 21));
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 3));
-        Assert.False(RuleEngine.InTimeRange(22, 8, nowHour: 12));
-        Assert.True(RuleEngine.InTimeRange(9, 18, nowHour: 12));
-        Assert.False(RuleEngine.InTimeRange(9, 18, nowHour: 20));
+        var nowHour = DateTime.Now.Hour;
+        var s = new AppSettings
+        {
+            DoNotDisturbEnabled = true,
+            DoNotDisturbStartHour = nowHour,
+            DoNotDisturbEndHour = (nowHour + 2) % 24,
+        };
+        Assert.True(DoNotDisturb.IsActive(s, null));
+
+        s.DoNotDisturbStartHour = (nowHour + 2) % 24;
+        s.DoNotDisturbEndHour = (nowHour + 4) % 24;
+        Assert.False(DoNotDisturb.IsActive(s, null));
+
+        // 起止相同视为未配置时间段
+        s.DoNotDisturbStartHour = nowHour;
+        s.DoNotDisturbEndHour = nowHour;
+        Assert.False(DoNotDisturb.IsActive(s, null));
     }
 }

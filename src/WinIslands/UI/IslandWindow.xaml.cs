@@ -771,7 +771,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     // ── 岛仔（Daozai）皮肤 passthrough（颜色/按钮/页码豆均取自参考项目 theme.rs）──
     public bool IsDaozai => _theme.IsDaozai;
-    public bool IsLiquidGlass => _theme.IsLiquidGlass;
     public bool KeepExpandedForPreview { get; set; }
 
     public bool PageNavVisible => _vm.IsExpanded && _vm.HasMultiplePages;
@@ -1218,18 +1217,21 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
 
     private void Card_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
+        try
+        {
+            var p = PointToScreen(Mouse.GetPosition(this));
+            GlassBackdrop.CaptureRegion(new Rect(p.X - 460, p.Y - 360, 920, 720));
+        }
+        catch
+        {
+            // Capture is best-effort; wallpaper sampling still backs the glass.
+        }
+
         MenuLock.Header = _settings.Current.IsLocked
             ? Localization.Get("Island_Unlock")
             : Localization.Get("Island_Lock");
         MenuOnlineLyrics.Header = Localization.Get("Island_OnlineLyrics");
         MenuOnlineLyrics.IsChecked = _settings.Current.OnlineLyricsEnabled;
-    }
-
-    /// <summary>点击番茄钟组件：暂停/继续。</summary>
-    private void TimerItem_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.ToggleTimerPause();
-        e.Handled = true;
     }
 
     /// <summary>点击输入法组件：切换中/英输入法。</summary>
@@ -1403,55 +1405,40 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void ApplyGlassLayer()
     {
         if (GlassLayer is null) return;
-        if (_theme.IsLiquidGlass)
-        {
-            // LiquidMusic 内描边高光：顶部 10% 白色高光 -> 透明，增强玻璃层次
-            var sheen = new LinearGradientBrush
-            {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(0, 1),
-            };
-            sheen.GradientStops.Add(new GradientStop(System.Windows.Media.Color.FromArgb(26, 255, 255, 255), 0));
-            sheen.GradientStops.Add(new GradientStop(Colors.Transparent, 0.55));
-            sheen.Freeze();
-            GlassLayer.Background = sheen;
-            GlassLayer.Opacity = 1;
-            return;
-        }
-        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; } // 岛仔经典黑是实色，无玻璃叠加
+        // 灵动岛本体只使用纯黑/主题色平面，不再叠加毛玻璃折射层。
+        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; }
         var b = new SolidColorBrush(_theme.TintColor);
         b.Freeze();
         GlassLayer.Background = b;
     }
 
-    /// <summary>智能透明度分层：展开时玻璃层平滑升不透明度（卡片更实），收起回落（更通透）；
-    /// 封面取色生效时玻璃归零，避免双重叠加。动画时长跟随当前动效皮肤，连贯不生硬。</summary>
+    /// <summary>智能透明度分层：非纯黑主题展开时玻璃层平滑升不透明度，收起回落；
+    /// 纯黑灵动岛始终为 0，不叠加任何光学层。动画时长跟随当前动效皮肤。</summary>
     private void AnimateGlass(bool expanded)
     {
         if (GlassLayer is null) return;
-        if (_theme.IsLiquidGlass) { GlassLayer.Opacity = 1; return; } // 液态玻璃高光常驻
-        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; } // 岛仔皮肤不使用玻璃层
-        var tintActive = expanded && _settings.Current.CoverTintBackground && _vm.Artwork != null;
-        var target = tintActive ? 0 : (expanded ? GlassTargetOpacity : 0);
+        var glassTarget = _theme.IsDaozai ? 0.0 : (expanded ? GlassTargetOpacity : 0.0);
+
         _glassAnimSb?.Stop();
         _glassAnimSb = null;
-        if (_settings.Current.ReduceMotion)
+        if (_settings.Current.ReduceMotion || !IsLoaded)
         {
-            GlassLayer.Opacity = target;
+            GlassLayer.Opacity = glassTarget;
             return;
         }
+
         var (styleEase, styleMs) = GetSizeAnimationStyle(expanded);
         var dur = (int)Math.Clamp(styleMs * 0.72, 200, 900);
         var sb = new Storyboard();
-        AddAnim(sb, GlassLayer, UIElement.OpacityProperty, target, dur, styleEase);
-        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode); // 120fps（跟随显示器刷新率）
+        AddAnim(sb, GlassLayer, UIElement.OpacityProperty, glassTarget, dur, styleEase);
+        AnimationFrameRate.Apply(sb, _settings.Current.LowPowerMode);
         _glassAnimSb = sb;
         sb.Completed += (_, _) =>
         {
             if (!ReferenceEquals(_glassAnimSb, sb)) return;
             _glassAnimSb = null;
             GlassLayer.BeginAnimation(UIElement.OpacityProperty, null);
-            GlassLayer.Opacity = target;
+            GlassLayer.Opacity = glassTarget;
         };
         sb.Begin();
     }
@@ -1516,7 +1503,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SliderTrackBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SliderThumbBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDaozai)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLiquidGlass)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiSurfaceBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiButtonBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaozaiButtonHoverBrush)));
@@ -1882,9 +1868,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private (FrameworkElement Element, TranslateTransform Transform)? GetPageVisual(IslandPage page) => page.Key switch
     {
         "Music" => (MusicPagePanel, MusicPageTranslate),
-        "Focus" => (FocusPagePanel, FocusPageTranslate),
-        "Todo" => (TodoPagePanel, TodoPageTranslate),
-        "Schedule" => (SchedulePagePanel, SchedulePageTranslate),
         _ => null,
     };
 
@@ -1902,9 +1885,6 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         var activeKey = _vm.ActivePage?.Key;
         ResetPageVisual(MusicPagePanel, MusicPageTranslate, activeKey == "Music");
-        ResetPageVisual(FocusPagePanel, FocusPageTranslate, activeKey == "Focus");
-        ResetPageVisual(TodoPagePanel, TodoPageTranslate, activeKey == "Todo");
-        ResetPageVisual(SchedulePagePanel, SchedulePageTranslate, activeKey == "Schedule");
 
         ActivePageTitleText.Opacity = 1;
         ActivePageTitleTranslate.X = 0;
@@ -2246,23 +2226,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         if (GlassLayer is not null) GlassLayer.CornerRadius = rounded;
         // 字体缩放 = 1 时清空 LayoutTransform（走普通布局路径，动画期间布局更轻、更快）；
         // 只有用户设置缩放时才使用 ScaleTransform，避免无谓的变换开销。
-        Card.BorderThickness = _theme.IsDaozai && !_theme.IsLiquidGlass ? new Thickness(0) : new Thickness(1);
-        // LiquidMusic 程序坞配方：0 8px 30px rgba(0,0,0,.28) 柔和投影 + 半透明玻璃底 + 1px 内高光
-        if (_theme.IsLiquidGlass)
-        {
-            Card.Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                BlurRadius = 34,
-                ShadowDepth = 10,
-                Direction = 270,
-                Opacity = 0.45,
-                Color = Colors.Black,
-            };
-        }
-        else if (Card.Effect is System.Windows.Media.Effects.DropShadowEffect)
-        {
+        Card.BorderThickness = _theme.IsDaozai ? new Thickness(0) : new Thickness(1);
+        // 灵动岛使用纯黑平面，不额外叠加玻璃投影。
+        if (Card.Effect is System.Windows.Media.Effects.DropShadowEffect)
             Card.Effect = null;
-        }
         Card.LayoutTransform = Math.Abs(FontScale - 1.0) < 0.001 ? null : new ScaleTransform(FontScale, FontScale);
         UpdateLyricLineStyle();
         ApplySize();
@@ -2481,29 +2448,33 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
 
-    /// <summary>右键菜单主题色（圆角液态玻璃）。</summary>
+    /// <summary>右键菜单主题色（圆角毛玻璃）。</summary>
     private void ApplyMenuTheme()
     {
         void Add(string key, Brush b) { b.Freeze(); Resources[key] = b; }
-        SolidColorBrush bg, border, text, hover;
+        SolidColorBrush bg, border, text, hover, glassTint;
         if (_theme.IsDark)
         {
-            bg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xEE, 0x1B, 0x1B, 0x26));
-            border = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF));
-            text = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF2, 0xF2, 0xF7));
+            bg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x0A, 0x12, 0x14, 0x1A));
+            border = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+            text = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF4, 0xF5, 0xFA));
             hover = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+            glassTint = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x15, 0x16, 0x1C));
         }
         else
         {
-            bg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xEE, 0xF5, 0xF5, 0xFA));
-            border = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF));
+            bg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x08, 0xF7, 0xF9, 0xFD));
+            border = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x28, 0x00, 0x00, 0x00));
             text = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1D, 0x1D, 0x24));
-            hover = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0x00, 0x00, 0x00));
+            hover = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x1C, 0x00, 0x00, 0x00));
+            glassTint = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF2, 0xF4, 0xF9));
         }
         Add("MenuBgBrush", bg);
         Add("MenuBorderBrush", border);
         Add("MenuTextBrush", text);
         Add("MenuHoverBrush", hover);
+        Add("MenuGlassTintBrush", glassTint);
+        Resources["MenuGlassIsDark"] = _theme.IsDark;
 
         // 直接设置菜单背景/前景，保证即使资源查找失败也不会出现白底
         if (IslandMenu is not null)
@@ -3039,13 +3010,13 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
                     StartPoint = new System.Windows.Point(0, 0),
                     EndPoint = new System.Windows.Point(1, 1),
                 };
-                _tintStop0 = new GradientStop(System.Windows.Media.Color.FromArgb(0xE6, color.Value.R, color.Value.G, color.Value.B), 0);
+                _tintStop0 = new GradientStop(System.Windows.Media.Color.FromArgb((byte)0xE6, color.Value.R, color.Value.G, color.Value.B), 0);
                 _tintStop1 = new GradientStop(baseColor, 1);
                 _tintBrush.GradientStops.Add(_tintStop0);
                 _tintBrush.GradientStops.Add(_tintStop1);
             }
             Card.Background = _tintBrush;
-            // 封面取色生效时玻璃层归零，避免叠加
+            // 主题底色玻璃层归零，避免与封面渐变双重叠加
             _glassAnimSb?.Stop();
             _glassAnimSb = null;
             if (GlassLayer is not null) GlassLayer.Opacity = 0;
@@ -3105,7 +3076,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         {
             Card.Background = _theme.CardBackground;
         }
-        // 无封面取色时重新启用玻璃分层（展开态更实、紧凑态通透）
+        // 无封面取色时恢复主题 tint，并重新启用玻璃分层（展开态更实、紧凑态通透）
+        ApplyGlassLayer();
         if (GlassLayer is not null && (_vm.IsExpanded || !_settings.Current.CoverTintBackground))
             AnimateGlass(_vm.IsExpanded);
     }
@@ -3512,8 +3484,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (!_theme.IsDaozai) return ComputeCardRuntimeRadius(height, _settings.Current.CornerRadius);
         var h = double.IsFinite(height) ? Math.Max(4.0, height) : 4.0;
-        // 岛仔黑：33px 大圆角；岛仔液态玻璃：LiquidMusic 程序坞 16px 圆角
-        return _theme.IsLiquidGlass ? Math.Min(h / 2.0, 16.0) : Math.Min(h / 2.0, 33.0);
+        // 纯黑灵动岛：圆角 = min(高/2, 33)
+        return Math.Min(h / 2.0, 33.0);
     }
 
     internal static double ComputeCardRuntimeRadius(double height, double settingRadius)

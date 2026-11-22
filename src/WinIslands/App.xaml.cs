@@ -34,12 +34,10 @@ public partial class App : Application
     private NetworkStatusMonitor? _network;
     private GlobalHotkeyService? _hotkeys;
     private QuickLauncherWindow? _launcher;
-    private ClipboardPanelWindow? _clipboardPanel;
     private PluginService? _plugins;
     private PluginManagerWindow? _pluginManager;
     private IslandApiServer? _islandApi;
     private MediaAppRegistry? _mediaApps;
-    private ScreenCaptureMonitor? _screenCapture;
     private FullScreenMonitor? _fullScreenMonitor;
     private SessionSwitchEventHandler? _sessionSwitchHandler;   // 锁屏自动隐藏：SessionSwitch 订阅句柄
     private PowerModeChangedEventHandler? _powerModeHandler;   // 2.2.7 系统挂起/恢复：动画时钟重同步句柄
@@ -52,10 +50,7 @@ public partial class App : Application
     // ── 效率工具 / 波纹 / 更新服务（共享实例：设置页与灵动岛组件共用同一份数据）──
     private AudioWaveService? _wave;
     private KeyboardIndicatorMonitor? _keyboard;
-    private ClipboardHistoryService? _clipboard;
-    private TodoService? _todo;
-    private ScheduleService? _schedule;
-    private PomodoroService? _pomodoro;
+    private ClipboardCopyMonitor? _clipboard;
     private UpdaterService? _updater;
 
     public App()
@@ -182,39 +177,44 @@ AppPaths.EnsureDirectories();
         // ── 效率工具 / 波纹 / 更新服务 ──
         _wave = new AudioWaveService();
         _keyboard = new KeyboardIndicatorMonitor();
-        _clipboard = new ClipboardHistoryService();
-        _todo = new TodoService();
-        _schedule = new ScheduleService();
-        _pomodoro = new PomodoroService();
+        _clipboard = new ClipboardCopyMonitor();
         _updater = new UpdaterService();
         if (_settings.Current.WaveVisualizerEnabled) _wave.Start();
         _wave.SetSyncEnabled(_settings.Current.WaveVisualizerEnabled && _settings.Current.WaveSyncEnabled);
         _wave.SetSensitivity(_settings.Current.WaveSensitivity);
-        _clipboard.SetEnabled(_settings.Current.ClipboardHistoryEnabled);
-        _clipboard.MaxEntries = _settings.Current.ClipboardHistoryMax;
-        // 复制提示（14 已复制 / 15 验证码 / 27 复制进度）：独立于剪贴板历史，任何一项开启即轮询
+        // 复制监听只服务于普通的“已复制”轻提示，不保留任何剪贴板内容。
         _clipboard.EntryAdded += OnClipboardEntryAdded;
         UpdateClipboardPolling();
         UpdateKeyboardPolling();
-        _schedule.Reminder += item => Dispatcher.BeginInvoke(() =>
-            _vm?.ShowEventCard("schedule:" + item.Id, Localization.Get("Events_ScheduleReminder"), item.Title, "\uE8B7", "info", 8));
 
         _messenger = new MessengerUnreadMonitor();
         _messenger.UnreadAdded += (_, unread) => Dispatcher.BeginInvoke(() => _vm?.ShowMessengerUnread(unread));
         _systemNotifications = new SystemNotificationMonitor();
         _systemNotifications.NotificationReceived += (_, e) =>
-            Dispatcher.BeginInvoke(() => _vm?.ShowMessengerNotification(e.Source, e.Title, e.Body, e.AppUserModelId));
+        {
+            if (!NotificationAppFilter.IsAllowed(_settings.Current, e.AppDisplayName, e.AppUserModelId))
+                return;
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (e.Source.HasValue)
+                {
+                    _vm?.ShowMessengerNotification(e.Source.Value, e.Title, e.Body, e.AppUserModelId);
+                    return;
+                }
+
+                var appName = string.IsNullOrWhiteSpace(e.AppDisplayName)
+                    ? (string.IsNullOrWhiteSpace(e.AppUserModelId) ? Localization.Get("Notification_DefaultTitle") : e.AppUserModelId)
+                    : e.AppDisplayName;
+                var body = string.IsNullOrWhiteSpace(e.Body) ? e.Title : e.Title + "\n" + e.Body;
+                _vm?.ShowEventCard("app:" + e.AppUserModelId, appName, body, "\uE7E7", "info", 6);
+            });
+        };
         _vm = new IslandViewModel(_coordinator, _settings, _lyrics,
-            _wave, _keyboard, _clipboard, _todo, _schedule, _pomodoro, _messenger);
+            _wave, _keyboard, _clipboard, _messenger);
         if (_settings.Current.CallNotifyEnabled) _messenger.Start();
         if (_settings.Current.NotificationTakeoverEnabled) _ = _systemNotifications.StartAsync();
         TryShowCrashRecoveryCard(); // 崩溃自动恢复（1.2.0）：上次异常退出 → 提示已恢复
-        // 番茄钟到点提醒
-        _vm.PomodoroCompletedRequested += phase =>
-            Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("pomodoro:done",
-                Localization.Get("Events_PomodoroDone"),
-                phase == PomodoroPhase.Work ? Localization.Get("Events_PomodoroWorkDone") : Localization.Get("Events_PomodoroBreakDone"),
-                "\uE823", "success", 6));
         _vm.OpenSettingsRequested += (_, _) => OpenSettings();
         _vm.ToggleLyricsWindowRequested += (_, _) => ToggleLyricsWindow();
         // 低电量 / 开始充电 / 充电完成 / 磁盘不足：统一以灵动岛卡片展示（iOS 风格）。
@@ -272,33 +272,6 @@ AppPaths.EnsureDirectories();
             }
         });
         if (_settings.Current.FullScreenAutoHideEnabled) _fullScreenMonitor.Start();
-
-        // ── 屏幕录制 / 截图提示（PrintScreen 钩子 + 录制进程轮询；默认关）──
-        _screenCapture = new ScreenCaptureMonitor();
-        _screenCapture.ScreenshotTaken += () =>
-        {
-            _vm?.NotifyScreenshotTaken(); // 灵动岛「已截图」临时指示
-            if (_settings!.Current.ScreenCaptureNotifyEnabled && _settings.Current.ScreenshotNotifyEnabled)
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("screencap:shot",
-                    Localization.Get("ScreenCap_ScreenshotTitle"),
-                    Localization.Get("ScreenCap_ScreenshotBody"), "\uE7B3", "info", 4));
-        };
-        _screenCapture.RecordingChanged += (recording, app) =>
-        {
-            _vm?.SetRecordingStatus(recording, app); // 灵动岛「录制中」指示
-            if (!_settings!.Current.ScreenCaptureNotifyEnabled || !_settings.Current.RecordingNotifyEnabled) return;
-            if (recording)
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("screencap:rec",
-                    Localization.Get("ScreenCap_RecordingTitle"),
-                    string.Format(Localization.Get("ScreenCap_RecordingBody"), app), "\uE786", "warning", 6));
-        };
-        // 录屏智能勿扰（录屏时自动勿扰）也需要轮询录制状态，与提示开关共用监控实例
-        if (_settings.Current.ScreenCaptureNotifyEnabled || _settings.Current.RecordingDndEnabled)
-        {
-            _screenCapture.ScreenshotEnabled = _settings.Current.ScreenshotNotifyEnabled;
-            _screenCapture.RecordingEnabled = _settings.Current.RecordingNotifyEnabled || _settings.Current.RecordingDndEnabled;
-            _screenCapture.Start();
-        }
 
         // ── 日历事件提醒（.ics 本地解析；事件到点弹右上角横幅，默认关）──
         _calendar = new CalendarService();
@@ -405,11 +378,6 @@ AppPaths.EnsureDirectories();
             _launcher ??= new QuickLauncherWindow(_theme);
             _launcher.Toggle();
         });
-        _hotkeys.ClipboardPanelPressed += () => Dispatcher.BeginInvoke(() =>
-        {
-            _clipboardPanel ??= new ClipboardPanelWindow(_theme, _clipboard);
-            _clipboardPanel.Toggle();
-        });
         _hotkeys.SetEnabled(_settings.Current.GlobalHotkeysEnabled);
 
         // ── Settings changed → re-apply live ──
@@ -445,24 +413,9 @@ AppPaths.EnsureDirectories();
             if (s.CallNotifyEnabled) _messenger?.Start(); else _messenger?.Stop();
             if (s.NotificationTakeoverEnabled) _ = _systemNotifications?.StartAsync(); else _systemNotifications?.Stop();
 
-            // 屏幕录制/截图提示：开关或细分项变化时实时生效
-            if (_screenCapture is not null)
-            {
-                _screenCapture.ScreenshotEnabled = s.ScreenshotNotifyEnabled;
-                _screenCapture.RecordingEnabled = s.RecordingNotifyEnabled;
-                var capRunning = _screenCapture.IsRunning;
-                var capWanted = s.ScreenCaptureNotifyEnabled || s.RecordingDndEnabled;
-                _screenCapture.RecordingEnabled = s.RecordingNotifyEnabled || s.RecordingDndEnabled;
-                if (capWanted && !capRunning) _screenCapture.Start();
-                else if (!capWanted && capRunning) _screenCapture.Stop();
-            }
-
             // 日历提醒：路径/开关变化立即重新解析；总开关关闭或无路径时停止轮询
             _calendar?.Refresh(s.CalendarIcsPath);
             _calendar?.SetEnabled(s.CalendarEnabled && !string.IsNullOrWhiteSpace(s.CalendarIcsPath));
-
-            // 日程提醒轮询：仅当日程组件显示时运行，避免空闲空转
-            _schedule?.SetPollingEnabled(s.Components.ScheduleWhenIdle || s.Components.ScheduleWhenPlaying);
 
             // RSS / 邮件提醒：开关、地址、间隔变化立即生效
             ApplyRssMail(s);
@@ -504,12 +457,6 @@ AppPaths.EnsureDirectories();
             _wave?.SetSyncEnabled(s.WaveVisualizerEnabled && s.WaveSyncEnabled);
             _wave?.SetSensitivity(s.WaveSensitivity);
 
-            // 剪贴板历史开关与保留条数；复制提示（已复制/验证码/进度）无需历史也可轮询
-            if (_clipboard is not null)
-            {
-                _clipboard.SetEnabled(s.ClipboardHistoryEnabled);
-                _clipboard.MaxEntries = s.ClipboardHistoryMax;
-            }
             UpdateClipboardPolling();
             UpdateKeyboardPolling();
 
@@ -536,8 +483,6 @@ AppPaths.EnsureDirectories();
         RefreshScheduledTheme(_settings.Current);   // 启动即应用一次
         if (_settings.Current.ThemeScheduledEnabled) _themeScheduleTimer.Start();
 
-        // 启动即按当前设置应用日程/日历轮询状态（避免空闲空转）
-        _schedule?.SetPollingEnabled(_settings.Current.Components.ScheduleWhenIdle || _settings.Current.Components.ScheduleWhenPlaying);
         _calendar?.SetEnabled(_settings.Current.CalendarEnabled && !string.IsNullOrWhiteSpace(_settings.Current.CalendarIcsPath));
 
         // ── 锁屏自动隐藏：锁屏/远程桌面断开时隐藏灵动岛，解锁后恢复 ──
@@ -1122,8 +1067,7 @@ AppPaths.EnsureDirectories();
         if (_settings is null) return;
         var vm = new SettingsViewModel(_settings, _mediaApps, _plugins);
         var win = new SettingsWindow(vm, _settings, _cider,
-            _todo, _schedule, _clipboard, _pomodoro, _updater, _vm,
-            _plugins, OpenPluginManager, OpenPluginFolder, OpenPluginGuide);
+            _updater, _vm, _plugins, OpenPluginManager, OpenPluginFolder, OpenPluginGuide);
         win.ShowDialog();
     }
 
@@ -1243,59 +1187,26 @@ AppPaths.EnsureDirectories();
         _keyboard.SetPolling(comp.CapsLockWhenIdle || comp.CapsLockWhenPlaying);
     }
 
-    /// <summary>根据设置决定剪贴板轮询：历史记录或任一复制提示开启时轮询。</summary>
+    /// <summary>普通“已复制”提示开启时才监听剪贴板；不记录历史。</summary>
     private void UpdateClipboardPolling()
     {
         if (_clipboard is null || _settings is null) return;
-        var s = _settings.Current;
-        var copyUi = s.CopyToastEnabled || s.CodeToastEnabled || s.CopyProgressEnabled;
-        _clipboard.SetPolling(s.ClipboardHistoryEnabled || copyUi);
+        _clipboard.SetPolling(_settings.Current.CopyToastEnabled);
     }
 
-    /// <summary>剪贴板新增内容 → 已复制 / 验证码 / 大文本进度提示（14/15/27）。</summary>
-    private void OnClipboardEntryAdded(ClipboardEntry entry)
+    /// <summary>检测到复制文本后只显示一次轻提示，不保留文本内容。</summary>
+    private void OnClipboardEntryAdded(ClipboardText entry)
     {
         try
         {
-            if (_settings is null) return;
-            var s = _settings.Current;
-            var text = entry.Text;
-            if (string.IsNullOrWhiteSpace(text)) return;
-
-            // 验证码高亮提示优先（短信场景，通常很短）
-            if (s.CodeToastEnabled && VerificationCodeDetector.TryExtract(text, out var code))
-            {
-                Dispatcher.BeginInvoke(() => _vm?.ShowCopyToast(Localization.Get("Clipboard_CodeCopiedToast")));
-                return;
-            }
-
-            // 大文本：复制进度（Windows 不暴露真实进度，按长度估算动画）
-            if (s.CopyProgressEnabled && text.Length >= Math.Max(500, s.CopyProgressThreshold))
-            {
-                Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("clip:progress",
-                    Localization.Get("Clipboard_CopiedTitle"),
-                    ClipboardPreview(text), "", "info", 4));
-                return;
-            }
-
-            // 普通复制：已复制提示
-            if (s.CopyToastEnabled)
+            if (_settings is null || string.IsNullOrWhiteSpace(entry.Text)) return;
+            if (_settings.Current.CopyToastEnabled)
                 Dispatcher.BeginInvoke(() => _vm?.ShowCopyToast(Localization.Get("Clipboard_CopiedTitle")));
         }
         catch (Exception ex)
         {
             AppLogger.Warn($"剪贴板提示失败: {ex.Message}");
         }
-    }
-
-    /// <summary>剪贴板预览：取首行、截断 45 字符。</summary>
-    private static string ClipboardPreview(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-        var t = text.Trim();
-        var nl = t.IndexOfAny(new[] { '\r', '\n' });
-        if (nl >= 0) t = t.Substring(0, nl);
-        return t.Length <= 45 ? t : t.Substring(0, 42) + "…";
     }
 
     // ── 崩溃自动恢复（1.2.0）──
@@ -1365,15 +1276,11 @@ AppPaths.EnsureDirectories();
             _wave?.Dispose();
             _keyboard?.Dispose();
             _clipboard?.Dispose();
-            _todo?.Dispose();
-            _schedule?.Dispose();
-            _pomodoro?.Dispose();
             _coordinator?.Dispose();
             _bluetooth?.Dispose();
             _network?.Dispose();
             _hotkeys?.Dispose();
             _islandApi?.Dispose();
-            _screenCapture?.Dispose();
             _callMonitor?.Dispose();
         _messenger?.Dispose();
         _systemNotifications?.Dispose();

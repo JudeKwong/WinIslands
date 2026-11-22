@@ -469,22 +469,6 @@
                                                Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                 </StackPanel>
                             </DataTemplate>
-                            <DataTemplate x:Key="ClipboardItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.ClipboardSummary, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="TodoItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.TodoSummary, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
                             <DataTemplate x:Key="InputMethodItem">
                                 <Button Style="{StaticResource IconButton}" Width="Auto" Height="Auto" MinWidth="0" Padding="6,3" Margin="0,0,10,0"
                                         Click="InputMethodItem_Click"
@@ -516,61 +500,6 @@
                                         <TextBlock Text="{Binding DataContext.QuickMuteText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
                                                    Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                     </Button>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="TimerItem">
-                                <Button Style="{StaticResource IconButton}" Width="Auto" Height="Auto" MinWidth="0" Padding="6,3" Margin="0,0,10,0"
-                                        Click="TimerItem_Click"
-                                        ToolTip="{Binding DataContext.TimerToolTip, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                                   Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                        <TextBlock Text="{Binding DataContext.TimerText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                                   Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                        <TextBlock Text="&#xE769;" FontFamily="Segoe MDL2 Assets" FontSize="9" VerticalAlignment="Center" Margin="3,0,0,0"
-                                                   Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
-                                                   Visibility="{Binding DataContext.TimerPaused, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVis}}"/>
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                            <DataTemplate x:Key="ScheduleItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.ScheduleSummary, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="HolidayItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.HolidayText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="MeetingItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.MeetingText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="ScreenCapItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.ScreenshotStatusText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                            <DataTemplate x:Key="RecordingItem">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Icon}" FontFamily="{Binding Icon, Converter={StaticResource GlyphFont}}" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DataContext.RecordingText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" FontSize="10" VerticalAlignment="Center"
-                                               Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                 </StackPanel>
                             </DataTemplate>
                             <DataTemplate x:Key="VolumeTempItem">
@@ -834,30 +763,6 @@
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding Kind}" Value="CapsLock">
                                                     <Setter Property="ContentTemplate" Value="{StaticResource CapsLockItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Clipboard">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource ClipboardItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Todo">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource TodoItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Timer">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource TimerItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Schedule">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource ScheduleItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Holiday">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource HolidayItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Meeting">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource MeetingItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="ScreenCap">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource ScreenCapItem}"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Kind}" Value="Recording">
-                                                    <Setter Property="ContentTemplate" Value="{StaticResource RecordingItem}"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding Kind}" Value="VolumeTemp">
                                                     <Setter Property="ContentTemplate" Value="{StaticResource VolumeTempItem}"/>
@@ -1167,7 +1072,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Border x:Name="HeroCard" Grid.Column="1" Width="177" Height="44" CornerRadius="10"
-                                        Margin="0,23,0,15" HorizontalAlignment="Left" ClipToBounds="True" Cursor="Hand"
+                                        Margin="0,23,0,15" HorizontalAlignment="Left" VerticalAlignment="Top" ClipToBounds="True" Cursor="Hand"
                                         Visibility="{Binding ExpandedHeroCard, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                     <Border.Background>
                                         <ImageBrush ImageSource="{Binding Artwork}" Stretch="UniformToFill"
@@ -1184,7 +1089,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Grid x:Name="ArtTitleGrid" Grid.Column="1" Width="177" Height="44" Margin="0,23,0,15" HorizontalAlignment="Left"
+                                <Grid x:Name="ArtTitleGrid" Grid.Column="1" Width="177" Height="44" Margin="0,23,0,15" HorizontalAlignment="Left" VerticalAlignment="Top"
                                       Visibility="{Binding ExpandedShowArtTitle, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -1272,18 +1177,18 @@
                                            Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVisInvert}}"/>
                             </Grid>
 
-                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1" Width="131" Margin="55,0,0,0" HorizontalAlignment="Left"
+                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1" Width="177" HorizontalAlignment="Left" VerticalAlignment="Top" Height="22" Margin="0,0,0,2"
                                   Visibility="{Binding ExpandedShowProgress, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="14"/>
+                                    <RowDefinition Height="12"/>
                                     <RowDefinition Height="10"/>
                                 </Grid.RowDefinitions>
-                                <Slider x:Name="ProgressSlider" Grid.Row="0" Style="{StaticResource ThinSlider}" Height="8" VerticalAlignment="Top" Margin="0,-1,0,0"
+                                <Slider x:Name="ProgressSlider" Grid.Row="0" Style="{StaticResource ThinSlider}" Height="12" VerticalAlignment="Top" Margin="0"
                                         Minimum="0" Maximum="1" Value="{Binding Progress, Mode=OneWay}" IsEnabled="{Binding CanSeek}"/>
                                 <Grid Grid.Row="1">
-                                    <TextBlock Text="{Binding PositionText}" FontSize="9" HorizontalAlignment="Left"
+                                    <TextBlock Text="{Binding PositionText}" FontSize="9" HorizontalAlignment="Left" VerticalAlignment="Top" LineHeight="10" LineStackingStrategy="BlockLineHeight"
                                                Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
-                                    <TextBlock Text="{Binding DurationText}" FontSize="9" HorizontalAlignment="Right"
+                                    <TextBlock Text="{Binding DurationText}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Top" LineHeight="10" LineStackingStrategy="BlockLineHeight"
                                                Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"/>
                                 </Grid>
                             </Grid>
@@ -1408,114 +1313,8 @@
                             </Grid>
                         </Grid>
                     </StackPanel>
-
-                    <!-- 岛仔功能页：专注（固定 419×140 展开卡的一部分，底部为控制按钮） -->
-                    <StackPanel x:Name="FocusPagePanel" Width="399" Height="86"
-                                Visibility="Collapsed">
-                        <StackPanel.RenderTransform>
-                            <TranslateTransform x:Name="FocusPageTranslate" X="0"/>
-                        </StackPanel.RenderTransform>
-                        <Grid Width="399" Height="86">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="56"/>
-                                <RowDefinition Height="30"/>
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Width="52" Height="52" Margin="16,2,0,0" CornerRadius="26"
-                                        Background="#1A0E10" BorderBrush="#FD685C" BorderThickness="5">
-                                    <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FD685C"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="16,0,16,0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding PomodoroClockText}" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                                    <TextBlock Text="{Binding PomodoroPhaseText}" FontSize="10" Foreground="#8E8E99" Margin="0,1,0,0"/>
-                                </StackPanel>
-                            </Grid>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
-                                <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroWorkCommand}" Content="专注"
-                                        Width="54" Height="24" Padding="0" Margin="0,0,5,0" FontSize="10" Background="#2A2A2E"/>
-                                <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroBreakCommand}" Content="休息"
-                                        Width="54" Height="24" Padding="0" Margin="0,0,5,0" FontSize="10" Background="#2A2A2E"/>
-                                <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroToggleCommand}" Content="暂停/继续"
-                                        Width="70" Height="24" Padding="0" Margin="0,0,5,0" FontSize="10" Background="#2A2A2E"/>
-                                <Button Style="{StaticResource IconButton}" Command="{Binding PomodoroStopCommand}" Content="停止"
-                                        Width="54" Height="24" Padding="0" FontSize="10" Background="#2A2A2E"/>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- 岛仔功能页：待办（固定 419×140，列表最多显示三行，其余可滚动） -->
-                    <StackPanel x:Name="TodoPagePanel" Width="399" Height="86" Visibility="Collapsed">
-                        <StackPanel.RenderTransform>
-                            <TranslateTransform x:Name="TodoPageTranslate" X="0"/>
-                        </StackPanel.RenderTransform>
-                        <Grid Width="399" Height="86">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="20"/>
-                                <RowDefinition Height="66"/>
-                            </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,0,16,0">
-                                <TextBlock Text="{Binding TodoSummary}" FontSize="17" FontWeight="Bold" Foreground="White"/>
-                                <TextBlock Text="已完成" FontSize="9.5" Foreground="#8E8E99" VerticalAlignment="Bottom" Margin="6,0,0,2"/>
-                            </StackPanel>
-                            <ScrollViewer Grid.Row="1" Height="66" VerticalScrollBarVisibility="Hidden" PanningMode="VerticalOnly">
-                                <ItemsControl ItemsSource="{Binding TodoItems}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Height="20" CornerRadius="7" Background="#242427" Padding="8,0" Margin="16,0,16,2">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <CheckBox IsChecked="{Binding Done, Mode=OneWay}" IsHitTestVisible="False"
-                                                              VerticalAlignment="Center" Margin="0,0,7,0"/>
-                                                    <TextBlock Text="{Binding Text}" FontSize="10" Foreground="#E8E8ED"
-                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </Grid>
-                    </StackPanel>
-
-                    <!-- 岛仔功能页：日程（固定 419×140，列表最多显示三行，其余可滚动） -->
-                    <StackPanel x:Name="SchedulePagePanel" Width="399" Height="86" Visibility="Collapsed">
-                        <StackPanel.RenderTransform>
-                            <TranslateTransform x:Name="SchedulePageTranslate" X="0"/>
-                        </StackPanel.RenderTransform>
-                        <Grid Width="399" Height="86">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="18"/>
-                                <RowDefinition Height="68"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="{Binding ScheduleSummary}" FontSize="13" FontWeight="Bold"
-                                       Foreground="White" Margin="16,0,16,0"/>
-                            <ScrollViewer Grid.Row="1" Height="68" VerticalScrollBarVisibility="Hidden" PanningMode="VerticalOnly">
-                                <ItemsControl ItemsSource="{Binding ScheduleItems}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Height="20" CornerRadius="7" Background="#242427" Padding="8,0" Margin="16,0,16,3">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding When, StringFormat={}{0:HH:mm}}" FontSize="10" FontWeight="SemiBold"
-                                                               Foreground="#3EACF8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="10" Foreground="#E8E8ED"
-                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </Grid>
-                    </StackPanel>
                     </Grid>
+
                     <!-- 岛仔页码豆：真实页面导航 -->
                     <ItemsControl x:Name="PageDots" ItemsSource="{Binding Pages}" HorizontalAlignment="Center" Margin="0,1,0,0"
                                   Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">

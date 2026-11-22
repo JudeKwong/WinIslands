@@ -31,10 +31,8 @@ public partial class SettingsWindow : Window
     private readonly CiderMediaProvider? _cider;
     private readonly DispatcherTimer _autoApply;
     private readonly DispatcherTimer _saveDebounce;
-    private readonly TodoService? _todo;
-    private readonly ScheduleService? _schedule;
-    private readonly ClipboardHistoryService? _clipboard;
-    private readonly PomodoroService? _pomodoro;
+    private readonly DispatcherTimer _glassRecapture;
+    private IntPtr _glassHost;
     private readonly UpdaterService? _updater;
     private readonly IslandViewModel? _island;
     private readonly PluginService? _plugins;
@@ -47,31 +45,21 @@ public partial class SettingsWindow : Window
 
     /// <summary>具名语言切换处理器：Closed 时退订，避免静态事件反复持有已关闭的设置窗口。</summary>
     private readonly EventHandler _onLanguageChanged;
-    private Action? _todoChanged;
-    private Action? _scheduleChanged;
-    private Action? _pomodoroTick;
+    private readonly EventHandler<AppSettings> _onSettingsChanged;
     private EventHandler? _pluginsReloaded;
     private SelectionChangedEventHandler? _onTabChanged;
 
     public SettingsWindow(SettingsViewModel vm, SettingsService service, CiderMediaProvider? cider,
-        TodoService? todo = null,
-        ScheduleService? schedule = null,
-        ClipboardHistoryService? clipboard = null,
-        PomodoroService? pomodoro = null,
-        UpdaterService? updater = null,
-        IslandViewModel? island = null,
-        PluginService? plugins = null,
-        Action? openPluginManager = null,
-        Action? openPluginFolder = null,
-        Action? openPluginGuide = null)
+        UpdaterService? updater,
+        IslandViewModel? island,
+        PluginService? plugins,
+        Action? openPluginManager,
+        Action? openPluginFolder,
+        Action? openPluginGuide)
     {
         _vm = vm;
         _service = service;
         _cider = cider;
-        _todo = todo;
-        _schedule = schedule;
-        _clipboard = clipboard;
-        _pomodoro = pomodoro;
         _updater = updater;
         _island = island;
         _plugins = plugins;
@@ -80,6 +68,23 @@ public partial class SettingsWindow : Window
         _openPluginGuide = openPluginGuide;
         DataContext = vm;
         InitializeComponent();
+        _onSettingsChanged = (_, settings) =>
+        {
+            try
+            {
+                var dark = settings.Theme switch
+                {
+                    ThemeMode.Light => false,
+                    ThemeMode.Dark => true,
+                    _ => ThemeHelper.IsSystemDark(),
+                };
+                var hwnd = new WindowInteropHelper(this).Handle;
+                if (hwnd != IntPtr.Zero) WindowEffects.ApplyDarkMode(hwnd, dark);
+                ApplyGlassPalette(dark);
+            }
+            catch { /* 主题刷新失败不影响设置操作 */ }
+        };
+        _service.Changed += _onSettingsChanged;
 
         // 初始化完成后显式设置初始选中页（不在 XAML 里用 IsSelected，避免解析期提前触发事件）
         NavList.SelectedIndex = 0;
@@ -101,32 +106,14 @@ public partial class SettingsWindow : Window
             _plugins.PluginsReloaded += _pluginsReloaded;
         }
 
-        // 效率工具：初值 + 变动刷新
-        if (_todo is not null)
-        {
-            TodoList.ItemsSource = _todo.Items;
-            _todoChanged = () => TodoList.ItemsSource = _todo.Items;
-            _todo.Changed += _todoChanged;
-        }
-        if (_schedule is not null)
-        {
-            ScheduleList.ItemsSource = _schedule.Items;
-            ScheduleTimeInput.ToolTip = Localization.Get("Schedule_TimeHint");
-            _scheduleChanged = () => ScheduleList.ItemsSource = _schedule.Items;
-            _schedule.Changed += _scheduleChanged;
-        }
-        if (_pomodoro is not null)
-        {
-            TxtPomodoroClock.Text = _pomodoro.ClockText;
-            _pomodoroTick = () => TxtPomodoroClock.Text = _pomodoro.ClockText;
-            _pomodoro.Tick += _pomodoroTick;
-        }
-
         // 即时生效：轮询检测 Working 变化并立即应用（无保存按钮）
         _lastAppliedJson = SettingsService.Serialize(_vm.Working);
         _autoApply = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _saveDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
         _saveDebounce.Tick += (_, _) => { _saveDebounce.Stop(); _service.Save(); };
+        // 拖动结束后重新采样窗后桌面，让玻璃始终折射真实内容；拖动中不采样以省开销。
+        _glassRecapture = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(240) };
+        _glassRecapture.Tick += (_, _) => { _glassRecapture.Stop(); RecaptureGlass(); };
         _autoApply.Tick += (_, _) => AutoApply();
         _autoApply.Start();
 
@@ -138,14 +125,14 @@ public partial class SettingsWindow : Window
         Closed += (_, _) =>
         {
             try { _vm.Save(); } catch { }
-            try { if (_todo is not null && _todoChanged is not null) _todo.Changed -= _todoChanged; } catch { }
-            try { if (_schedule is not null && _scheduleChanged is not null) _schedule.Changed -= _scheduleChanged; } catch { }
-            try { if (_pomodoro is not null && _pomodoroTick is not null) _pomodoro.Tick -= _pomodoroTick; } catch { }
             try { if (_plugins is not null && _pluginsReloaded is not null) _plugins.PluginsReloaded -= _pluginsReloaded; } catch { }
             try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
             try { _saveDebounce.Stop(); } catch { }
+            try { _glassRecapture.Stop(); } catch { }
+            try { LocationChanged -= OnGlassLocationChanged; } catch { }
             try { Localization.LanguageChanged -= _onLanguageChanged; } catch { }
+            try { _service.Changed -= _onSettingsChanged; } catch { }
             try { if (MainTabs != null && _onTabChanged is not null) MainTabs.SelectionChanged -= _onTabChanged; } catch { }
         };
 
@@ -300,7 +287,7 @@ public partial class SettingsWindow : Window
         catch { /* ignore */ }
     }
 
-    /// <summary>应用液态玻璃：亚克力模糊 + 圆角 + 明暗主题调色板。</summary>
+    /// <summary>应用毛玻璃：统一模糊装饰 + 圆角 + 明暗主题调色板。</summary>
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -314,6 +301,14 @@ public partial class SettingsWindow : Window
         // 注意：不用 ApplyAcrylic —— 在 AllowsTransparency 窗口上会渲染出黑色大块
         WindowEffects.ApplyDarkMode(hwnd, dark);
         ApplyGlassPalette(dark);
+
+        // The HWND exists but is still hidden here, so CopyFromScreen sees the real
+        // desktop/windows behind it. The extra margin keeps the frosted sample valid
+        // while the user nudges the window around.
+        GlassBackdrop.CaptureForWindow(hwnd, null, 360);
+        _glassHost = hwnd;
+        LocationChanged -= OnGlassLocationChanged;
+        LocationChanged += OnGlassLocationChanged;
     }
 
     private void ApplyGlassPalette(bool dark)
@@ -323,39 +318,52 @@ public partial class SettingsWindow : Window
 
         if (dark)
         {
-            Add("GlassBgBrush", new SolidColorBrush(Color.FromArgb(0xC8, 0x1B, 0x1B, 0x26)));
-            Add("CardBgBrush", new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)));
-            Add("GlassBorderBrush", new SolidColorBrush(Color.FromArgb(0x48, 0xFF, 0xFF, 0xFF)));
+            Add("GlassBgBrush", new SolidColorBrush(Color.FromArgb(0xDC, 0x17, 0x17, 0x20)));
+            Add("CardBgBrush", new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)));
+            Add("GlassBorderBrush", new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)));
+            Add("GlassOuterRimBrush", new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)));
             Add("TextPrimaryBrush", new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF7)));
             Add("TextSecondaryBrush", new SolidColorBrush(Color.FromArgb(0xB8, 0xE0, 0xE0, 0xEA)));
             Add("HoverBrush", new SolidColorBrush(Color.FromArgb(0x4D, 0xFF, 0xFF, 0xFF)));
-            Add("ControlBgBrush", new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)));
+            Add("ControlBgBrush", new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xFF, 0xFF)));
             Add("ControlBorderBrush", new SolidColorBrush(Color.FromArgb(0x3C, 0xFF, 0xFF, 0xFF)));
             Add("TrackBrush", new SolidColorBrush(Color.FromArgb(0x5E, 0xFF, 0xFF, 0xFF)));
             Add("ScrollTrackBrush", new SolidColorBrush(Color.FromArgb(0x2A, 0xFF, 0xFF, 0xFF)));
             Add("ScrollThumbBrush", new SolidColorBrush(Color.FromArgb(0x9A, 0xFF, 0xFF, 0xFF)));
-            Add("SidebarBrush", new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)));
+            Add("SidebarBrush", new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)));
             Add("NavSelectedBrush", new SolidColorBrush(Color.FromArgb(0x3C, 0xFF, 0xFF, 0xFF)));
         }
         else
         {
-            Add("GlassBgBrush", new SolidColorBrush(Color.FromArgb(0xE6, 0xF7, 0xF7, 0xFB)));
-            Add("CardBgBrush", new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)));
-            Add("GlassBorderBrush", new SolidColorBrush(Color.FromArgb(0x6E, 0xFF, 0xFF, 0xFF)));
+            Add("GlassBgBrush", new SolidColorBrush(Color.FromArgb(0xD6, 0xF7, 0xF8, 0xFC)));
+            Add("CardBgBrush", new SolidColorBrush(Color.FromArgb(0x3A, 0xFF, 0xFF, 0xFF)));
+            Add("GlassBorderBrush", new SolidColorBrush(Color.FromArgb(0x38, 0x00, 0x00, 0x00)));
+            Add("GlassOuterRimBrush", new SolidColorBrush(Color.FromArgb(0x20, 0x00, 0x00, 0x00)));
             Add("TextPrimaryBrush", new SolidColorBrush(Color.FromRgb(0x1D, 0x1D, 0x24)));
             Add("TextSecondaryBrush", new SolidColorBrush(Color.FromArgb(0xB0, 0x48, 0x48, 0x52)));
             Add("HoverBrush", new SolidColorBrush(Color.FromArgb(0x2E, 0x00, 0x00, 0x00)));
-            Add("ControlBgBrush", new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)));
+            Add("ControlBgBrush", new SolidColorBrush(Color.FromArgb(0x92, 0xFF, 0xFF, 0xFF)));
             Add("ControlBorderBrush", new SolidColorBrush(Color.FromArgb(0x30, 0x00, 0x00, 0x00)));
             Add("TrackBrush", new SolidColorBrush(Color.FromArgb(0x50, 0x00, 0x00, 0x00)));
             Add("ScrollTrackBrush", new SolidColorBrush(Color.FromArgb(0x18, 0x00, 0x00, 0x00)));
             Add("ScrollThumbBrush", new SolidColorBrush(Color.FromArgb(0x66, 0x00, 0x00, 0x00)));
-            Add("SidebarBrush", new SolidColorBrush(Color.FromArgb(0x66, 0xF2, 0xF2, 0xF7)));
-            Add("NavSelectedBrush", new SolidColorBrush(Color.FromArgb(0x59, 0x1D, 0x1D, 0x24)));
+            Add("SidebarBrush", new SolidColorBrush(Color.FromArgb(0x26, 0xF2, 0xF2, 0xF7)));
+            Add("NavSelectedBrush", new SolidColorBrush(Color.FromArgb(0x4A, 0x1D, 0x1D, 0x24)));
         }
 
         Add("AccentBrush", new SolidColorBrush(accent));
         Add("AccentSoftBrush", new SolidColorBrush(Color.FromArgb(0x3D, accent.R, accent.G, accent.B)));
+
+        if (FrostedEffect is not null)
+        {
+            var glassTint = new SolidColorBrush(dark
+                ? Color.FromRgb(0x14, 0x14, 0x1B)
+                : Color.FromRgb(0xF2, 0xF4, 0xFA));
+            glassTint.Freeze();
+            FrostedEffect.TintBrush = glassTint;
+            FrostedEffect.IsDark = dark;
+            FrostedEffect.Intensity = 1.0;
+        }
 
         // 根治文字颜色：Window.Foreground 的 DynamicResource 在属性继承链上可能不刷新，
         // 导致深色模式下继承了默认黑色前景的文字看不清。资源构建完成后直接写入确定的前景色
@@ -363,6 +371,17 @@ public partial class SettingsWindow : Window
         Foreground = (Brush)Resources["TextPrimaryBrush"];
     }
 
+    private void OnGlassLocationChanged(object? sender, EventArgs e)
+    {
+        _glassRecapture.Stop();
+        _glassRecapture.Start();
+    }
+
+    private void RecaptureGlass()
+    {
+        if (_glassHost == IntPtr.Zero) return;
+        try { GlassBackdrop.RecaptureBehindWindow(_glassHost, 360); } catch { }
+    }
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed)
@@ -378,7 +397,7 @@ public partial class SettingsWindow : Window
     {
         "Settings_General", "Settings_QuickActions", "Settings_Appearance", "Settings_Components", "Settings_Plugins", "Settings_Pages", "Settings_Media",
         "Settings_MediaInfo", "Settings_Lyrics", "Settings_Cider", "Settings_Island",
-        "Settings_Productivity", "Settings_Update", "Settings_About", "Settings_Events", "Settings_Rules",
+        "Settings_Update", "Settings_About", "Settings_Events", "Settings_Notifications",
     };
 
     /// <summary>左侧导航选中 → 同步切换右侧页面。</summary>
@@ -464,9 +483,12 @@ public partial class SettingsWindow : Window
         TabAbout.Header = Localization.Get("Settings_About");
         TabEvents.Header = Localization.Get("Settings_Events");
         TabIsland.Header = Localization.Get("Settings_Island");
-        TabRules.Header = Localization.Get("Settings_Rules");
-        LblRulesIntro.Text = Localization.Get("Rules_Intro");
-        BtnAddRule.Content = Localization.Get("Rules_Add");
+        TabRules.Header = Localization.Get("Settings_Notifications");
+        LblNotificationsIntro.Text = Localization.Get("Notifications_Intro");
+        LblNotificationMode.Text = Localization.Get("Notifications_Mode");
+        LblNotificationApps.Text = Localization.Get("Notifications_Apps");
+        TxtNotificationAppsHint.Text = Localization.Get("Notifications_AppsHint");
+        ChkCopyToast.Content = Localization.Get("Clipboard_Toast");
         NavGeneral.Text = Localization.Get("Settings_General");
         NavQuick.Text = Localization.Get("Settings_QuickActions");
         NavAppearance.Text = Localization.Get("Settings_Appearance");
@@ -479,11 +501,11 @@ public partial class SettingsWindow : Window
         NavLyrics.Text = Localization.Get("Settings_Lyrics");
         NavCider.Text = Localization.Get("Settings_Cider");
         NavIsland.Text = Localization.Get("Settings_Island");
-        NavProductivity.Text = Localization.Get("Settings_Productivity");
+
         NavUpdate.Text = Localization.Get("Settings_Update");
         NavAbout.Text = Localization.Get("Settings_About");
         NavEvents.Text = Localization.Get("Settings_Events");
-        NavRules.Text = Localization.Get("Settings_Rules");
+        NavRules.Text = Localization.Get("Settings_Notifications");
         UpdatePageTitle();
         ChkIslandApi.Content = Localization.Get("Island_Enabled");
         LblIslandPort.Text = Localization.Get("Island_Port");
@@ -551,8 +573,6 @@ public partial class SettingsWindow : Window
         LblHotkeyExpand.Text = Localization.Get("General_HotkeyExpand");
         ChkQuickLauncher.Content = Localization.Get("General_QuickLauncher");
         LblHotkeyLauncher.Text = Localization.Get("General_HotkeyLauncher");
-        ChkClipboardPanel.Content = Localization.Get("General_ClipboardPanel");
-        LblHotkeyClipboard.Text = Localization.Get("General_HotkeyClipboard");
         LblLowBattery.Text = Localization.Get("General_LowBattery");
         TxtLowBatteryHint.Text = Localization.Get("General_LowBatteryHint");
         ChkLowBatteryPersist.Content = Localization.Get("General_LowBatteryPersist");
@@ -607,7 +627,7 @@ public partial class SettingsWindow : Window
         BtnOpenConfig.Content = Localization.Get("OpenConfigFolder");
         BtnDiagnostics.Content = Localization.Get("Diagnostics");
 
-        TabProductivity.Header = Localization.Get("Settings_Productivity");
+
         TabUpdate.Header = Localization.Get("Settings_Update");
         LblKeyCaps.Text = Localization.Get("General_KeyCaps");
         LblThemePreset.Text = Localization.Get("Appearance_ThemePreset");
@@ -636,33 +656,17 @@ public partial class SettingsWindow : Window
         LblDndEnd.Text = Localization.Get("Dnd_End");
         TxtDndNote.Text = Localization.Get("Dnd_Note");
         LblDndAllowlist.Text = Localization.Get("Dnd_Allowlist");
-        LblMeetingTitle.Text = Localization.Get("Meeting_Title");
-        ChkMeetingEnabled.Content = Localization.Get("Meeting_Enabled");
-        ChkMeetingAutoDnd.Content = Localization.Get("Meeting_AutoDnd");
-        LblMeetingKeywords.Text = Localization.Get("Meeting_Keywords");
-        TxtMeetingNote.Text = Localization.Get("Meeting_Note");
-        LblScreenCapTitle.Text = Localization.Get("ScreenCap_Title");
-        ChkScreenCapEnabled.Content = Localization.Get("ScreenCap_Enabled");
-        ChkScreenshotNotify.Content = Localization.Get("ScreenCap_Screenshot");
-        ChkRecordingNotify.Content = Localization.Get("ScreenCap_Recording");
-        ChkRecordingDnd.Content = Localization.Get("ScreenCap_RecordingDnd");
-        TxtScreenCapNote.Text = Localization.Get("ScreenCap_Note");
         LblVolTempTitle.Text = Localization.Get("VolumeTemp_Title");
         ChkVolTemp.Content = Localization.Get("VolumeTemp_Enabled");
         LblVolTempSeconds.Text = Localization.Get("VolumeTemp_Seconds");
-        LblFileCopyTitle.Text = Localization.Get("FileCopy_Title");
-        ChkFileCopy.Content = Localization.Get("FileCopy_Enabled");
-        TxtFileCopyNote.Text = Localization.Get("FileCopy_Note");
-        LblDownloadTitle.Text = Localization.Get("Download_Title");
-        ChkDownload.Content = Localization.Get("Download_Enabled");
-        TxtDownloadNote.Text = Localization.Get("Download_Note");
+
         LblUsageMergeTitle.Text = Localization.Get("UsageMerge_Title");
         ChkUsageMerge.Content = Localization.Get("UsageMerge_Enabled");
         LblUsageMergeItems.Text = Localization.Get("UsageMerge_Items");
         ChkUsageMergeMic.Content = Localization.Get("Comp_Mic");
         ChkUsageMergeCam.Content = Localization.Get("Comp_Cam");
-        ChkUsageMergeMeeting.Content = Localization.Get("Comp_Meeting");
-        ChkUsageMergeRecording.Content = Localization.Get("ScreenCap_IslandRecording");
+
+
         TxtUsageMergeNote.Text = Localization.Get("UsageMerge_Note");
         LblCalendarTitle.Text = Localization.Get("Calendar_Title");
         ChkCalendarEnabled.Content = Localization.Get("Calendar_Enabled");
@@ -683,76 +687,11 @@ public partial class SettingsWindow : Window
         LblMailPass.Text = Localization.Get("Mail_Pass");
         LblMailInterval.Text = Localization.Get("Mail_Interval");
         TxtMailNote.Text = Localization.Get("Mail_Note");
-
-
-        LblProdClipboard.Text = Localization.Get("Prod_Clipboard");
-        ChkClipboardEnabled.Content = Localization.Get("Prod_ClipboardEnabled");
-        LblClipboardMax.Text = Localization.Get("Prod_ClipboardMax");
-        TxtClipboardNote.Text = Localization.Get("Prod_ClipboardNote");
-        ChkCopyToast.Content = Localization.Get("Clipboard_Toast");
-        ChkCodeToast.Content = Localization.Get("Clipboard_Code");
-        ChkCopyProgress.Content = Localization.Get("Clipboard_Progress");
-        LblCopyThreshold.Text = Localization.Get("Clipboard_Threshold");
-        TxtCopyNote.Text = Localization.Get("Clipboard_ToastNote");
-        LblProdPomodoro.Text = Localization.Get("Prod_Pomodoro");
-        ChkPomodoroEnabled.Content = Localization.Get("Prod_PomodoroEnabled");
-        LblWorkMinutes.Text = Localization.Get("Prod_WorkMinutes");
-        LblBreakMinutes.Text = Localization.Get("Prod_BreakMinutes");
-        BtnPomodoroStart.Content = Localization.Get("Pomodoro_StartWork");
-        BtnPomodoroBreak.Content = Localization.Get("Pomodoro_StartBreak");
-        BtnPomodoroStop.Content = Localization.Get("Pomodoro_Stop");
-        LblProdTodo.Text = Localization.Get("Prod_Todo");
-        LblProdSchedule.Text = Localization.Get("Prod_Schedule");
-        TxtProdNote.Text = Localization.Get("Prod_Note");
-        BtnScheduleAdd.Content = Localization.Get("Schedule_Add");
         ChkAutoUpdateCheck.Content = Localization.Get("Update_Enabled");
         BtnCheckUpdate.Content = Localization.Get("Update_CheckNow");
         TxtUpdateNote.Text = Localization.Get("Update_Note");
 
     }
-
-    // ── 效率工具：番茄钟 / 待办 / 日程 ──
-    private void PomodoroStart_Click(object sender, RoutedEventArgs e)
-        => _pomodoro?.StartWork(Math.Max(1, _vm.Working.PomodoroWorkMinutes));
-
-    private void PomodoroBreak_Click(object sender, RoutedEventArgs e)
-        => _pomodoro?.StartBreak(Math.Max(1, _vm.Working.PomodoroBreakMinutes));
-
-    private void PomodoroStop_Click(object sender, RoutedEventArgs e)
-        => _pomodoro?.Stop();
-
-    private void TodoAdd_Click(object sender, RoutedEventArgs e)
-    {
-        _todo?.Add(TodoInput.Text);
-        TodoInput.Clear();
-    }
-
-    private void TodoToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is TodoItem i) _todo?.Toggle(i.Id);
-    }
-
-    private void TodoRemove_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is TodoItem i) _todo?.Remove(i.Id);
-    }
-
-    private void ScheduleAdd_Click(object sender, RoutedEventArgs e)
-    {
-        var timeText = ScheduleTimeInput.Text.Trim();
-        DateTime when;
-        if (DateTime.TryParse(timeText, out var parsed)) when = parsed;
-        else when = DateTime.Today.Add(TimeSpan.TryParse(timeText, out var ts) ? ts : TimeSpan.MinValue);
-        _schedule?.Add(ScheduleTitleInput.Text, when); // 时间过去 / 标题为空时 Add 会忽略
-        ScheduleTitleInput.Clear();
-        ScheduleTimeInput.Clear();
-    }
-
-    private void ScheduleRemove_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is ScheduleItem i) _schedule?.Remove(i.Id);
-    }
-
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
     {
         if (_updater is null) return;
@@ -1123,21 +1062,12 @@ public partial class SettingsWindow : Window
         }
     }
 
-    /// <summary>新增一条规则（规则引擎设置页）。</summary>
-    private void AddRule_Click(object sender, RoutedEventArgs e) => _vm.AddRule();
-
-    /// <summary>删除指定规则行。</summary>
     /// <summary>快捷操作设置行：上移/下移（Tag 为方向）。</summary>
     private void QuickActionMove_Click(object sender, RoutedEventArgs e)
     {
         if (sender is System.Windows.Controls.Primitives.ButtonBase btn
             && btn.Tag is string dir && btn.CommandParameter is string key)
             _vm.MoveQuickAction(key, dir == "1" ? 1 : -1);
-    }
-
-    private void RuleRemove_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is RuleRow row) _vm.RemoveRule(row);
     }
 
     /// <summary>关于页：在 WinIslands 名称后追加当前版本号（如 WinIslands 1.1.7）。</summary>

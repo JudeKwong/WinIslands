@@ -7,24 +7,27 @@ namespace WinIslands.Services;
 
 public sealed class SystemNotificationEventArgs : EventArgs
 {
-    public SystemNotificationEventArgs(MessengerSource source, string title, string body, string appUserModelId)
+    public SystemNotificationEventArgs(MessengerSource? source, string title, string body,
+        string appUserModelId, string appDisplayName)
     {
         Source = source;
         Title = title;
         Body = body;
         AppUserModelId = appUserModelId;
+        AppDisplayName = appDisplayName;
     }
 
-    public MessengerSource Source { get; }
+    /// <summary>QQ / 微信来源；其它应用为 null。</summary>
+    public MessengerSource? Source { get; }
     public string Title { get; }
     public string Body { get; }
     public string AppUserModelId { get; }
+    public string AppDisplayName { get; }
 }
 
 /// <summary>
-/// 读取 Windows 通知中心的 Toast（QQ 使用系统通知，不走任务栏闪烁）。
-/// 参考岛仔的 toast_source.rs：只接收应用标识匹配 QQ 的通知，默认不读取聊天数据库。
-/// 首次轮询只建立基线，不把历史通知当作新消息；之后每 2 秒检查新增通知。
+/// 读取 Windows 通知中心的 Toast。所有应用的通知都会上报，由上层按通知来源过滤决定是否展示；
+/// 默认不读取聊天数据库。首次轮询只建立基线，不把历史通知当作新消息；之后每 2 秒检查新增通知。
 /// </summary>
 public sealed class SystemNotificationMonitor : IDisposable
 {
@@ -102,17 +105,17 @@ public sealed class SystemNotificationMonitor : IDisposable
                     var appName = app?.DisplayInfo?.DisplayName ?? string.Empty;
                     var aumid = app?.AppUserModelId ?? string.Empty;
                     var source = DetectSource(appName, aumid);
-                    // 与岛仔一致：QQ 走系统 Toast；微信走任务栏闪烁，避免双重提醒
-                    if (source != MessengerSource.QQ) continue;
 
                     var binding = notification.Notification?.Visual?.GetBinding(KnownNotificationBindings.ToastGeneric);
                     var texts = binding?.GetTextElements()?.Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
                         ?? new List<string>();
-                    var title = texts.Count > 0 ? texts[0] : source == MessengerSource.QQ ? "QQ" : "微信";
+                    var title = texts.Count > 0
+                        ? texts[0]
+                        : string.IsNullOrWhiteSpace(appName) ? "通知" : appName;
                     var body = texts.Count > 1 ? texts[1] : string.Empty;
                     if (!IsCurrent(generation)) return;
                     AppLogger.Info($"System notification captured: app={appName} aumid={aumid} title={title}");
-                    NotificationReceived?.Invoke(this, new SystemNotificationEventArgs(source.Value, title, body, aumid));
+                    NotificationReceived?.Invoke(this, new SystemNotificationEventArgs(source, title, body, aumid, appName));
                 }
                 catch (Exception ex)
                 {

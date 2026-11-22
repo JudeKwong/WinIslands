@@ -1,18 +1,28 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="clr-namespace:WinIslands.UI">
 
-    <!-- 现代化右键菜单（圆角 + 液态玻璃）：灵动岛与托盘共用 -->
+    <!-- 现代化右键菜单（圆角 + 毛玻璃）：灵动岛与托盘共用 -->
     <Style TargetType="ContextMenu">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContextMenu">
-                    <Border x:Name="Bd" CornerRadius="12" Padding="4"
+                    <Border x:Name="Bd" CornerRadius="13" Padding="4"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{DynamicResource MenuBorderBrush}" BorderThickness="1">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.35" Color="Black"/>
+                            <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.32" Color="Black"/>
                         </Border.Effect>
-                        <ItemsPresenter/>
+                        <Grid>
+                            <!-- 装饰层永远在底层且不参与命中测试，菜单项保持真实可交互。 -->
+                            <ui:FrostedGlassLayer CornerRadius="12"
+                                                 Intensity="1"
+                                                 Opacity="1"
+                                                 IsHitTestVisible="False"
+                                                 TintBrush="{DynamicResource MenuGlassTintBrush}"
+                                                 IsDark="{DynamicResource MenuGlassIsDark}"/>
+                            <ItemsPresenter/>
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
@@ -33,7 +43,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                       Foreground="White" Width="16" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                       Foreground="{TemplateBinding Foreground}" Width="16" VerticalAlignment="Center" Visibility="Collapsed"/>
                             <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center"
                                               RecognizesAccessKey="True"/>
                         </Grid>

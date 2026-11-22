@@ -67,10 +67,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     // ── 效率工具 / 波纹 / 键盘指示灯 ──
     private readonly AudioWaveService _wave;
     private readonly KeyboardIndicatorMonitor _keyboard;
-    private readonly ClipboardHistoryService _clipboard;
-    private readonly TodoService _todo;
-    private readonly ScheduleService _schedule;
-    private readonly PomodoroService _pomodoro;
+    private readonly ClipboardCopyMonitor _clipboard;
     private int _capsLockSecondsLeft; // 键盘指示灯剩余显示秒数（由 _widgetTimer 每秒递减）
     private int _volumeTempSecondsLeft; // 音量指示剩余显示秒数
     private double _lastVolumeTempValue = -1; // 上次轮询到的系统音量（变化时触发上岛）
@@ -100,9 +97,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private static readonly (string Key, string Title, string Description, string Accent)[] PageDefs =
     {
         ("Music", "音乐", "封面、歌词与播放控制", "#FD685C"),
-        ("Focus", "番茄专注", "专注与休息计时", "#FD685C"),
-        ("Todo", "待办清单", "本地待办事项", "#30D158"),
-        ("Schedule", "日程", "下一项本地日程", "#3EACF8"),
     };
     private static readonly Brush WeChatBadgeBrush = MakeFrozenBrush(0x46, 0xCB, 0x7B);
     private static readonly Brush QqBadgeBrush = MakeFrozenBrush(0x12, 0xB7, 0xF5);
@@ -127,29 +121,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public Brush ActivePageAccentBrush => ActivePage?.AccentBrush ?? new SolidColorBrush(Color.FromRgb(0x79, 0x55, 0xB8));
     public bool HasMultiplePages => _pages.Count > 1;
     public bool IsMusicPage => ActivePage?.Key == "Music";
-    public bool IsFocusPage => ActivePage?.Key == "Focus";
-    public bool IsTodoPage => ActivePage?.Key == "Todo";
-    public bool IsSchedulePage => ActivePage?.Key == "Schedule";
-    public IReadOnlyList<TodoItem> TodoItems => _todo.Items;
-    public IReadOnlyList<ScheduleItem> ScheduleItems => _schedule.Items;
-    public string PomodoroClockText => _pomodoro.ClockText;
-    public string PomodoroPhaseText => _pomodoro.Phase switch
-    {
-        PomodoroPhase.Work => _pomodoro.IsPaused ? "专注已暂停" : "专注时间",
-        PomodoroPhase.Break => _pomodoro.IsPaused ? "休息已暂停" : "休息时间",
-        _ => "准备开始",
-    };
     public RelayCommand PrevPageCommand { get; }
     public RelayCommand NextPageCommand { get; }
-    public RelayCommand PomodoroWorkCommand { get; }
-    public RelayCommand PomodoroBreakCommand { get; }
-    public RelayCommand PomodoroStopCommand { get; }
-    public RelayCommand PomodoroToggleCommand { get; }
 
     public IslandViewModel(MediaCoordinator coordinator, SettingsService settings, LyricsService lyricsService,
         AudioWaveService? wave = null, KeyboardIndicatorMonitor? keyboard = null,
-        ClipboardHistoryService? clipboard = null, TodoService? todo = null,
-        ScheduleService? schedule = null, PomodoroService? pomodoro = null,
+        ClipboardCopyMonitor? clipboard = null,
         MessengerUnreadMonitor? messenger = null)
     {
         _coordinator = coordinator;
@@ -159,18 +136,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         // 效率工具 / 波纹 / 键盘指示灯：默认自建实例（App 可注入共享实例）
         _wave = wave ?? new AudioWaveService();
         _keyboard = keyboard ?? new KeyboardIndicatorMonitor();
-        _clipboard = clipboard ?? new ClipboardHistoryService();
-        _todo = todo ?? new TodoService();
-        _schedule = schedule ?? new ScheduleService();
-        _pomodoro = pomodoro ?? new PomodoroService();
+        _clipboard = clipboard ?? new ClipboardCopyMonitor();
         _messengerMonitor = messenger;
         if (_messengerMonitor is not null) _messengerMonitor.Changed += OnMessengerUnreadsChanged;
         PrevPageCommand = new RelayCommand(_ => NavigatePage(-1));
         NextPageCommand = new RelayCommand(_ => NavigatePage(1));
-        PomodoroWorkCommand = new RelayCommand(_ => { _pomodoro.StartWork(_settings.Current.PomodoroWorkMinutes); RefreshTimerText(); });
-        PomodoroBreakCommand = new RelayCommand(_ => { _pomodoro.StartBreak(_settings.Current.PomodoroBreakMinutes); RefreshTimerText(); });
-        PomodoroStopCommand = new RelayCommand(_ => { _pomodoro.Stop(); RefreshTimerText(); });
-        PomodoroToggleCommand = new RelayCommand(_ => { _pomodoro.TogglePause(); RefreshTimerText(); });
         _settings.Changed += OnPageSettingsChanged;
         RebuildPages();
         // 轻量化：波纹可视化关闭时不启动音频线程（旧代码无条件启动，导致即使关掉波纹仍常驻采集/唤醒）
@@ -181,11 +151,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
         _wave.SetPlaying(false);
         _keyboard.StateChanged += OnKeyboardStateChanged;
-        _clipboard.Changed += RefreshClipboardSummary;
-        _todo.Changed += RefreshTodoSummary;
-        _schedule.Changed += RefreshScheduleSummary;
-        _pomodoro.Tick += RefreshTimerText;
-        _pomodoro.Completed += OnPomodoroCompleted;
 
         // #4 歌词时间微调：加载为每首歌保存的时间偏移（用户手动校准的歌词对齐）
         try
@@ -240,7 +205,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             UpdateVolumeTempCountdown();
             PollFileCopy();
             PollDownloadProgress();
-            UpdateScreenshotCountdown();
             _widgetTimer.Interval = TimeSpan.FromSeconds(1); // 岛可见时恢复正常 1 秒轮询
             if (!IsVisible) { _widgetTimer.Interval = TimeSpan.FromSeconds(5); return; } // 岛隐藏时降频到 5 秒，减少空闲 CPU 占用
             var nowClock = DateTime.Now.ToString("HH:mm");
@@ -251,24 +215,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             if (_activePush is not null) OnPropertyChanged(nameof(ActivePushProgress)); // v3 动态进度按秒推进
             UpdateSystemStats();
             UpdateCapsLockCountdown();
-            if (ShowIdleClipboard) RefreshClipboardSummary(); // 后台减负：组件未勾选时不轮询
-            if (ShowIdleTodo) RefreshTodoSummary();
-            if (ShowIdleSchedule) RefreshScheduleSummary();
-            if (ShowIdleTimer) RefreshTimerText();
-            // 开会静音助手：检测前台窗口会议状态（仅勾选组件或开启会议勿扰时才有意义，但检测开销极小）
-            if (ShowIdleMeeting || (_settings.Current.MeetingAssistantEnabled && _settings.Current.MeetingAutoDnd))
-            {
-                MeetingMonitor.SetCustomKeywords(_settings.Current.MeetingKeywords);
-                var meetingChanged = MeetingMonitor.Check();
-                var newMeetingText = MeetingMonitor.IsInMeeting
-                    ? $"{Localization.Get("Comp_Meeting")} · {MeetingMonitor.AppName}"
-                    : string.Empty;
-                if (meetingChanged || MeetingText != newMeetingText)
-                {
-                    MeetingText = newMeetingText;
-                    RebuildCompactItems();
-                }
-            }
             if (ShowIdleInputMethod) InputMethodText = InputMethodMonitor.GetStatusText();
             if (ShowIdleQuickToggles) RefreshQuickToggles();
             if (ShowIdleWeather && ++_weatherTick % 60 == 1)
@@ -771,19 +717,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public bool ShowIdleBattery => HasMedia ? _settings.Current.Components.BatteryWhenPlaying : _settings.Current.Components.BatteryWhenIdle;
     public bool ShowIdleVolume => HasMedia ? _settings.Current.Components.VolumeWhenPlaying : _settings.Current.Components.VolumeWhenIdle;
     public bool ShowIdleCapsLock => HasMedia ? _settings.Current.Components.CapsLockWhenPlaying : _settings.Current.Components.CapsLockWhenIdle;
-    public bool ShowIdleClipboard => HasMedia ? _settings.Current.Components.ClipboardWhenPlaying : _settings.Current.Components.ClipboardWhenIdle;
-    public bool ShowIdleTodo => HasMedia ? _settings.Current.Components.TodoWhenPlaying : _settings.Current.Components.TodoWhenIdle;
-    public bool ShowIdleTimer => HasMedia ? _settings.Current.Components.TimerWhenPlaying : _settings.Current.Components.TimerWhenIdle;
-    public bool ShowIdleSchedule => HasMedia ? _settings.Current.Components.ScheduleWhenPlaying : _settings.Current.Components.ScheduleWhenIdle;
-    public bool ShowIdleHoliday => HasMedia ? _settings.Current.Components.HolidayWhenPlaying : _settings.Current.Components.HolidayWhenIdle;
-    public bool ShowIdleMeeting => HasMedia ? _settings.Current.Components.MeetingWhenPlaying : _settings.Current.Components.MeetingWhenIdle;
     public bool ShowIdleDisk => HasMedia ? _settings.Current.Components.DiskWhenPlaying : _settings.Current.Components.DiskWhenIdle;
     public bool ShowIdleInputMethod => HasMedia ? _settings.Current.Components.InputMethodWhenPlaying : _settings.Current.Components.InputMethodWhenIdle;
     public bool ShowIdleQuickToggles => HasMedia ? _settings.Current.Components.QuickTogglesWhenPlaying : _settings.Current.Components.QuickTogglesWhenIdle;
     public bool ShowAnyWidget => ShowIdleTime || ShowIdleWeather || ShowIdleDate
         || ShowIdleCpu || ShowIdleRam || ShowIdleGpu || ShowIdleNet || ShowIdleBattery || ShowIdleMic || ShowIdleCam
-        || ShowIdleVolume || ShowIdleCapsLock || ShowIdleClipboard || ShowIdleTodo
-        || ShowIdleTimer || ShowIdleSchedule || ShowIdleHoliday || ShowIdleMeeting || ShowIdleDisk || ShowIdleInputMethod || ShowIdleQuickToggles;
+        || ShowIdleVolume || ShowIdleCapsLock || ShowIdleDisk || ShowIdleInputMethod || ShowIdleQuickToggles;
 
     // ── 效率工具 / 波纹 文本 ──
     /// <summary>波纹强度（0..1），由 AudioWaveService 实时采集/模拟，UI 轮询。</summary>
@@ -793,11 +732,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private string _capsLockText = string.Empty;
     /// <summary>按键指示灯文本（如「Caps 开」），出现 N 秒后自动清空。</summary>
     public string CapsLockText { get => _capsLockText; private set => Set(ref _capsLockText, value); }
-    private string _screenshotStatusText = string.Empty;
-    /// <summary>截图临时指示文本（按 PrintScreen 后出现，几秒后自动消失）。</summary>
-    public string ScreenshotStatusText { get => _screenshotStatusText; private set => Set(ref _screenshotStatusText, value); }
-    private int _screenshotSecondsLeft; // 截图指示剩余显示秒数（由 _widgetTimer 每秒递减）
-    private string _recordingText = string.Empty;
     private int _volumeTempGen; // 音量指示代际计数：用于取消过期的淡出清理
     private string _volumeTempText = string.Empty;
     /// <summary>音量/静音临时上岛文本（调节音量后出现，几秒后自动消失）。</summary>
@@ -823,22 +757,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private string _downloadText = string.Empty;
     /// <summary>下载进行中文本。</summary>
     public string DownloadText { get => _downloadText; private set => Set(ref _downloadText, value); }
-    /// <summary>录屏进行中指示（如「录制中 · OBS」；停止录制后清空）。</summary>
-    public string RecordingText { get => _recordingText; private set => Set(ref _recordingText, value); }
-    private string _clipboardSummary = string.Empty;
-    public string ClipboardSummary { get => _clipboardSummary; private set => Set(ref _clipboardSummary, value); }
-    private string _todoSummary = string.Empty;
-    public string TodoSummary { get => _todoSummary; private set => Set(ref _todoSummary, value); }
-    private string _timerText = string.Empty;
-    public string TimerText { get => _timerText; private set => Set(ref _timerText, value); }
-    private bool _timerPaused;
-    /// <summary>番茄钟是否处于暂停态（组件显示 ⏸ 图标）。</summary>
-    public bool TimerPaused { get => _timerPaused; private set => Set(ref _timerPaused, value); }
-    private string _timerToolTip = string.Empty;
-    /// <summary>番茄钟组件悬停提示（点击暂停/继续）。</summary>
-    public string TimerToolTip { get => _timerToolTip; private set => Set(ref _timerToolTip, value); }
-    private string _scheduleSummary = string.Empty;
-    public string ScheduleSummary { get => _scheduleSummary; private set => Set(ref _scheduleSummary, value); }
 
     private sealed record PluginComponentEntry(string PluginId, PluginComponentSpec Component);
     private readonly List<PluginComponentEntry> _pluginComponents = new();
@@ -1014,7 +932,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        foreach (var known in new[] { "Time", "Weather", "Date", "Cpu", "Ram", "Gpu", "Mic", "Cam", "Net", "Battery", "Song", "Volume", "CapsLock", "ScreenCap", "Recording", "VolumeTemp", "Usage", "FileCopy", "Download", "Clipboard", "Todo", "Timer", "Schedule", "Holiday", "Meeting", "Disk", "InputMethod", "QuickToggles", "FileTransfer" })
+        foreach (var known in new[] { "Time", "Weather", "Date", "Cpu", "Ram", "Gpu", "Mic", "Cam", "Net", "Battery", "Song", "Volume", "CapsLock", "VolumeTemp", "Usage", "FileCopy", "Download", "Disk", "InputMethod", "QuickToggles", "FileTransfer" })
             if (!keys.Contains(known)) keys.Add(known);
 
         // 插件组件以 Plugin:{插件id} 为键参与排序；未写入顺序配置的插件追加到末尾（向后兼容）
@@ -1032,8 +950,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             if (mergeItems.Contains("Mic") && ShowIdleMic && !string.IsNullOrEmpty(MicText)) activeMerge.Add(Localization.Get("Comp_Mic"));
             if (mergeItems.Contains("Cam") && ShowIdleCam && !string.IsNullOrEmpty(CamText)) activeMerge.Add(Localization.Get("Comp_Cam"));
-            if (mergeItems.Contains("Meeting") && ShowIdleMeeting && !string.IsNullOrEmpty(MeetingText)) activeMerge.Add(Localization.Get("Comp_Meeting"));
-            if (mergeItems.Contains("Recording") && _settings.Current.ScreenCaptureNotifyEnabled && !string.IsNullOrEmpty(RecordingText)) activeMerge.Add(Localization.Get("ScreenCap_IslandRecording"));
+
         }
         var newUsageText = mergeEnabled && activeMerge.Count > 0
             ? Localization.Get("Comp_Usage") + " · " + string.Join(" · ", activeMerge)
@@ -1068,17 +985,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             else if (key == "Battery" && ShowIdleBattery) items.Add(I("Battery"));
             else if (key == "Song" && HasMedia && _settings.Current.ShowMediaInfo) items.Add(I("Song"));
             else if (key == "CapsLock" && ShowIdleCapsLock && !string.IsNullOrEmpty(CapsLockText)) items.Add(I("CapsLock"));
-            else if (key == "ScreenCap" && _settings.Current.ScreenCaptureNotifyEnabled && !string.IsNullOrEmpty(ScreenshotStatusText)) items.Add(I("ScreenCap"));
-            else if (key == "Recording" && _settings.Current.ScreenCaptureNotifyEnabled && !string.IsNullOrEmpty(RecordingText)) items.Add(I("Recording"));
             else if (key == "VolumeTemp" && _settings.Current.VolumeTempIndicatorEnabled && !string.IsNullOrEmpty(VolumeTempText)) items.Add(I("VolumeTemp"));
             else if (key == "FileCopy" && _settings.Current.FileCopyNotifyEnabled && !string.IsNullOrEmpty(FileCopyText)) items.Add(I("FileCopy"));
             else if (key == "Download" && _settings.Current.DownloadProgressEnabled && !string.IsNullOrEmpty(DownloadText)) items.Add(I("Download"));
-            else if (key == "Clipboard" && !HasMedia && ShowIdleClipboard && !string.IsNullOrEmpty(ClipboardSummary)) items.Add(I("Clipboard"));
-            else if (key == "Todo" && ShowIdleTodo && !string.IsNullOrEmpty(TodoSummary)) items.Add(I("Todo"));
-            else if (key == "Timer" && ShowIdleTimer && !string.IsNullOrEmpty(TimerText)) items.Add(I("Timer"));
-            else if (key == "Schedule" && ShowIdleSchedule && !string.IsNullOrEmpty(ScheduleSummary)) items.Add(I("Schedule"));
-            else if (key == "Holiday" && ShowIdleHoliday && !string.IsNullOrEmpty(HolidayText)) items.Add(I("Holiday"));
-            else if (key == "Meeting" && ShowIdleMeeting && !string.IsNullOrEmpty(MeetingText)) items.Add(I("Meeting"));
             else if (key == "Disk" && ShowIdleDisk) items.Add(I("Disk"));
             else if (key == "InputMethod" && ShowIdleInputMethod) items.Add(I("InputMethod"));
             else if (key == "QuickToggles" && ShowIdleQuickToggles) items.Add(I("QuickToggles"));
@@ -1359,13 +1268,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 catch { NetText = string.Empty; NetTextUp = string.Empty; }
             }
 
-            // 节假日倒计时（仅勾选显示时计算，纯本地）
-            if (ShowIdleHoliday)
-            {
-                var (hName, hDays) = NextHolidayInfo();
-                HolidayText = hDays < 0 ? string.Empty : hDays == 0 ? $"今日 {hName}" : $"{hName} {hDays} 天后";
-            }
-            else if (HolidayText.Length > 0) HolidayText = string.Empty;
         }
         catch { /* 忽略性能计数器/电量异常 */ }
     }
@@ -1869,10 +1771,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                     case "Cam": w += MeasureText(CamText, 10.5, 6) + 16; break;
                     case "Net": w += MeasureText(NetText, 10.5, 6) + 16; break;
                     case "Battery": w += MeasureText(BatteryText, 10.5, 6) + 16; break;
-                    case "Holiday": w += Math.Min(MeasureText(HolidayText, 11.5, 6.5) + 8, 120); break;
-                    case "Meeting": w += Math.Min(MeasureText(MeetingText, 10.5, 6) + 16, 160); break;
-                    case "ScreenCap": w += MeasureText(ScreenshotStatusText, 10.5, 6) + 16; break;
-                    case "Recording": w += Math.Min(MeasureText(RecordingText, 10.5, 6) + 16, 180); break;
                     case "VolumeTemp": w += 10 + 6 + 58 + 6 + MeasureText(VolumeTempText, 10.5, 6) + 24; break;
                     case "Usage": w += Math.Min(MeasureText(UsageMergeText, 10.5, 6) + 16, 200); break;
                     case "FileCopy": w += Math.Min(MeasureText(FileCopyText, 10.5, 6) + 16, 220); break;
@@ -2072,9 +1970,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         if (direction is int dir && oldPage is { } old && !ReferenceEquals(old, page))
             PageTransitionStarted?.Invoke(old, page, dir);
         OnPropertyChanged(nameof(IsMusicPage));
-        OnPropertyChanged(nameof(IsFocusPage));
-        OnPropertyChanged(nameof(IsTodoPage));
-        OnPropertyChanged(nameof(IsSchedulePage));
         OnPropertyChanged(nameof(ActivePage));
         OnPropertyChanged(nameof(ActivePageTitle));
         OnPropertyChanged(nameof(ActivePageAccentBrush));
@@ -2292,10 +2187,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         };
     }
 
-    // ── 效率工具组件刷新（服务事件 → 摘要文本 → 重建组件）─────────
-    /// <summary>番茄钟阶段结束（由上层弹通知）。</summary>
-    public event Action<PomodoroPhase>? PomodoroCompletedRequested;
-
     private void OnKeyboardStateChanged(string key)
     {
         var label = key switch
@@ -2315,7 +2206,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         RebuildCompactItems();
     }
 
-    /// <summary>每秒递减键盘指示灯剩余秒数，到 0 后清空（组件消失）。</summary>
     private void UpdateCapsLockCountdown()
     {
         if (_capsLockSecondsLeft <= 0) return;
@@ -2323,38 +2213,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             CapsLockText = string.Empty;
             RebuildCompactItems();
-        }
-    }
-    /// <summary>截图事件：灵动岛显示「已截图」临时指示（由 ScreenCaptureMonitor 事件转发）。</summary>
-    public void NotifyScreenshotTaken()
-    {
-        if (!_settings.Current.ScreenCaptureNotifyEnabled) return;
-        ScreenshotStatusText = Localization.Get("ScreenCap_IslandScreenshot");
-        _screenshotSecondsLeft = Math.Max(1, _settings.Current.KeyIndicatorSeconds);
-        RebuildCompactItems();
-        UpdateVisibility(); // 无媒体且隐藏时也要能临时显示
-    }
-
-    /// <summary>录制状态变化：进入/退出录制时更新灵动岛「录制中」指示。</summary>
-    public void SetRecordingStatus(bool recording, string app)
-    {
-        if (!_settings.Current.ScreenCaptureNotifyEnabled) return;
-        RecordingText = recording
-            ? $"{Localization.Get("ScreenCap_IslandRecording")}{(string.IsNullOrEmpty(app) ? string.Empty : " · " + app)}"
-            : string.Empty;
-        RebuildCompactItems();
-        UpdateVisibility(); // 无媒体且隐藏时也要能临时显示
-    }
-
-    /// <summary>每秒递减截图指示剩余秒数，到 0 后清空（组件消失）。</summary>
-    private void UpdateScreenshotCountdown()
-    {
-        if (_screenshotSecondsLeft <= 0) return;
-        if (--_screenshotSecondsLeft <= 0)
-        {
-            ScreenshotStatusText = string.Empty;
-            RebuildCompactItems();
-            UpdateVisibility(); // 上岛卡片显示/消失影响灵动岛可见性
         }
     }
     /// <summary>音量/静音变化：显示临时上岛指示（几秒后自动消失）。</summary>
@@ -2437,35 +2295,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             RebuildCompactItems();
             UpdateVisibility(); // 上岛卡片显示/消失影响灵动岛可见性
         }
-    }
-
-    private void RefreshClipboardSummary() { ClipboardSummary = _clipboard.Summary; RebuildCompactItems(); }
-    private void RefreshTodoSummary() { TodoSummary = _todo.Summary; OnPropertyChanged(nameof(TodoItems)); RebuildCompactItems(); }
-    private void RefreshScheduleSummary() { ScheduleSummary = _schedule.Summary; OnPropertyChanged(nameof(ScheduleItems)); RebuildCompactItems(); }
-    private void RefreshTimerText()
-    {
-        TimerPaused = _pomodoro.IsPaused;
-        OnPropertyChanged(nameof(PomodoroClockText));
-        OnPropertyChanged(nameof(PomodoroPhaseText));
-        TimerToolTip = Localization.Get("Timer_ToggleHint");
-        TimerText = _pomodoro.Phase == PomodoroPhase.Stopped ? string.Empty : _pomodoro.ClockText;
-        RebuildCompactItems();
-    }
-    private void OnPomodoroCompleted(PomodoroPhase phase)
-    {
-        RefreshTimerText();
-        PomodoroCompletedRequested?.Invoke(phase);
-    }
-
-    /// <summary>点击灵动岛上的番茄钟组件：暂停/继续切换（不抛异常）。</summary>
-    public void ToggleTimerPause()
-    {
-        try
-        {
-            _pomodoro.TogglePause();
-            RefreshTimerText();
-        }
-        catch (Exception ex) { AppLogger.Warn($"Timer toggle failed: {ex.Message}"); }
     }
 
     /// <summary>执行上岛卡片按钮动作（url/启动程序；notify 回调给推送方，#10）。</summary>
@@ -3041,19 +2870,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         ShowIdleWidgets = !hasMedia; // 空闲面板可见性（内部按组件勾选）
 
         // 有上岛推送时也要显示灵动岛（否则第三方推送看不到）
-        // 截图/录屏/音量/复制/下载等临时指示激活时也强制显示（到期自动消失后恢复隐藏）
-        var anyTempStatus = (ScreenshotStatusText.Length > 0 || RecordingText.Length > 0 || VolumeTempText.Length > 0
-            || FileCopyText.Length > 0 || DownloadText.Length > 0);
+        // 音量/复制/下载等临时指示激活时也强制显示（到期自动消失后恢复隐藏）
+        var anyTempStatus = (VolumeTempText.Length > 0 || FileCopyText.Length > 0 || DownloadText.Length > 0);
         var show = !_userHidden && !FullScreenHidden && !LockScreenHidden && (hasMedia || showWidgets || HasActivePush || !_settings.Current.HideWhenNoMedia || anyTempStatus);
         // 常驻时不因暂停而隐藏
         if (!alwaysVisible && hasMedia && Status == PlaybackStatus.Paused && !_settings.Current.ShowWhenPaused)
             show = false;
-
-        // 条件规则引擎：隐藏/强制显示/强制收起（多个规则叠加，隐藏优先）
-        var ruleEval = RuleEngine.Evaluate(_settings.Current, hasMedia, _snapshot?.Track.SourceAppId);
-        if (ruleEval.ForceHide) show = false;
-        else if (ruleEval.ForceShow) show = true;
-        if (ruleEval.ForceCollapse && IsExpanded) IsExpanded = false;
 
         if (!ShowIdleWeather) { WeatherText = string.Empty; WeatherDetailText = string.Empty; } // 仅天气组件不显示时才清空
         if (!ShowIdleMic) MicText = string.Empty; // 麦克风/摄像头组件不勾选时清空
@@ -3079,16 +2901,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         RaiseVisIfChanged(nameof(ShowIdleBattery), ShowIdleBattery);
         RaiseVisIfChanged(nameof(ShowIdleVolume), ShowIdleVolume);
         RaiseVisIfChanged(nameof(ShowIdleCapsLock), ShowIdleCapsLock);
-        RaiseVisIfChanged(nameof(ShowIdleClipboard), ShowIdleClipboard);
-        RaiseVisIfChanged(nameof(ShowIdleTodo), ShowIdleTodo);
-        RaiseVisIfChanged(nameof(ShowIdleTimer), ShowIdleTimer);
-        RaiseVisIfChanged(nameof(ShowIdleSchedule), ShowIdleSchedule);
-        RaiseVisIfChanged(nameof(ShowIdleHoliday), ShowIdleHoliday);
-        RaiseVisIfChanged(nameof(ShowIdleMeeting), ShowIdleMeeting);
         RaiseVisIfChanged(nameof(ShowIdleDisk), ShowIdleDisk);
         RaiseVisIfChanged(nameof(ShowIdleInputMethod), ShowIdleInputMethod);
         RaiseVisIfChanged(nameof(ShowIdleQuickToggles), ShowIdleQuickToggles);
-        RaiseVisIfChanged(nameof(HolidayText), HolidayText.Length > 0);
         RaiseVisIfChanged(nameof(VolumeText), VolumeText.Length > 0);
         _visFirst = false;
 
@@ -3138,7 +2953,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         {
             var text = CurrentLyricText;
             if (string.IsNullOrEmpty(text)) return;
-            System.Windows.Clipboard.SetText(text);
+            _clipboard.CopyToClipboard(text);
             AppLogger.Info("Current lyric copied to clipboard.");
         }
         catch (Exception ex)
@@ -3445,7 +3260,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             _ => Localization.Get("LyricsUnavailable"),
         };
         OnPropertyChanged(nameof(LyricsStatus));
-        TimerToolTip = Localization.Get("Timer_ToggleHint");
         // 语言切换后刷新含本地化文案的临时状态（复制/下载/合并胶囊）
         PollFileCopy();
         PollDownloadProgress();
@@ -3533,19 +3347,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _coordinator.MediaEnded -= OnMediaEnded;
         _coordinator.SessionsChanged -= OnSessionsChanged;
         _keyboard.StateChanged -= OnKeyboardStateChanged;
-        _clipboard.Changed -= RefreshClipboardSummary;
-        _todo.Changed -= RefreshTodoSummary;
-        _schedule.Changed -= RefreshScheduleSummary;
-        _pomodoro.Tick -= RefreshTimerText;
-        _pomodoro.Completed -= OnPomodoroCompleted;
         if (_messengerMonitor is not null) _messengerMonitor.Changed -= OnMessengerUnreadsChanged;
         _settings.Changed -= OnPageSettingsChanged;
         Localization.LanguageChanged -= OnLanguageChanged;
         // 释放效率工具服务（Stop/Dispose 幂等，App 退出时再次调用安全）
         _keyboard.Dispose();
         _clipboard.Dispose();
-        _schedule.Dispose();
-        _pomodoro.Dispose();
         _wave.Stop();
     }
 }

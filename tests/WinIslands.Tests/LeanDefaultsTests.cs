@@ -3,7 +3,7 @@ using WinIslands.Services;
 
 namespace WinIslands.Tests;
 
-/// <summary>默认组件精简 + 轻量化迁移（配置 v1 → v2）。</summary>
+/// <summary>默认组件精简、功能清理迁移与通知来源配置。</summary>
 public class LeanDefaultsTests : IDisposable
 {
     private readonly string? _origAppData = Environment.GetEnvironmentVariable("WINISLANDS_APPDATA");
@@ -22,77 +22,67 @@ public class LeanDefaultsTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { /* ignore */ }
     }
 
-    /// <summary>3.1.2 及以前的默认组件组合（用于验证迁移命中）。</summary>
-    private static ComponentFlags LegacyComponents()
-    {
-        var c = new ComponentFlags(); // 新默认 = 旧默认 + 下列 5 项差异
-        c.DateWhenIdle = true;
-        c.TodoWhenIdle = true;
-        c.ScheduleWhenIdle = true;
-        c.HolidayWhenIdle = true;
-        c.ClipboardWhenPlaying = true;
-        return c;
-    }
-
     [Fact]
     public void NewSettings_UseLeanDefaults()
     {
         var s = new AppSettings();
 
-        Assert.Equal(5, s.Version);
+        Assert.Equal(7, s.Version);
         Assert.True(s.Components.TimeWhenIdle);
         Assert.False(s.Components.DateWhenIdle);
-        Assert.False(s.Components.TodoWhenIdle);
-        Assert.False(s.Components.ScheduleWhenIdle);
-        Assert.False(s.Components.HolidayWhenIdle);
-        Assert.False(s.Components.ClipboardWhenPlaying);
         Assert.False(s.WaveVisualizerEnabled);
         Assert.False(s.WaveSyncEnabled);
         Assert.False(s.AmllTtmlEnabled);
         Assert.True(s.LowPowerMode);
         Assert.Equal("Daozai", s.ThemePreset);
         Assert.True(s.NotificationTakeoverEnabled);
+        Assert.Equal(NotificationAppFilterMode.All, s.NotificationAppFilterMode);
+        Assert.Empty(s.NotificationAppFilters);
     }
 
     [Fact]
-    public void LegacyDefaults_MigrateToLean()
+    public void FeatureCleanupV6_RemovesDeletedWidgets_AndKeepsUserChoices()
     {
         var s = new AppSettings
         {
-            Version = 1,
-            Components = LegacyComponents(),
-            WaveVisualizerEnabled = true,
-            WaveSyncEnabled = true,
-            AmllTtmlEnabled = true,
-            LowPowerMode = false,
+            Version = 5,
+            PageOrder = new List<string> { "Music", "Schedule", "Todo" },
+            HiddenPages = new List<string> { "Schedule" },
+            WidgetOrder = "Time,Clipboard,Todo,Timer,Schedule,Holiday,Meeting,ScreenCap,Recording,Mic,Cam",
+            UsageMergeItems = new List<string> { "Mic", "Meeting", "Cam", "Recording" },
+            ComponentIcons = new Dictionary<string, string>
+            {
+                ["Time"] = "T",
+                ["Todo"] = "X",
+                ["Clipboard"] = "C",
+                ["Meeting"] = "M",
+            },
+            CopyToastEnabled = false,
+            NotificationAppFilterMode = NotificationAppFilterMode.Blacklist,
+            NotificationAppFilters = new List<string> { "QQ" },
         };
 
-        Assert.True(AppSettings.ApplyLeanDefaultsV2(s));
-        Assert.Equal(2, s.Version);
-        Assert.True(s.Components.TimeWhenIdle);
-        Assert.False(s.Components.DateWhenIdle);
-        Assert.False(s.Components.TodoWhenIdle);
-        Assert.False(s.Components.ScheduleWhenIdle);
-        Assert.False(s.Components.HolidayWhenIdle);
-        Assert.False(s.Components.ClipboardWhenPlaying);
-        Assert.False(s.WaveVisualizerEnabled);
-        Assert.False(s.WaveSyncEnabled);
-        Assert.False(s.AmllTtmlEnabled);
-        Assert.True(s.LowPowerMode);
+        Assert.True(AppSettings.ApplyFeatureCleanupV6(s));
+        Assert.Equal(6, s.Version);
+        Assert.Equal(new[] { "Music" }, s.PageOrder);
+        Assert.Empty(s.HiddenPages);
+        Assert.Equal("Time,Mic,Cam", s.WidgetOrder);
+        Assert.Equal(new[] { "Mic", "Cam" }, s.UsageMergeItems);
+        Assert.Equal("T", s.ComponentIcons["Time"]);
+        Assert.False(s.ComponentIcons.ContainsKey("Todo"));
+        Assert.False(s.ComponentIcons.ContainsKey("Clipboard"));
+        Assert.False(s.ComponentIcons.ContainsKey("Meeting"));
+        Assert.False(s.CopyToastEnabled);
+        Assert.Equal(NotificationAppFilterMode.Blacklist, s.NotificationAppFilterMode);
+        Assert.Contains("QQ", s.NotificationAppFilters);
     }
 
     [Fact]
-    public void CustomizedComponents_ArePreserved()
+    public void FeatureCleanupV6_IsNoOp_OnCurrentVersion()
     {
-        var components = LegacyComponents();
-        components.WeatherWhenIdle = true; // 用户自定义过组件 → 不精简
-        var s = new AppSettings { Version = 1, Components = components };
-
-        Assert.True(AppSettings.ApplyLeanDefaultsV2(s));
-        Assert.True(s.Components.WeatherWhenIdle);
-        Assert.True(s.Components.DateWhenIdle);
-        Assert.True(s.Components.TodoWhenIdle);
-        Assert.True(s.Components.ClipboardWhenPlaying);
+        var s = new AppSettings { Version = 6, WidgetOrder = "Time,Weather" };
+        Assert.False(AppSettings.ApplyFeatureCleanupV6(s));
+        Assert.Equal("Time,Weather", s.WidgetOrder);
     }
 
     [Fact]
@@ -130,6 +120,16 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
+    public void LiquidGlassPreset_MigratesToBlackV7()
+    {
+        var s = new AppSettings { Version = 6, ThemePreset = "DaozaiLiquid" };
+
+        Assert.True(AppSettings.ApplyBlackIslandV7(s));
+        Assert.Equal(7, s.Version);
+        Assert.Equal("Daozai", s.ThemePreset);
+    }
+
+    [Fact]
     public void NotificationAccess_MigratesToV5()
     {
         var s = new AppSettings { Version = 4, NotificationTakeoverEnabled = false };
@@ -139,38 +139,34 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
-    public void CurrentVersion_IsNoOp()
-    {
-        var s = new AppSettings { Version = 2 };
-        Assert.False(AppSettings.ApplyLeanDefaultsV2(s));
-    }
-
-    [Fact]
-    public void SettingsService_LoadsAndPersistsMigratedConfig()
+    public void SettingsService_LoadsLegacyConfig_AndPersistsV7()
     {
         var json = JsonSerializer.Serialize(new AppSettings
         {
             Version = 1,
-            Components = LegacyComponents(),
+            Components = new ComponentFlags { DateWhenIdle = true, TimeWhenIdle = true },
             WaveVisualizerEnabled = true,
             WaveSyncEnabled = true,
             AmllTtmlEnabled = true,
             LowPowerMode = false,
+            WidgetOrder = "Time,Clipboard,Todo,Weather",
+            UsageMergeItems = new List<string> { "Mic", "Meeting" },
         });
         Directory.CreateDirectory(_dir);
         File.WriteAllText(Path.Combine(_dir, "settings.json"), json);
 
         var service = new SettingsService();
 
-        Assert.Equal(5, service.Current.Version);
+        Assert.Equal(7, service.Current.Version);
         Assert.Equal("Daozai", service.Current.ThemePreset);
         Assert.False(service.Current.Components.DateWhenIdle);
         Assert.False(service.Current.WaveVisualizerEnabled);
         Assert.True(service.Current.LowPowerMode);
+        Assert.Equal("Time,Weather", service.Current.WidgetOrder);
 
-        // 迁移后已落盘：再读取一次仍是 v2，不会重复迁移
+        // 迁移后已落盘：再读取一次仍是 v7，不会重复迁移
         var again = new SettingsService();
-        Assert.Equal(5, again.Current.Version);
+        Assert.Equal(7, again.Current.Version);
         Assert.False(again.Current.Components.DateWhenIdle);
     }
 }

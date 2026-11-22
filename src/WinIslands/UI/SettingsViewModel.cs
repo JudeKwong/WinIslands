@@ -48,12 +48,6 @@ public sealed class OrderItem : ObservableObject
                 "Net" => en ? "Network speed" : "网络速度",
                 "Battery" => en ? "Battery level" : "电量",
                 "CapsLock" => en ? "Caps Lock state" : "大写锁定状态",
-                "Clipboard" => en ? "Clipboard summary" : "剪贴板摘要",
-                "Todo" => en ? "Todo progress" : "待办进度",
-                "Timer" => en ? "Focus timer" : "专注计时",
-                "Schedule" => en ? "Next schedule item" : "下一项日程",
-                "Holiday" => en ? "Holiday countdown" : "节假日倒计时",
-                "Meeting" => en ? "Meeting status" : "会议状态",
                 "Disk" => en ? "Disk free space" : "磁盘剩余空间",
                 "InputMethod" => en ? "Input method state" : "输入法状态",
                 "QuickToggles" => en ? "Wi-Fi / Bluetooth / night mode" : "Wi-Fi / 蓝牙 / 夜间模式",
@@ -139,52 +133,6 @@ public sealed class ComponentRow : ObservableObject
     public void RefreshName() => OnPropertyChanged(nameof(Name));
 }
 
-/// <summary>规则引擎设置页的一行（直接编辑 Working.Rules 里的 AppRule，便于即时生效）。</summary>
-public sealed class RuleRow : ObservableObject
-{
-    private readonly AppRule _rule;
-
-    public AppRule Rule => _rule;
-    public IReadOnlyList<EnumOption<RuleCondition>> ConditionOptions { get; } = new[]
-    {
-        new EnumOption<RuleCondition>(RuleCondition.Always, Localization.Get("Rules_Cond_Always")),
-        new EnumOption<RuleCondition>(RuleCondition.NoMedia, Localization.Get("Rules_Cond_NoMedia")),
-        new EnumOption<RuleCondition>(RuleCondition.MediaPlaying, Localization.Get("Rules_Cond_MediaPlaying")),
-        new EnumOption<RuleCondition>(RuleCondition.TimeRange, Localization.Get("Rules_Cond_TimeRange")),
-        new EnumOption<RuleCondition>(RuleCondition.AppPlaying, Localization.Get("Rules_Cond_AppPlaying")),
-    };
-    public IReadOnlyList<EnumOption<RuleAction>> ActionOptions { get; } = new[]
-    {
-        new EnumOption<RuleAction>(RuleAction.Hide, Localization.Get("Rules_Act_Hide")),
-        new EnumOption<RuleAction>(RuleAction.Collapse, Localization.Get("Rules_Act_Collapse")),
-        new EnumOption<RuleAction>(RuleAction.ForceShow, Localization.Get("Rules_Act_ForceShow")),
-    };
-    public IReadOnlyList<int> Hours { get; } = Enumerable.Range(0, 24).ToList();
-
-    public RuleRow(AppRule rule) => _rule = rule;
-
-    public string Name { get => _rule.Name; set { _rule.Name = value; OnPropertyChanged(); } }
-    public bool Enabled { get => _rule.Enabled; set { _rule.Enabled = value; OnPropertyChanged(); } }
-    public RuleCondition Condition
-    {
-        get => _rule.Condition;
-        set
-        {
-            if (_rule.Condition == value) return;
-            _rule.Condition = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsTimeRange));
-            OnPropertyChanged(nameof(IsAppMatch));
-        }
-    }
-    public bool IsTimeRange => Condition == RuleCondition.TimeRange;
-    public bool IsAppMatch => Condition == RuleCondition.AppPlaying;
-    public int StartHour { get => _rule.StartHour; set { _rule.StartHour = value; OnPropertyChanged(); } }
-    public int EndHour { get => _rule.EndHour; set { _rule.EndHour = value; OnPropertyChanged(); } }
-    public string AppMatch { get => _rule.AppMatch; set { _rule.AppMatch = value; OnPropertyChanged(); } }
-    public RuleAction Action { get => _rule.Action; set { _rule.Action = value; OnPropertyChanged(); } }
-}
-
 /// <summary>快捷操作设置行：勾选显示 + ↑↓ 调整顺序（顺序即显示顺序）。</summary>
 public sealed class QuickActionRow : ObservableObject
 {
@@ -249,7 +197,6 @@ public sealed class SettingsViewModel : ObservableObject
         };
         ThemePresetOptions = new[]
         {
-            new EnumOption<string>("DaozaiLiquid", Localization.Get("Appearance_PresetDaozaiLiquid")),
             new EnumOption<string>("Daozai", Localization.Get("Appearance_PresetDaozai")),
             new EnumOption<string>("Default", Localization.Get("Appearance_PresetDefault")),
             new EnumOption<string>("Ocean", Localization.Get("Appearance_PresetOcean")),
@@ -271,7 +218,12 @@ public sealed class SettingsViewModel : ObservableObject
             new EnumOption<string>("Aurora", Localization.Get("Appearance_PresetAurora")),
             new EnumOption<string>("Custom", Localization.Get("Appearance_PresetCustom")),
         };
-        WaveStyleOptions = new[]
+        NotificationFilterModeOptions = new[]
+        {
+            new EnumOption<NotificationAppFilterMode>(NotificationAppFilterMode.All, Localization.Get("Notifications_ModeAll")),
+            new EnumOption<NotificationAppFilterMode>(NotificationAppFilterMode.Whitelist, Localization.Get("Notifications_ModeWhitelist")),
+            new EnumOption<NotificationAppFilterMode>(NotificationAppFilterMode.Blacklist, Localization.Get("Notifications_ModeBlacklist")),
+        };        WaveStyleOptions = new[]
         {
             new EnumOption<string>("Bars", Localization.Get("Wave_StyleBars")),
             new EnumOption<string>("Spectrum", Localization.Get("Wave_StyleSpectrum")),
@@ -299,7 +251,6 @@ public sealed class SettingsViewModel : ObservableObject
         RebuildPageManageRows();
         RebuildComponentManageRows();
         _mediaAppRows = BuildMediaApps(Working.MediaApps, registry);
-        _ruleRows = (Working.Rules ?? new List<AppRule>()).Select(r => new RuleRow(r)).ToList();
         RebuildQuickActionRows();
         _onLanguageChanged = (_, _) =>
         {
@@ -351,6 +302,33 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>来电提醒检测的应用（进程名，逗号分隔）。</summary>
+    /// <summary>通知来源过滤：全部允许、仅允许名单、仅拦截名单。</summary>
+    public NotificationAppFilterMode NotificationAppFilterMode
+    {
+        get => Working.NotificationAppFilterMode;
+        set
+        {
+            if (Working.NotificationAppFilterMode == value) return;
+            Working.NotificationAppFilterMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>应用显示名或 AUMID 片段；每行一条，也接受逗号/分号分隔。</summary>
+    public string NotificationAppFiltersText
+    {
+        get => string.Join(Environment.NewLine, Working.NotificationAppFilters ?? new List<string>());
+        set
+        {
+            Working.NotificationAppFilters = (value ?? string.Empty)
+                .Split(new[] { '\r', '\n', ',', '，', ';', '；' },
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            OnPropertyChanged();
+        }
+    }
     public string CallNotifyAppsText
     {
         get => string.Join(", ", Working.CallNotifyApps ?? new List<string>());
@@ -373,14 +351,13 @@ public sealed class SettingsViewModel : ObservableObject
     public IReadOnlyList<EnumOption<string>> AnimationStyleOptions { get; } = Array.Empty<EnumOption<string>>();
     public IReadOnlyList<EnumOption<string>> LyricsSourceOptions { get; } = Array.Empty<EnumOption<string>>();
     public IReadOnlyList<EnumOption<string>> WaveStyleOptions { get; } = Array.Empty<EnumOption<string>>();
+    public IReadOnlyList<EnumOption<NotificationAppFilterMode>> NotificationFilterModeOptions { get; }
     public IReadOnlyList<string> PresetColors { get; }
     public IReadOnlyList<ComponentRow> Components => _components;
     public IReadOnlyList<OrderItem> OrderItems => _orderItems;
     public IReadOnlyList<PageManageRow> PageManageRows => _pageManageRows;
     public IReadOnlyList<ComponentRow> ComponentManageRows => _componentManageRows;
     public IReadOnlyList<MediaAppRow> MediaAppRows => _mediaAppRows;
-    private List<RuleRow> _ruleRows = new();
-    public IReadOnlyList<RuleRow> RuleRows => _ruleRows;
 
     private List<QuickActionRow> _quickActionRows = new();
     /// <summary>快捷操作设置行（全部可用操作，顺序可调，勾选控制是否显示）。</summary>
@@ -416,24 +393,6 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>快捷操作行勾选变化时通知列表刷新。</summary>
     public void NotifyQuickActionRowsChanged() => OnPropertyChanged(nameof(QuickActionRows));
-
-    /// <summary>添加一条默认规则。</summary>
-    public void AddRule()
-    {
-        var rule = new AppRule { Name = Localization.Get("Rules_NewName"), Condition = RuleCondition.TimeRange };
-        Working.Rules ??= new List<AppRule>();
-        Working.Rules.Add(rule);
-        _ruleRows.Add(new RuleRow(rule));
-        OnPropertyChanged(nameof(RuleRows));
-    }
-
-    /// <summary>删除一条规则。</summary>
-    public void RemoveRule(RuleRow row)
-    {
-        if (row is null || !_ruleRows.Remove(row)) return;
-        Working.Rules?.Remove(row.Rule);
-        OnPropertyChanged(nameof(RuleRows));
-    }
 
     private List<MediaAppRow> _mediaAppRows = new();
 
@@ -491,12 +450,6 @@ public sealed class SettingsViewModel : ObservableObject
         new("Net", "Comp_Net", c, x => x.NetWhenIdle, (x, v) => x.NetWhenIdle = v, x => x.NetWhenPlaying, (x, v) => x.NetWhenPlaying = v, sget, _ => RebuildOrderItems()),
         new("Battery", "Comp_Battery", c, x => x.BatteryWhenIdle, (x, v) => x.BatteryWhenIdle = v, x => x.BatteryWhenPlaying, (x, v) => x.BatteryWhenPlaying = v, sget, _ => RebuildOrderItems()),
         new("CapsLock", "Comp_CapsLock", c, x => x.CapsLockWhenIdle, (x, v) => x.CapsLockWhenIdle = v, x => x.CapsLockWhenPlaying, (x, v) => x.CapsLockWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Clipboard", "Comp_Clipboard", c, x => x.ClipboardWhenIdle, (x, v) => x.ClipboardWhenIdle = v, x => x.ClipboardWhenPlaying, (x, v) => x.ClipboardWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Todo", "Comp_Todo", c, x => x.TodoWhenIdle, (x, v) => x.TodoWhenIdle = v, x => x.TodoWhenPlaying, (x, v) => x.TodoWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Timer", "Comp_Timer", c, x => x.TimerWhenIdle, (x, v) => x.TimerWhenIdle = v, x => x.TimerWhenPlaying, (x, v) => x.TimerWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Schedule", "Comp_Schedule", c, x => x.ScheduleWhenIdle, (x, v) => x.ScheduleWhenIdle = v, x => x.ScheduleWhenPlaying, (x, v) => x.ScheduleWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Holiday", "Comp_Holiday", c, x => x.HolidayWhenIdle, (x, v) => x.HolidayWhenIdle = v, x => x.HolidayWhenPlaying, (x, v) => x.HolidayWhenPlaying = v, sget, _ => RebuildOrderItems()),
-        new("Meeting", "Comp_Meeting", c, x => x.MeetingWhenIdle, (x, v) => x.MeetingWhenIdle = v, x => x.MeetingWhenPlaying, (x, v) => x.MeetingWhenPlaying = v, sget, _ => RebuildOrderItems()),
         new("Disk", "Comp_Disk", c, x => x.DiskWhenIdle, (x, v) => x.DiskWhenIdle = v, x => x.DiskWhenPlaying, (x, v) => x.DiskWhenPlaying = v, sget, _ => RebuildOrderItems()),
         new("InputMethod", "Comp_InputMethod", c, x => x.InputMethodWhenIdle, (x, v) => x.InputMethodWhenIdle = v, x => x.InputMethodWhenPlaying, (x, v) => x.InputMethodWhenPlaying = v, sget, _ => RebuildOrderItems()),
         new("QuickToggles", "Comp_QuickToggles", c, x => x.QuickTogglesWhenIdle, (x, v) => x.QuickTogglesWhenIdle = v, x => x.QuickTogglesWhenPlaying, (x, v) => x.QuickTogglesWhenPlaying = v, sget, _ => RebuildOrderItems()),
@@ -516,12 +469,6 @@ public sealed class SettingsViewModel : ObservableObject
         ("Net", "Comp_Net"),
         ("Battery", "Comp_Battery"),
         ("CapsLock", "Comp_CapsLock"),
-        ("Clipboard", "Comp_Clipboard"),
-        ("Todo", "Comp_Todo"),
-        ("Timer", "Comp_Timer"),
-        ("Schedule", "Comp_Schedule"),
-        ("Holiday", "Comp_Holiday"),
-        ("Meeting", "Comp_Meeting"),
         ("Disk", "Comp_Disk"),
         ("InputMethod", "Comp_InputMethod"),
         ("QuickToggles", "Comp_QuickToggles"),
@@ -645,9 +592,6 @@ public sealed class SettingsViewModel : ObservableObject
         var defs = new (string Key, string Title, string Description)[]
         {
             ("Music", en ? "Music" : "音乐", en ? "Artwork, lyrics and playback controls" : "封面、歌词与播放控制"),
-            ("Focus", en ? "Focus" : "番茄专注", en ? "Focus and break timer" : "专注与休息计时"),
-            ("Todo", en ? "Todo" : "待办清单", en ? "Local todo items" : "本地待办事项"),
-            ("Schedule", en ? "Schedule" : "日程", en ? "Next local schedule item" : "下一项本地日程"),
         };
         var order = (Working.PageOrder ?? new List<string>())
             .Where(k => defs.Any(d => string.Equals(d.Key, k, StringComparison.OrdinalIgnoreCase)))

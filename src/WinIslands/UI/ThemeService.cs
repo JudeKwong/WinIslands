@@ -37,7 +37,6 @@ public sealed class ThemeService
 
     // ── 岛仔（Daozai）皮肤专用色板：取自参考项目 theme.rs 的逐像素取色 ──
     public bool IsDaozai { get; private set; }
-    public bool IsLiquidGlass { get; private set; }
     public Brush DaozaiSurfaceBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x18));
     public Brush DaozaiButtonBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x28, 0x28, 0x2B));
     public Brush DaozaiButtonHoverBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x38, 0x38, 0x3C));
@@ -50,7 +49,7 @@ public sealed class ThemeService
 
     public event EventHandler? ThemeChanged;
 
-    /// <summary>皮肤预设表：强调色 + 深/浅两种液态玻璃底色（Hex）。</summary>
+    /// <summary>皮肤预设表：强调色 + 深/浅两种毛玻璃底色（Hex）。</summary>
     private static readonly (string Key, string Accent, string TintDark, string TintLight)[] Skins =
     {
         ("Ocean",    "#5B8DEF", "#0A1B33", "#E6F0FF"),
@@ -134,8 +133,7 @@ public sealed class ThemeService
     public void Apply(AppSettings settings)
     {
         _settings = settings;
-        IsLiquidGlass = string.Equals(settings.ThemePreset, "DaozaiLiquid", StringComparison.OrdinalIgnoreCase);
-        IsDaozai = IsLiquidGlass || string.Equals(settings.ThemePreset, "Daozai", StringComparison.OrdinalIgnoreCase);
+        IsDaozai = string.Equals(settings.ThemePreset, "Daozai", StringComparison.OrdinalIgnoreCase);
         var dark = settings.Theme switch
         {
             ThemeMode.Light => false,
@@ -185,10 +183,8 @@ public sealed class ThemeService
                 // 岛仔经典黑：纯黑岛体 + 白/灰双层级文字 + 深灰按钮
                 TextPrimary = new SolidColorBrush(Colors.White);
                 TextSecondary = new SolidColorBrush(Color.FromRgb(0x8E, 0x8E, 0x99));
-                // 液态玻璃版：内描边高光 1px rgba(255,255,255,.10)
-                CardBorder = IsLiquidGlass
-                    ? new SolidColorBrush(Color.FromArgb(41, 255, 255, 255))
-                    : new SolidColorBrush(Colors.Transparent);
+                // 灵动岛紧凑态与展开态都保持纯黑平面，无额外描边或玻璃高光。
+                CardBorder = new SolidColorBrush(Colors.Transparent);
                 ButtonHoverBrush = new SolidColorBrush(Color.FromRgb(0x38, 0x38, 0x3C));
                 SliderTrackBrush = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x27));
                 SliderThumbBrush = new SolidColorBrush(Colors.White);
@@ -232,19 +228,11 @@ public sealed class ThemeService
         AccentBrush = new SolidColorBrush(accent);
         AccentBorderBrush = new SolidColorBrush(Color.FromArgb(160, AccentColor.R, AccentColor.G, AccentColor.B));
 
-        // iOS 风格液态玻璃胶囊：紧凑态更通透（88%），展开态由 GlassLayer 叠加变实（≈97%）
+        // iOS 风格毛玻璃胶囊：紧凑态更通透（88%），展开态由 GlassLayer 叠加变实（≈97%）
         // 用户 Opacity 设置（0.3~1.0）整体缩放基础透明度，深色取色仍来自 TintColor
-        if (IsLiquidGlass)
-        {
-            // LiquidMusic 程序坞配方：rgba(18,18,20,.36) + 内描边高光 + 柔和投影（投影在 IslandWindow 应用）
-            var a = (byte)Math.Round(184 * Opacity);
-            CardBackground = new SolidColorBrush(Color.FromArgb(a, 0x1C, 0x1C, 0x20));
-        }
-        else
-        {
-            var compactAlpha = IsDaozai ? (byte)Math.Round(255 * Opacity) : (byte)Math.Round(224 * Opacity);
-            CardBackground = new SolidColorBrush(Color.FromArgb(compactAlpha, TintColor.R, TintColor.G, TintColor.B));
-        }
+        // 灵动岛本体（紧凑/展开）统一保持纯黑胶囊；毛玻璃只用于设置页与菜单。
+        var compactAlpha = IsDaozai ? (byte)Math.Round(255 * Opacity) : (byte)Math.Round(224 * Opacity);
+        CardBackground = new SolidColorBrush(Color.FromArgb(compactAlpha, TintColor.R, TintColor.G, TintColor.B));
 
         FreezeAll();
         ThemeChanged?.Invoke(this, EventArgs.Empty);

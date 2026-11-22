@@ -1,3 +1,94 @@
+## WinIslands 3.1.6（正式版 / Stable）
+### 更新内容
+
+- 🧊 **界面统一重新设计**：设置窗口、右键菜单和托盘菜单改为真实桌面采样的高斯毛玻璃质感，保留细描边与轻微反光；灵动岛继续使用经典纯黑胶囊
+- 🔔 **通知体验重新设计**：通知中心支持所有应用 Toast，并新增按应用名称或 AppUserModelId 的允许/禁止过滤；过期通知不再残留圆形应用图标，紧凑通知与复制轻提示重新排版
+- 🧩 **功能精简**：移除会议监测与自动勿扰、截图录音提醒、待办事项、番茄钟/计时器、日程与节假日倒计时、剪贴板历史、验证码识别和大文本复制进度提示；“复杂通知规则”页面更名为“通知”
+- 🔌 **插件入口完善**：设置中新增插件页，可直接打开插件管理器、插件目录和插件开发指南
+- 🖱️ **交互重新设计**：紧凑态支持鼠标悬停自动展开，展开态支持滚轮切换页面，页面切换动画平滑连贯
+- 🎵 **展开音乐页布局修正**：播放进度条改为独立占行，播放时间固定在其下方，不再与专辑封面、歌名或控制按钮重叠
+- ✅ **质量验证**：Release 编译 0 错误，634 项单元测试全部通过；x64、arm64 便携版与统一安装包构建成功
+
+## WinIslands 3.1.6 (Stable)
+### What's New
+
+- 🧊 **Unified interface redesign**: the settings window, context menu and tray menu now use real desktop-sampled Gaussian frosted glass with a fine rim and subtle sheen, while the island keeps its classic solid-black capsule
+- 🔔 **Redesigned notifications**: the notification center accepts Toast notifications from all apps and adds allow/block filtering by app name or AppUserModelId. Expired notifications no longer leave a circular app icon behind, and compact notices plus the copy toast have been re-laid out
+- 🧩 **Leaner feature set**: removed meeting monitoring and automatic Do Not Disturb, screenshot/recording reminders, to-do items, Pomodoro/timer, schedule and holiday countdowns, clipboard history, verification-code detection and large-text copy progress. The former "Complex notification rules" page is now simply "Notifications"
+- 🔌 **Complete plugin entry points**: a new Plugins page in Settings opens the plugin manager, plugin folder and developer guide directly
+- 🖱️ **Redesigned interaction**: hover over the compact island to expand, then use the mouse wheel to switch pages with smooth, continuous transitions
+- 🎵 **Expanded music layout fixed**: playback progress now has its own row, with time labels fixed below it so they can no longer overlap the artwork, title or control buttons
+- ✅ **Verification**: Release build completed with 0 errors and all 634 unit tests passed; x64 and arm64 portable builds plus the unified installer were produced successfully
+## WinIslands 3.1.6beta4（Beta / 本地测试）
+### 更新内容
+
+- 🎵 **展开音乐页进度条独立占行**：进度条改为与封面同宽的单独一行，不再与歌名、封面或时间文字共用空间
+- 📐 **布局间距重新整理**：封面与进度条之间保留稳定间距，进度条与底部控制区完全分离，播放/切歌按钮不再被遮挡
+- ⏱️ **时间文字对齐修正**：当前播放时间与总时长固定在进度条下方一行，避免文字向上压到进度条
+- ✅ **质量验证**：Release 编译 0 错误；634 项单元测试全部通过
+
+## WinIslands 3.1.6beta4 (Beta / Local Build)
+### What's New
+
+- 🎵 **Dedicated progress row**: the expanded music progress bar now occupies its own full-width row, no longer sharing space with the cover, title or time labels
+- 📐 **Rebalanced spacing**: a stable gap separates the artwork from the progress bar, while the progress area stays clear of the bottom controls
+- ⏱️ **Time label alignment fixed**: elapsed and total time sit on a fixed line below the slider, so the text can no longer overlap the progress track
+- ✅ **Verification**: Release build completed with 0 errors; all 634 unit tests passed
+## WinIslands 3.1.6beta3（Beta / 本地测试）
+### 更新内容
+
+- 🧊 **界面改为毛玻璃效果**：设置窗口、右键菜单和托盘菜单不再使用液态折射，改为真实桌面采样后的统一高斯模糊，背景过渡更柔和、更稳定
+- 🎨 **着色与描边重新平衡**：默认约 55% 主题着色，保留细内描边和轻微顶部反光，文字与控件在深浅色模式下都保持清晰
+- 🪟 **圆角裁剪保持一致**：毛玻璃纹理按界面圆角生成，展开、拖动和重新采样时不会露出方形边缘
+- ⬛ **灵动岛保持纯黑**：紧凑态和展开态继续使用经典纯黑胶囊，不受毛玻璃层影响
+- ✅ **质量验证**：Release 编译 0 错误，全部单元测试通过
+
+## WinIslands 3.1.6beta3 (Beta / Local Build)
+### What's New
+
+- 🧊 **Frosted glass replaces liquid refraction**: the settings window, context menu and tray menu now use a uniform blur of the real desktop sample, producing a calmer and more stable backdrop
+- 🎨 **Rebalanced tint and rim**: about 55% theme tint by default, with a fine inner rim and subtle top sheen so text and controls stay legible in both light and dark modes
+- 🪟 **Consistent rounded clipping**: the frosted texture is generated to the surface corner radius, so resizing, dragging and re-sampling never expose square edges
+- ⬛ **Island stays pure black**: compact and expanded states keep the classic solid-black capsule and are unaffected by the frosted layers
+- ✅ **Verification**: Release build completed with 0 errors; all unit tests passed
+
+## WinIslands 3.1.6beta2（Beta / 本地测试）
+### 更新内容
+
+- ⬛ **灵动岛恢复经典纯黑**：紧凑态与展开态均改为纯黑胶囊，不再使用液态玻璃或桌面折射；封面取色、圆角与展开/收起动画保持不变
+- 🧊 **其他界面保留液态玻璃**：设置窗口、右键菜单与托盘菜单继续使用重新设计后的多层液态玻璃质感
+- 🪟 **圆角与展开稳定性**：紧凑、展开与收起共用同一套圆角计算，连续往返与快速切换不会出现方角、裁切或布局闪烁
+- 🎨 **主题选项同步调整**：外观预设中移除灵动岛的液态玻璃选项，旧配置会自动迁移到经典纯黑
+- ✅ **质量验证**：Release 编译 0 错误；634 项单元测试全部通过；展开/收起圆角诊断通过
+
+## WinIslands 3.1.6beta2 (Beta / Local Build)
+### What's New
+
+- ⬛ **Classic pure-black island restored**: both compact and expanded states now use a solid black capsule with no liquid-glass or desktop-refraction effect. Cover-colour tinting, corner geometry and expand/collapse animation are unchanged
+- 🧊 **Liquid glass kept elsewhere**: the settings window, context menu and tray menu retain the redesigned multi-layer liquid-glass finish
+- 🪟 **Stable rounded geometry**: compact, expanded and collapsed states share one corner-radius calculation, so repeated round-trips and fast toggles never expose square corners, clipping or layout flicker
+- 🎨 **Theme options aligned**: the island liquid-glass preset has been removed from appearance presets; existing configurations migrate to classic black automatically
+- ✅ **Verification**: Release build completed with 0 errors; all 634 unit tests passed; expand/collapse corner-radius diagnostics passed
+
+## WinIslands 3.1.6beta1（Beta / 本地测试）
+### 更新内容
+
+- 🧊 **液态玻璃界面重新设计**：灵动岛、设置窗口、右键菜单与托盘菜单统一加入多层液态玻璃质感，包含低频折射纹理、主体柔光、主题色晕染、1px 内描边高光和底部厚度阴影
+- 🎨 **主题联动**：玻璃层自动跟随明暗模式、主题色与强调色；展开时玻璃更完整，收起时保持轻透，封面取色开启时仍能保留玻璃层次
+- 🪟 **圆角一致性**：玻璃层、卡片与裁剪区域共用同一圆角计算，连续展开、收起和快速切换时不会露出方角或裁切边缘
+- ⚡ **静态高性能实现**：折射纹理只在启动时生成一次，装饰层不参与鼠标命中测试，也不增加逐帧动画或常驻 CPU 开销
+- ✅ **质量验证**：Debug 编译 0 错误；633 项单元测试全部通过；5 轮展开/收起、快速切换与减少动态效果回归诊断通过
+
+## WinIslands 3.1.6beta1 (Beta / Local Build)
+### What's New
+
+- 🧊 **Liquid-glass UI redesign**: the island, settings window, context menu and tray menu now share a layered liquid-glass finish with low-frequency refraction texture, soft body light, theme-colour wash, a 1 px inner highlight and bottom depth shading
+- 🎨 **Theme-aware glass**: the effect follows light/dark mode, theme and accent colours. It is fuller while expanded and stays lightly translucent when collapsed, without disappearing when cover-colour tinting is active
+- 🪟 **Consistent rounded geometry**: the glass, card and clip layers share one corner-radius calculation, so repeated expand/collapse and fast toggles never expose square corners or clipped edges
+- ⚡ **Static, efficient implementation**: the refraction texture is generated once at startup; decoration layers ignore hit testing and add no per-frame animation or idle CPU cost
+- ✅ **Verification**: Debug build completed with 0 errors; all 633 unit tests passed; 5-cycle expand/collapse, fast-toggle and reduced-motion regression diagnostics passed
+
+---
 ## WinIslands 3.1.5（正式版 / Stable）
 ### 更新内容
 

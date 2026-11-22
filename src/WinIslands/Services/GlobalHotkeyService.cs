@@ -74,8 +74,6 @@ public sealed class GlobalHotkeyService : IDisposable
     public event Action? ExpandPressed;
     /// <summary>打开 / 收起快速启动器（Ctrl+Space，Spotlight 风格）。</summary>
     public event Action? LauncherPressed;
-    /// <summary>打开 / 收起剪贴板历史面板。</summary>
-    public event Action? ClipboardPanelPressed;
     /// <summary>音量增大。</summary>
     /// <summary>音量减小。</summary>
     /// <summary>静音切换。</summary>
@@ -100,7 +98,6 @@ public sealed class GlobalHotkeyService : IDisposable
         AddBinding(next, 0xC014, settings.HotkeyToggleVisible, ToggleVisibilityPressed);
         AddBinding(next, 0xC015, settings.HotkeyExpand, ExpandPressed);
         AddBinding(next, 0xC016, settings.QuickLauncherEnabled ? settings.HotkeyLauncher : "", LauncherPressed);
-        AddBinding(next, 0xC017, settings.ClipboardPanelEnabled ? settings.HotkeyClipboardPanel : "", ClipboardPanelPressed);
 
         // 设置窗口的 AutoApply 会频繁调用 Apply：配置完全没变时不要重复 RegisterHotKey，
         // 否则每次都会返回 1409（已注册）并刷日志，还会放大设置变更的开销。

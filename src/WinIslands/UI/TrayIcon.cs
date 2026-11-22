@@ -54,6 +54,11 @@ public sealed class TrayIcon : IDisposable
             Placement = PlacementMode.MousePoint,
         };
 
+        _menu.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/UI/MenuGlass.xaml"),
+        });
+
         ApplyMenuTheme(_menuHost);
         _menuHost.Show(); // 创建句柄并保持（屏外透明）
 
@@ -122,6 +127,10 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Right)
             {
+                // Snapshot the desktop before the popup appears so its glass refracts
+                // the real content underneath instead of a flat wallpaper colour.
+                var cursor = System.Windows.Forms.Cursor.Position;
+                GlassBackdrop.CaptureRegion(new Rect(cursor.X - 460, cursor.Y - 360, 920, 720));
                 _menu.Placement = PlacementMode.MousePoint;
                 _menu.IsOpen = true;
             }
@@ -190,7 +199,7 @@ public sealed class TrayIcon : IDisposable
         _dndItem.IsChecked = DoNotDisturb.IsActive(_settings.Current);
     }
 
-    /// <summary>按当前主题给托盘菜单设置液态玻璃配色（与灵动岛菜单一致）。</summary>
+    /// <summary>按当前主题给托盘菜单设置毛玻璃配色（与灵动岛菜单一致）。</summary>
     private void ApplyMenuTheme(Window host)
     {
         var dark = _settings.Current.Theme switch
@@ -199,32 +208,42 @@ public sealed class TrayIcon : IDisposable
             ThemeMode.Dark => true,
             _ => ThemeHelper.IsSystemDark(),
         };
-        SolidColorBrush bg, border, text, hover;
+        SolidColorBrush bg, border, text, hover, glassTint;
         if (dark)
         {
-            bg = new SolidColorBrush(Color.FromArgb(0xEE, 0x1B, 0x1B, 0x26));
-            border = new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF));
-            text = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF7));
+            bg = new SolidColorBrush(Color.FromArgb(0x0A, 0x12, 0x14, 0x1A));
+            border = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+            text = new SolidColorBrush(Color.FromRgb(0xF4, 0xF5, 0xFA));
             hover = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+            glassTint = new SolidColorBrush(Color.FromRgb(0x15, 0x16, 0x1C));
         }
         else
         {
-            bg = new SolidColorBrush(Color.FromArgb(0xEE, 0xF5, 0xF5, 0xFA));
-            border = new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF));
+            bg = new SolidColorBrush(Color.FromArgb(0x08, 0xF7, 0xF9, 0xFD));
+            border = new SolidColorBrush(Color.FromArgb(0x28, 0x00, 0x00, 0x00));
             text = new SolidColorBrush(Color.FromRgb(0x1D, 0x1D, 0x24));
-            hover = new SolidColorBrush(Color.FromArgb(0x18, 0x00, 0x00, 0x00));
+            hover = new SolidColorBrush(Color.FromArgb(0x1C, 0x00, 0x00, 0x00));
+            glassTint = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF9));
         }
-        bg.Freeze(); border.Freeze(); text.Freeze(); hover.Freeze();
-        host.Resources["MenuBgBrush"] = bg;
-        host.Resources["MenuBorderBrush"] = border;
-        host.Resources["MenuTextBrush"] = text;
-        host.Resources["MenuHoverBrush"] = hover;
+        bg.Freeze(); border.Freeze(); text.Freeze(); hover.Freeze(); glassTint.Freeze();
+
+        void Set(string key, object value)
+        {
+            host.Resources[key] = value;
+            _menu.Resources[key] = value;
+        }
+
+        Set("MenuBgBrush", bg);
+        Set("MenuBorderBrush", border);
+        Set("MenuTextBrush", text);
+        Set("MenuHoverBrush", hover);
+        Set("MenuGlassTintBrush", glassTint);
+        Set("MenuGlassIsDark", dark);
 
         _menu.Background = bg;
         _menu.Foreground = text;
         _menu.BorderBrush = border;
     }
-
     public void Dispose()
     {
         _icon.Visible = false;

@@ -13,7 +13,7 @@
         <conv:NullToVisibilityConverter x:Key="NullToVis"/>
         <conv:NullToVisibilityConverter x:Key="NullToVisInvert" Invert="True"/>
 
-        <!-- 主题刷子：代码里随主题即时替换（圆角液态玻璃外壳） -->
+        <!-- 主题刷子：代码里随主题即时替换（圆角毛玻璃外壳） -->
         <SolidColorBrush x:Key="MiniHoverBrush" Color="#26FFFFFF"/>
         <SolidColorBrush x:Key="MiniTextPrimary" Color="#EEF5F5FA"/>
         <SolidColorBrush x:Key="MiniTextSecondary" Color="#AAF5F5FA"/>

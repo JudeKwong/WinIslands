@@ -53,18 +53,6 @@ public sealed class ComponentFlags
     public bool VolumeWhenPlaying { get; set; } = true;
     public bool CapsLockWhenIdle { get; set; } = false;
     public bool CapsLockWhenPlaying { get; set; } = false;
-    public bool ClipboardWhenIdle { get; set; } = false;
-    public bool ClipboardWhenPlaying { get; set; } = false;
-    public bool TodoWhenIdle { get; set; } = false;
-    public bool TodoWhenPlaying { get; set; } = false;
-    public bool TimerWhenIdle { get; set; } = false;
-    public bool TimerWhenPlaying { get; set; } = false;
-    public bool ScheduleWhenIdle { get; set; } = false;
-    public bool ScheduleWhenPlaying { get; set; } = false;
-    public bool HolidayWhenIdle { get; set; } = false;  // 节假日倒计时：空闲时显示
-    public bool HolidayWhenPlaying { get; set; } = false;
-    public bool MeetingWhenIdle { get; set; } = false;      // 会议中状态（开会静音助手）
-    public bool MeetingWhenPlaying { get; set; } = false;
     public bool DiskWhenIdle { get; set; } = false;         // 磁盘剩余空间（系统盘）
     public bool DiskWhenPlaying { get; set; } = false;
     public bool InputMethodWhenIdle { get; set; } = false;   // 输入法状态（中/英 + 输入法名）
@@ -82,7 +70,7 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 5;
+    public int Version { get; set; } = 7;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
@@ -142,8 +130,6 @@ public sealed class AppSettings
     public string HotkeyExpand { get; set; } = "Ctrl+Alt+Space";
     public string HotkeyLauncher { get; set; } = "Ctrl+Space";          // 快速启动器（注意：Ctrl+Space 与中文输入法切换键冲突时可改其它组合）
     public bool QuickLauncherEnabled { get; set; } = true;              // 快速启动器开关
-    public string HotkeyClipboardPanel { get; set; } = "Ctrl+Alt+V";   // 剪贴板历史面板快捷键
-    public bool ClipboardPanelEnabled { get; set; } = true;             // 剪贴板历史面板开关
     public int LowBatteryThreshold { get; set; } = 20;             // 低电量提醒阈值（%）
     public bool LowBatteryPersistentEnabled { get; set; } = true;   // 1.2.4 低电量常驻指示（右上角电量胶囊，常驻不反复弹通知）
     public bool ChargedNotifyEnabled { get; set; } = true;          // 充电完成提醒：连接电源且电量达到阈值时弹一次
@@ -227,7 +213,7 @@ public sealed class AppSettings
     public ComponentFlags Components { get; set; } = new();
     public string WidgetOrder { get; set; } = "Time,Weather"; // 组件摆放顺序（逗号分隔的键）
     // 展开后的功能页面：顺序 + 隐藏项（岛仔「页面管理」同款）
-    public List<string> PageOrder { get; set; } = new() { "Music", "Focus", "Todo", "Schedule" };
+    public List<string> PageOrder { get; set; } = new() { "Music" };
     public List<string> HiddenPages { get; set; } = new();
     /// <summary>插件组件显隐（键=插件 ID；缺省时默认显示）。</summary>
     public Dictionary<string, PluginComponentFlags> PluginComponents { get; set; } = new();
@@ -250,8 +236,10 @@ public sealed class AppSettings
     public string IslandApiToken { get; set; } = "";             // 可选 Token（防局域网误连）
     public int IslandApiDefaultDuration { get; set; } = 30;      // 默认显示时长（秒），推送方可按条覆盖
 
-    // ── 显示规则（条件规则引擎）──
-    public List<AppRule> Rules { get; set; } = new();   // 条件满足时自动隐藏/收起/强制显示
+    // ── 通知来源过滤（设置 → 通知）──
+    public NotificationAppFilterMode NotificationAppFilterMode { get; set; } = NotificationAppFilterMode.All;
+    /// <summary>应用显示名或 AppUserModelId 片段；大小写不敏感，支持包含匹配。</summary>
+    public List<string> NotificationAppFilters { get; set; } = new();
 
     // ── 外观增强（主题预设 / 字体 / 字号 / 圆角 / 封面取色）──
     public string ThemePreset { get; set; } = "Daozai";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
@@ -281,16 +269,6 @@ public sealed class AppSettings
     public int DoNotDisturbEndMinute { get; set; } = 0;      // 定时勿扰结束分钟（0-55，步进 5）
     public List<string> DnDAllowlist { get; set; } = new();   // 勿扰白名单：来源 exe/AppName（大小写不敏感），白名单内的来源仍弹横幅
 
-    // ── 开会静音助手（会议检测 + 自动勿扰；纯本机启发式，不联网）──
-    public bool MeetingAssistantEnabled { get; set; } = false;   // 总开关：检测会议（默认关，避免误报）
-    public bool MeetingAutoDnd { get; set; } = true;             // 会议中自动开启勿扰（不弹通知横幅）
-    public string MeetingKeywords { get; set; } = "";          // 自定义会议关键词（逗号分隔；留空用内置列表）
-
-    // ── 屏幕录制 / 截图提示（默认关，避免打扰；PrintScreen 钩子 + 录制进程轮询）──
-    public bool ScreenCaptureNotifyEnabled { get; set; } = false;  // 总开关
-    public bool RecordingDndEnabled { get; set; } = false;      // 录屏时自动勿扰（不弹通知横幅）
-    public bool ScreenshotNotifyEnabled { get; set; } = true;      // 按 PrintScreen 截图时提示
-    public bool RecordingNotifyEnabled { get; set; } = true;       // 检测到录制软件时提示
     // ── 日历事件提醒（.ics 本地解析，默认关）──
     public bool CalendarEnabled { get; set; } = false;    // 总开关
     public string CalendarIcsPath { get; set; } = "";     // .ics 日历文件路径
@@ -309,16 +287,8 @@ public sealed class AppSettings
 
 
 
-    // ── 效率工具 ──
-    public bool ClipboardHistoryEnabled { get; set; } = false;  // 剪贴板历史（默认关，随需开启）
-    public int ClipboardHistoryMax { get; set; } = 15;
+    // ── 复制提示 ──
     public bool CopyToastEnabled { get; set; } = true;       // 复制文本时提示「已复制」
-    public bool CodeToastEnabled { get; set; } = true;       // 识别短信验证码并高亮提示
-    public bool CopyProgressEnabled { get; set; } = true;    // 大文本复制显示进度（估算）
-    public int CopyProgressThreshold { get; set; } = 4000;   // 触发进度提示的最小字符数
-    public bool PomodoroEnabled { get; set; } = false;          // 番茄钟/计时器
-    public int PomodoroWorkMinutes { get; set; } = 25;
-    public int PomodoroBreakMinutes { get; set; } = 5;
     public bool AutoUpdateCheck { get; set; } = false;          // 自动检查 GitHub 新版本（默认关，需联网）
     public int KeyIndicatorSeconds { get; set; } = 3;              // 键盘指示灯出现时长（秒）
 
@@ -328,7 +298,7 @@ public sealed class AppSettings
     public bool FileCopyNotifyEnabled { get; set; } = true;        // 文件复制/移动进行中上岛
     public bool DownloadProgressEnabled { get; set; } = false;     // 下载进行中上岛（默认关）
     public bool UsageMergeEnabled { get; set; } = false;           // 「使用中」合并胶囊（默认关）
-    public List<string> UsageMergeItems { get; set; } = new() { "Mic", "Cam", "Meeting", "Recording" }; // 参与合并的组件
+    public List<string> UsageMergeItems { get; set; } = new() { "Mic", "Cam" }; // 参与合并的组件
 
     /// <summary>合并胶囊中是否包含麦克风（方便设置界面勾选绑定）。</summary>
     public bool UsageMergeMic
@@ -344,21 +314,6 @@ public sealed class AppSettings
         set { if (value && !UsageMergeItems.Contains("Cam")) UsageMergeItems.Add("Cam"); else if (!value) UsageMergeItems.Remove("Cam"); }
     }
 
-    /// <summary>合并胶囊中是否包含会议中。</summary>
-    public bool UsageMergeMeeting
-    {
-        get => UsageMergeItems.Contains("Meeting");
-        set { if (value && !UsageMergeItems.Contains("Meeting")) UsageMergeItems.Add("Meeting"); else if (!value) UsageMergeItems.Remove("Meeting"); }
-    }
-
-    /// <summary>合并胶囊中是否包含录屏中。</summary>
-    public bool UsageMergeRecording
-    {
-        get => UsageMergeItems.Contains("Recording");
-        set { if (value && !UsageMergeItems.Contains("Recording")) UsageMergeItems.Add("Recording"); else if (!value) UsageMergeItems.Remove("Recording"); }
-    }
-
-
     public string ActiveProfile { get; set; } = "Default";   // 当前配置档案名
 
     /// <summary>
@@ -373,10 +328,6 @@ public sealed class AppSettings
         {
             var c = s.Components;
             c.DateWhenIdle = false;         // 空闲态只保留时间，减少常驻文字与布局刷新
-            c.TodoWhenIdle = false;
-            c.ScheduleWhenIdle = false;     // 同时停止日程轮询（App 按组件开关启动）
-            c.HolidayWhenIdle = false;
-            c.ClipboardWhenPlaying = false; // 播放态不再常驻剪贴板摘要
         }
 
         // 音频回环采集（WASAPI）是旧默认里最重的后台项：仅在仍是旧默认组合时关闭。
@@ -451,6 +402,47 @@ public sealed class AppSettings
         return true;
     }
 
+    /// <summary>
+    /// 配置版本 5 → 6：精简功能集。移除待办、番茄钟、日程/节假日、剪贴板历史、
+    /// 会议助手、截图/录屏提醒以及旧的显示规则，只保留音乐页与通知来源过滤。
+    /// </summary>
+    internal static bool ApplyFeatureCleanupV6(AppSettings s)
+    {
+        if (s.Version >= 6) return false;
+
+        s.PageOrder = new List<string> { "Music" };
+        s.HiddenPages = new List<string>();
+
+        var removedWidgets = new[] { "Clipboard", "Todo", "Timer", "Schedule", "Holiday", "Meeting", "ScreenCap", "Recording" };
+        s.WidgetOrder = string.Join(",", (s.WidgetOrder ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(k => !removedWidgets.Contains(k, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+
+        s.UsageMergeItems = (s.UsageMergeItems ?? new List<string>())
+            .Where(k => !string.Equals(k, "Meeting", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(k, "Recording", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (s.ComponentIcons is not null)
+            foreach (var key in removedWidgets) s.ComponentIcons.Remove(key);
+        s.Version = 6;
+        return true;
+    }
+    /// <summary>
+    /// 配置版本 6 → 7：灵动岛本体（紧凑/展开）统一恢复纯黑，不再使用毛玻璃；
+    /// 已经选过毛玻璃预设的配置一并迁回经典黑。设置页与菜单的毛玻璃不受影响。
+    /// </summary>
+    internal static bool ApplyBlackIslandV7(AppSettings s)
+    {
+        if (s.Version >= 7) return false;
+        if (string.Equals(s.ThemePreset, "DaozaiLiquid", StringComparison.OrdinalIgnoreCase))
+            s.ThemePreset = "Daozai";
+        s.Version = 7;
+        return true;
+    }
+
     /// <summary>判定组件是否仍是 3.1.2 及以前的默认组合（用于安全迁移）。</summary>
     private static bool LooksLikeLegacyComponentDefaults(ComponentFlags c) =>
         c.TimeWhenIdle && !c.TimeWhenPlaying
@@ -470,12 +462,6 @@ public sealed class AppSettings
         && !c.BatteryWhenIdle && !c.BatteryWhenPlaying
         && !c.VolumeWhenIdle && c.VolumeWhenPlaying
         && !c.CapsLockWhenIdle && !c.CapsLockWhenPlaying
-        && !c.ClipboardWhenIdle && c.ClipboardWhenPlaying
-        && c.TodoWhenIdle && !c.TodoWhenPlaying
-        && !c.TimerWhenIdle && !c.TimerWhenPlaying
-        && c.ScheduleWhenIdle && !c.ScheduleWhenPlaying
-        && c.HolidayWhenIdle && !c.HolidayWhenPlaying
-        && !c.MeetingWhenIdle && !c.MeetingWhenPlaying
         && !c.DiskWhenIdle && !c.DiskWhenPlaying
         && !c.InputMethodWhenIdle && !c.InputMethodWhenPlaying
         && !c.QuickTogglesWhenIdle && !c.QuickTogglesWhenPlaying;
@@ -505,11 +491,7 @@ public sealed class AppSettings
         c.MediaApps = new List<MediaAppEntry>(MediaApps);
         c.PageOrder = new List<string>(PageOrder ?? new());
         c.HiddenPages = new List<string>(HiddenPages ?? new());
-        c.Rules = Rules.Where(r => r is not null).Select(r => new AppRule
-        {
-            Enabled = r.Enabled, Name = r.Name, Condition = r.Condition,
-            StartHour = r.StartHour, EndHour = r.EndHour, AppMatch = r.AppMatch, Action = r.Action,
-        }).ToList();
+        c.NotificationAppFilters = new List<string>(NotificationAppFilters ?? new());
         return c;
     }
 }
@@ -553,17 +535,21 @@ public sealed class SettingsService
                     // 兼容旧配置：补齐新增字段
                     loaded.Components ??= new ComponentFlags();
                     loaded.PluginComponents ??= new Dictionary<string, PluginComponentFlags>(StringComparer.OrdinalIgnoreCase);
-                    loaded.PageOrder ??= new List<string> { "Music", "Focus", "Todo", "Schedule" };
+                    loaded.PageOrder ??= new List<string> { "Music" };
                     loaded.HiddenPages ??= new List<string>();
                     loaded.NormalizeNonFiniteValues();
                     // 3.1.2beta3：默认组件精简 + 轻量化（仅 v1 旧配置迁移一次）
                     var migrated = AppSettings.ApplyLeanDefaultsV2(loaded);
                     // 3.1.2beta5：切换到岛仔（Daozai）视觉皮肤（仅旧默认外观迁移一次）
                     migrated |= AppSettings.ApplyDaozaiDefaultsV3(loaded);
-                    // 3.1.2beta6：默认改为参考项目的纯黑岛体（液态玻璃保留为可选皮肤）
+                    // 3.1.2beta6：默认改为参考项目的纯黑岛体（毛玻璃保留为可选皮肤）
                     migrated |= AppSettings.ApplyBlackDaozaiV4(loaded);
                     // 3.1.2beta8：开启 QQ 系统 Toast 捕获
                     migrated |= AppSettings.ApplyNotificationAccessV5(loaded);
+                    // 3.1.6：精简功能集（通知页替代显示规则，移除待办/番茄/日程/剪贴板历史/会议/截图提醒）
+                    migrated |= AppSettings.ApplyFeatureCleanupV6(loaded);
+                    // 3.1.6beta2：灵动岛本体恢复纯黑，毛玻璃只保留在设置页/菜单
+                    migrated |= AppSettings.ApplyBlackIslandV7(loaded);
                     if (migrated)
                     {
                         AppLogger.Info("Settings migrated: lean components + Daozai black skin");
