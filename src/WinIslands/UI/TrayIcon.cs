@@ -127,10 +127,6 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Right)
             {
-                // Snapshot the desktop before the popup appears so its glass refracts
-                // the real content underneath instead of a flat wallpaper colour.
-                var cursor = System.Windows.Forms.Cursor.Position;
-                GlassBackdrop.CaptureRegion(new Rect(cursor.X - 460, cursor.Y - 360, 920, 720));
                 _menu.Placement = PlacementMode.MousePoint;
                 _menu.IsOpen = true;
             }

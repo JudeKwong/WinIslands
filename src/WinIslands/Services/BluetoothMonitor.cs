@@ -99,6 +99,8 @@ public sealed class BluetoothMonitor : IDisposable
     // ── 兜底路径：4s 轮询 ──
     private async void Poll()
     {
+        // 3.1.7：锁屏 / 全屏 / 省电时不做兜底枚举；设备事件仍由 DeviceWatcher 实时触发。
+        if (BackgroundActivityGate.Current.BackgroundSuspended) return;
         try
         {
             var devices = await DeviceInformation.FindAllAsync(

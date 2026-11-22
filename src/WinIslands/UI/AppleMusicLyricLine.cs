@@ -58,7 +58,7 @@ public sealed class AppleMusicLyricLine : System.Windows.Controls.Control
 
     private const double WallClockLeadCap = 0.35;
     private const double StallStopSeconds = 0.8;
-    private const double DefaultWidth = 136.0;
+    private const double DefaultWidth = 184.0;
 
     private sealed class WordBox
     {

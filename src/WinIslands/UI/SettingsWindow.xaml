@@ -1,4 +1,4 @@
-<Window x:Class="WinIslands.UI.SettingsWindow"
+﻿<Window x:Class="WinIslands.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:WinIslands.UI.Converters"
@@ -358,7 +358,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 静态毛玻璃装饰：统一模糊 + 主题着色 + 内描边高光；不参与命中测试。 -->
+            <!-- 静态毛玻璃装饰：统一模糊 + 半透明主题着色；无高光、无折射，不参与命中测试。 -->
             <ui:FrostedGlassLayer x:Name="FrostedEffect" Grid.RowSpan="3" IsHitTestVisible="False" CornerRadius="21" Intensity="1.0"/>
 
             <Grid x:Name="TitleBar" Grid.Row="0" Height="54" Background="Transparent"
@@ -519,12 +519,28 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Margin="26,16,18,6">
-                        <TextBlock x:Name="PageTitle" FontSize="21" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock x:Name="PageSubtitle" FontSize="11" Margin="0,3,0,0"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    </StackPanel>
+                    <Grid Grid.Row="0" Margin="26,16,18,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Name="PageTitle" FontSize="21" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock x:Name="PageSubtitle" FontSize="11" Margin="0,3,0,0"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Grid Grid.Column="1" Width="230" VerticalAlignment="Top" Margin="14,3,0,0">
+                            <TextBox x:Name="TxtSettingsSearch" FontSize="12" Padding="9,6,9,6"
+                                     Background="{DynamicResource ControlBgBrush}"
+                                     BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     TextChanged="SettingsSearch_TextChanged" KeyDown="SettingsSearch_KeyDown"/>
+                            <TextBlock x:Name="TxtSettingsSearchHint" Text="搜索设置…" FontSize="12"
+                                       Margin="11,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                    </Grid>
                     <TabControl x:Name="MainTabs" Grid.Row="1" BorderThickness="0"
                                 SelectionChanged="MainTabs_SelectionChanged">
                         <TabControl.Template>
@@ -605,6 +621,16 @@
                                     IsSnapToTickEnabled="True" TickFrequency="5"/>
                             <TextBlock x:Name="TxtChargedHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            <Border Margin="0,16,0,4" Padding="0,10,0,0" BorderThickness="0,1,0,0"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}">
+                                <StackPanel>
+                                    <Button x:Name="BtnResetSettings" Content="恢复默认设置" Padding="12,5"
+                                            HorizontalAlignment="Left" Click="ResetSettings_Click"/>
+                                    <TextBlock x:Name="TxtResetSettingsHint" FontSize="11" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
+                                               Text="将通用、外观、组件、媒体等所有设置恢复为出厂默认值（保留界面语言和插件配置）。"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -880,6 +906,7 @@
                                 <Button x:Name="BtnOpenPluginFolder" Content="打开插件目录" Padding="12,5" Margin="8,0,0,0" Click="OpenPluginFolder_Click"/>
                                 <Button x:Name="BtnOpenPluginGuide" Content="插件开发指南" Padding="12,5" Margin="8,0,0,0" Click="OpenPluginGuide_Click"/>
                                 <Button x:Name="BtnReloadPlugins" Content="重新扫描" Padding="12,5" Margin="8,0,0,0" Click="ReloadPlugins_Click"/>
+                                <Button x:Name="BtnCreateSamplePlugin" Content="创建示例插件" Padding="12,5" Margin="8,0,0,0" Click="CreateSamplePlugin_Click"/>
                             </WrapPanel>
                             <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
                                     BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="10,4">
@@ -929,6 +956,8 @@
                             </Border>
                             <TextBlock x:Name="TxtPluginsHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="2,10,0,0"/>
+                            <TextBlock x:Name="TxtPluginDependencyHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" Margin="2,6,0,0"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -1018,6 +1047,25 @@
                             </Border>
                             <TextBlock x:Name="TxtMediaNote" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+                            <Border CornerRadius="12" Background="{DynamicResource ControlBgBrush}"
+                                    BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1"
+                                    Padding="14,12" Margin="0,18,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="媒体源检查" FontSize="12.5" FontWeight="SemiBold"/>
+                                        <TextBlock Text="检查 SMTC、Cider、播放器进程与歌词来源是否正常。"
+                                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap" Margin="0,4,12,0"/>
+                                    </StackPanel>
+                                    <Button x:Name="BtnMediaCheck" Grid.Column="1" Content="开始检查"
+                                            Padding="14,7" VerticalAlignment="Center" Click="MediaCheck_Click"/>
+                                </Grid>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -1152,8 +1200,14 @@
                         <TextBlock x:Name="TxtDiskThresholdHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap" Margin="0,2,0,0"/>
                         <TextBlock x:Name="LblDndTitle" Style="{StaticResource Label}" Margin="0,16,0,0"/>
-                        <CheckBox x:Name="ChkDndManual" IsChecked="{Binding Working.DoNotDisturbManual}"/>
-                        <CheckBox x:Name="ChkDndSchedule" IsChecked="{Binding Working.DoNotDisturbEnabled}"/>
+                        <CheckBox x:Name="ChkDndManual" IsChecked="{Binding Working.DoNotDisturbManual}"
+                                  Checked="DndOption_Changed" Unchecked="DndOption_Changed"/>
+                        <CheckBox x:Name="ChkDndSchedule" IsChecked="{Binding Working.DoNotDisturbEnabled}"
+                                  Checked="DndOption_Changed" Unchecked="DndOption_Changed"/>
+                        <TextBlock x:Name="TxtDndStatus" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        <Button x:Name="BtnDndNow" Padding="12,5" HorizontalAlignment="Left" Margin="0,4,0,2"
+                                Click="DndNow_Click"/>
                         <TextBlock x:Name="LblDndStart" Style="{StaticResource Label}"/>
                         <Slider Minimum="0" Maximum="23" Value="{Binding Working.DoNotDisturbStartHour}" Width="300" HorizontalAlignment="Left"
                                 IsSnapToTickEnabled="True" TickFrequency="1"/>

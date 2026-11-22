@@ -289,6 +289,10 @@
                                            Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                            Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Canvas.Left="166" Canvas.Top="5" Width="36" Height="20"
+                                           Text="{Binding ActivePushGroupText}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#B2B2BA" TextAlignment="Right" VerticalAlignment="Center"
+                                           Visibility="{Binding ActivePushHasGroupCount, Converter={StaticResource BoolToVis}}"/>
                                 <Button Canvas.Left="206" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
                                         Click="ViewPushMessenger_Click">
                                     <TextBlock Text="查看" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
@@ -309,6 +313,10 @@
                                            Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                            Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Canvas.Left="184" Canvas.Top="5" Width="36" Height="20"
+                                           Text="{Binding ActivePushGroupText}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#B2B2BA" TextAlignment="Right" VerticalAlignment="Center"
+                                           Visibility="{Binding ActivePushHasGroupCount, Converter={StaticResource BoolToVis}}"/>
                                 <Button Canvas.Left="226" Canvas.Top="12" Width="60" Style="{StaticResource NoticeCapsuleButton}"
                                         Click="DismissPush_Click">
                                     <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
@@ -930,7 +938,11 @@
                                                Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
-                                    <Button Canvas.Left="206" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
+                                    <TextBlock Canvas.Left="166" Canvas.Top="5" Width="36" Height="20"
+                                           Text="{Binding ActivePushGroupText}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#B2B2BA" TextAlignment="Right" VerticalAlignment="Center"
+                                           Visibility="{Binding ActivePushHasGroupCount, Converter={StaticResource BoolToVis}}"/>
+                                <Button Canvas.Left="206" Canvas.Top="12" Width="52" Style="{StaticResource NoticeCapsuleButton}"
                                             Click="ViewPushMessenger_Click">
                                         <TextBlock Text="查看" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
                                     </Button>
@@ -950,7 +962,11 @@
                                                Text="{Binding ActivePushSummary}" FontSize="10.5" Foreground="#B2B2BA"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding ActivePushHasSummary, Converter={StaticResource BoolToVis}}"/>
-                                    <Button Canvas.Left="226" Canvas.Top="12" Width="60" Style="{StaticResource NoticeCapsuleButton}"
+                                    <TextBlock Canvas.Left="184" Canvas.Top="5" Width="36" Height="20"
+                                           Text="{Binding ActivePushGroupText}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#B2B2BA" TextAlignment="Right" VerticalAlignment="Center"
+                                           Visibility="{Binding ActivePushHasGroupCount, Converter={StaticResource BoolToVis}}"/>
+                                <Button Canvas.Left="226" Canvas.Top="12" Width="60" Style="{StaticResource NoticeCapsuleButton}"
                                             Click="DismissPush_Click">
                                         <TextBlock Text="关闭" FontSize="10.5" FontWeight="SemiBold" Foreground="White"/>
                                     </Button>
@@ -1056,22 +1072,22 @@
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="34"/>
-                                <ColumnDefinition Width="189"/>
+                                <ColumnDefinition Width="159"/>
                                 <ColumnDefinition Width="1"/>
-                                <ColumnDefinition Width="136"/>
-                                <ColumnDefinition Width="39"/>
+                                <ColumnDefinition Width="184"/>
+                                <ColumnDefinition Width="21"/>
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Row="0" Grid.RowSpan="3" Grid.ColumnSpan="5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="34"/>
-                                    <ColumnDefinition Width="186"/>
+                                    <ColumnDefinition Width="156"/>
                                     <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="136"/>
-                                    <ColumnDefinition Width="42"/>
+                                    <ColumnDefinition Width="184"/>
+                                    <ColumnDefinition Width="24"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Border x:Name="HeroCard" Grid.Column="1" Width="177" Height="44" CornerRadius="10"
+                                <Border x:Name="HeroCard" Grid.Column="1" Width="158" Height="44" CornerRadius="10"
                                         Margin="0,23,0,15" HorizontalAlignment="Left" VerticalAlignment="Top" ClipToBounds="True" Cursor="Hand"
                                         Visibility="{Binding ExpandedHeroCard, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                     <Border.Background>
@@ -1083,13 +1099,13 @@
                                         <StackPanel Margin="50,0,8,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" karaoke:FadeOnTextChange.Enabled="True"
                                                        Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Artist}" FontSize="10.5" Margin="0,1,0,0" karaoke:FadeOnTextChange.Enabled="True"
+                                            <TextBlock Text="{Binding Artist}" FontSize="10.0" Margin="0,1,0,0" karaoke:FadeOnTextChange.Enabled="True"
                                                        Foreground="White" Opacity="0.84" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
-                                <Grid x:Name="ArtTitleGrid" Grid.Column="1" Width="177" Height="44" Margin="0,23,0,15" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                <Grid x:Name="ArtTitleGrid" Grid.Column="1" Width="158" Height="44" Margin="0,23,0,15" HorizontalAlignment="Left" VerticalAlignment="Top"
                                       Visibility="{Binding ExpandedShowArtTitle, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -1114,7 +1130,7 @@
                                         <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                                    Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                                                    TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Artist}" FontSize="10.5" Margin="0,1,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
+                                        <TextBlock Text="{Binding Artist}" FontSize="10.0" Margin="0,1,0,0" karaoke:FadeOnTextChange.Enabled="True" karaoke:FadeOnTextChange.SlideUp="True"
                                                    Foreground="{Binding TextPrimary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=White}"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
@@ -1122,7 +1138,7 @@
 
                                 <Border Grid.Column="2" Width="1" Height="66" Margin="0,4,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Background="#232325"/>
 
-                                <ScrollViewer x:Name="LyricsScroll" Grid.Column="3" Width="136" Height="74" Margin="9,28,0,0"
+                                <ScrollViewer x:Name="LyricsScroll" Grid.Column="3" Width="184" Height="74" Margin="9,28,0,0"
                                               HorizontalAlignment="Left" VerticalAlignment="Top"
                                               VerticalScrollBarVisibility="Hidden"
                                               Visibility="{Binding ExpandedShowLyrics, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
@@ -1171,13 +1187,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
-                                <TextBlock Grid.Column="3" Text="{Binding LyricsStatus}" FontSize="{Binding LyricsStatusFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=10}" Width="136" Height="74" Margin="9,28,0,0"
+                                <TextBlock Grid.Column="3" Text="{Binding LyricsStatus}" FontSize="{Binding LyricsStatusFontSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=10}" Width="184" Height="74" Margin="9,28,0,0"
                                            HorizontalAlignment="Left" VerticalAlignment="Top" TextAlignment="Center" Opacity="0.65"
                                            Foreground="{Binding TextSecondary, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Gray}"
                                            Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVisInvert}}"/>
                             </Grid>
 
-                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1" Width="177" HorizontalAlignment="Left" VerticalAlignment="Top" Height="22" Margin="0,0,0,2"
+                            <Grid x:Name="ProgressGrid" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1" Width="159" HorizontalAlignment="Left" VerticalAlignment="Top" Height="22" Margin="0,0,0,2"
                                   Visibility="{Binding ExpandedShowProgress, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="12"/>
@@ -1208,13 +1224,13 @@
                                                 ToolTip="{Binding LyricsSourceButtonHint}">
                                             <TextBlock Text="{Binding LyricsSourceButtonText}" FontSize="8"/>
                                         </Button>
-                                        <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Margin="0,0,3,0" Click="LyricTranslate_Click"
+                                        <Button Style="{StaticResource IconButton}" MinWidth="24" Height="24" Padding="0" Margin="0,0,3,0" Click="LyricTranslate_Click"
                                                 ToolTip="{Binding LyricTranslateHint}">
-                                            <TextBlock Text="{Binding LyricTranslateText}" FontSize="8"/>
+                                            <TextBlock Text="{Binding LyricTranslateText}" FontSize="8" Margin="2,0"/>
                                         </Button>
-                                        <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Margin="0,0,3,0" Click="CopyCurrentLyric_Click"
+                                        <Button Style="{StaticResource IconButton}" MinWidth="24" Height="24" Padding="0" Margin="0,0,3,0" Click="CopyCurrentLyric_Click"
                                                 ToolTip="{Binding LyricCopyHint}">
-                                            <TextBlock Text="{Binding LyricCopyText}" FontSize="8"/>
+                                            <TextBlock Text="{Binding LyricCopyText}" FontSize="8" Margin="2,0"/>
                                         </Button>
                                         <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Margin="0,0,1,0" Click="LyricOffsetDown_Click"
                                                 ToolTip="{Binding LyricOffsetDownHint}">

@@ -15,7 +15,7 @@ namespace WinIslands.UI;
 /// View model for the island window: maps coordinator snapshots to bindable state,
 /// interpolates playback position for a smooth progress bar, and manages lyrics.
 /// </summary>
-public sealed class IslandViewModel : ObservableObject, IDisposable
+public sealed partial class IslandViewModel : ObservableObject, IDisposable
 {
     private int _disposed;
     private readonly MediaCoordinator _coordinator;
@@ -604,9 +604,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>翻译开关按钮文本（如「翻译：开」）。</summary>
-    public string LyricTranslateText => Localization.Get("Lyric_Translation") + "：" + (ShowLyricTranslation ? Localization.Get("Quick_On") : Localization.Get("Quick_Off"));
+    public string LyricTranslateText => Localization.Get("Lyric_TranslateShort");
     /// <summary>「复制当前句」按钮文本。</summary>
-    public string LyricCopyText => Localization.Get("Lyric_CopyCurrent");
+    public string LyricCopyText => Localization.Get("Lyric_CopyShort");
     /// <summary>翻译开关提示。</summary>
     public string LyricTranslateHint => Localization.Get("Lyric_TranslateHint");
     /// <summary>复制当前句提示。</summary>
@@ -1508,6 +1508,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(ActivePushHasClick));
             OnPropertyChanged(nameof(ActivePushAccent));
             OnPropertyChanged(nameof(ActivePushTheme));
+            OnPropertyChanged(nameof(ActivePushRepeatCount));
+            OnPropertyChanged(nameof(ActivePushHasGroupCount));
+            OnPropertyChanged(nameof(ActivePushGroupText));
             OnPropertyChanged(nameof(HasPushInput));
             OnPropertyChanged(nameof(PushInputPlaceholder));
             OnPropertyChanged(nameof(PushInputSubmitLabel));
@@ -1546,6 +1549,11 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public bool ActivePushHasBody => !string.IsNullOrEmpty(ActivePush?.Body);
     public string ActivePushSummary => !string.IsNullOrEmpty(ActivePush?.Subtitle) ? ActivePush!.Subtitle! : (ActivePush?.Body ?? string.Empty);
     public bool ActivePushHasSummary => !string.IsNullOrEmpty(ActivePushSummary);
+
+    /// <summary>同应用通知在短时间内合并后的重复次数（至少 1）。</summary>
+    public int ActivePushRepeatCount => Math.Max(1, ActivePush?.RepeatCount ?? 1);
+    public bool ActivePushHasGroupCount => ActivePushRepeatCount > 1;
+    public string ActivePushGroupText => ActivePushHasGroupCount ? "×" + ActivePushRepeatCount : string.Empty;
 
     /// <summary>
     /// 当前通知是否采用微信/QQ 样式（应用图标 + 查看/关闭）。
@@ -1893,475 +1901,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>复制成功等轻量提示：2.4 秒后自动消失，不占用通知卡片。</summary>
-    public void ShowCopyToast(string message)
-    {
-        if (string.IsNullOrWhiteSpace(message)) return;
-        CopyToastText = message.Trim();
-        HasCopyToast = true;
-        _copyToastTimer.Stop();
-        _copyToastTimer.Start();
-    }
-
-    /// <summary>
-    /// 系统事件以「灵动岛卡片」形式展示（iOS 风格）：自动过期、弹簧动画入场、不阻塞主流程。
-    /// 复用上岛推送队列：同 id 覆盖；到点后由 CheckPushExpiry 自动回收。
-    /// </summary>
-    public void ShowEventCard(string id, string title, string? subtitle, string icon,
-        string type = "info", int durationSeconds = 5, string? body = null, MessengerUnread? unread = null)
-    {
-        // 勿扰模式：灵动岛事件卡片不展示（白名单仍展示由上层决定，这里只做总开关）
-        if (DoNotDisturb.IsActive(_settings.Current)) return;
-        // 通知去抖：同类型通知 2 秒内只保留最新一条（避免快速连续触发导致队列堆积）
-        if (_settings.Current.NotificationDebounce)
-        {
-            _lastEventTimes.TryGetValue(type ?? "info", out var lastTime);
-            if (DateTime.Now - lastTime < TimeSpan.FromSeconds(2))
-            {
-                AppLogger.Info($"Notification debounced: {title} (type={type})");
-                return;
-            }
-            _lastEventTimes[type ?? "info"] = DateTime.Now;
-        }
-        var dur = Math.Max(2, durationSeconds);
-
-        PushIsland(new IslandPush
-        {
-            Id = "sys:" + id,
-            Title = title,
-            Subtitle = subtitle ?? string.Empty,
-            Body = body ?? string.Empty,
-            Icon = icon,
-            Type = type ?? "info",
-            Priority = "high", // 系统事件优先于普通第三方推送展示
-            DurationSeconds = dur,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(dur),
-            MessengerUnread = unread,
-        });
-    }
-
-    /// <summary>
-    /// 蓝牙设备连接/断开：iOS 风格事件卡片（1.2.4）。
-    /// 标题 = 已连接 / 已断开；副标题 = 设备名（读到电量时附加「· 电量 xx%」，读不到只显示设备名）。
-    /// 复用上岛推送队列：弹簧入场 + 尺寸自适应动画自动生效。任何异常都不会阻塞主流程。
-    /// </summary>
-    public void ShowDeviceEvent(string id, bool connected, string deviceName, int? batteryPercent)
-    {
-        try
-        {
-            if (DoNotDisturb.IsActive(_settings.Current)) return;
-            var subtitle = string.IsNullOrWhiteSpace(deviceName) ? string.Empty : deviceName.Trim();
-            if (batteryPercent.HasValue && batteryPercent.Value >= 0 && batteryPercent.Value <= 100)
-                subtitle = $"{subtitle}  ·  {Localization.Get("Battery_Level")} {batteryPercent.Value}%";
-            ShowEventCard(id,
-                Localization.Get(connected ? "Events_BluetoothConnected" : "Events_BluetoothDisconnected"),
-                subtitle, "\uE702", "bluetooth", 5);
-        }
-        catch (Exception ex) { AppLogger.Warn($"ShowDeviceEvent failed: {ex.Message}"); }
-    }
-
-    public void ActivatePage(IslandPage page, int? direction = null)
-    {
-        if (page is null) return;
-        var oldPage = ActivePage;
-        foreach (var p in _pages) p.IsActive = ReferenceEquals(p, page);
-        // 与 xiaotang-daozai 的 go() 一致：先切换页面状态并启动过渡，再发出属性通知，
-        // 避免 WPF 绑定在过渡首帧抢占 Visibility 造成闪烁。
-        if (direction is int dir && oldPage is { } old && !ReferenceEquals(old, page))
-            PageTransitionStarted?.Invoke(old, page, dir);
-        OnPropertyChanged(nameof(IsMusicPage));
-        OnPropertyChanged(nameof(ActivePage));
-        OnPropertyChanged(nameof(ActivePageTitle));
-        OnPropertyChanged(nameof(ActivePageAccentBrush));
-    }
-
-    public void NavigatePage(int delta)
-    {
-        if (_pages.Count < 2) return;
-        var current = ActivePage;
-        var index = current is null ? 0 : Math.Max(0, _pages.IndexOf(current));
-        var next = (index + delta) % _pages.Count;
-        if (next < 0) next += _pages.Count;
-        ActivatePage(_pages[next], delta > 0 ? 1 : -1);
-    }
-
-    public void RebuildPages()
-    {
-        var order = _settings.Current.PageOrder ?? new List<string>();
-        var known = order.Where(k => PageDefs.Any(d => string.Equals(d.Key, k, StringComparison.OrdinalIgnoreCase)))
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        foreach (var d in PageDefs)
-            if (!known.Contains(d.Key, StringComparer.OrdinalIgnoreCase)) known.Add(d.Key);
-        var hidden = _settings.Current.HiddenPages ?? new List<string>();
-        var visible = known.Where(k => !hidden.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
-        if (visible.Count == 0) visible.Add("Music");
-
-        var currentKey = ActivePage?.Key;
-        _pages.Clear();
-        foreach (var key in visible)
-        {
-            var def = PageDefs.First(d => string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase));
-            _pages.Add(new IslandPage(def.Key, def.Title, def.Description, def.Accent));
-        }
-        var target = _pages.FirstOrDefault(p => string.Equals(p.Key, currentKey, StringComparison.OrdinalIgnoreCase)) ?? _pages[0];
-        ActivatePage(target);
-        _pageSignature = string.Join(",", _settings.Current.PageOrder ?? new List<string>())
-            + "|" + string.Join(",", _settings.Current.HiddenPages ?? new List<string>());
-        OnPropertyChanged(nameof(Pages));
-        OnPropertyChanged(nameof(HasMultiplePages));
-    }
-
-    private void OnPageSettingsChanged(object? sender, AppSettings s)
-    {
-        var signature = string.Join(",", s.PageOrder ?? new List<string>())
-            + "|" + string.Join(",", s.HiddenPages ?? new List<string>());
-        if (signature != _pageSignature) RebuildPages();
-    }
-
-    /// <summary>微信/QQ 未读：加入图标栈并弹出一张岛仔风格通知卡（不读取聊天正文）。</summary>
-    public void ShowMessengerUnread(MessengerUnread unread)
-    {
-        if (DoNotDisturb.IsActive(_settings.Current)) return;
-        if (!_messengerUnreads.Any(x => x.Source == unread.Source && x.Pid == unread.Pid && x.Window == unread.Window))
-        {
-            _messengerUnreads.Add(unread);
-            OnPropertyChanged(nameof(HasMessengerUnreads));
-            OnPropertyChanged(nameof(MessengerUnreadCount));
-        }
-        var type = unread.Source == MessengerSource.WeChat ? "wechat" : "qq";
-        ShowEventCard($"msg:{type}:{unread.Pid}:{unread.Window}", unread.SourceName,
-            "有新消息 · 点击查看", unread.Glyph, type, 6, unread: unread);
-    }
-
-    /// <summary>QQ 系统 Toast：带标题/正文的未读记录，使用同一个通知卡片与图标栈。</summary>
-    public void ShowMessengerNotification(MessengerSource source, string title, string body, string appUserModelId)
-    {
-        if (DoNotDisturb.IsActive(_settings.Current)) return;
-        var unread = new MessengerUnread(source, 0, IntPtr.Zero, DateTime.UtcNow,
-            title ?? string.Empty, body ?? string.Empty, appUserModelId ?? string.Empty);
-        var existing = _messengerUnreads.FirstOrDefault(x => x.Source == source && x.Pid == 0
-            && x.Title == unread.Title && x.Body == unread.Body && x.AppUserModelId == unread.AppUserModelId);
-        if (existing is null)
-        {
-            _messengerUnreads.Add(unread);
-            existing = unread;
-            OnPropertyChanged(nameof(HasMessengerUnreads));
-            OnPropertyChanged(nameof(MessengerUnreadCount));
-        }
-        var type = source == MessengerSource.WeChat ? "wechat" : "qq";
-        var displayTitle = string.IsNullOrWhiteSpace(title) ? unread.SourceName : title;
-        var summary = string.IsNullOrWhiteSpace(body) ? "有新消息 · 点击查看" : body;
-        ShowEventCard($"msg:{type}:{appUserModelId}:{title}", displayTitle, summary, unread.Glyph, type, 6, unread: existing);
-    }
-
-    public void ActivateMessengerUnread(MessengerUnread unread)
-    {
-        _messengerMonitor?.Activate(unread);
-        RemoveMessengerUnread(unread);
-    }
-
-    /// <summary>通知卡片上的「查看」：切回微信/QQ 对应窗口，并收起当前通知。</summary>
-    public void ActivateActivePushMessenger()
-    {
-        if (ActivePush?.MessengerUnread is not MessengerUnread unread) return;
-        ActivateMessengerUnread(unread);
-        DismissActivePush();
-    }
-
-    public void DismissMessengerUnread(MessengerUnread unread)
-    {
-        _messengerMonitor?.Remove(unread);
-        RemoveMessengerUnread(unread);
-    }
-
-    public void ClearMessengerUnreads()
-    {
-        _messengerMonitor?.Clear();
-        if (_messengerUnreads.Count == 0) return;
-        _messengerUnreads.Clear();
-        OnPropertyChanged(nameof(HasMessengerUnreads));
-        OnPropertyChanged(nameof(MessengerUnreadCount));
-    }
-
-    private void RemoveMessengerUnread(MessengerUnread unread)
-    {
-        if (!_messengerUnreads.Remove(unread)) return;
-        OnPropertyChanged(nameof(HasMessengerUnreads));
-        OnPropertyChanged(nameof(MessengerUnreadCount));
-    }
-
-    private void OnMessengerUnreadsChanged(object? sender, EventArgs e)
-    {
-        if (_messengerMonitor is null) return;
-        var snapshot = _messengerMonitor.Items;
-        for (var i = _messengerUnreads.Count - 1; i >= 0; i--)
-        {
-            var item = _messengerUnreads[i];
-            // 只同步 SHELLHOOK 的窗口项；系统 Toast 项（Pid=0）由通知中心自己的生命周期管理。
-            if (item.Pid != 0 && !snapshot.Contains(item)) _messengerUnreads.RemoveAt(i);
-        }
-        foreach (var item in snapshot)
-            if (!_messengerUnreads.Contains(item)) _messengerUnreads.Add(item);
-        OnPropertyChanged(nameof(HasMessengerUnreads));
-        OnPropertyChanged(nameof(MessengerUnreadCount));
-    }
-
-    /// <summary>上岛 API 收到推送：加入/更新推送队列（同 id 覆盖、保留原过期时间），并按优先级刷新显示。</summary>
-    public void PushIsland(IslandPush push)
-    {
-        var idx = _pushes.FindIndex(p => string.Equals(p.Id, push.Id, StringComparison.Ordinal));
-        if (idx >= 0)
-        {
-            // 更新内容，保持原过期时间
-            if (_pushes[idx].ExpiresAt is DateTime e) push.ExpiresAt = e;
-            _pushes[idx] = push;
-        }
-        else
-        {
-            _pushes.Add(push);
-        }
-        RecomputeActivePush();
-        AppLogger.Info($"Island push: '{push.Title}' (id={push.Id}, priority={push.Priority ?? "normal"})");
-    }
-
-    /// <summary>上岛 API 移除/过期指定推送。</summary>
-    public void RemoveIslandPush(string id)
-    {
-        var removed = _pushes.RemoveAll(p => string.Equals(p.Id, id, StringComparison.Ordinal)) > 0;
-        if (removed) RecomputeActivePush();
-    }
-
-    /// <summary>用户点击/关闭当前上岛卡片：只关闭当前条，队列中还有推送则继续显示。</summary>
-    public void DismissActivePush()
-    {
-        if (ActivePush is null) return;
-        _pushes.RemoveAll(p => ReferenceEquals(p, ActivePush));
-        RecomputeActivePush();
-    }
-
-    /// <summary>按 优先级高→低、入队 早→晚 重排队列并选出当前显示项（过期项同时清除）。</summary>
-    private void RecomputeActivePush()
-    {
-        var dropped = _pushes
-            .Where(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow)
-            .ToList();
-        var maxQueue = Math.Clamp(_settings.Current.NotificationQueueMax, 3, 20);
-        while (_pushes.Count - dropped.Count > maxQueue)
-        {
-            var minIdx = 0;
-            var minRank = int.MaxValue;
-            for (var j = 0; j < _pushes.Count; j++)
-            {
-                if (dropped.Contains(_pushes[j])) continue;
-                var rank = _pushes[j].PriorityRank + TypePriorityRank(_pushes[j].Type);
-                if (rank < minRank) { minRank = rank; minIdx = j; }
-            }
-            dropped.Add(_pushes[minIdx]);
-        }
-        foreach (var push in dropped)
-        {
-            _pushes.Remove(push);
-            if (push.MessengerUnread is not MessengerUnread unread) continue;
-            _messengerMonitor?.Remove(unread);
-            RemoveMessengerUnread(unread);
-        }
-        var sorted = _pushes
-            .Select((p, i) => (p, i))
-            .OrderByDescending(t => t.p.PriorityRank + TypePriorityRank(t.p.Type))
-            .ThenBy(t => t.i)
-            .Select(t => t.p)
-            .ToList();
-        _pushes.Clear();
-        _pushes.AddRange(sorted);
-        ActivePush = _pushes.FirstOrDefault();
-    }
-    /// <summary>通知类型优先级数值：error=10 > warning=8 > success=5 > info=3。</summary>
-    private static int TypePriorityRank(string? type)
-    {
-        return (type ?? "").Trim().ToLowerInvariant() switch
-        {
-            "error" => 10,
-            "warning" => 8,
-            "success" => 5,
-            _ => 3,
-        };
-    }
-
-    private void OnKeyboardStateChanged(string key)
-    {
-        var label = key switch
-        {
-            "CapsLock" => "Caps",
-            "NumLock" => "Num",
-            _ => "ScrLk",
-        };
-        var on = key switch
-        {
-            "CapsLock" => _keyboard.Current.Caps,
-            "NumLock" => _keyboard.Current.Num,
-            _ => _keyboard.Current.Scroll,
-        };
-        CapsLockText = $"{label} {(on ? Localization.Get("On") : Localization.Get("Off"))}";
-        _capsLockSecondsLeft = Math.Max(1, _settings.Current.KeyIndicatorSeconds);
-        RebuildCompactItems();
-    }
-
-    private void UpdateCapsLockCountdown()
-    {
-        if (_capsLockSecondsLeft <= 0) return;
-        if (--_capsLockSecondsLeft <= 0)
-        {
-            CapsLockText = string.Empty;
-            RebuildCompactItems();
-        }
-    }
-    /// <summary>音量/静音变化：显示临时上岛指示（几秒后自动消失）。</summary>
-    public void ShowVolumeTemp(int percent, bool muted)
-    {
-        if (!_settings.Current.VolumeTempIndicatorEnabled) return;
-        _volumeTempGen++; // 取消上一次未完成的淡出清理
-        VolumeTempText = muted ? Localization.Get("VolumeTemp_Muted") : $"{percent}%";
-        VolumeTempPercent = Math.Clamp(percent / 100.0, 0, 1);
-        _volumeTempSecondsLeft = Math.Max(1, _settings.Current.VolumeTempIndicatorSeconds);
-        _volumeTempFading = false;
-        OnPropertyChanged(nameof(VolumeTempFading));
-        RebuildCompactItems();
-        UpdateVisibility(); // 无媒体且隐藏时也要能临时显示
-    }
-
-    /// <summary>每秒轮询系统音量（仅开启音量指示时）；变化时上岛。无变化时近乎零开销。</summary>
-    private void PollVolumeTemp()
-    {
-        if (!_settings.Current.VolumeTempIndicatorEnabled) return;
-        try
-        {
-            var v = SystemVolume.GetVolume();
-            var muted = SystemVolume.IsMuted();
-            if (v.HasValue && (Math.Abs(v.Value - _lastVolumeTempValue) > 0.001 || muted != _lastVolumeTempMuted))
-            {
-                _lastVolumeTempValue = v.Value;
-                _lastVolumeTempMuted = muted;
-                ShowVolumeTemp((int)Math.Round(v.Value * 100), muted);
-            }
-        }
-        catch { /* 音频服务不可用时忽略 */ }
-    }
-
-    /// <summary>每秒递减音量指示剩余秒数，到 0 后先播放淡出，再移除组件（退场丝滑）。</summary>
-    private void UpdateVolumeTempCountdown()
-    {
-        if (_volumeTempSecondsLeft <= 0) return;
-        if (--_volumeTempSecondsLeft <= 0)
-        {
-            var gen = _volumeTempGen;
-            _volumeTempFading = true;
-            OnPropertyChanged(nameof(VolumeTempFading));
-            // 淡出动画约 260ms，结束后再真正移除组件，避免瞬时消失
-            _ = Task.Delay(320).ContinueWith(_ =>
-            {
-                if (gen != _volumeTempGen) return; // 期间音量又被调节过，取消本次清理
-                VolumeTempText = string.Empty;
-                VolumeTempPercent = 0;
-                _volumeTempFading = false;
-                OnPropertyChanged(nameof(VolumeTempFading));
-                RebuildCompactItems();
-                UpdateVisibility();
-            }, TaskScheduler.FromCurrentSynchronizationContext());
-        }
-    }
-
-    /// <summary>每秒检测前台窗口是否正在复制/移动文件；变化时更新上岛文本。</summary>
-    private void PollFileCopy()
-    {
-        if (!_settings.Current.FileCopyNotifyEnabled) return;
-        var newText = FileTransferMonitor.IsCopyingOrMoving() ? Localization.Get("FileCopy_IslandText") : string.Empty;
-        if (FileCopyText != newText)
-        {
-            FileCopyText = newText;
-            RebuildCompactItems();
-            UpdateVisibility(); // 上岛卡片显示/消失影响灵动岛可见性
-        }
-    }
-
-    /// <summary>每秒扫描下载目录中的浏览器临时文件；变化时更新上岛文本。</summary>
-    private void PollDownloadProgress()
-    {
-        if (!_settings.Current.DownloadProgressEnabled) return;
-        var count = DownloadDetector.ActiveDownloadCount();
-        var newText = count > 0 ? string.Format(Localization.Get("Download_IslandText"), count) : string.Empty;
-        if (DownloadText != newText)
-        {
-            DownloadText = newText;
-            RebuildCompactItems();
-            UpdateVisibility(); // 上岛卡片显示/消失影响灵动岛可见性
-        }
-    }
-
-    /// <summary>执行上岛卡片按钮动作（url/启动程序；notify 回调给推送方，#10）。</summary>
-    public void ExecutePushAction(IslandPushButton button)
-    {
-        if (button is null) return;
-        try
-        {
-            // #10 notify 动作：不打开链接，触发事件由 App 转发给 WebSocket 订阅端（推送方自行处理回调）
-            if (string.Equals(button.Action, "notify", StringComparison.OrdinalIgnoreCase))
-            {
-                var pushId = FindPushIdByButton(button);
-                PushActionRequested?.Invoke(button, pushId);
-                AppLogger.Info($"Island push notify action: {button.Label ?? button.Value} (push={pushId})");
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(button.Value)) return;
-
-            // #16 command 动作：执行本地命令（本地上岛 API 仅回环监听，可配 Token；请仅信任可信推送方）
-            if (string.Equals(button.Action, "command", StringComparison.OrdinalIgnoreCase))
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c " + button.Value)
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                });
-                AppLogger.Info($"Island push command: {button.Value}");
-                return;
-            }
-
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(button.Value)
-            {
-                UseShellExecute = true,
-            });
-            AppLogger.Info($"Island push action: {button.Action} -> {button.Value}");
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Island push action failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>查找包含该按钮的推送 ID（用于 notify 回调广播）。</summary>
-    private string FindPushIdByButton(IslandPushButton button)
-    {
-        foreach (var p in _pushes)
-        {
-            if (p.Buttons is not null && p.Buttons.Contains(button)) return p.Id;
-            if (p.Click == button) return p.Id;
-        }
-        return ActivePush?.Id ?? string.Empty;
-    }
-
-    /// <summary>执行整卡点击回跳动作（推送配置了 click 时），执行后关闭该条推送。</summary>
-    public void ExecutePushClick()
-    {
-        if (ActivePush?.Click is not IslandPushButton click || string.IsNullOrWhiteSpace(click.Value)) return;
-        ExecutePushAction(click);
-        DismissActivePush();
-    }
-
-    /// <summary>每秒检查上岛推送是否过期（由 _widgetTimer 调用）。</summary>
-    private void CheckPushExpiry()
-    {
-        if (!_pushes.Any(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow)) return;
-        RecomputeActivePush();
-    }
 
     // ── Visibility / expansion ─────────────────────────────────
     public bool IsExpanded
@@ -2390,460 +1929,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public System.Windows.Visibility ExpandedContentVisibility
         => IsExpanded ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
-    // ── Coordinator events ─────────────────────────────────────
-    private void OnSnapshotChanged(object? sender, MediaSnapshot snapshot)
-    {
-        // README screenshot / manual preview: keep the injected demo track stable even when
-        // a real SMTC or window-title session appears in the background.
-        if (_demoInjected && !ReferenceEquals(sender, this)) return;
-        // 用「歌手+歌名+专辑」判断换曲，而不是整条 TrackInfo 结构相等：
-        // 封面 URL 等字段抖动不应触发换曲（否则会重置进度并把歌词打回开头）。
-        var previous = _snapshot;
-        var trackChanged = _snapshot is null ||
-            LyricsService.TrackKey(_snapshot.Track) != LyricsService.TrackKey(snapshot.Track);
-        var firstTrack = _snapshot is null;
-        var durationChanged = previous is null || Math.Abs(previous.DurationSeconds - snapshot.DurationSeconds) >= 0.01;
-        var volumeChanged = previous is null || previous.HasVolumeControl != snapshot.HasVolumeControl || !Nullable.Equals(previous.Volume, snapshot.Volume);
-        _snapshot = snapshot;
-        if (firstTrack && !_progressTimer.IsEnabled) _progressTimer.Start(); // 有媒体才跑进度插值，空闲停用
-        if (trackChanged && !firstTrack && !string.IsNullOrEmpty(snapshot.Track.Title))
-            NowPlayingRequested?.Invoke(snapshot.Track.Title, snapshot.Track.Artist);
-
-        Title = snapshot.Track.Title;
-        Artist = snapshot.Track.Artist;
-        Album = snapshot.Track.Album;
-        SourceLabel = snapshot.SourceLabel;
-        SourceDetail = snapshot.Track.SourceAppName;
-        var prevStatus = Status;
-        if (trackChanged) { _statusOverrideActive = false; _pauseLock = false; } // 换曲后上一状态锁定作废
-        if (_pauseLock)
-        {
-            // 暂停锁定（2.1.5 粘性）：用户点击暂停 / 重启恢复为暂停后，本地保持暂停，
-            // 进度与歌词完全冻结，直到用户再次点击播放 / 换曲 / 媒体结束。
-            // 期间完全忽略快照上报的状态——Cider SMTC 在暂停时常持续误报 Playing，
-            // 旧实现先走乐观保护分支，8s 超时后会把本地状态打回 Playing，
-            // 导致“暂停后歌词继续往后走”。现在锁定优先，误报不再能解冻播放。
-        }
-        else if (_statusOverrideActive)
-        {
-            // 乐观状态保护期：直到快照确认目标状态或超时，否则保持按钮状态，不被快照打回
-            if (snapshot.Status == _optimisticStatus || DateTime.UtcNow > _statusOverrideUntilUtc)
-            {
-                _statusOverrideActive = false;
-                Status = snapshot.Status;
-            }
-        }
-        else
-        {
-            Status = snapshot.Status;
-        }
-        DurationSeconds = snapshot.DurationSeconds;
-        // 暂停时保存一次位置（崩溃/退出后可恢复）
-        if (Status == PlaybackStatus.Paused && prevStatus != PlaybackStatus.Paused) SavePlaybackState();
-        if (durationChanged) OnPropertyChanged(nameof(DurationText));
-        var hasRealPosition = snapshot.DurationSeconds > 0 || snapshot.PositionSeconds > 0;
-        var reported = Math.Max(0, snapshot.PositionSeconds);
-        if (snapshot.DurationSeconds > 0) reported = Math.Min(reported, snapshot.DurationSeconds); // 防御：上报值不越界
-        if (trackChanged)
-        {
-            _restoredMode = false;
-            // 启动恢复：Cider/SMTC 尚未返回真实位置时，用上次保存的位置作为初始值，
-            // 避免暂停后重启先显示第 0 行、等真实位置到了再“跳”到暂停句。
-            // 只要曲目匹配且有上次位置就恢复（即使第一帧带了时长但位置为 0，也以恢复位置为准，
-            // 之后位置守卫会按真实上报值平滑校正，避免先显示第 0 行再跳）
-            var restored = _restoredTrackKey is not null
-                && LyricsService.TrackKey(snapshot.Track) == _restoredTrackKey
-                && _restoredPosition > 0;
-            if (restored)
-            {
-                _restoredMode = true; // 信任恢复位置，直到收到真实前进位置/换曲/seek
-                _interpolatedPosition = _restoredPosition;
-                if (_restoredStatus == PlaybackStatus.Paused)
-                {
-                    // 上次是暂停：锁定为暂停，重启后歌词保持不动（Cider SMTC 常误报 Playing）
-                    _pauseLock = true;
-                    SetStatusLocal(PlaybackStatus.Paused);
-                }
-                if (snapshot.DurationSeconds > 0) _interpolatedPosition = Math.Min(_interpolatedPosition, snapshot.DurationSeconds);
-                _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(_interpolatedPosition);
-            }
-            else
-            {
-                _useFreeClock = !hasRealPosition;
-                _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(reported);
-                _interpolatedPosition = reported;
-            }
-            _restoredTrackKey = null; // 只恢复一次
-            _positionStaleSinceUtc = null;
-            _karaokeFrozen = false;
-            SavePlaybackState();
-        }
-        else if (_pauseLock)
-        {
-            // 暂停锁定期间：位置保持冻结，不采纳快照位置（避免歌词/进度在暂停时继续走）
-        }
-        else if (!ShouldFreezePosition(Status) && hasRealPosition)
-        {
-            // 暂停期间绝不采纳播放器上报位置：即使 _pauseLock 未启用（例如从播放器端暂停），
-            // 位置与歌词高亮也冻结在暂停时刻，防止 Cider/SMTC 上报轻微漂移或过期回退
-            // 超时把歌词推着往后走（2.1.5）。
-            var current = _interpolatedPosition;
-            var seeking = _suppressSeek > 0; // 用户正在拖拽进度条
-            if (ShouldAdoptReportedPosition(reported, current, seeking))
-            {
-                _restoredMode = false; // 已收到真实前进位置，恢复正常守卫
-                _useFreeClock = false;
-                _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(reported);
-                _interpolatedPosition = reported;
-                _positionStaleSinceUtc = null;
-            }
-            else if (_restoredMode)
-            {
-                // 启动恢复信任期：持续报 0/过期位置（如 Cider SMTC）也保持恢复的位置，不触发回跳
-            }
-            else
-            {
-                // 忽略瞬间回退，保持当前插值进度继续推进，避免歌词/进度条突然跳回开头；
-                // 若明显回退持续超过 ~4 秒（真正的重播或播放器端 seek），再采纳并回跳。
-                if (_positionStaleSinceUtc is null) _positionStaleSinceUtc = DateTime.UtcNow;
-                else if ((DateTime.UtcNow - _positionStaleSinceUtc.Value).TotalSeconds >= 4.0)
-                {
-                    _useFreeClock = false;
-                    _trackStartTime = DateTime.UtcNow - TimeSpan.FromSeconds(reported);
-                    _interpolatedPosition = reported;
-                    _positionStaleSinceUtc = null;
-                }
-            }
-        }
-        // 无真实进度且非新曲目：保持自由时钟继续推进（不重置）
-        _lastPositionTime = DateTime.UtcNow;
-        CanPlayPause = snapshot.CanPlayPause;
-        CanNext = snapshot.CanNext;
-        CanPrevious = snapshot.CanPrevious;
-        CanSeek = snapshot.CanSeek && snapshot.DurationSeconds > 0;
-        HasVolumeControl = snapshot.HasVolumeControl;
-        _suppressVolume = true;
-        Volume = snapshot.Volume ?? 0;
-        _suppressVolume = false;
-        var statusChanged = prevStatus != Status;
-        if (statusChanged && prevStatus != PlaybackStatus.Playing && Status == PlaybackStatus.Playing) OnResumePlaying();
-        if (statusChanged) _wave.SetPlaying(IsPlaying);
-        if (volumeChanged) OnPropertyChanged(nameof(VolumeText));
-
-        if (snapshot.Track.ArtworkPath.Length > 0)
-            Artwork = GetArtwork(snapshot.Track.ArtworkPath);
-        else
-            Artwork = null;
-
-        if (trackChanged)
-            _ = LoadLyricsAsync(snapshot);
-
-        if (statusChanged)
-        {
-            OnPropertyChanged(nameof(IsPlaying));
-            OnPropertyChanged(nameof(IsPaused));
-            OnPropertyChanged(nameof(PlayPauseGlyph));
-        }
-        OnPropertyChanged(nameof(Position));
-        if (trackChanged) OnPropertyChanged(nameof(HasLyrics));
-        if (trackChanged || statusChanged || previous?.Source != snapshot.Source) UpdateVisibility();
-    }
-
-    /// <summary>
-    /// 当前状态是否应冻结进度/歌词位置（不采纳播放器上报的位置）。
-    /// 暂停时恒为 true：进度与歌词高亮必须停在暂停时刻，播放器（Cider/SMTC）上报的
-    /// 轻微漂移或过期读数都不得把歌词推着往后走（2.1.5）。纯函数，便于单元测试。
-    /// </summary>
-    internal static bool ShouldFreezePosition(PlaybackStatus status)
-        => status == PlaybackStatus.Paused;
-
-    /// <summary>
-    /// 判断是否应立即采用播放器上报的位置（秒）。
-    /// 仅当位置前进 / 轻微回退（≤2s）/ 用户正在拖拽进度条时才立即采用；
-    /// 播放到中途时瞬间上报 ~0 视为过期读数（如 Cider/SMTC 偶发返回 0），
-    /// 返回 false，由调用方保持当前插值进度继续推进，避免歌词/进度条突然跳回开头。
-    /// </summary>
-    internal static bool ShouldAdoptReportedPosition(double reported, double current, bool seeking)
-    {
-        var sane = seeking || reported >= current - 2.0;
-        var staleZero = !seeking && reported < 1.0 && current > 10.0;
-        return sane && !staleZero;
-    }
-    private void OnMediaEnded(object? sender, EventArgs e)
-    {
-        _snapshot = null;
-        _progressTimer.Stop(); // 无媒体时空闲停用，避免 100ms 空转
-        _restoredMode = false;
-        _statusOverrideActive = false;
-        _pauseLock = false;
-        Title = string.Empty;
-        Artist = string.Empty;
-        Album = string.Empty;
-        Artwork = null;
-        Status = PlaybackStatus.Closed;
-        DurationSeconds = 0;
-        Position = TimeSpan.Zero;
-        Progress = 0;
-        _interpolatedPosition = 0;
-        _positionStaleSinceUtc = null;
-        _wave.SetPlaying(false);
-        LyricLines = Array.Empty<LyricLineViewModel>();
-        _lyrics = LyricsResult.Empty;
-        LyricIndex = -1;
-        CurrentLyricText = string.Empty;
-        OnPropertyChanged(nameof(IsPlaying));
-        OnPropertyChanged(nameof(IsPaused));
-        OnPropertyChanged(nameof(PlayPauseGlyph));
-        OnPropertyChanged(nameof(HasLyrics));
-        UpdateVisibility();
-    }
-
-    private async Task LoadLyricsAsync(MediaSnapshot snapshot)
-    {
-        var key = LyricsService.TrackKey(snapshot.Track);
-        if (key == _lyricsKey) return;
-        _lyricsKey = key;
-
-        // 切歌立即清空旧歌词，避免新歌词加载完成前旧歌词继续显示/闪回
-        LyricLines = Array.Empty<LyricLineViewModel>();
-        LyricIndex = -1;
-        CurrentLyricWords = Array.Empty<TtmlWord>();
-        CurrentLyricText = string.Empty;
-        OnPropertyChanged(nameof(HasLyrics));
-
-        var result = await _lyricsService.GetLyricsAsync(snapshot);
-        if (_lyricsKey != key) return; // track changed while loading
-        _lyrics = result;
-
-        if (result.Ttml is { IsEmpty: false })
-        {
-            // Apple Music TTML：直接采用解析器输出的行与逐词时间轴（含空行 / 对唱 / 背景和声）
-            LyricLines = result.Ttml.Lines.Select(line => new LyricLineViewModel(line)).ToList();
-        }
-        else if (_settings.Current.BilingualLyrics)
-        {
-            // 双语 LRC：相邻时间戳的翻译行合并到主句下方；结束时间取下一句开始
-            var pairs = LrcParser.PairLines(result.Document.Lines, TimeSpan.FromMilliseconds(250), enable: true);
-            LyricLines = BuildLrcLines(pairs.Select(p => (p.Main, p.Translation)));
-        }
-        else
-        {
-            var lines = result.Document.Lines;
-            LyricLines = BuildLrcLines(lines.Select(l => (l, (string?)null)));
-        }
-
-        RefreshLyricTranslationVisibility();
-
-        if (LyricLines.Count > 0)
-        {
-            // 直接按当前（已恢复的）位置定位当前句，避免启动瞬间先显示第 0 行再跳；
-            // #4：叠加用户校准的时间偏移
-            var idx = IndexAtPosition(
-                LyricsAdjustedPosition(TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition))).TotalSeconds);
-            LyricIndex = idx;
-            if (idx >= 0 && idx < LyricLines.Count)
-            {
-                CurrentLyricWords = LyricLines[idx].Words;
-                CurrentLyricText = LyricLines[idx].Text;
-            }
-        }
-        else
-        {
-            LyricIndex = -1;
-            CurrentLyricWords = Array.Empty<TtmlWord>();
-            CurrentLyricText = string.Empty;
-        }
-
-        LyricsStatus = result.Source switch
-        {
-            LyricsSourceKind.LocalFile => Localization.Get("Lyrics_Local"),
-            LyricsSourceKind.Cider => Localization.Get("Lyrics_FromCider"),
-            LyricsSourceKind.Online => Localization.Get("Lyrics_Online"),
-            LyricsSourceKind.AmllTtml => Localization.Get("Lyrics_Amll"),
-            _ => Localization.Get("LyricsUnavailable"),
-        };
-        OnPropertyChanged(nameof(HasLyrics));
-        OnPropertyChanged(nameof(LyricOffsetText)); // 本曲可能带已保存的偏移
-    }
-
-    /// <summary>LRC 行 → ViewModel：用下一句开始时间补齐 EndSec，供均分逐字时间轴。</summary>
-    private static IReadOnlyList<LyricLineViewModel> BuildLrcLines(
-        IEnumerable<(LyricLine Line, string? Translation)> entries)
-    {
-        var source = entries.ToList();
-        var result = new List<LyricLineViewModel>(source.Count);
-        for (var i = 0; i < source.Count; i++)
-        {
-            var start = Math.Max(0.0, source[i].Line.Time.TotalSeconds);
-            var end = i + 1 < source.Count
-                ? source[i + 1].Line.Time.TotalSeconds
-                : start + 4.0;
-            if (!double.IsFinite(end) || end <= start) end = start + 4.0;
-            result.Add(new LyricLineViewModel(source[i].Line, source[i].Translation, null, end));
-        }
-        return result;
-    }
-
-    /// <summary>按播放秒定位当前歌词行（找不到返回 -1）。同一时刻优先主歌词，避免背景和声抢行。</summary>
-    private int IndexAtPosition(double seconds)
-    {
-        if (LyricLines.Count == 0 || !double.IsFinite(seconds)) return -1;
-        var idx = -1;
-        for (var i = 0; i < LyricLines.Count; i++)
-        {
-            if (LyricLines[i].StartSec > seconds + 0.0005) break;
-            idx = i;
-        }
-        if (idx < 0) return -1;
-        // TTML 中主歌词和背景和声可能共享同一开始时间：优先返回主歌词行
-        if (LyricLines[idx].IsBackground)
-        {
-            var start = LyricLines[idx].StartSec;
-            for (var i = idx - 1; i >= 0; i--)
-            {
-                if (Math.Abs(LyricLines[i].StartSec - start) > 0.05) break;
-                if (!LyricLines[i].IsBackground) return i;
-            }
-        }
-        return idx;
-    }
-    // #4 ── 歌词时间微调 ────────────────────────────────────────
-    /// <summary>当前曲目的歌词时间偏移（秒），未校准为 0。</summary>
-    public double CurrentLyricOffset
-    {
-        get => _lyricsKey.Length > 0 && _lyricTimeOffsets.TryGetValue(_lyricsKey, out var v) ? v : 0;
-    }
-
-    /// <summary>歌词对齐偏移的显示文本（按钮上显示）。</summary>
-    public string LyricOffsetText
-    {
-        get
-        {
-            var off = CurrentLyricOffset;
-            if (Math.Abs(off) < 0.001) return Localization.Get("Lyric_Aligned");
-            return off > 0 ? $"+{off:0.0}s" : $"{off:0.0}s";
-        }
-    }
-
-    /// <summary>把播放位置叠加歌词偏移后用于歌词定位/卡拉OK。</summary>
-    private TimeSpan LyricsAdjustedPosition(TimeSpan pos)
-        => pos + TimeSpan.FromSeconds(CurrentLyricOffset);
-
-    /// <summary>微调当前曲目的歌词时间：delta 秒（±0.5 步进），立即生效并持久化到设置。</summary>
-    public void AdjustLyricTime(double delta)
-    {
-        if (_lyricsKey.Length == 0) return;
-        try
-        {
-            var off = Math.Clamp(CurrentLyricOffset + delta, -30, 30);
-            _lyricTimeOffsets[_lyricsKey] = off;
-            _settings.Update(s => s.LyricTimeOffsets = new Dictionary<string, double>(_lyricTimeOffsets));
-            OnPropertyChanged(nameof(LyricOffsetText));
-            if (HasLyrics && LyricLines.Count > 0)
-            {
-                var idx = IndexAtPosition(LyricsAdjustedPosition(Position).TotalSeconds);
-                if (idx != LyricIndex) LyricIndex = idx;
-                UpdateKaraokeHighlight();
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Lyric time adjust failed: {ex.Message}");
-        }
-    }
-
-    // ── Progress interpolation ─────────────────────────────────
-    private void AdvanceProgress()
-    {
-        if (_snapshot is null || _suppressSeek > 0) return;
-
-        if (Status == PlaybackStatus.Playing)
-        {
-            var now = DateTime.UtcNow;
-            if (_useFreeClock)
-            {
-                // 播放器不报 SMTC 进度（如 Cider）：用本地时钟从曲目开始推进卡拉OK
-                _interpolatedPosition = (now - _trackStartTime).TotalSeconds;
-            }
-            else
-            {
-                _interpolatedPosition += (now - _lastPositionTime).TotalSeconds;
-            }
-            _lastPositionTime = now;
-        }
-
-        // 时长不可用（Cider）时用兜底时长，保证进度/卡拉OK仍推进
-        var duration = DurationSeconds > 0 ? DurationSeconds : 300.0;
-        Position = TimeSpan.FromSeconds(KaraokeMath.AtLeastZero(_interpolatedPosition));
-        Progress = KaraokeMath.ClampFraction(_interpolatedPosition / duration);
-
-        if (HasLyrics)
-        {
-            var idx = IndexAtPosition(LyricsAdjustedPosition(Position).TotalSeconds); // #4 叠加歌词偏移
-            if (idx != LyricIndex) LyricIndex = idx;
-            UpdateKaraokeHighlight();
-        }
-    }
-
-    /// <summary>逐字卡拉OK：把当前句的时长按字符均分，推进已点亮字符数。</summary>
-    private void UpdateKaraokeHighlight()
-    {
-        if (LyricIndex < 0 || LyricIndex >= LyricLines.Count) return;
-        var cur = LyricLines[LyricIndex];
-        var nextStart = LyricIndex + 1 < LyricLines.Count
-            ? LyricLines[LyricIndex + 1].StartSec
-            : Math.Max(cur.EndSec, cur.StartSec + 0.1);
-        var posSec = Position.TotalSeconds + CurrentLyricOffset; // #4 叠加歌词偏移
-        var frac = KaraokeMath.LineFraction(posSec, cur.StartSec, nextStart);
-
-        if (Status == PlaybackStatus.Playing)
-        {
-            // 播放中：实时推进（连续比例 0..1，供控件 60fps 缓动）
-            _karaokeFrozen = false;
-            KaraokePositionSeconds = posSec; // 播放中持续更新逐字位置（控件按墙钟 60fps 推进）
-            SetHighlightFraction(frac);
-        }
-        else if (!_karaokeFrozen)
-        {
-            // 暂停：用当前（已正确恢复的）位置设置一次高亮，然后冻结，
-            // 之后任何位置校正都不再改动高亮 → 稳定在暂停时刻的样子。
-            KaraokePositionSeconds = posSec; // 播放中持续更新逐字位置（控件按墙钟 60fps 推进）
-            SetHighlightFraction(frac);
-            _karaokeFrozen = true;
-        }
-        // 已冻结：保持不动（既不更新比例也不更新逐字位置，避免暂停时跳动）
-
-    }
-
-    private void SetHighlightFraction(double frac)
-    {
-        if (LyricLines.Count > LyricIndex)
-        {
-            var lvm = LyricLines[LyricIndex];
-            if (KaraokeMath.AbsGreaterThan(lvm.HighlightFraction - frac, 0.0005)) lvm.HighlightFraction = frac;
-        }
-        if (KaraokeMath.AbsGreaterThan(CompactHighlightFraction - frac, 0.0005)) CompactHighlightFraction = frac;
-    }
-
-    /// <summary>保存当前播放位置（退出/暂停/切歌时调用，供下次启动恢复）。</summary>
-    public void SavePlaybackState()
-    {
-        try
-        {
-            // Demo previews must not overwrite the user's real playback resume state.
-            if (_snapshot is null || _demoInjected) return;
-            new PlaybackStateStore
-            {
-                TrackKey = LyricsService.TrackKey(_snapshot.Track),
-                PositionSeconds = KaraokeMath.AtLeastZero(_interpolatedPosition),
-                Status = Status.ToString(),
-            }.Save();
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"SavePlaybackState failed: {ex.Message}");
-        }
-    }
     // ── Visibility ─────────────────────────────────────────────
     private readonly Dictionary<string, bool> _visCache = new();
     private bool _visFirst = true;
@@ -3040,8 +2125,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _demoInjected = true;
         var artPath = CreateDemoArtwork();
 
-        var track = new TrackInfo("暂无音乐", "WinIslands", "宋词精选", "苏轼",
-            "古典诗词", "demo-source", artPath, string.Empty, TimeSpan.FromSeconds(210));
+        var track = new TrackInfo("Shall We Talk", "陈奕迅 · Eason Chan", "Shall We Dance? Shall We Talk!", "陈奕迅",
+            "粤语流行", "demo-source", artPath, string.Empty, TimeSpan.FromSeconds(210));
         var snap = new MediaSnapshot
         {
             Track = track,
@@ -3080,17 +2165,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xml:lang="zh">
               <body>
                 <div>
-                  <p begin="00:00.000" end="00:04.000" ttm:agent="v1"><span begin="00:00.000" end="00:00.800">明</span><span begin="00:00.800" end="00:01.600">月</span><span begin="00:01.600" end="00:02.400">几</span><span begin="00:02.400" end="00:03.200">时</span><span begin="00:03.200" end="00:04.000">有</span></p>
-                  <p begin="00:04.000" end="00:08.000" ttm:agent="v1"><span begin="00:04.000" end="00:04.800">把</span><span begin="00:04.800" end="00:05.600">酒</span><span begin="00:05.600" end="00:06.400">问</span><span begin="00:06.400" end="00:07.200">青</span><span begin="00:07.200" end="00:08.000">天</span></p>
-                  <p begin="00:08.000" end="00:12.000" ttm:agent="v1"><span begin="00:08.000" end="00:08.667">不</span><span begin="00:08.667" end="00:09.333">知</span><span begin="00:09.333" end="00:10.000">天</span><span begin="00:10.000" end="00:10.667">上</span><span begin="00:10.667" end="00:11.333">宫</span><span begin="00:11.333" end="00:12.000">阙</span></p>
-                  <p begin="00:12.000" end="00:16.000" ttm:agent="v1"><span begin="00:12.000" end="00:12.800">今</span><span begin="00:12.800" end="00:13.600">夕</span><span begin="00:13.600" end="00:14.400">是</span><span begin="00:14.400" end="00:15.200">何</span><span begin="00:15.200" end="00:16.000">年</span>
-                    <span ttm:role="x-translation">What year is it tonight</span>
-                  </p>
-                  <p begin="00:16.000" end="00:20.000" ttm:agent="v1"><span begin="00:16.000" end="00:16.667">我</span><span begin="00:16.667" end="00:17.333">欲</span><span begin="00:17.333" end="00:18.000">乘</span><span begin="00:18.000" end="00:18.667">风</span><span begin="00:18.667" end="00:19.333">归</span><span begin="00:19.333" end="00:20.000">去</span></p>
-                  <p begin="00:16.000" end="00:20.000" ttm:role="x-bg"><span begin="00:16.000" end="00:18.000">啊</span><span begin="00:18.000" end="00:20.000">啊</span></p>
-                  <p begin="00:20.000" end="00:24.000" ttm:agent="v1"><span begin="00:20.000" end="00:20.571">Re</span> <span begin="00:20.571" end="00:21.143">So</span> <span begin="00:21.143" end="00:21.714">So</span> <span begin="00:21.714" end="00:22.286">Si</span> <span begin="00:22.286" end="00:22.857">Do</span> <span begin="00:22.857" end="00:23.429">Si</span> <span begin="00:23.429" end="00:24.000">La</span></p>
-                  <p begin="00:24.000" end="00:28.000" ttm:agent="v1"><span begin="00:24.000" end="00:24.800">起</span><span begin="00:24.800" end="00:25.600">舞</span><span begin="00:25.600" end="00:26.400">弄</span><span begin="00:26.400" end="00:27.200">清</span><span begin="00:27.200" end="00:28.000">影</span></p>
-                  <p begin="00:28.000" end="00:32.000" ttm:agent="v1"><span begin="00:28.000" end="00:28.800">何</span><span begin="00:28.800" end="00:29.600">似</span><span begin="00:29.600" end="00:30.400">在</span><span begin="00:30.400" end="00:31.200">人</span><span begin="00:31.200" end="00:32.000">间</span></p>
+                  <p begin="00:00:00.000" end="00:00:06.000" ttm:agent="v1"><span begin="00:00:00.000" end="00:00:00.600">明</span><span begin="00:00:00.600" end="00:00:01.200">月</span><span begin="00:00:01.200" end="00:00:01.800">光</span><span begin="00:00:01.800" end="00:00:02.400">，</span><span begin="00:00:02.400" end="00:00:03.000">为</span><span begin="00:00:03.000" end="00:00:03.600">何</span><span begin="00:00:03.600" end="00:00:04.200">又</span><span begin="00:00:04.200" end="00:00:04.800">照</span><span begin="00:00:04.800" end="00:00:05.400">地</span><span begin="00:00:05.400" end="00:00:06.000">堂</span></p>
+                  <p begin="00:00:06.000" end="00:00:12.000" ttm:agent="v1"><span begin="00:00:06.000" end="00:00:06.500">宁</span><span begin="00:00:06.500" end="00:00:07.000">愿</span><span begin="00:00:07.000" end="00:00:07.500">在</span><span begin="00:00:07.500" end="00:00:08.000">公</span><span begin="00:00:08.000" end="00:00:08.500">园</span><span begin="00:00:08.500" end="00:00:09.000">躲</span><span begin="00:00:09.000" end="00:00:09.500">藏</span><span begin="00:00:09.500" end="00:00:10.000">，</span><span begin="00:00:10.000" end="00:00:10.500">不</span><span begin="00:00:10.500" end="00:00:11.000">想</span><span begin="00:00:11.000" end="00:00:11.500">喝</span><span begin="00:00:11.500" end="00:00:12.000">汤</span></p>
+                  <p begin="00:00:12.000" end="00:00:18.000" ttm:agent="v1"><span begin="00:00:12.000" end="00:00:12.545">任</span><span begin="00:00:12.545" end="00:00:13.091">由</span><span begin="00:00:13.091" end="00:00:13.636">目</span><span begin="00:00:13.636" end="00:00:14.182">光</span><span begin="00:00:14.182" end="00:00:14.727">，</span><span begin="00:00:14.727" end="00:00:15.273">留</span><span begin="00:00:15.273" end="00:00:15.818">在</span><span begin="00:00:15.818" end="00:00:16.364">漫</span><span begin="00:00:16.364" end="00:00:16.909">画</span><span begin="00:00:16.909" end="00:00:17.455">一</span><span begin="00:00:17.455" end="00:00:18.000">角</span></p>
+                  <p begin="00:00:18.000" end="00:00:24.000" ttm:agent="v1"><span begin="00:00:18.000" end="00:00:18.462">为</span><span begin="00:00:18.462" end="00:00:18.923">何</span><span begin="00:00:18.923" end="00:00:19.385">望</span><span begin="00:00:19.385" end="00:00:19.846">母</span><span begin="00:00:19.846" end="00:00:20.308">亲</span><span begin="00:00:20.308" end="00:00:20.769">一</span><span begin="00:00:20.769" end="00:00:21.231">眼</span><span begin="00:00:21.231" end="00:00:21.692">，</span><span begin="00:00:21.692" end="00:00:22.154">就</span><span begin="00:00:22.154" end="00:00:22.615">如</span><span begin="00:00:22.615" end="00:00:23.077">罚</span><span begin="00:00:23.077" end="00:00:23.538">留</span><span begin="00:00:23.538" end="00:00:24.000">堂</span></p>
+                  <p begin="00:00:24.000" end="00:00:30.000" ttm:agent="v1"><span begin="00:00:24.000" end="00:00:24.400">孩</span><span begin="00:00:24.400" end="00:00:24.800">童</span><span begin="00:00:24.800" end="00:00:25.200">只</span><span begin="00:00:25.200" end="00:00:25.600">盼</span><span begin="00:00:25.600" end="00:00:26.000">望</span><span begin="00:00:26.000" end="00:00:26.400">欢</span><span begin="00:00:26.400" end="00:00:26.800">乐</span><span begin="00:00:26.800" end="00:00:27.200">，</span><span begin="00:00:27.200" end="00:00:27.600">大</span><span begin="00:00:27.600" end="00:00:28.000">人</span><span begin="00:00:28.000" end="00:00:28.400">只</span><span begin="00:00:28.400" end="00:00:28.800">知</span><span begin="00:00:28.800" end="00:00:29.200">道</span><span begin="00:00:29.200" end="00:00:29.600">期</span><span begin="00:00:29.600" end="00:00:30.000">望</span></p>
+                  <p begin="00:00:30.000" end="00:00:36.000" ttm:agent="v1"><span begin="00:00:30.000" end="00:00:30.429">为</span><span begin="00:00:30.429" end="00:00:30.857">何</span><span begin="00:00:30.857" end="00:00:31.286">都</span><span begin="00:00:31.286" end="00:00:31.714">不</span><span begin="00:00:31.714" end="00:00:32.143">大</span><span begin="00:00:32.143" end="00:00:32.571">懂</span><span begin="00:00:32.571" end="00:00:33.000">得</span><span begin="00:00:33.000" end="00:00:33.429">，</span><span begin="00:00:33.429" end="00:00:33.857">努</span><span begin="00:00:33.857" end="00:00:34.286">力</span><span begin="00:00:34.286" end="00:00:34.714">体</span><span begin="00:00:34.714" end="00:00:35.143">恤</span><span begin="00:00:35.143" end="00:00:35.571">对</span><span begin="00:00:35.571" end="00:00:36.000">方</span></p>
+                  <p begin="00:00:36.000" end="00:00:42.000" ttm:agent="v1"><span begin="00:00:36.000" end="00:00:36.429">大</span><span begin="00:00:36.429" end="00:00:36.857">门</span><span begin="00:00:36.857" end="00:00:37.286">外</span><span begin="00:00:37.286" end="00:00:37.714">有</span><span begin="00:00:37.714" end="00:00:38.143">蟋</span><span begin="00:00:38.143" end="00:00:38.571">蟀</span><span begin="00:00:38.571" end="00:00:39.000">，</span><span begin="00:00:39.000" end="00:00:39.429">回</span><span begin="00:00:39.429" end="00:00:39.857">响</span><span begin="00:00:39.857" end="00:00:40.286">却</span><span begin="00:00:40.286" end="00:00:40.714">如</span><span begin="00:00:40.714" end="00:00:41.143">同</span><span begin="00:00:41.143" end="00:00:41.571">幻</span><span begin="00:00:41.571" end="00:00:42.000">觉</span></p>
+                  <p begin="00:00:42.000" end="00:00:48.000" ttm:agent="v1"><span begin="00:00:42.000" end="00:00:43.000">Shall</span><span begin="00:00:43.000" end="00:00:44.000">we</span><span begin="00:00:44.000" end="00:00:45.000">talk,</span><span begin="00:00:45.000" end="00:00:46.000">shall</span><span begin="00:00:46.000" end="00:00:47.000">we</span><span begin="00:00:47.000" end="00:00:48.000">talk</span></p>
+                  <p begin="00:00:48.000" end="00:00:54.000" ttm:agent="v1"><span begin="00:00:48.000" end="00:00:48.545">就</span><span begin="00:00:48.545" end="00:00:49.091">当</span><span begin="00:00:49.091" end="00:00:49.636">重</span><span begin="00:00:49.636" end="00:00:50.182">新</span><span begin="00:00:50.182" end="00:00:50.727">手</span><span begin="00:00:50.727" end="00:00:51.273">拖</span><span begin="00:00:51.273" end="00:00:51.818">手</span><span begin="00:00:51.818" end="00:00:52.364">去</span><span begin="00:00:52.364" end="00:00:52.909">上</span><span begin="00:00:52.909" end="00:00:53.455">学</span><span begin="00:00:53.455" end="00:00:54.000">堂</span></p>
+                  <p begin="00:00:54.000" end="00:01:00.000" ttm:agent="v1"><span begin="00:00:54.000" end="00:00:54.375">陪</span><span begin="00:00:54.375" end="00:00:54.750">我</span><span begin="00:00:54.750" end="00:00:55.125">讲</span><span begin="00:00:55.125" end="00:00:55.500">，</span><span begin="00:00:55.500" end="00:00:55.875">陪</span><span begin="00:00:55.875" end="00:00:56.250">我</span><span begin="00:00:56.250" end="00:00:56.625">讲</span><span begin="00:00:56.625" end="00:00:57.000">出</span><span begin="00:00:57.000" end="00:00:57.375">我</span><span begin="00:00:57.375" end="00:00:57.750">们</span><span begin="00:00:57.750" end="00:00:58.125">最</span><span begin="00:00:58.125" end="00:00:58.500">后</span><span begin="00:00:58.500" end="00:00:58.875">何</span><span begin="00:00:58.875" end="00:00:59.250">以</span><span begin="00:00:59.250" end="00:00:59.625">生</span><span begin="00:00:59.625" end="00:01:00.000">疏</span></p>
+                  <p begin="00:01:00.000" end="00:01:06.000" ttm:agent="v1"><span begin="00:01:00.000" end="00:01:00.429">谁</span><span begin="00:01:00.429" end="00:01:00.857">怕</span><span begin="00:01:00.857" end="00:01:01.286">讲</span><span begin="00:01:01.286" end="00:01:01.714">，</span><span begin="00:01:01.714" end="00:01:02.143">谁</span><span begin="00:01:02.143" end="00:01:02.571">会</span><span begin="00:01:02.571" end="00:01:03.000">可</span><span begin="00:01:03.000" end="00:01:03.429">悲</span><span begin="00:01:03.429" end="00:01:03.857">得</span><span begin="00:01:03.857" end="00:01:04.286">过</span><span begin="00:01:04.286" end="00:01:04.714">孤</span><span begin="00:01:04.714" end="00:01:05.143">独</span><span begin="00:01:05.143" end="00:01:05.571">探</span><span begin="00:01:05.571" end="00:01:06.000">戈</span></p>
+                  <p begin="00:01:06.000" end="00:01:12.000" ttm:agent="v1"><span begin="00:01:06.000" end="00:01:06.429">难</span><span begin="00:01:06.429" end="00:01:06.857">得</span><span begin="00:01:06.857" end="00:01:07.286">可</span><span begin="00:01:07.286" end="00:01:07.714">以</span><span begin="00:01:07.714" end="00:01:08.143">同</span><span begin="00:01:08.143" end="00:01:08.571">座</span><span begin="00:01:08.571" end="00:01:09.000">，</span><span begin="00:01:09.000" end="00:01:09.429">何</span><span begin="00:01:09.429" end="00:01:09.857">以</span><span begin="00:01:09.857" end="00:01:10.286">要</span><span begin="00:01:10.286" end="00:01:10.714">忌</span><span begin="00:01:10.714" end="00:01:11.143">讳</span><span begin="00:01:11.143" end="00:01:11.571">赤</span><span begin="00:01:11.571" end="00:01:12.000">裸</span></p>
+                  <p begin="00:01:12.000" end="00:01:18.000" ttm:agent="v1"><span begin="00:01:12.000" end="00:01:12.400">如</span><span begin="00:01:12.400" end="00:01:12.800">果</span><span begin="00:01:12.800" end="00:01:13.200">心</span><span begin="00:01:13.200" end="00:01:13.600">声</span><span begin="00:01:13.600" end="00:01:14.000">真</span><span begin="00:01:14.000" end="00:01:14.400">有</span><span begin="00:01:14.400" end="00:01:14.800">疗</span><span begin="00:01:14.800" end="00:01:15.200">效</span><span begin="00:01:15.200" end="00:01:15.600">，</span><span begin="00:01:15.600" end="00:01:16.000">谁</span><span begin="00:01:16.000" end="00:01:16.400">怕</span><span begin="00:01:16.400" end="00:01:16.800">暴</span><span begin="00:01:16.800" end="00:01:17.200">露</span><span begin="00:01:17.200" end="00:01:17.600">更</span><span begin="00:01:17.600" end="00:01:18.000">多</span></p>
                 </div>
               </body>
             </tt>
@@ -3123,78 +2210,63 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         try
         {
             Directory.CreateDirectory(AppPaths.ThumbCacheDir);
-            var path = Path.Combine(AppPaths.ThumbCacheDir, "demo-art-shuidiaogetou.jpg");
+            var path = Path.Combine(AppPaths.ThumbCacheDir, "demo-art-shallwetalk.jpg");
             if (File.Exists(path)) return path;
 
             using var bmp = new System.Drawing.Bitmap(512, 512);
             using var g = System.Drawing.Graphics.FromImage(bmp);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
             var rect = new System.Drawing.Rectangle(0, 0, 512, 512);
-            using (var sky = new System.Drawing.Drawing2D.LinearGradientBrush(rect,
-                System.Drawing.Color.FromArgb(255, 10, 16, 38),
-                System.Drawing.Color.FromArgb(255, 48, 34, 82), 125f))
-                g.FillRectangle(sky, rect);
+            using (var bg = new System.Drawing.Drawing2D.LinearGradientBrush(rect,
+                System.Drawing.Color.FromArgb(255, 8, 13, 25),
+                System.Drawing.Color.FromArgb(255, 22, 44, 68), 62f))
+                g.FillRectangle(bg, rect);
 
-            // Moon glow and surface.
-            for (var i = 5; i >= 1; i--)
+            // Soft studio spotlight, upper right.
+            for (var i = 14; i >= 1; i--)
             {
-                var size = 170 + i * 34;
+                var size = 250 + i * 26;
                 using var halo = new System.Drawing.SolidBrush(
-                    System.Drawing.Color.FromArgb(9 + (5 - i) * 3, 196, 220, 255));
-                g.FillEllipse(halo, 266 - size / 2f, 92 - size / 2f, size, size);
+                    System.Drawing.Color.FromArgb(4 + (15 - i), 126, 196, 224));
+                g.FillEllipse(halo, 356 - size / 2f, 150 - size / 2f, size, size);
             }
-            using (var moon = new System.Drawing.Drawing2D.LinearGradientBrush(
-                new System.Drawing.Rectangle(196, 22, 140, 140),
-                System.Drawing.Color.FromArgb(255, 255, 247, 214),
-                System.Drawing.Color.FromArgb(255, 244, 203, 156), 55f))
-                g.FillEllipse(moon, 196, 22, 140, 140);
-            using (var crater = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(22, 116, 92, 118)))
+
+            // Cool moon-like disc so the cover still reads at thumbnail size.
+            using (var disc = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new System.Drawing.Rectangle(216, 94, 184, 184),
+                System.Drawing.Color.FromArgb(236, 228, 242, 248),
+                System.Drawing.Color.FromArgb(196, 128, 168, 198), 55f))
+                g.FillEllipse(disc, 216, 94, 184, 184);
+            using (var shade = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(26, 90, 130, 160)))
+                g.FillEllipse(shade, 258, 132, 96, 78);
+
+            // Lower half: deep water with two soft swells.
+            using (var sea = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new System.Drawing.Rectangle(0, 300, 512, 212),
+                System.Drawing.Color.FromArgb(0, 12, 26, 42),
+                System.Drawing.Color.FromArgb(255, 7, 15, 29), 90f))
+                g.FillRectangle(sea, 0, 300, 512, 212);
+            using (var wave = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(64, 84, 158, 196)))
             {
-                g.FillEllipse(crater, 232, 60, 28, 20);
-                g.FillEllipse(crater, 282, 94, 34, 24);
-                g.FillEllipse(crater, 252, 122, 18, 14);
+                g.FillEllipse(wave, -140, 372, 540, 220);
+                g.FillEllipse(wave, 176, 414, 560, 240);
             }
 
-            // Layered mountains.
-            using (var far = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(235, 29, 39, 70)))
-                g.FillPolygon(far, new[]
-                {
-                    new System.Drawing.PointF(0, 352), new System.Drawing.PointF(88, 272),
-                    new System.Drawing.PointF(154, 328), new System.Drawing.PointF(238, 236),
-                    new System.Drawing.PointF(326, 326), new System.Drawing.PointF(412, 250),
-                    new System.Drawing.PointF(512, 332), new System.Drawing.PointF(512, 512),
-                    new System.Drawing.PointF(0, 512),
-                });
-            using (var near = new System.Drawing.Drawing2D.LinearGradientBrush(
-                new System.Drawing.Rectangle(0, 330, 512, 182),
-                System.Drawing.Color.FromArgb(255, 13, 24, 46),
-                System.Drawing.Color.FromArgb(255, 7, 12, 26), 90f))
-                g.FillPolygon(near, new[]
-                {
-                    new System.Drawing.PointF(0, 414), new System.Drawing.PointF(96, 342),
-                    new System.Drawing.PointF(186, 398), new System.Drawing.PointF(286, 312),
-                    new System.Drawing.PointF(388, 396), new System.Drawing.PointF(512, 334),
-                    new System.Drawing.PointF(512, 512), new System.Drawing.PointF(0, 512),
-                });
+            // Fine highlight arc around the disc.
+            using (var arc = new System.Drawing.Pen(System.Drawing.Color.FromArgb(64, 220, 240, 250), 3f))
+                g.DrawArc(arc, 150, 52, 250, 250, 196, 148);
 
-            using (var star = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(170, 220, 230, 255)))
-            {
-                foreach (var (x, y, r) in new[] { (62, 84, 2), (118, 154, 1), (356, 70, 1), (430, 150, 2), (88, 230, 1), (470, 238, 1) })
-                    g.FillEllipse(star, x, y, r, r);
-            }
-
-            using var titleFont = new System.Drawing.Font("Microsoft YaHei UI", 26, System.Drawing.FontStyle.Bold,
-                System.Drawing.GraphicsUnit.Pixel);
-            using var titleBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(238, 255, 250, 235));
-            var title = "\u6C34\u8C03\u6B4C\u5934";
-            for (var i = 0; i < title.Length; i++)
-                g.DrawString(title[i].ToString(), titleFont, titleBrush, 55, 92 + i * 32);
-
-            using var smallFont = new System.Drawing.Font("Microsoft YaHei UI", 13, System.Drawing.FontStyle.Regular,
-                System.Drawing.GraphicsUnit.Pixel);
-            using var smallBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(180, 215, 226, 245));
-            g.DrawString("\u82CF\u8F7C \u00B7 \u5B8B", smallFont, smallBrush, 62, 226);
+            using var titleFont = new System.Drawing.Font("Segoe UI Semibold", 29,
+                System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel);
+            using var titleBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(244, 248, 252, 255));
+            g.DrawString("Shall We Talk", titleFont, titleBrush, 38, 396);
+            using var smallFont = new System.Drawing.Font("Microsoft YaHei UI", 15,
+                System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
+            using var smallBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(194, 205, 224, 240));
+            g.DrawString("\u9648\u5955\u8FC5 \u00B7 Eason Chan", smallFont, smallBrush, 40, 440);
 
             bmp.Save(path, System.Drawing.Imaging.ImageFormat.Jpeg);
             return path;

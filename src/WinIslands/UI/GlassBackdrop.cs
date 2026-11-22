@@ -12,9 +12,9 @@ using Color = System.Windows.Media.Color;
 namespace WinIslands.UI;
 
 /// <summary>
-/// Renders the desktop behind a screen region as a uniform frosted-glass texture:
-/// the real backdrop is blurred, cropped to a rounded rectangle, and cached until
-/// geometry, wallpaper, theme, or desktop content changes.
+/// Renders the wallpaper behind a screen region as a plain frosted-glass texture:
+/// one uniform blur plus a rounded crop, cached until wallpaper/geometry changes.
+/// No desktop capture, displacement or refraction is used.
 /// </summary>
 internal static class GlassBackdrop
 {
@@ -33,10 +33,6 @@ internal static class GlassBackdrop
     private static long _lastBuildTicks;
     private static BitmapSource? _lastBuilt;
     private static bool _eventsHooked;
-    private static BitmapSource? _snapshot;
-    private static Rect _snapshotRect;
-    private static long _snapshotStamp;
-    private const double SnapshotInflate = 140;
 
     internal static long Revision => System.Threading.Volatile.Read(ref _revision);
 
@@ -105,19 +101,6 @@ internal static class GlassBackdrop
             var wallpaper = ResolveWallpaper(monitor);
             var revision = Revision;
 
-            BitmapSource? snapshot = null;
-            var snapshotRect = Rect.Empty;
-            long snapshotStamp = 0;
-            lock (Sync)
-            {
-                if (_snapshot is not null && _snapshotRect.Contains(screenRect))
-                {
-                    snapshot = _snapshot;
-                    snapshotRect = _snapshotRect;
-                    snapshotStamp = _snapshotStamp;
-                }
-            }
-
             key = string.Join("|",
                 roundedX, roundedY, roundedW, roundedH,
                 tex.ToString("F3"), revision,
@@ -125,9 +108,7 @@ internal static class GlassBackdrop
                 wallpaper.Path ?? "<none>", wallpaper.Stamp,
                 (int)wallpaper.Position,
                 monitor.Left, monitor.Top, monitor.Width, monitor.Height,
-                wallpaper.Background.R, wallpaper.Background.G, wallpaper.Background.B,
-                snapshot is null ? "wp" : "ss", snapshotStamp,
-                snapshotRect.X, snapshotRect.Y, snapshotRect.Width, snapshotRect.Height);
+                wallpaper.Background.R, wallpaper.Background.G, wallpaper.Background.B);
 
             lock (Sync)
             {
@@ -146,7 +127,7 @@ internal static class GlassBackdrop
             }
 
             var bitmap = RenderCore(
-                screenRect, tex, cornerRadius, monitor, wallpaper, snapshot, snapshotRect);
+                screenRect, tex, cornerRadius, monitor, wallpaper);
             if (bitmap is null) return null;
 
             lock (Sync)
@@ -164,198 +145,12 @@ internal static class GlassBackdrop
         }
     }
 
-    /// <summary>
-    /// Captures the real screen behind a window (physical pixels) before it becomes
-    /// visible. This is what makes the glass show the actual desktop/windows behind it
-    /// instead of only a blurred wallpaper.
-    /// </summary>
-    internal static void CaptureForWindow(IntPtr hwnd, Rect? occluder, double inflate = SnapshotInflate)
-    {
-        try
-        {
-            if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var native))
-                return;
-
-            var windowRect = new Rect(
-                native.Left, native.Top,
-                Math.Max(1, native.Right - native.Left),
-                Math.Max(1, native.Bottom - native.Top));
-            if (windowRect.Width < 20 || windowRect.Height < 20)
-                return;
-
-            var rect = windowRect;
-            rect.Inflate(inflate, inflate);
-            CaptureRect(rect, occluder);
-        }
-        catch
-        {
-            // Screen capture can be unavailable (locked session / protected content);
-            // the layer then falls back to the wallpaper path.
-        }
-    }
-
-    /// <summary>
-    /// Captures a desktop region (physical pixels) right before a popup opens, so the
-    /// popup's glass can blur the actual content behind it.
-    /// </summary>
-    internal static void CaptureRegion(Rect rect, Rect? occluder = null) => CaptureRect(rect, occluder);
-
-    /// <summary>
-    /// Re-samples the desktop behind an already visible window (after the user drags it).
-    /// The window area itself is patched out of the snapshot so the glass never samples
-    /// its own composited output.
-    /// </summary>
-    internal static void RecaptureBehindWindow(IntPtr hwnd, double inflate = SnapshotInflate)
-    {
-        try
-        {
-            if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var native))
-                return;
-
-            var windowRect = new Rect(
-                native.Left, native.Top,
-                Math.Max(1, native.Right - native.Left),
-                Math.Max(1, native.Bottom - native.Top));
-            if (windowRect.Width < 20 || windowRect.Height < 20)
-                return;
-
-            var rect = windowRect;
-            rect.Inflate(inflate, inflate);
-            CaptureRect(rect, windowRect);
-        }
-        catch
-        {
-        }
-    }
-
-    private static void CaptureRect(Rect rect, Rect? occluder)
-    {
-        try
-        {
-            var bounds = VirtualScreen();
-            rect.Intersect(bounds);
-            if (rect.Width < 20 || rect.Height < 20)
-                return;
-
-            var x = (int)Math.Floor(rect.X);
-            var y = (int)Math.Floor(rect.Y);
-            var w = Math.Max(2, (int)Math.Ceiling(rect.Width));
-            var h = Math.Max(2, (int)Math.Ceiling(rect.Height));
-
-            using var bitmap = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                graphics.CopyFromScreen(x, y, 0, 0,
-                    new System.Drawing.Size(w, h),
-                    System.Drawing.CopyPixelOperation.SourceCopy);
-            }
-
-            if (occluder is Rect hole && hole.Width > 2 && hole.Height > 2)
-                PatchOccluder(bitmap, x, y, hole);
-
-            var data = bitmap.LockBits(
-                new System.Drawing.Rectangle(0, 0, w, h),
-                System.Drawing.Imaging.ImageLockMode.ReadOnly,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            byte[] pixels;
-            int stride;
-            try
-            {
-                stride = data.Stride;
-                pixels = new byte[stride * h];
-                Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
-            }
-            finally
-            {
-                bitmap.UnlockBits(data);
-            }
-
-            var source = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
-            source.Freeze();
-            lock (Sync)
-            {
-                _snapshot = source;
-                _snapshotRect = new Rect(x, y, w, h);
-                _snapshotStamp = Stopwatch.GetTimestamp();
-                _lastBuilt = null;
-                _lastBuildTicks = 0;
-                Cache.Clear();
-            }
-        }
-        catch
-        {
-            // Locked session / protected content: keep the previous snapshot or the
-            // wallpaper fallback rather than crashing.
-        }
-    }
-    /// <summary>Fills the compact capsule hole with the pixels just below it, feathered
-    /// toward the real pixels on both sides so the blurred glass shows no black patch.</summary>
-    private static void PatchOccluder(System.Drawing.Bitmap bitmap, int originX, int originY, Rect hole)
-    {
-        var w = bitmap.Width;
-        var h = bitmap.Height;
-        var left = (int)Math.Round(hole.Left - originX);
-        var top = (int)Math.Round(hole.Top - originY);
-        var right = (int)Math.Round(hole.Right - originX);
-        var bottom = (int)Math.Round(hole.Bottom - originY);
-        if (left < 0) left = 0;
-        if (top < 0) top = 0;
-        if (right > w) right = w;
-        if (bottom > h) bottom = h;
-        if (right - left < 2 || bottom - top < 2) return;
-
-        var data = bitmap.LockBits(
-            new System.Drawing.Rectangle(0, 0, w, h),
-            System.Drawing.Imaging.ImageLockMode.ReadWrite,
-            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        try
-        {
-            var stride = data.Stride;
-            var pixels = new byte[stride * h];
-            Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
-
-            var holeHeight = bottom - top;
-            var copyOffset = holeHeight + 10;
-            const int feather = 26;
-            for (var y = top; y < bottom; y++)
-            {
-                var srcY = Math.Min(y + copyOffset, h - 1);
-                var row = y * stride;
-                var srcRow = srcY * stride;
-                for (var x = left; x < right; x++)
-                {
-                    var di = row + (x * 4);
-                    var si = srcRow + (x * 4);
-                    var dist = Math.Min(x - left, right - 1 - x);
-                    var edgeX = (x - left) < (right - 1 - x) ? Math.Max(0, left - 1) : Math.Min(w - 1, right);
-                    var ei = row + (edgeX * 4);
-                    var weight = dist >= feather ? 0.0 : 1.0 - (dist / (double)feather);
-                    for (var c = 0; c < 3; c++)
-                    {
-                        pixels[di + c] = (byte)Math.Clamp(
-                            (int)Math.Round((pixels[si + c] * (1.0 - weight)) + (pixels[ei + c] * weight)),
-                            0, 255);
-                    }
-                    pixels[di + 3] = 255;
-                }
-            }
-
-            Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
-        }
-        finally
-        {
-            bitmap.UnlockBits(data);
-        }
-    }
-
     private static BitmapSource? RenderCore(
         Rect screenRect,
         double tex,
         double cornerRadius,
         Rect monitor,
-        WallpaperInfo wallpaper,
-        BitmapSource? snapshot,
-        Rect snapshotRect)
+        WallpaperInfo wallpaper)
     {
         var tw = Math.Max(2, (int)Math.Round(screenRect.Width * tex));
         var th = Math.Max(2, (int)Math.Round(screenRect.Height * tex));
@@ -440,14 +235,6 @@ internal static class GlassBackdrop
                     }
                 }
             }
-            if (snapshot is not null && !snapshotRect.IsEmpty)
-            {
-                dc.DrawImage(snapshot, new Rect(
-                    (snapshotRect.X - regionLeft) * tex,
-                    (snapshotRect.Y - regionTop) * tex,
-                    Math.Max(1, snapshotRect.Width * tex),
-                    Math.Max(1, snapshotRect.Height * tex)));
-            }
         }
 
         var rtb = new RenderTargetBitmap(fullW, fullH, 96, 96, PixelFormats.Pbgra32);
@@ -457,8 +244,7 @@ internal static class GlassBackdrop
         var pixels = new byte[stride * fullH];
         rtb.CopyPixels(pixels, stride, 0);
 
-        // A single uniform blur separates frosted glass from refraction: there is
-        // no noise displacement and no directional distortion.
+        // Plain frosted glass: one uniform blur, no displacement or refraction.
         var blurRadius = Math.Max(1, (int)Math.Round(BlurRadius * tex));
         pixels = Blur(pixels, fullW, fullH, blurRadius);
 
@@ -704,7 +490,7 @@ internal static class GlassBackdrop
         {
             path = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WallPaper", "") as string;
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                path = null;
+                path = FindTranscodedWallpaper();
 
             var style = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WallpaperStyle", "10") as string;
             var tile = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "TileWallpaper", "0") as string;
@@ -722,6 +508,44 @@ internal static class GlassBackdrop
 
         var asset = LoadWallpaper(path);
         return new WallpaperInfo(monitor, path, asset?.Image, position, background, asset?.Stamp ?? 0);
+    }
+
+    /// <summary>
+    /// Windows 11 themes and slideshows often leave the legacy WallPaper value empty while
+    /// the composed current wallpaper lives under %APPDATA%\Microsoft\Windows\Themes.
+    /// Reading that file keeps the frosted surface showing real desktop colors even when
+    /// the IDesktopWallpaper COM service is unavailable (restricted sessions, some themes).
+    /// </summary>
+    private static string? FindTranscodedWallpaper()
+    {
+        try
+        {
+            var themes = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Microsoft", "Windows", "Themes");
+
+            var direct = Path.Combine(themes, "TranscodedWallpaper");
+            if (File.Exists(direct))
+                return direct;
+
+            var cached = Path.Combine(themes, "CachedFiles");
+            if (Directory.Exists(cached))
+            {
+                return Directory.EnumerateFiles(cached)
+                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                             || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                             || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                             || f.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(File.GetLastWriteTimeUtc)
+                    .FirstOrDefault();
+            }
+        }
+        catch
+        {
+            // Restricted sessions simply keep the flat tint fallback.
+        }
+
+        return null;
     }
 
     private static WallpaperAsset? LoadWallpaper(string? path)
@@ -879,10 +703,6 @@ internal static class GlassBackdrop
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect rect);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]

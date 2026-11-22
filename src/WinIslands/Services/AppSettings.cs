@@ -70,10 +70,11 @@ public sealed class PluginComponentFlags
 /// <summary>Persisted user configuration. JSON at %APPDATA%\WinIslands\settings.json.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 7;
+    public int Version { get; set; } = 8;
 
     // ── Appearance ─────────────────────────────────────────────
     public string Language { get; set; } = "zh-CN";
+    public bool OnboardingCompleted { get; set; } = false;   // 首次启动引导是否已完成（旧配置文件迁移时视为已完成）
     public ThemeMode Theme { get; set; } = ThemeMode.Auto;
     public bool ThemeScheduledEnabled { get; set; } = false;   // 明暗主题定时切换（仅 Theme=Auto 时生效）
     public int ThemeScheduleDarkStartHour { get; set; } = 19;  // 定时切换：深色开始小时
@@ -443,6 +444,18 @@ public sealed class AppSettings
         return true;
     }
 
+    /// <summary>
+    /// 配置版本 7 → 8：新增首次启动引导。已有配置视为已完成引导，
+    /// 避免老用户升级后被重新引导；全新安装仍会看到引导。
+    /// </summary>
+    internal static bool ApplyOnboardingV8(AppSettings s)
+    {
+        if (s.Version >= 8) return false;
+        s.OnboardingCompleted = true;
+        s.Version = 8;
+        return true;
+    }
+
     /// <summary>判定组件是否仍是 3.1.2 及以前的默认组合（用于安全迁移）。</summary>
     private static bool LooksLikeLegacyComponentDefaults(ComponentFlags c) =>
         c.TimeWhenIdle && !c.TimeWhenPlaying
@@ -477,6 +490,21 @@ public sealed class AppSettings
 
     private static double? NormalizeCoordinate(double? value)
         => value is double d && double.IsFinite(d) ? d : null;
+
+    /// <summary>恢复出厂默认值：保留界面语言，其余设置全部重置（引导视为已完成，避免再次弹出）。</summary>
+    public void ResetToDefaults(string language)
+    {
+        var defaults = new AppSettings
+        {
+            Language = string.IsNullOrWhiteSpace(language) ? Language : language,
+            OnboardingCompleted = true,
+        };
+        foreach (var prop in typeof(AppSettings).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            if (!prop.CanWrite || prop.GetIndexParameters().Length > 0) continue;
+            prop.SetValue(this, prop.GetValue(defaults));
+        }
+    }
 
     public AppSettings Clone()
     {
@@ -550,6 +578,8 @@ public sealed class SettingsService
                     migrated |= AppSettings.ApplyFeatureCleanupV6(loaded);
                     // 3.1.6beta2：灵动岛本体恢复纯黑，毛玻璃只保留在设置页/菜单
                     migrated |= AppSettings.ApplyBlackIslandV7(loaded);
+                    // 3.1.7：首次启动引导（老配置自动视为已完成）
+                    migrated |= AppSettings.ApplyOnboardingV8(loaded);
                     if (migrated)
                     {
                         AppLogger.Info("Settings migrated: lean components + Daozai black skin");

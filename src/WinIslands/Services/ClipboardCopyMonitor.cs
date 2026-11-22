@@ -11,10 +11,11 @@ public sealed record ClipboardText(DateTime Time, string Text);
 /// 最小剪贴板监听器：按 Windows 剪贴板序列号检测文本复制，只发出一次性事件。
 /// 不读取历史、不持久化、不保留复制内容。
 /// </summary>
-public sealed class ClipboardCopyMonitor : IDisposable
+public sealed class ClipboardCopyMonitor : IDisposable, IBackgroundPausable
 {
     private readonly DispatcherTimer _timer;
     private readonly object _gate = new();
+    private bool _suspended;
     private string _last = string.Empty;
     private uint _lastClipboardSequence = uint.MaxValue;
     private bool _polling;
@@ -38,7 +39,7 @@ public sealed class ClipboardCopyMonitor : IDisposable
         if (polling)
         {
             BaselineClipboard();
-            if (!_timer.IsEnabled) _timer.Start();
+            if (!_suspended && !_timer.IsEnabled) _timer.Start();
         }
         else if (_timer.IsEnabled)
         {
@@ -161,6 +162,26 @@ public sealed class ClipboardCopyMonitor : IDisposable
         if (!string.Equals(lastError, currentError, StringComparison.Ordinal)) return true;
         if (lastLoggedUtc == DateTime.MinValue) return true;
         return nowUtc - lastLoggedUtc >= interval;
+    }
+
+    /// <summary>锁屏 / 全屏 / 省电时暂停轮询；恢复后只有仍处于开启状态才继续。</summary>
+    public void SetBackgroundSuspended(bool suspended)
+    {
+        bool polling;
+        lock (_gate)
+        {
+            _suspended = suspended;
+            polling = _polling;
+        }
+        if (suspended)
+        {
+            if (_timer.IsEnabled) _timer.Stop();
+        }
+        else if (polling && !_timer.IsEnabled)
+        {
+            BaselineClipboard(); // 暂停期间剪贴板可能已变化，恢复时重建基线避免误报
+            _timer.Start();
+        }
     }
 
     public void Dispose() => _timer.Stop();

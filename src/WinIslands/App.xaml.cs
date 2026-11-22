@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.Windows;
@@ -46,6 +46,8 @@ public partial class App : Application
     private bool? _lastScheduledDark;   // 上次应用的定时深色状态，避免无变化时重复 Apply
     private CalendarService? _calendar;
     private RssMailService? _rssMail;
+    private DispatcherTimer? _powerStateTimer;   // 3.1.7 省电模式采样（30s，仅变化时通知后台闸门）
+    private bool _gateSuspendedLogged;
 
     // ── 效率工具 / 波纹 / 更新服务（共享实例：设置页与灵动岛组件共用同一份数据）──
     private AudioWaveService? _wave;
@@ -212,6 +214,7 @@ AppPaths.EnsureDirectories();
         };
         _vm = new IslandViewModel(_coordinator, _settings, _lyrics,
             _wave, _keyboard, _clipboard, _messenger);
+        WireBackgroundActivityGate();
         if (_settings.Current.CallNotifyEnabled) _messenger.Start();
         if (_settings.Current.NotificationTakeoverEnabled) _ = _systemNotifications.StartAsync();
         TryShowCrashRecoveryCard(); // 崩溃自动恢复（1.2.0）：上次异常退出 → 提示已恢复
@@ -265,6 +268,8 @@ AppPaths.EnsureDirectories();
         _fullScreenMonitor = new FullScreenMonitor { HideOnMaximize = _settings.Current.HideOnMaximizeEnabled };
         _fullScreenMonitor.FullScreenChanged += full => Dispatcher.BeginInvoke(() =>
         {
+            // 3.1.7：全屏时无论是否自动隐藏岛，都暂停后台轮询（游戏/视频/演示场景）。
+            BackgroundActivityGate.Current.SetFullScreen(full);
             if (_settings!.Current.FullScreenAutoHideEnabled)
             {
                 if (_vm is not null) _vm.FullScreenHidden = full;
@@ -488,10 +493,12 @@ AppPaths.EnsureDirectories();
         // ── 锁屏自动隐藏：锁屏/远程桌面断开时隐藏灵动岛，解锁后恢复 ──
         _sessionSwitchHandler = (_, args) =>
         {
-            if (_settings is null || !_settings.Current.LockScreenAutoHideEnabled) return;
             var locked = args.Reason is SessionSwitchReason.SessionLock;
             var unlocked = args.Reason is SessionSwitchReason.SessionUnlock;
             if (!locked && !unlocked) return;
+            // 3.1.7：锁屏时暂停所有后台轮询，与「是否自动隐藏岛」设置无关。
+            BackgroundActivityGate.Current.SetSessionLocked(locked);
+            if (_settings is null || !_settings.Current.LockScreenAutoHideEnabled) return;
             Dispatcher.BeginInvoke(() =>
             {
                 if (_vm is null) return;
@@ -507,11 +514,24 @@ AppPaths.EnsureDirectories();
         // 恢复时立即重置弹簧节拍器基线，动画从恢复后的第一帧平滑起步、不跳变。
         _powerModeHandler = (_, e) =>
         {
+            // 3.1.7：挂起视为锁屏，恢复后重新采样电源与省电模式。
+            BackgroundActivityGate.Current.SetSessionLocked(e.Mode == PowerModes.Suspend);
             if (e.Mode != PowerModes.Resume) return;
             try { SpringTicker.ResetBaseline(); }
             catch (Exception ex) { AppLogger.Error("PowerModeChanged resume resync failed", ex); }
+            RefreshPowerState();
         };
         SystemEvents.PowerModeChanged += _powerModeHandler;
+
+        // 省电模式 / 电池状态：每 30 秒采样一次（GetSystemPowerStatus 开销极低），
+        // 仅在状态变化时通知闸门，省电时暂停后台轮询。
+        RefreshPowerState();
+        _powerStateTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(30),
+        };
+        _powerStateTimer.Tick += (_, _) => RefreshPowerState();
+        _powerStateTimer.Start();
 
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) =>
         {
@@ -599,7 +619,16 @@ AppPaths.EnsureDirectories();
         // ── Offscreen preview capture: render the real island window and exit. ──
         var screenshotArg = e.Args.FirstOrDefault(a => a.StartsWith("--screenshot=", StringComparison.OrdinalIgnoreCase));
         if (screenshotArg is not null)
-            _ = CapturePreviewAsync(screenshotArg["--screenshot=".Length..]);
+        {
+            var scaleArg = e.Args.FirstOrDefault(a => a.StartsWith("--screenshot-scale=", StringComparison.OrdinalIgnoreCase));
+            var previewScale = 1.0;
+            if (scaleArg is not null &&
+                double.TryParse(scaleArg["--screenshot-scale=".Length..], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsedScale))
+                previewScale = Math.Clamp(parsedScale, 1.0, 6.0);
+            var forceExpanded = !e.Args.Contains("--collapsed", StringComparer.OrdinalIgnoreCase);
+            _ = CapturePreviewAsync(screenshotArg["--screenshot=".Length..], previewScale, forceExpanded);
+        }
 
         // ── 展开→收起圆角回归测试：渲染真实 Card 视觉并记录最终几何，仅用于本地诊断。──
         // ── 展开→收起逐帧诊断：捕获整个收起动画期间每一帧的圆角/裁剪状态。──
@@ -609,655 +638,24 @@ AppPaths.EnsureDirectories();
         var roundTripArg = e.Args.FirstOrDefault(a => a.StartsWith("--roundtrip-diag=", StringComparison.OrdinalIgnoreCase));
         if (roundTripArg is not null)
             _ = CaptureRoundTripAsync(roundTripArg["--roundtrip-diag=".Length..]);
+
+        // 首次正常启动：等主界面与后台服务完成首帧后再显示引导，避免阻塞启动。
+        if (_settings is not null && OnboardingPolicy.ShouldShow(_settings.Current, e.Args))
+            Dispatcher.BeginInvoke(new Action(ShowOnboarding), DispatcherPriority.ApplicationIdle);
     }
 
-    /// <summary>Renders the first island window at 2x and exits. Used for documentation previews.</summary>
-    private async Task CapturePreviewAsync(string rawPath)
+    private void ShowOnboarding()
     {
+        if (_settings is null || _theme is null) return;
         try
         {
-            // Let bindings, lyrics, and open/expand animations settle before rendering.
-            await Task.Delay(1500);
-            var window = _windows.FirstOrDefault();
-            if (window is null)
-            {
-                AppLogger.Error("Screenshot failed: no island window is available.");
-                Shutdown(1);
-                return;
-            }
-
-            // The screenshot path is diagnostic-only: keep the requested expansion even though
-            // the mouse is not over the card. Normal hover behavior remains unchanged.
-            window.KeepExpandedForPreview = true;
-            _vm!.IsExpanded = true;
-
-            // Force the real window to the foreground on its own desktop, then capture the exact
-            // client rectangle. RenderTargetBitmap cannot reliably capture WPF layered windows.
-            window.Visibility = System.Windows.Visibility.Visible;
-            window.WindowState = System.Windows.WindowState.Normal;
-            window.Topmost = true;
-            window.ShowActivated = true;
-            window.Show();
-            window.Activate();
-            window.Focus();
-            window.UpdateLayout();
-            // Diagnostics can start faster than the clock/lyrics services on a warm machine.
-            // Wait for the real content to be ready so a preview never captures a half-initialized card.
-            for (var attempt = 0; attempt < 50; attempt++)
-            {
-                if (window.IsLoaded && !string.IsNullOrWhiteSpace(_vm.ClockText) &&
-                    !string.IsNullOrWhiteSpace(_vm.DateText) && _vm.LyricIndex >= 0)
-                    break;
-                await Task.Delay(100);
-            }
-
-            var hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
-            if (hwnd == System.IntPtr.Zero)
-            {
-                AppLogger.Error("Screenshot failed: island window has no HWND.");
-                Shutdown(1);
-                return;
-            }
-
-            await Task.Delay(500);
-
-            AppLogger.Info($"Preview state: expanded={_vm!.IsExpanded}, window={window.ActualWidth:0}x{window.ActualHeight:0}, visible={window.IsVisible}, clock='{_vm!.ClockText}', date='{_vm!.DateText}', lyricIndex={_vm!.LyricIndex}, scroll={window.LyricsScroll.VerticalOffset:0.0}/{window.LyricsScroll.ScrollableHeight:0.0}/{window.LyricsScroll.ViewportHeight:0.0}");
-            if (!GetWindowRect(hwnd, out var rect))
-            {
-                AppLogger.Error("Screenshot failed: GetWindowRect returned false.");
-                Shutdown(1);
-                return;
-            }
-
-            var width = Math.Max(1, rect.Right - rect.Left);
-            var height = Math.Max(1, rect.Bottom - rect.Top);
-            using var bitmap = new System.Drawing.Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                graphics.CopyFromScreen(rect.Left, rect.Top, 0, 0, new System.Drawing.Size(width, height),
-                    System.Drawing.CopyPixelOperation.SourceCopy);
-            }
-
-            var path = System.IO.Path.GetFullPath(rawPath);
-            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
-            bitmap.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-            AppLogger.Info($"Preview screenshot saved: {path} ({width}x{height})");
+            var win = new OnboardingWindow(_settings, _cider, _theme);
+            win.ShowDialog();
         }
         catch (Exception ex)
         {
-            AppLogger.Error("Screenshot failed", ex);
-            Shutdown(1);
-            return;
-        }
-        finally
-        {
-            Shutdown();
-        }
-    }
-
-    /// <summary>
-    /// 本地回归诊断：连续执行 5 次展开→收起、快速切换、减少动态效果三种路径，
-    /// 每次收起后校验卡片宽度稳定、未超出宿主窗口、四角圆角未被裁成直角。
-    /// 只在 --roundtrip-diag 参数下运行；通过时退出码 0，失败时退出码 1。
-    /// </summary>
-    private async Task CaptureRoundTripAsync(string rawDir)
-    {
-        var failures = new List<string>();
-        var passed = false;
-        try
-        {
-            var dir = Path.GetFullPath(rawDir);
-            Directory.CreateDirectory(dir);
-            await Task.Delay(1800);
-            var window = _windows.FirstOrDefault();
-            if (window is null || _vm is null || _settings is null)
-            {
-                failures.Add("no island window / view model / settings available");
-                return;
-            }
-
-            window.KeepExpandedForPreview = true;
-
-            void Check(string stage, IslandWindow.CardDiagnosticResult r)
-            {
-                if (!double.IsFinite(r.Width) || !double.IsFinite(r.WindowWidth))
-                {
-                    failures.Add($"{stage}: invalid measurement ({r.Detail})");
-                    return;
-                }
-                if (!r.CornersTransparent)
-                    failures.Add($"{stage}: corners are not transparent or card is clipped ({r.Detail})");
-                if (!r.ExpandedLayoutOk)
-                    failures.Add($"{stage}: expanded cover/progress overlap ({r.Detail})");
-                if (r.Width > r.WindowWidth + 0.5)
-                    failures.Add($"{stage}: card width {r.Width:0.##} exceeds window width {r.WindowWidth:0.##}");
-                if (!r.RadiusMatches)
-                    failures.Add($"{stage}: radius mismatch card={r.Radius:0.###}, glass={r.GlassRadius:0.###}, clip={r.ClipRadius:0.###}, expected={r.ExpectedRadius:0.###} ({r.Detail})");
-                if (double.IsFinite(r.ClipWidth) && Math.Abs(r.ClipWidth - r.Width) > 1.5)
-                    failures.Add($"{stage}: clip width {r.ClipWidth:0.##} does not match card width {r.Width:0.##}");
-            }
-
-            var collapsedHeights = new List<double>();
-            for (var i = 1; i <= 5; i++)
-            {
-                _vm.IsExpanded = true;
-                await Task.Delay(1700);
-                Check($"cycle{i}-expanded",
-                    window.CaptureCardDiagnostic(Path.Combine(dir, $"roundtrip-{i}-expanded.png"), $"cycle{i}-expanded"));
-
-                _vm.IsExpanded = false;
-                await Task.Delay(1900);
-                var collapsed = window.CaptureCardDiagnostic(
-                    Path.Combine(dir, $"roundtrip-{i}-collapsed.png"), $"cycle{i}-collapsed");
-                Check($"cycle{i}-collapsed", collapsed);
-                collapsedHeights.Add(collapsed.Height);
-
-                // 收尾回调/延迟布局完成后再次测量，确认尺寸不会回弹或继续膨胀。
-                await Task.Delay(800);
-                var late = window.CaptureCardDiagnostic(
-                    Path.Combine(dir, $"roundtrip-{i}-collapsed-late.png"), $"cycle{i}-collapsed-late");
-                Check($"cycle{i}-collapsed-late", late);
-                if (double.IsFinite(late.Width) && Math.Abs(late.Width - collapsed.Width) > 0.5)
-                    failures.Add($"cycle{i}: width changed after settle ({collapsed.Width:0.##} -> {late.Width:0.##})");
-            }
-            // 紧凑态宽度会随当前歌词文本长度按设计变化；跨轮次只校验高度稳定。
-            // 每轮宽度是否在收敛后继续变化，由上方 collapsed-late 对比单独校验。
-            var minHeight = double.MaxValue;
-            var maxHeight = double.MinValue;
-            foreach (var h in collapsedHeights)
-            {
-                if (!double.IsFinite(h)) continue;
-                minHeight = Math.Min(minHeight, h);
-                maxHeight = Math.Max(maxHeight, h);
-            }
-            if (collapsedHeights.Count >= 5 && maxHeight - minHeight > 2.0)
-                failures.Add($"collapsed height drifted across cycles ({minHeight:0.##}..{maxHeight:0.##}); expected stable size");
-
-            // 快速展开后立即收起：最常见的手势路径。
-            _vm.IsExpanded = true;
-            await Task.Delay(120);
-            _vm.IsExpanded = false;
-            await Task.Delay(2300);
-            Check("fast-toggle-collapsed",
-                window.CaptureCardDiagnostic(Path.Combine(dir, "roundtrip-fast-collapsed.png"), "fast-toggle-collapsed"));
-
-            // 减少动态效果路径：没有弹簧补间，直接写最终几何。
-            var originalReduceMotion = _settings.Current.ReduceMotion;
-            _settings.Current.ReduceMotion = true;
-            _vm.IsExpanded = true;
-            await Task.Delay(500);
-            _vm.IsExpanded = false;
-            await Task.Delay(1400);
-            Check("reduce-motion-collapsed",
-                window.CaptureCardDiagnostic(Path.Combine(dir, "roundtrip-reduce-motion-collapsed.png"), "reduce-motion-collapsed"));
-            _settings.Current.ReduceMotion = originalReduceMotion;
-
-            passed = failures.Count == 0;
-        }
-        catch (Exception ex)
-        {
-            failures.Add("exception: " + ex);
-        }
-        finally
-        {
-            foreach (var failure in failures)
-                AppLogger.Error("Round-trip FAIL: " + failure);
-            if (passed)
-                AppLogger.Info("Round-trip diagnostic PASSED: 5 cycles + fast toggle + reduce motion; pill shape stable.");
-            else
-                AppLogger.Error($"Round-trip diagnostic FAILED: {failures.Count} issue(s).");
-            Shutdown(passed ? 0 : 1);
-        }
-    }
-    /// <summary>
-    /// Collapse-frame regression diagnostic: samples every 16 ms for 1.5 s, covering the
-    /// full spring plus the 1.2 s compact-restore window. Any frame whose three radius
-    /// consumers disagree with the live card height fails the run.
-    /// </summary>
-    private async Task CaptureCollapseFramesAsync(string rawDir)
-    {
-        var failures = new List<string>();
-        var passed = false;
-        try
-        {
-            var dir = Path.GetFullPath(rawDir);
-            Directory.CreateDirectory(dir);
-            await Task.Delay(1800);
-            var window = _windows.FirstOrDefault();
-            if (window is null || _vm is null)
-            {
-                failures.Add("no island window available");
-                return;
-            }
-
-            window.KeepExpandedForPreview = true;
-            _vm.IsExpanded = true;
-            await Task.Delay(1900);
-
-            var samples = new List<string>
-            {
-                "ms,width,height,cardRadius,glassRadius,clipRadius,expectedRadius,radiusOk,fitsWindow"
-            };
-
-            void Record(double ms, IslandWindow.CardShapeProbe probe)
-            {
-                samples.Add($"{ms:0.###},{probe.Width:0.###},{probe.Height:0.###},{probe.Radius:0.###}," +
-                            $"{probe.GlassRadius:0.###},{probe.ClipRadius:0.###},{probe.ExpectedRadius:0.###}," +
-                            $"{probe.RadiusMatches},{probe.FitsWindow}");
-                if (!probe.RadiusMatches)
-                    failures.Add($"at {ms:0} ms: radius mismatch ({probe.Detail})");
-                if (!probe.FitsWindow)
-                    failures.Add($"at {ms:0} ms: card does not fit window ({probe.Detail})");
-            }
-
-            var expanded = window.CaptureCardShapeProbe();
-            AppLogger.Info($"Collapse probe [expanded]: {expanded.Detail}");
-            Record(0, expanded);
-
-            _vm.IsExpanded = false;
-            var start = DateTime.UtcNow;
-            var nextLogMs = 0.0;
-            var frame = 0;
-            while ((DateTime.UtcNow - start).TotalMilliseconds < 1500)
-            {
-                await Task.Delay(16);
-                var elapsed = (DateTime.UtcNow - start).TotalMilliseconds;
-                var probe = window.CaptureCardShapeProbe();
-                frame++;
-                Record(elapsed, probe);
-                if (elapsed >= nextLogMs)
-                {
-                    AppLogger.Info($"Collapse probe [{elapsed:0} ms #{frame}]: {probe.Detail}");
-                    nextLogMs += 100;
-                }
-            }
-
-            File.WriteAllLines(Path.Combine(dir, "collapse-frames.csv"), samples);
-            var final = window.CaptureCardDiagnostic(Path.Combine(dir, "frame-final.png"), "frames-final");
-            AppLogger.Info($"Collapse-frame final: {final.Detail}");
-            if (!final.RadiusMatches)
-                failures.Add($"final: radius mismatch ({final.Detail})");
-            if (!final.CornersTransparent)
-                failures.Add($"final: corners are not transparent or card is clipped ({final.Detail})");
-
-            passed = failures.Count == 0;
-        }
-        catch (Exception ex)
-        {
-            failures.Add("exception: " + ex);
-        }
-        finally
-        {
-            foreach (var failure in failures.Take(40))
-                AppLogger.Error("Collapse-frame FAIL: " + failure);
-            AppLogger.Info(passed
-                ? "Collapse-frame diagnostic PASSED: every sampled frame kept a height-derived radius for 1.5 s."
-                : $"Collapse-frame diagnostic FAILED: {failures.Count} issue(s).");
-            Shutdown(passed ? 0 : 1);
-        }
-    }
-    /// <summary>检查更新；有新版时弹通知（可带下载链接）。</summary>
-    private async Task CheckForUpdatesAsync(bool showWhenUpToDate)
-    {
-        try
-        {
-            if (_updater is null) return;
-            var hasNew = await _updater.CheckAsync();
-            if (!hasNew && showWhenUpToDate)
-                _ = Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("update:none",
-                    Localization.Get("Update_Title"), Localization.Get("Update_None"), "\uE72E", "info", 5));
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Error("Update check failed", ex);
-        }
-    }
-
-    private async Task RunDiagnosticsAsync()
-    {
-        try
-        {
-            var text = await DiagnosticsCommand.RunAsync(_settings!, _cider);
-            var path = Path.Combine(AppPaths.AppDataDir, "diagnostics.txt");
-            await File.WriteAllTextAsync(path, text);
-            MessageBox.Show($"诊断信息已写入：\n{path}\n\n---\n{text}",
-                "WinIslands 诊断", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Error("Diagnostics failed", ex);
-        }
-    }
-
-    private void RecreateWindows()
-    {
-        if (_settings is null || _vm is null || _theme is null) return;
-
-        var screens = ScreenHelper.ResolveScreens(_settings.Current);
-
-        // Recreate only when the monitor selection actually changed.
-        if (_windows.Count == screens.Count &&
-            _windows.Select(w => w.Screen.DeviceName).SequenceEqual(screens.Select(s => s.DeviceName)))
-        {
-            foreach (var w in _windows) w.Reposition();
-            return;
-        }
-
-        foreach (var w in _windows)
-        {
-            w.Close();
-        }
-
-        _windows.Clear();
-        foreach (var screen in screens)
-        {
-            var win = new IslandWindow(_vm, _theme, _settings, screen);
-            _windows.Add(win);
-            // Force the window to load now so IsVisible changes (which can happen before
-            // the first Show) can drive it; OnLoaded re-applies the correct visibility.
-            win.Show();
-            if (!_vm.IsVisible) win.Hide();
-        }
-    }
-
-    /// <summary>定时明暗切换：计算当前应处的明/暗状态并应用到主题（跨天与勿扰同理，起止相同视为不生效）。</summary>
-    private void RefreshScheduledTheme(AppSettings s)
-    {
-        if (_theme is null) return;
-        var enabled = s.ThemeScheduledEnabled && s.Theme == ThemeMode.Auto;
-        bool? dark = null;
-        if (enabled)
-        {
-            var start = TimeSpan.FromHours(Math.Clamp(s.ThemeScheduleDarkStartHour, 0, 23));
-            var end = TimeSpan.FromHours(Math.Clamp(s.ThemeScheduleDarkEndHour, 0, 23));
-            var now = DateTime.Now.TimeOfDay;
-            dark = start == end ? false : start < end ? now >= start && now < end : now >= start || now < end;
-        }
-        if (dark == _lastScheduledDark && _theme.OverrideDark == dark) return;   // 无变化，避免重复刷新
-        _lastScheduledDark = dark;
-        _theme.OverrideDark = dark;
-        _theme.Apply(s);
-    }
-
-    private void OpenPluginManager()
-    {
-        if (_plugins is null) return;
-        if (_pluginManager is { IsLoaded: true })
-        {
-            _pluginManager.Activate();
-            return;
-        }
-        if (_theme is null) return;
-        _pluginManager = new PluginManagerWindow(_plugins, _theme);
-        _pluginManager.Closed += (_, _) => _pluginManager = null;
-        _pluginManager.Show();
-    }
-
-
-    private static void OpenPluginFolder()
-    {
-        Directory.CreateDirectory(AppPaths.PluginsDir);
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "explorer.exe",
-            UseShellExecute = true,
-            ArgumentList = { AppPaths.PluginsDir },
-        });
-    }
-
-    /// <summary>打开插件开发指南：优先使用内嵌指南，回退到插件目录 README，最后打开项目主页。</summary>
-    private static void OpenPluginGuide()
-    {
-        try
-        {
-            using var stream = typeof(App).Assembly.GetManifestResourceStream("WinIslands.PluginDevelopment.md");
-            if (stream is not null)
-            {
-                var path = Path.Combine(Path.GetTempPath(), "WinIslands-Plugin-Development.md");
-                using (var file = File.Create(path)) stream.CopyTo(file);
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = path,
-                        UseShellExecute = true,
-                    });
-                }
-                catch
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "notepad.exe",
-                        Arguments = $"\"{path}\"",
-                        UseShellExecute = true,
-                    });
-                }
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Open embedded plugin guide failed: {ex.Message}");
-        }
-
-        foreach (var candidate in new[]
-        {
-            Path.Combine(AppPaths.PortablePluginsDir, "README.md"),
-            Path.Combine(AppPaths.PluginsDir, "README.md"),
-        })
-        {
-            if (!File.Exists(candidate)) continue;
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = candidate,
-                UseShellExecute = true,
-            });
-            return;
-        }
-
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "https://github.com/JudeKwong/WinIslands",
-            UseShellExecute = true,
-        });
-    }
-
-    private void OpenSettings()
-    {
-        if (_settings is null) return;
-        var vm = new SettingsViewModel(_settings, _mediaApps, _plugins);
-        var win = new SettingsWindow(vm, _settings, _cider,
-            _updater, _vm, _plugins, OpenPluginManager, OpenPluginFolder, OpenPluginGuide);
-        win.ShowDialog();
-    }
-
-    /// <summary>#9 断开蓝牙设备：解除配对即断开；失败则回退打开蓝牙设置页。</summary>
-    private void DisconnectBluetooth(string deviceName)
-    {
-        _ = DisconnectBluetoothAsync(deviceName);
-    }
-
-    private async System.Threading.Tasks.Task DisconnectBluetoothAsync(string deviceName)
-    {
-        try
-        {
-            if (_bluetooth is not null && await _bluetooth.DisconnectAsync(deviceName)) return;
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"BT disconnect fallback: {ex.Message}");
-        }
-        OpenBluetoothSettings();
-    }
-
-    /// <summary>打开 Windows 蓝牙设置页。</summary>
-    private static void OpenBluetoothSettings()
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:bluetooth")
-            {
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Open bluetooth settings failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>将 RSS/邮件设置应用到后台轮询服务（开启/地址/间隔等变化时即时生效）。</summary>
-    private void ApplyRssMail(AppSettings s)
-    {
-        _rssMail?.Configure(
-            s.RssNotifyEnabled, s.RssUrls, s.RssIntervalMinutes,
-            s.MailNotifyEnabled, s.MailPop3Server, s.MailPop3Port, s.MailUseSsl,
-            s.MailUser, s.MailPassword, s.MailCheckMinutes);
-    }
-
-    private void ToggleLyricsWindow()
-    {
-        if (_lyricsWindow is { IsVisible: true })
-        {
-            _lyricsWindow.Hide();
-            _settings!.Update(s => s.StandaloneLyricsWindow = false);
-            _tray?.SetLyricsChecked(false);
-        }
-        else
-        {
-            ShowLyricsWindow();
-        }
-    }
-
-    private void ShowLyricsWindow()
-    {
-        if (_vm is null) return;
-        if (_lyricsWindow is null)
-        {
-            _lyricsWindow = new LyricsWindow(_vm, _settings!);
-        }
-
-        _lyricsWindow.PositionNearBottom();
-        _lyricsWindow.Show();
-        _tray?.SetLyricsChecked(true);
-    }
-
-    /// <summary>迷你播放器显隐策略：开关开启且正在播放媒体时显示，否则隐藏并保存位置。</summary>
-    private void UpdateMiniPlayerVisibility()
-    {
-        if (_settings is null || _vm is null || _theme is null) return;
-        var s = _settings.Current;
-        if (s.MiniPlayerEnabled && _vm.HasMedia)
-        {
-            _miniPlayer ??= new MiniPlayerWindow(_vm, _theme, _settings);
-            if (!_miniPlayer.IsVisible)
-            {
-                _miniPlayer.PositionFromSettings();
-                _miniPlayer.Show();
-            }
-        }
-        else if (_miniPlayer?.IsVisible == true)
-        {
-            SaveMiniPlayerPosition();
-            _miniPlayer.Hide();
-        }
-    }
-
-    /// <summary>持久化迷你播放器位置（直接写 Current 并落盘，不触发 Changed 避免递归）。</summary>
-    private void SaveMiniPlayerPosition()
-    {
-        if (_miniPlayer is null || _settings is null) return;
-        try
-        {
-            _settings.Current.MiniPlayerLeft = _miniPlayer.Left;
-            _settings.Current.MiniPlayerTop = _miniPlayer.Top;
-            _settings.Save();
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"保存迷你播放器位置失败: {ex.Message}");
-        }
-    }
-
-    /// <summary>键盘指示灯轮询仅在 CapsLock 组件启用时运行（后台减负）。</summary>
-    private void UpdateKeyboardPolling()
-    {
-        if (_keyboard is null || _settings is null) return;
-        var comp = _settings.Current.Components ?? new ComponentFlags();
-        _keyboard.SetPolling(comp.CapsLockWhenIdle || comp.CapsLockWhenPlaying);
-    }
-
-    /// <summary>普通“已复制”提示开启时才监听剪贴板；不记录历史。</summary>
-    private void UpdateClipboardPolling()
-    {
-        if (_clipboard is null || _settings is null) return;
-        _clipboard.SetPolling(_settings.Current.CopyToastEnabled);
-    }
-
-    /// <summary>检测到复制文本后只显示一次轻提示，不保留文本内容。</summary>
-    private void OnClipboardEntryAdded(ClipboardText entry)
-    {
-        try
-        {
-            if (_settings is null || string.IsNullOrWhiteSpace(entry.Text)) return;
-            if (_settings.Current.CopyToastEnabled)
-                Dispatcher.BeginInvoke(() => _vm?.ShowCopyToast(Localization.Get("Clipboard_CopiedTitle")));
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"剪贴板提示失败: {ex.Message}");
-        }
-    }
-
-    // ── 崩溃自动恢复（1.2.0）──
-    /// <summary>崩溃后自动重启：如用户开启了 AutoRestartOnCrash，在崩溃前启动新实例。</summary>
-    private void TryAutoRestartOnCrash()
-    {
-        try
-        {
-            if (_settings is null || !_settings.Current.AutoRestartOnCrash) return;
-            var exePath = Environment.ProcessPath;
-            if (string.IsNullOrEmpty(exePath)) return;
-            AppLogger.Info($"Auto-restart enabled; launching new instance: {exePath}");
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = exePath,
-                UseShellExecute = true,
-                WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal,
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Error("Auto-restart failed", ex);
-        }
-    }
-
-    private void WriteCrashMarker()
-    {
-        try
-        {
-            AppPaths.EnsureDirectories();
-            File.WriteAllText(AppPaths.CrashMarkerFile,
-                "{\"crashedAt\":\"" + DateTime.UtcNow.ToString("o") + "\"}");
-        }
-        catch { /* 标记写入失败不影响主流程 */ }
-    }
-
-    /// <summary>启动时检测崩溃标记：有则提示「已恢复」并清理；岛位/播放信息由设置持久化自动恢复。</summary>
-    private void TryShowCrashRecoveryCard()
-    {
-        try
-        {
-            if (!File.Exists(AppPaths.CrashMarkerFile)) return;
-            File.Delete(AppPaths.CrashMarkerFile);
-            Dispatcher.BeginInvoke(() =>
-                _vm?.ShowEventCard("crash:recovered", Localization.Get("Crash_RecoveredTitle"),
-                    Localization.Get("Crash_RecoveredBody"), "\uE7BA", "warning", 8));
-            AppLogger.Info("Crash recovery marker found; showing recovery card");
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"TryShowCrashRecoveryCard failed: {ex.Message}");
+            AppLogger.Error("Show onboarding failed", ex);
+            try { _settings.Update(s => s.OnboardingCompleted = true); } catch { }
         }
     }
 
@@ -1295,6 +693,7 @@ AppPaths.EnsureDirectories();
                 SystemEvents.PowerModeChanged -= _powerModeHandler;
             _themeScheduleTimer.Stop();
             _stateSaveTimer.Stop();
+            _powerStateTimer?.Stop();
             _miniPlayer?.Close();
             foreach (var w in _windows) w.Close();
         }

@@ -169,6 +169,7 @@ public sealed class PluginService : IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     /// <summary>最小轮询间隔（秒）。防止插件配置过密导致进程风暴，拖垮系统。</summary>
     private const int MinPluginIntervalSeconds = 5;
+    private const int AutoDisableFailureThreshold = 5;
     private bool _started;
     private bool _disposed;
 
@@ -294,6 +295,7 @@ public sealed class PluginService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath)) return false;
         var targetRoot = AppPaths.PluginsDir;
+        string? createdDir = null;
         try
         {
             using (var archive = ZipFile.OpenRead(zipPath))
@@ -310,10 +312,13 @@ public sealed class PluginService : IDisposable
                 {
                     manifest = JsonSerializer.Deserialize<PluginManifest>(reader.ReadToEnd(), JsonOptions);
                 }
+
+                // 安装前校验：ID 合法、入口非空、无同名插件。
                 if (manifest is null || string.IsNullOrWhiteSpace(manifest.Id)
                     || !Regex.IsMatch(manifest.Id, "^[A-Za-z0-9._-]{1,80}$"))
                     return false;
-
+                if (string.IsNullOrWhiteSpace(manifest.Entry))
+                    return false;
                 if (Plugins.Any(p => string.Equals(p.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)))
                     return false;
 
@@ -321,9 +326,10 @@ public sealed class PluginService : IDisposable
                 var targetDir = Path.GetFullPath(Path.Combine(targetRoot, manifest.Id));
                 if (Directory.Exists(targetDir)) return false;
                 Directory.CreateDirectory(targetDir);
+                createdDir = targetDir; // 失败时整体回滚
 
                 var prefix = targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                // 兼容“导出时带基目录”的压缩包：压缩包内文件统一位于 manifestEntry 所在子文件夹下时，剥掉第一层
+                // 兼容“导出时带基目录”的压缩包：压缩包内文件统一位于 manifestEntry 所在子文件夹下时，剥掉第一层。
                 var baseFolder = Path.GetDirectoryName(manifestEntry.FullName.Replace('/', Path.DirectorySeparatorChar)) ?? "";
                 foreach (var entry in archive.Entries)
                 {
@@ -333,7 +339,8 @@ public sealed class PluginService : IDisposable
                         && relative.StartsWith(baseFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                         relative = relative[(baseFolder.Length + 1)..];
                     var dest = Path.GetFullPath(Path.Combine(targetDir, relative));
-                    if (!dest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false; // 路径穿越防护
+                    if (!dest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        return false; // 路径穿越防护（finally 中回滚已解压内容）
 
                     var destDir = Path.GetDirectoryName(dest);
                     if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
@@ -341,7 +348,14 @@ public sealed class PluginService : IDisposable
                     using (var dst = File.Create(dest))
                         src.CopyTo(dst);
                 }
+
+                // 解压后二次校验：入口文件必须存在且位于插件目录内。
+                var entryPath = Path.GetFullPath(Path.Combine(targetDir, manifest.Entry));
+                if (!entryPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(entryPath))
+                    return false;
             }
+
+            createdDir = null; // 安装成功，保留目录
             Reload();
             return true;
         }
@@ -349,6 +363,24 @@ public sealed class PluginService : IDisposable
         {
             AppLogger.Warn($"Plugin import failed: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            if (createdDir is not null)
+                TryDeleteDirectory(createdDir);
+        }
+    }
+
+    /// <summary>安装失败时删除已解压的插件目录，避免留下半成品。</summary>
+    private static void TryDeleteDirectory(string dir)
+    {
+        try
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin rollback failed: {ex.Message}");
         }
     }
 
@@ -583,6 +615,7 @@ $component = @{
 
     private async Task RunAsync(PluginRuntime runtime, CancellationToken cancellationToken)
     {
+        if (!runtime.Manifest.Enabled) return; // 已自动停用 / 用户禁用：不再执行
         if (Interlocked.CompareExchange(ref runtime.Running, 1, 0) != 0) return;
         if (DateTime.UtcNow < runtime.NextRunUtc) { Interlocked.Exchange(ref runtime.Running, 0); return; } // 失败退避生效中
         var startedAt = DateTime.UtcNow;
@@ -661,11 +694,46 @@ $component = @{
     }
 
     /// <summary>连续失败退避：30s -> 60s -> 2min -> 5min 封顶，成功后立即复位。</summary>
-    private static void BackoffAfterFailure(PluginRuntime runtime)
+    private void BackoffAfterFailure(PluginRuntime runtime)
     {
         var n = runtime.FailureCount;
         var seconds = n <= 1 ? 30 : n <= 3 ? 60 : n <= 6 ? 120 : 300;
         runtime.NextRunUtc = DateTime.UtcNow.AddSeconds(seconds);
+        if (n >= AutoDisableFailureThreshold)
+            AutoDisable(runtime);
+    }
+
+    /// <summary>连续失败达到阈值后自动停用插件并写回 manifest，避免坏插件反复占用资源。</summary>
+    private void AutoDisable(PluginRuntime runtime)
+    {
+        if (!runtime.Manifest.Enabled) return;
+        runtime.Manifest.Enabled = false;
+        try
+        {
+            runtime.Timer?.Dispose();
+            runtime.Timer = null;
+        }
+        catch { /* ignore */ }
+
+        runtime.LastError = $"连续失败 {runtime.FailureCount} 次，已自动停用";
+        try
+        {
+            var path = runtime.Manifest.ManifestPath;
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
+                var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path));
+                if (node is not null)
+                {
+                    node["enabled"] = false;
+                    File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin auto-disable persist failed [{runtime.Manifest.Id}]: {ex.Message}");
+        }
+        AppLogger.Warn($"Plugin auto-disabled after {runtime.FailureCount} consecutive failures: {runtime.Manifest.Id}");
     }
 
 

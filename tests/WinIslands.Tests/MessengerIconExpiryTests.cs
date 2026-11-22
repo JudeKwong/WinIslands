@@ -50,6 +50,8 @@ public class MessengerIconExpiryTests : IDisposable
         Assert.Null(vm.ActivePush);
         Assert.Empty(vm.MessengerUnreads);
         Assert.False(vm.HasMessengerUnreads);
+        Assert.False(vm.ActivePushHasGroupCount);
+        Assert.Equal(1, vm.ActivePushRepeatCount);
     }
 
     [Fact]
@@ -68,6 +70,33 @@ public class MessengerIconExpiryTests : IDisposable
             .Invoke(vm, null);
 
         Assert.Null(vm.ActivePush);
+        Assert.Empty(vm.MessengerUnreads);
+        Assert.False(vm.HasMessengerUnreads);
+    }
+
+    [Fact]
+    public void RepeatedNotifications_FromSameApp_MergeWithCount()
+    {
+        using var vm = new IslandViewModel(_coordinator, _settings, new LyricsService(_settings, _cider));
+        vm.ShowMessengerNotification(MessengerSource.QQ, "第一条", "正文一", "QQ.App");
+        vm.ShowMessengerNotification(MessengerSource.QQ, "第二条", "正文二", "QQ.App");
+
+        Assert.Single(vm.ActivePushes);
+        Assert.Equal(2, vm.ActivePushRepeatCount);
+        Assert.True(vm.ActivePushHasGroupCount);
+        Assert.Equal("×2", vm.ActivePushGroupText);
+        Assert.Equal("第二条", vm.ActivePushTitle);
+    }
+
+    [Fact]
+    public void Dnd_SuppressesNotificationAndCircularIcon()
+    {
+        _settings.Current.DoNotDisturbManual = true;
+        using var vm = new IslandViewModel(_coordinator, _settings, new LyricsService(_settings, _cider));
+
+        vm.ShowMessengerNotification(MessengerSource.WeChat, "测试", "正文", "WeChat.App");
+
+        Assert.False(vm.HasActivePush);
         Assert.Empty(vm.MessengerUnreads);
         Assert.False(vm.HasMessengerUnreads);
     }

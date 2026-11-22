@@ -111,6 +111,10 @@ public sealed class IslandPush
     [JsonIgnore]
     public MessengerUnread? MessengerUnread { get; set; }
 
+    /// <summary>同一条推送在短时间内重复触发时的合并次数（界面显示 ×N）。</summary>
+    [JsonIgnore]
+    public int RepeatCount { get; set; } = 1;
+
     /// <summary>排序用优先级数值（不入 JSON）：high=2 / normal=1 / low=0。</summary>
     [JsonIgnore]
     public int PriorityRank => (Priority ?? "").Trim().ToLowerInvariant() switch

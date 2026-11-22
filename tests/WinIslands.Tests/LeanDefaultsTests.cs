@@ -27,7 +27,8 @@ public class LeanDefaultsTests : IDisposable
     {
         var s = new AppSettings();
 
-        Assert.Equal(7, s.Version);
+        Assert.Equal(8, s.Version);
+        Assert.False(s.OnboardingCompleted);
         Assert.True(s.Components.TimeWhenIdle);
         Assert.False(s.Components.DateWhenIdle);
         Assert.False(s.WaveVisualizerEnabled);
@@ -130,6 +131,19 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
+    public void OnboardingV8_CompletesOnlyForExistingConfig()
+    {
+        var existing = new AppSettings { Version = 7, OnboardingCompleted = false };
+        Assert.True(AppSettings.ApplyOnboardingV8(existing));
+        Assert.Equal(8, existing.Version);
+        Assert.True(existing.OnboardingCompleted);
+
+        var current = new AppSettings { Version = 8, OnboardingCompleted = false };
+        Assert.False(AppSettings.ApplyOnboardingV8(current));
+        Assert.False(current.OnboardingCompleted);
+    }
+
+    [Fact]
     public void NotificationAccess_MigratesToV5()
     {
         var s = new AppSettings { Version = 4, NotificationTakeoverEnabled = false };
@@ -139,7 +153,7 @@ public class LeanDefaultsTests : IDisposable
     }
 
     [Fact]
-    public void SettingsService_LoadsLegacyConfig_AndPersistsV7()
+    public void SettingsService_LoadsLegacyConfig_AndPersistsV8()
     {
         var json = JsonSerializer.Serialize(new AppSettings
         {
@@ -157,16 +171,18 @@ public class LeanDefaultsTests : IDisposable
 
         var service = new SettingsService();
 
-        Assert.Equal(7, service.Current.Version);
+        Assert.Equal(8, service.Current.Version);
+        Assert.True(service.Current.OnboardingCompleted);
         Assert.Equal("Daozai", service.Current.ThemePreset);
         Assert.False(service.Current.Components.DateWhenIdle);
         Assert.False(service.Current.WaveVisualizerEnabled);
         Assert.True(service.Current.LowPowerMode);
         Assert.Equal("Time,Weather", service.Current.WidgetOrder);
 
-        // 迁移后已落盘：再读取一次仍是 v7，不会重复迁移
+        // 迁移后已落盘：再读取一次仍是 v8，不会重复迁移
         var again = new SettingsService();
-        Assert.Equal(7, again.Current.Version);
+        Assert.Equal(8, again.Current.Version);
+        Assert.True(again.Current.OnboardingCompleted);
         Assert.False(again.Current.Components.DateWhenIdle);
     }
 }

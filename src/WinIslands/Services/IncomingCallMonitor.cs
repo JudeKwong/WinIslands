@@ -115,6 +115,8 @@ public sealed class IncomingCallMonitor : IDisposable
 
     private void Scan(int generation)
     {
+        // 3.1.7：锁屏 / 全屏时不可能接听微信/QQ 通话，直接跳过窗口枚举。
+        if (BackgroundActivityGate.Current.BackgroundSuspended) return;
         if (Monitor.TryEnter(_gate))
         {
             try

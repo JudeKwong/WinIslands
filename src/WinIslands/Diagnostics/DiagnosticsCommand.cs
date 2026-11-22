@@ -97,6 +97,93 @@ public static class DiagnosticsCommand
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Compact media-source report used by onboarding and the media diagnostics window.
+    /// </summary>
+    public static async Task<string> RunMediaSummaryAsync(SettingsService settings, CiderMediaProvider? cider, CancellationToken ct = default)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("媒体会话（SMTC）");
+        try
+        {
+            var manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(ct);
+            var sessions = manager?.GetSessions()?.ToList() ?? new List<Windows.Media.Control.GlobalSystemMediaTransportControlsSession>();
+            if (sessions.Count == 0)
+            {
+                sb.AppendLine("  · 未检测到媒体会话。请先打开播放器并播放一首歌。");
+            }
+            else
+            {
+                foreach (var session in sessions)
+                {
+                    try
+                    {
+                        var info = session.GetPlaybackInfo();
+                        var props = await session.TryGetMediaPropertiesAsync().AsTask(ct);
+                        var title = props?.Title ?? "";
+                        var artist = props?.Artist ?? "";
+                        var text = string.IsNullOrWhiteSpace(title) ? "(未命名)" : title;
+                        if (!string.IsNullOrWhiteSpace(artist)) text += $" — {artist}";
+                        sb.AppendLine($"  · {session.SourceAppUserModelId}  [{info.PlaybackStatus}]  {text}");
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  · {session.SourceAppUserModelId}  (读取失败: {ex.Message})");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  · SMTC 不可用: {ex.Message}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Cider 本地接口");
+        if (cider is null)
+        {
+            sb.AppendLine("  · 未启用");
+        }
+        else
+        {
+            await cider.EnsureConnectedAsync();
+            if (cider.Client.IsConnected)
+            {
+                sb.AppendLine($"  · 已连接  profile={cider.Client.Profile}  port={cider.Client.Port}");
+                var snap = await cider.GetSnapshotAsync();
+                sb.AppendLine(snap is null
+                    ? "  · 暂无歌曲"
+                    : $"  · 正在播放: {snap.Track.Title} — {snap.Track.Artist} ({snap.Status})");
+            }
+            else
+            {
+                sb.AppendLine($"  · 未连接: {cider.Client.LastError ?? "unknown"}");
+                sb.AppendLine("  · 提示：Cider 设置 → 连接性 → 允许外部控制");
+            }
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("歌词与播放器进程");
+        var y = settings.Current;
+        sb.AppendLine($"  · 在线歌词: {(y.OnlineLyricsEnabled ? "开" : "关")}   首选来源: {y.LyricsPreferredSource}");
+        sb.AppendLine($"  · 本地歌词目录: {(string.IsNullOrWhiteSpace(y.LyricsFolder) ? "自动（音乐文件夹）" : y.LyricsFolder)}");
+        var players = Process.GetProcesses()
+            .Select(SafeName)
+            .Where(n => n.Contains("spotify", StringComparison.OrdinalIgnoreCase)
+                        || n.Contains("cloudmusic", StringComparison.OrdinalIgnoreCase)
+                        || n.Contains("qqmusic", StringComparison.OrdinalIgnoreCase)
+                        || n.Contains("cider", StringComparison.OrdinalIgnoreCase)
+                        || n.Contains("wmplayer", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        sb.AppendLine(players.Count == 0
+            ? "  · 未检测到已知播放器进程"
+            : "  · " + string.Join(", ", players));
+
+        return sb.ToString().TrimEnd();
+    }
+
     private static string SafeName(Process p)
     {
         try { return p.ProcessName; } catch { return "?"; }

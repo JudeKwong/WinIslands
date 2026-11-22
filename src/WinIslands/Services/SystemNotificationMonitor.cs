@@ -29,7 +29,7 @@ public sealed class SystemNotificationEventArgs : EventArgs
 /// 读取 Windows 通知中心的 Toast。所有应用的通知都会上报，由上层按通知来源过滤决定是否展示；
 /// 默认不读取聊天数据库。首次轮询只建立基线，不把历史通知当作新消息；之后每 2 秒检查新增通知。
 /// </summary>
-public sealed class SystemNotificationMonitor : IDisposable
+public sealed class SystemNotificationMonitor : IDisposable, IBackgroundPausable
 {
     private readonly DispatcherTimer _timer;
     private readonly HashSet<uint> _seen = new();
@@ -76,6 +76,21 @@ public sealed class SystemNotificationMonitor : IDisposable
         finally
         {
             Interlocked.Exchange(ref _starting, 0);
+        }
+    }
+
+    /// <summary>锁屏 / 全屏 / 省电时暂停读取通知中心；恢复后立即补一次。</summary>
+    public void SetBackgroundSuspended(bool suspended)
+    {
+        if (!_started || _disposed) return;
+        if (suspended)
+        {
+            _timer.Stop();
+        }
+        else if (!_timer.IsEnabled)
+        {
+            _timer.Start();
+            _ = PollAsync();
         }
     }
 

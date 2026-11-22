@@ -57,6 +57,22 @@ public sealed class PluginCardViewModel : ObservableObject
         set
         {
             if (Manifest.Enabled == value) return;
+
+            // 权限提示：启用带权限声明的插件前必须确认
+            if (value && Manifest.Permissions.Count > 0)
+            {
+                var en = Localization.CurrentLanguage == "en-US";
+                var message = en
+                    ? $"This plugin requests the following permissions:\n\n{string.Join(", ", Manifest.Permissions)}\n\nOnly enable it if you trust the source."
+                    : $"该插件申请以下权限：\n\n{string.Join(", ", Manifest.Permissions)}\n\n仅在你信任插件来源时启用。";
+                if (System.Windows.MessageBox.Show(message, "WinIslands", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                    != MessageBoxResult.Yes)
+                {
+                    OnPropertyChanged();
+                    return;
+                }
+            }
+
             if (_plugins.SetEnabled(Id, value)) _onChanged(); // 启用状态以文件为准，成功后重建列表
             else OnPropertyChanged();
         }

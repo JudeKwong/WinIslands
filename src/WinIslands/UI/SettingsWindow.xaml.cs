@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,8 +32,6 @@ public partial class SettingsWindow : Window
     private readonly CiderMediaProvider? _cider;
     private readonly DispatcherTimer _autoApply;
     private readonly DispatcherTimer _saveDebounce;
-    private readonly DispatcherTimer _glassRecapture;
-    private IntPtr _glassHost;
     private readonly UpdaterService? _updater;
     private readonly IslandViewModel? _island;
     private readonly PluginService? _plugins;
@@ -106,14 +105,13 @@ public partial class SettingsWindow : Window
             _plugins.PluginsReloaded += _pluginsReloaded;
         }
 
+        UpdatePluginDependencyHint();
+
         // 即时生效：轮询检测 Working 变化并立即应用（无保存按钮）
         _lastAppliedJson = SettingsService.Serialize(_vm.Working);
         _autoApply = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _saveDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
         _saveDebounce.Tick += (_, _) => { _saveDebounce.Stop(); _service.Save(); };
-        // 拖动结束后重新采样窗后桌面，让玻璃始终折射真实内容；拖动中不采样以省开销。
-        _glassRecapture = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(240) };
-        _glassRecapture.Tick += (_, _) => { _glassRecapture.Stop(); RecaptureGlass(); };
         _autoApply.Tick += (_, _) => AutoApply();
         _autoApply.Start();
 
@@ -129,8 +127,6 @@ public partial class SettingsWindow : Window
             try { _vm.Dispose(); } catch { }
             try { _autoApply.Stop(); } catch { }
             try { _saveDebounce.Stop(); } catch { }
-            try { _glassRecapture.Stop(); } catch { }
-            try { LocationChanged -= OnGlassLocationChanged; } catch { }
             try { Localization.LanguageChanged -= _onLanguageChanged; } catch { }
             try { _service.Changed -= _onSettingsChanged; } catch { }
             try { if (MainTabs != null && _onTabChanged is not null) MainTabs.SelectionChanged -= _onTabChanged; } catch { }
@@ -302,13 +298,6 @@ public partial class SettingsWindow : Window
         WindowEffects.ApplyDarkMode(hwnd, dark);
         ApplyGlassPalette(dark);
 
-        // The HWND exists but is still hidden here, so CopyFromScreen sees the real
-        // desktop/windows behind it. The extra margin keeps the frosted sample valid
-        // while the user nudges the window around.
-        GlassBackdrop.CaptureForWindow(hwnd, null, 360);
-        _glassHost = hwnd;
-        LocationChanged -= OnGlassLocationChanged;
-        LocationChanged += OnGlassLocationChanged;
     }
 
     private void ApplyGlassPalette(bool dark)
@@ -371,17 +360,6 @@ public partial class SettingsWindow : Window
         Foreground = (Brush)Resources["TextPrimaryBrush"];
     }
 
-    private void OnGlassLocationChanged(object? sender, EventArgs e)
-    {
-        _glassRecapture.Stop();
-        _glassRecapture.Start();
-    }
-
-    private void RecaptureGlass()
-    {
-        if (_glassHost == IntPtr.Zero) return;
-        try { GlassBackdrop.RecaptureBehindWindow(_glassHost, 360); } catch { }
-    }
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed)
@@ -427,6 +405,187 @@ public partial class SettingsWindow : Window
         if (idx < 0 || idx >= NavKeys.Length) return;
         PageTitle.Text = Localization.Get(NavKeys[idx]);
         PageSubtitle.Text = string.Empty;
+    }
+
+    /// <summary>设置搜索：按页签名或关键词定位到对应设置页。</summary>
+    private static readonly string[][] SearchKeywords =
+    {
+        new[] { "通用", "语言", "开机", "自启", "隐藏", "双击", "中键", "快捷键", "低电量", "充电" },
+        new[] { "快捷操作", "启动器", "launcher", "搜索" },
+        new[] { "外观", "主题", "颜色", "透明度", "尺寸", "位置", "预设", "自动隐藏" },
+        new[] { "组件", "时间", "日期", "天气", "cpu", "内存", "gpu", "网络", "电量", "键盘" },
+        new[] { "插件", "plugin", "扩展" },
+        new[] { "页面", "排序", "隐藏页面" },
+        new[] { "媒体", "播放器", "来源", "smtc", "cider", "专辑" },
+        new[] { "媒体信息", "封面", "进度条", "控制按钮" },
+        new[] { "歌词", "lyrics", "滚动", "字体", "karaoke", "ttml" },
+        new[] { "cider", "令牌", "token" },
+        new[] { "上岛", "api", "推送", "http" },
+        new[] { "更新", "update", "版本" },
+        new[] { "关于", "about", "致谢" },
+        new[] { "事件", "日历", "节假日" },
+        new[] { "通知", "免打扰", "规则", "dnd", "勿扰" },
+    };
+
+    private void SettingsSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (TxtSettingsSearchHint is null) return;
+        var query = (TxtSettingsSearch?.Text ?? string.Empty).Trim();
+        TxtSettingsSearchHint.Visibility = query.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (query.Length == 0 || MainTabs is null) return;
+
+        var index = FindSettingsTab(query);
+        if (index < 0)
+        {
+            PageSubtitle.Text = Localization.CurrentLanguage == "en-US"
+                ? "No setting matches the search."
+                : "没有找到匹配的设置。";
+            return;
+        }
+
+        MainTabs.SelectedIndex = index;
+        NavList.SelectedIndex = index;
+        PageSubtitle.Text = Localization.CurrentLanguage == "en-US"
+            ? $"Located: {PageTitle.Text}"
+            : $"已定位到：{PageTitle.Text}";
+    }
+
+    private void SettingsSearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+        if (TxtSettingsSearch is not null) TxtSettingsSearch.Text = string.Empty;
+        e.Handled = true;
+    }
+
+    private static int FindSettingsTab(string query)
+    {
+        for (var i = 0; i < NavKeys.Length; i++)
+            if (Localization.Get(NavKeys[i]).Contains(query, StringComparison.OrdinalIgnoreCase))
+                return i;
+        for (var i = 0; i < SearchKeywords.Length && i < NavKeys.Length; i++)
+            if (SearchKeywords[i].Any(k => k.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                return i;
+        return -1;
+    }
+
+    /// <summary>恢复出厂默认值（保留界面语言与已完成的引导标记）。</summary>
+    private void ResetSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var en = Localization.CurrentLanguage == "en-US";
+        var message = en
+            ? "Restore all settings to their factory defaults?\n\nThe interface language is kept."
+            : "确定要把所有设置恢复为默认值吗？\n\n界面语言会保留。";
+        if (MessageBox.Show(this, message, "WinIslands", MessageBoxButton.YesNo, MessageBoxImage.Question)
+            != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            var language = _vm.Working.Language;
+            _vm.Working.ResetToDefaults(language);
+            DataContext = null;
+            DataContext = _vm;
+            if (TxtMailPass is not null) TxtMailPass.Password = _vm.Working.MailPassword;
+            InitAudioOutput();
+            InitCardStyle();
+            ApplyLocalization();
+            _vm.Save();
+            RefreshPluginList();
+            PageSubtitle.Text = en ? "Settings restored to defaults." : "已恢复默认设置。";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Reset settings failed: {ex.Message}");
+            MessageBox.Show(this, ex.Message, "WinIslands", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>刷新勿扰状态提示与快捷按钮文案。</summary>
+    private void UpdateDndStatus()
+    {
+        if (TxtDndStatus is null || _vm?.Working is null) return;
+        var en = Localization.CurrentLanguage == "en-US";
+        var active = DoNotDisturb.IsActive(_vm.Working);
+        var mode = _vm.Working.DoNotDisturbManual
+            ? (en ? "Manual" : "手动")
+            : _vm.Working.DoNotDisturbEnabled
+                ? (en ? "Scheduled" : "定时")
+                : (en ? "Off" : "关闭");
+        TxtDndStatus.Text = (en ? "Current: " : "当前：") + mode + (active ? (en ? " (active)" : "（生效中）") : string.Empty);
+        if (BtnDndNow is not null)
+            BtnDndNow.Content = active
+                ? (en ? "Turn off manual DND" : "关闭手动勿扰")
+                : (en ? "Turn on DND now" : "立即开启勿扰");
+    }
+
+    private void DndOption_Changed(object sender, RoutedEventArgs e) => UpdateDndStatus();
+
+    private void DndNow_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.Working.DoNotDisturbManual = !_vm.Working.DoNotDisturbManual;
+        UpdateDndStatus();
+    }
+
+    /// <summary>一键创建内置示例插件（plugin.json + run.ps1）。</summary>
+    private void CreateSamplePlugin_Click(object sender, RoutedEventArgs e)
+    {
+        if (_plugins is null)
+            return;
+        try
+        {
+            var id = "sample-widget";
+            var suffix = 1;
+            while (_plugins.Plugins.Any(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)))
+                id = "sample-widget-" + (++suffix);
+
+            var error = _plugins.CreateTemplatePlugin(id, Localization.CurrentLanguage == "en-US"
+                ? "Sample widget"
+                : "示例组件");
+            if (error is not null)
+            {
+                MessageBox.Show(this, error, "WinIslands", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show(
+                    this,
+                    Localization.CurrentLanguage == "en-US"
+                        ? "The sample plugin was created and enabled. See the island components list."
+                        : "示例插件已创建并启用，可在「组件」页看到它。",
+                    "WinIslands", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Create sample plugin failed: {ex.Message}");
+        }
+        RefreshPluginList();
+        UpdatePluginDependencyHint();
+    }
+
+    /// <summary>插件依赖提示：检测 PowerShell 7 是否可用。</summary>
+    private void UpdatePluginDependencyHint()
+    {
+        if (TxtPluginDependencyHint is null) return;
+        var hasPwsh = false;
+        try
+        {
+            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            hasPwsh = path.Split(';', StringSplitOptions.RemoveEmptyEntries).Any(dir =>
+            {
+                try { return File.Exists(Path.Combine(dir.Trim(), "pwsh.exe")); }
+                catch { return false; }
+            });
+        }
+        catch { /* ignore */ }
+
+        TxtPluginDependencyHint.Text = Localization.CurrentLanguage == "en-US"
+            ? (hasPwsh
+                ? "Dependency check: PowerShell 7 detected."
+                : "Dependency check: PowerShell 7 not found; .ps1 plugins fall back to Windows PowerShell 5.1.")
+            : (hasPwsh
+                ? "依赖检查：已检测到 PowerShell 7。"
+                : "依赖检查：未检测到 PowerShell 7，.ps1 插件将回退到 Windows PowerShell 5.1。");
     }
 
     /// <summary>手动拖动尺寸滑杆时，若该尺寸处于"自动调整"状态则自动关闭自动调整（自动/手动二选一）。</summary>
@@ -656,6 +815,7 @@ public partial class SettingsWindow : Window
         LblDndEnd.Text = Localization.Get("Dnd_End");
         TxtDndNote.Text = Localization.Get("Dnd_Note");
         LblDndAllowlist.Text = Localization.Get("Dnd_Allowlist");
+        UpdateDndStatus();
         LblVolTempTitle.Text = Localization.Get("VolumeTemp_Title");
         ChkVolTemp.Content = Localization.Get("VolumeTemp_Enabled");
         LblVolTempSeconds.Text = Localization.Get("VolumeTemp_Seconds");
@@ -716,195 +876,6 @@ public partial class SettingsWindow : Window
     // ── 组件顺序：横向拖拽排序（鼠标捕获 + 落点计算，不经过 OLE DragDrop）──
     // 说明：WPF 的 DragDrop.DoDragDrop 会进入 OLE 嵌套消息循环；在部分注入环境/CLR 组合下
     // 会触发 0xc0000005/0x80131506（本次崩溃即发生在 Chip_PreviewMouseMove → DoDragDrop）。
-    // 改为纯 WPF 鼠标捕获实现，拖拽排序不再依赖 OLE。
-    private Point _dragStart;
-    private OrderItem? _dragItem;
-    private FrameworkElement? _dragChip;
-    private bool _dragActive;
-
-    private void Chip_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        _dragStart = e.GetPosition(null);
-        _dragItem = (sender as FrameworkElement)?.DataContext as OrderItem;
-        _dragChip = sender as FrameworkElement;
-        _dragActive = _dragItem is not null;
-    }
-
-    private void Chip_PreviewMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_dragActive || _dragItem is null || _dragChip is null) return;
-        if (e.LeftButton != MouseButtonState.Pressed) { EndChipDrag(); return; }
-        var pos = e.GetPosition(null);
-        if (Math.Abs(pos.X - _dragStart.X) < 4 && Math.Abs(pos.Y - _dragStart.Y) < 4) return;
-        if (_dragChip.IsMouseCaptured) return;
-        if (!_dragChip.CaptureMouse()) { EndChipDrag(); return; }
-        _dragChip.Opacity = 0.6;
-        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeWE;
-    }
-
-    private void Chip_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_dragActive || _dragItem is null) return;
-        var chip = sender as FrameworkElement ?? _dragChip;
-        var strip = FindAncestor<System.Windows.Controls.ItemsControl>(chip);
-        if (strip is not null)
-        {
-            var x = e.GetPosition(strip).X;
-            var target = _vm.OrderItems.Count - 1;
-            for (var i = 0; i < _vm.OrderItems.Count; i++)
-            {
-                if (strip.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
-                {
-                    var mid = fe.TransformToAncestor(strip).Transform(new Point(fe.ActualWidth / 2, 0)).X;
-                    if (x < mid) { target = i; break; }
-                    target = i;
-                }
-            }
-            _vm.MoveOrderItemTo(_dragItem, target);
-        }
-        EndChipDrag();
-        e.Handled = true;
-    }
-
-    private void Chip_LostMouseCapture(object sender, MouseEventArgs e) => EndChipDrag();
-
-    private void EndChipDrag()
-    {
-        _dragActive = false;
-        var chip = _dragChip;
-        _dragChip = null;
-        _dragItem = null;
-        if (chip is not null)
-        {
-            try { if (chip.IsMouseCaptured) chip.ReleaseMouseCapture(); } catch { /* ignore */ }
-            chip.Opacity = 1;
-        }
-        Mouse.OverrideCursor = null;
-    }
-
-    // ── 页面管理：竖向拖拽排序（岛仔 page_order 交互）──
-    private Point _pageDragStart;
-    private PageManageRow? _pageDragRow;
-    private FrameworkElement? _pageDragHandle;
-    private bool _pageDragActive;
-
-    private void PageRow_DragHandleDown(object sender, MouseButtonEventArgs e)
-    {
-        _pageDragStart = e.GetPosition(null);
-        _pageDragRow = (sender as FrameworkElement)?.DataContext as PageManageRow;
-        _pageDragHandle = sender as FrameworkElement;
-        _pageDragActive = _pageDragRow is not null;
-    }
-
-    private void PageRow_DragHandleMove(object sender, MouseEventArgs e)
-    {
-        if (!_pageDragActive || _pageDragRow is null || _pageDragHandle is null) return;
-        if (e.LeftButton != MouseButtonState.Pressed) { EndPageRowDrag(); return; }
-        var pos = e.GetPosition(null);
-        if (Math.Abs(pos.X - _pageDragStart.X) < 4 && Math.Abs(pos.Y - _pageDragStart.Y) < 4) return;
-        if (_pageDragHandle.IsMouseCaptured) return;
-        if (!_pageDragHandle.CaptureMouse()) { EndPageRowDrag(); return; }
-        _pageDragHandle.Opacity = 0.55;
-        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeNS;
-    }
-
-    private void PageRow_DragHandleUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_pageDragActive || _pageDragRow is null) return;
-        var list = PageManageList;
-        var y = e.GetPosition(list).Y;
-        var target = _vm.PageManageRows.Count - 1;
-        for (var i = 0; i < _vm.PageManageRows.Count; i++)
-        {
-            if (list.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
-            {
-                var mid = fe.TransformToAncestor(list).Transform(new Point(0, fe.ActualHeight / 2)).Y;
-                if (y < mid) { target = i; break; }
-                target = i;
-            }
-        }
-        _vm.MovePageRowTo(_pageDragRow, target);
-        EndPageRowDrag();
-        e.Handled = true;
-    }
-
-    private void PageRow_LostMouseCapture(object sender, MouseEventArgs e) => EndPageRowDrag();
-
-    private void EndPageRowDrag()
-    {
-        _pageDragActive = false;
-        var handle = _pageDragHandle;
-        _pageDragHandle = null;
-        _pageDragRow = null;
-        if (handle is not null)
-        {
-            try { if (handle.IsMouseCaptured) handle.ReleaseMouseCapture(); } catch { }
-            handle.Opacity = 1;
-        }
-        Mouse.OverrideCursor = null;
-    }
-
-    // ── 组件管理：竖向拖拽排序（岛仔页面管理同款）──
-    private Point _componentDragStart;
-    private ComponentRow? _componentDragRow;
-    private FrameworkElement? _componentDragHandle;
-    private bool _componentDragActive;
-
-    private void ComponentRow_DragHandleDown(object sender, MouseButtonEventArgs e)
-    {
-        _componentDragStart = e.GetPosition(null);
-        _componentDragRow = (sender as FrameworkElement)?.DataContext as ComponentRow;
-        _componentDragHandle = sender as FrameworkElement;
-        _componentDragActive = _componentDragRow is not null;
-    }
-
-    private void ComponentRow_DragHandleMove(object sender, MouseEventArgs e)
-    {
-        if (!_componentDragActive || _componentDragRow is null || _componentDragHandle is null) return;
-        if (e.LeftButton != MouseButtonState.Pressed) { EndComponentRowDrag(); return; }
-        var pos = e.GetPosition(null);
-        if (Math.Abs(pos.X - _componentDragStart.X) < 4 && Math.Abs(pos.Y - _componentDragStart.Y) < 4) return;
-        if (_componentDragHandle.IsMouseCaptured) return;
-        if (!_componentDragHandle.CaptureMouse()) { EndComponentRowDrag(); return; }
-        _componentDragHandle.Opacity = 0.55;
-        Mouse.OverrideCursor = System.Windows.Input.Cursors.SizeNS;
-    }
-
-    private void ComponentRow_DragHandleUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_componentDragActive || _componentDragRow is null) return;
-        var list = ComponentManageList;
-        var y = e.GetPosition(list).Y;
-        var target = _vm.ComponentManageRows.Count - 1;
-        for (var i = 0; i < _vm.ComponentManageRows.Count; i++)
-        {
-            if (list.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement fe)
-            {
-                var mid = fe.TransformToAncestor(list).Transform(new Point(0, fe.ActualHeight / 2)).Y;
-                if (y < mid) { target = i; break; }
-                target = i;
-            }
-        }
-        _vm.MoveComponentRowTo(_componentDragRow, target);
-        EndComponentRowDrag();
-        e.Handled = true;
-    }
-
-    private void ComponentRow_LostMouseCapture(object sender, MouseEventArgs e) => EndComponentRowDrag();
-
-    private void EndComponentRowDrag()
-    {
-        _componentDragActive = false;
-        var handle = _componentDragHandle;
-        _componentDragHandle = null;
-        _componentDragRow = null;
-        if (handle is not null)
-        {
-            try { if (handle.IsMouseCaptured) handle.ReleaseMouseCapture(); } catch { }
-            handle.Opacity = 1;
-        }
-        Mouse.OverrideCursor = null;
-    }
 
     private void MediaUp_Click(object sender, RoutedEventArgs e)
     {
@@ -979,6 +950,23 @@ public partial class SettingsWindow : Window
             Arguments = $"\"{AppPaths.AppDataDir}\"",
             UseShellExecute = true,
         });
+    }
+
+    private void MediaCheck_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var theme = new ThemeService();
+            theme.Apply(_service.Current);
+            var win = new MediaSourceCheckWindow(_service, _cider, theme) { Owner = this };
+            win.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Open media source check failed", ex);
+            MessageBox.Show(this, "无法打开媒体源检查：" + ex.Message, "媒体源检查",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void Diagnostics_Click(object sender, RoutedEventArgs e)
@@ -1087,84 +1075,6 @@ public partial class SettingsWindow : Window
         {
             return about;
         }
-    }
-
-    /// <summary>刷新设置页中的插件列表（名称、版本、状态与描述）。</summary>
-    private void RefreshPluginList()
-    {
-        if (PluginList is null) return;
-        if (_plugins is null)
-        {
-            PluginList.ItemsSource = null;
-            LblPluginCount.Text = string.Empty;
-            TxtPluginEmpty.Text = Localization.Get("Plugins_Unavailable");
-            TxtPluginEmpty.Visibility = Visibility.Visible;
-            return;
-        }
-
-        var rows = _plugins.Plugins
-            .OrderBy(p => string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(p => new PluginRow
-            {
-                Name = string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name,
-                VersionText = string.IsNullOrWhiteSpace(p.Version) ? string.Empty : "v" + p.Version,
-                Description = string.IsNullOrWhiteSpace(p.Description)
-                    ? Localization.Get("Plugins_NoDescription")
-                    : p.Description,
-                MetaText = BuildPluginMeta(p),
-                StatusText = Localization.Get(p.Enabled ? "Plugins_Enabled" : "Plugins_Disabled"),
-                Enabled = p.Enabled,
-            })
-            .ToList();
-
-        PluginList.ItemsSource = rows;
-        LblPluginCount.Text = string.Format(Localization.Get("Plugins_Count"), rows.Count);
-        TxtPluginEmpty.Text = Localization.Get("Plugins_Empty");
-        TxtPluginEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private static string BuildPluginMeta(PluginManifest plugin)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(plugin.Author))
-            parts.Add(string.Format(Localization.Get("Plugins_Author"), plugin.Author));
-        var permissions = plugin.Permissions.Count == 0
-            ? Localization.Get("Plugins_NoPermissions")
-            : string.Join(", ", plugin.Permissions);
-        parts.Add(string.Format(Localization.Get("Plugins_Permissions"), permissions));
-        if (plugin.IntervalSeconds > 0)
-            parts.Add(string.Format(Localization.Get("Plugins_Interval"), plugin.IntervalSeconds));
-        return string.Join("  ·  ", parts);
-    }
-
-    private void OpenPluginManager_Click(object sender, RoutedEventArgs e)
-    {
-        _openPluginManager?.Invoke();
-        RefreshPluginList();
-    }
-
-    private void OpenPluginFolder_Click(object sender, RoutedEventArgs e)
-    {
-        _openPluginFolder?.Invoke();
-        RefreshPluginList();
-    }
-
-    private void OpenPluginGuide_Click(object sender, RoutedEventArgs e) => _openPluginGuide?.Invoke();
-
-    private void ReloadPlugins_Click(object sender, RoutedEventArgs e)
-    {
-        try { _plugins?.Reload(); } catch { }
-        RefreshPluginList();
-    }
-
-    private sealed class PluginRow
-    {
-        public string Name { get; init; } = string.Empty;
-        public string VersionText { get; init; } = string.Empty;
-        public string Description { get; init; } = string.Empty;
-        public string MetaText { get; init; } = string.Empty;
-        public string StatusText { get; init; } = string.Empty;
-        public bool Enabled { get; init; }
     }
 
 }

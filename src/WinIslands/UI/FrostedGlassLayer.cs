@@ -6,14 +6,13 @@ using System.Windows.Threading;
 using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
-using Pen = System.Windows.Media.Pen;
 
 namespace WinIslands.UI;
 
 /// <summary>
-/// WPF frosted-glass surface: the real desktop is sampled and uniformly blurred,
-/// then covered by a translucent tint, a 1px inset highlight and a subtle top
-/// sheen. Real controls are drawn above this decoration-only element and remain sharp.
+/// WPF frosted-glass surface: the wallpaper behind the window is uniformly blurred
+/// and covered by a translucent tint. No specular highlight, refraction or desktop
+/// capture is used; it is a quiet, conventional frosted blur.
 /// </summary>
 public sealed class FrostedGlassLayer : FrameworkElement
 {
@@ -136,19 +135,6 @@ public sealed class FrostedGlassLayer : FrameworkElement
             dc.DrawRectangle(tintLayer, null, rect);
         }
 
-        // A restrained rim and top sheen give the frosted surface physical depth.
-        var sheen = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(0, 1),
-        };
-        sheen.GradientStops.Add(new GradientStop(Color.FromArgb(20, 255, 255, 255), 0));
-        sheen.GradientStops.Add(new GradientStop(Color.FromArgb(4, 255, 255, 255), 0.12));
-        sheen.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.38));
-        sheen.Freeze();
-        dc.DrawRectangle(sheen, null, rect);
-
-        DrawFrostedRim(dc, rect, radius);
         dc.Pop();
 
     }
@@ -211,35 +197,14 @@ public sealed class FrostedGlassLayer : FrameworkElement
 
     private void DrawFallbackBody(DrawingContext dc, Rect rect, Color tint, bool dark, double w, double h)
     {
-        // Sampling can fail in restricted sessions. Keep a readable tinted fallback
-        // with the same rounded shape and soft upper-left highlight.
-        var body = new SolidColorBrush(WithAlpha(tint, Alpha((dark ? 0.62 : 0.58) * 255)));
+        // Restricted sessions may not allow wallpaper sampling: keep a readable,
+        // completely flat tinted fallback with the same rounded shape.
+        var body = new SolidColorBrush(WithAlpha(tint, Alpha((dark ? 0.82 : 0.78) * 255)));
         body.Freeze();
         var radius = Math.Min(CornerRadius.TopLeft, Math.Min(w, h) * 0.5);
         dc.DrawRoundedRectangle(body, null, rect, radius, radius);
+    }
 
-        var highlight = new RadialGradientBrush
-        {
-            Center = new Point(0.16, 0.02),
-            GradientOrigin = new Point(0.08, -0.08),
-            RadiusX = 0.9,
-            RadiusY = 1.15,
-        };
-        highlight.GradientStops.Add(new GradientStop(Color.FromArgb(28, 255, 255, 255), 0));
-        highlight.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.62));
-        highlight.Freeze();
-        dc.DrawRoundedRectangle(highlight, null, rect, radius, radius);
-    }
-    private static void DrawFrostedRim(DrawingContext dc, Rect rect, double radius)
-    {
-        var inset = new Rect(0.5, 0.5, Math.Max(0, rect.Width - 1), Math.Max(0, rect.Height - 1));
-        var rim = new SolidColorBrush(Color.FromArgb(31, 255, 255, 255));
-        rim.Freeze();
-        var pen = new Pen(rim, 1.0);
-        pen.Freeze();
-        var rimRadius = Math.Max(0, radius - 0.5);
-        dc.DrawRoundedRectangle(null, pen, inset, rimRadius, rimRadius);
-    }
     private static byte Alpha(double value) => (byte)Math.Clamp(Math.Round(value), 0, 255);
 
     private static Color ResolveTintColor(Brush? brush) => brush switch

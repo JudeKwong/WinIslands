@@ -8,10 +8,12 @@ namespace WinIslands.Services;
 /// 键盘指示灯：轮询 CapsLock / NumLock / ScrollLock 状态（500ms），
 /// 状态变化时触发事件，上层可在灵动岛短暂显示指示灯。
 /// </summary>
-public sealed class KeyboardIndicatorMonitor : IDisposable
+public sealed class KeyboardIndicatorMonitor : IDisposable, IBackgroundPausable
 {
     private readonly DispatcherTimer _timer;
     private bool _caps, _num, _scroll;
+    private bool _wanted;
+    private bool _suspended;
 
     public KeyboardIndicatorMonitor()
     {
@@ -25,7 +27,8 @@ public sealed class KeyboardIndicatorMonitor : IDisposable
     /// </summary>
     public void SetPolling(bool polling)
     {
-        if (polling && !_timer.IsEnabled)
+        _wanted = polling;
+        if (polling && !_suspended && !_timer.IsEnabled)
         {
             Poll();
             _timer.Start();
@@ -33,6 +36,21 @@ public sealed class KeyboardIndicatorMonitor : IDisposable
         else if (!polling && _timer.IsEnabled)
         {
             _timer.Stop();
+        }
+    }
+
+    /// <summary>锁屏 / 全屏 / 省电时暂停，恢复后按原开关继续。</summary>
+    public void SetBackgroundSuspended(bool suspended)
+    {
+        _suspended = suspended;
+        if (suspended)
+        {
+            if (_timer.IsEnabled) _timer.Stop();
+        }
+        else if (_wanted && !_timer.IsEnabled)
+        {
+            Poll();
+            _timer.Start();
         }
     }
 
