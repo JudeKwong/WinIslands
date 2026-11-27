@@ -265,21 +265,38 @@ public static class IcsParser
                 return new DateTimeOffset(dt, TimeSpan.Zero);
             }
 
+            // Kind=Unspecified：TZID 的偏移可能与本机时区不同，不能被 AssumeLocal 限制。
             var dtLocal = DateTime.ParseExact(s,
                 new[] { "yyyyMMdd'T'HHmmss", "yyyyMMdd'T'HHmm" }, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeLocal);
+                DateTimeStyles.None);
             if (!string.IsNullOrWhiteSpace(tzid))
             {
-                try
-                {
-                    var tz = TimeZoneInfo.FindSystemTimeZoneById(tzid);
-                    return new DateTimeOffset(dtLocal, tz.GetUtcOffset(dtLocal));
-                }
-                catch { /* 未知 TZID：按本地时间 */ }
+                var tz = FindTimeZone(tzid);
+                if (tz is not null) return new DateTimeOffset(dtLocal, tz.GetUtcOffset(dtLocal));
             }
             return new DateTimeOffset(dtLocal, TimeZoneInfo.Local.GetUtcOffset(dtLocal));
         }
         catch { return null; }
+    }
+
+    /// <summary>同时接受 Windows 与 IANA 时区 ID，保证跨平台解析一致。</summary>
+    private static TimeZoneInfo? FindTimeZone(string tzid)
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById(tzid); }
+        catch { /* try conversions below */ }
+        try
+        {
+            if (TimeZoneInfo.TryConvertWindowsIdToIanaId(tzid, out var iana))
+                return TimeZoneInfo.FindSystemTimeZoneById(iana);
+        }
+        catch { /* ignore */ }
+        try
+        {
+            if (TimeZoneInfo.TryConvertIanaIdToWindowsId(tzid, out var windows))
+                return TimeZoneInfo.FindSystemTimeZoneById(windows);
+        }
+        catch { /* ignore */ }
+        return null;
     }
 
     /// <summary>解析 VALARM 的 TRIGGER 值：-PT15M / -P1DT2H / PT0S（0 表示事件开始时）。返回相对事件开始的偏移。</summary>

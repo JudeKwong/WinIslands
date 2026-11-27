@@ -554,8 +554,8 @@ public sealed class KaraokeMathTests
     {
         // 2.8.0: ClampWallClockLead 外层 Math.Min(a, b) 改为 MinNonNegative 分支链。
         // 真实路径两个输入都来自 AtLeastZero（恒 >= +0.0，不含 -0.0），因此
-        // a < b ? a : b 与 Math.Min 在全部可达对上逐位一致；NaN 输入按 Math.Min 的
-        // 语义归一为规范 NaN。
+        // a < b ? a : b 与 Math.Min 在全部可达对上逐位一致；NaN 输入只比较语义
+        // （JIT 可能规范化 NaN 载荷，不能做位级比较）。
         var customNan = BitConverter.Int64BitsToDouble(unchecked((long)0xFFF8000000001234UL));
         var vals = new[]
         {
@@ -566,9 +566,7 @@ public sealed class KaraokeMathTests
         {
             foreach (var b in vals)
             {
-                Assert.Equal(
-                    BitConverter.DoubleToInt64Bits(Math.Min(a, b)),
-                    BitConverter.DoubleToInt64Bits(KaraokeMath.MinNonNegative(a, b)));
+                AssertMinMatches(a, b);
             }
         }
         // 大量随机非负对 + NaN 混入
@@ -577,10 +575,21 @@ public sealed class KaraokeMathTests
         {
             var a = rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e6;
             var b = rng.NextDouble() < 0.25 ? double.NaN : rng.NextDouble() * 1e6;
-            Assert.Equal(
-                BitConverter.DoubleToInt64Bits(Math.Min(a, b)),
-                BitConverter.DoubleToInt64Bits(KaraokeMath.MinNonNegative(a, b)));
+            AssertMinMatches(a, b);
         }
+    }
+
+    private static void AssertMinMatches(double a, double b)
+    {
+        var expected = Math.Min(a, b);
+        var actual = KaraokeMath.MinNonNegative(a, b);
+        if (double.IsNaN(expected))
+        {
+            Assert.True(double.IsNaN(actual));
+            return;
+        }
+
+        Assert.Equal(BitConverter.DoubleToInt64Bits(expected), BitConverter.DoubleToInt64Bits(actual));
     }
 
     [Fact]
