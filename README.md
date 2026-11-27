@@ -11,15 +11,15 @@
 [![最新版本](https://img.shields.io/github/v/release/JudeKwong/WinIslands?color=6C5CE7&label=最新版本)](https://github.com/JudeKwong/WinIslands/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4)](#下载安装)
 [![开源许可](https://img.shields.io/badge/License-MIT-3cbf91)](LICENSE)
-[![.NET 与 WPF](https://img.shields.io/badge/.NET%208-WPF-8b6ca8)](#从源码构建)
+[![.NET 与 WPF](https://img.shields.io/badge/.NET%2010-WPF-8b6ca8)](#从源码构建)
 
-**[下载 Windows 版](https://github.com/JudeKwong/WinIslands/releases/latest)** · [快速上手](#快速上手) · [插件开发](docs/PLUGIN_DEVELOPMENT.md) · [上岛 API](docs/IslandAPI.md) · [更新记录](RELEASE_NOTES.md) · [反馈问题](https://github.com/JudeKwong/WinIslands/issues)
+**[下载 Windows 版](https://github.com/JudeKwong/WinIslands/releases/latest)** · [快速上手](#快速上手) · [插件开发](docs/PLUGIN_DEVELOPMENT.md) · [上岛 API](docs/IslandAPI.md) · [更新记录](CHANGELOG.md) · [常见问题](docs/FAQ.md) · [反馈问题](https://github.com/JudeKwong/WinIslands/issues)
 
 </div>
 
 WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶部，鼠标靠近就展开；切歌、看歌词、处理通知、查看系统状态，都能在抬手之间完成。
 
-它使用 **.NET 8 + WPF** 原生构建，不依赖 Electron，支持 Windows 10 / 11 与 x64 / ARM64。界面、组件和交互都可以按自己的习惯调整。
+它使用 **.NET 10 + WPF** 原生构建，不依赖 Electron，支持 Windows 10 / 11 与 x64 / ARM64。界面、组件和交互都可以按自己的习惯调整。
 
 ![WinIslands 品牌主视觉：Windows 上的灵动岛](docs/images/readme/hero.webp)
 
@@ -108,7 +108,7 @@ WinIslands 支持本地组件插件。插件以独立进程运行，读取标准
 | `WinIslands-版本号-win-x64.exe` | x64 便携版，单文件免安装，适合主流 64 位电脑 |
 | `WinIslands-版本号-win-arm64.exe` | ARM64 便携版，适合 Surface Pro X、骁龙 PC 等设备 |
 
-**系统要求**：Windows 10 1809+ / Windows 11，x64 或 ARM64。发布包已包含 .NET 8 运行时，无需另外安装。
+**系统要求**：Windows 10 2004+ / Windows 11，x64 或 ARM64。发布包已包含 .NET 10 运行时，无需另外安装。
 
 **升级与卸载**：直接从新版本安装包覆盖安装即可保留设置和数据；卸载默认保留 `%APPDATA%\WinIslands` 中的个人配置。
 
@@ -187,7 +187,7 @@ hello-world/
 $body = @{
     id = "download-1"
     title = "正在下载"
-    body = "WinIslands-3.1.5-win-x64.exe"
+    body = "WinIslands-3.1.8-win-x64.exe"
     progress = 0.65
     type = "info"
 } | ConvertTo-Json
@@ -216,7 +216,7 @@ Invoke-RestMethod -Method Post `
 <details>
 <summary id="从源码构建"><b>从源码构建与参与开发</b></summary>
 
-需要 Windows 10 1809+ / Windows 11 和 .NET 8 SDK。
+需要 Windows 10 2004+ / Windows 11 和 .NET 10 SDK。
 
 ```powershell
 dotnet build src\WinIslands\WinIslands.csproj -c Release
@@ -248,6 +248,10 @@ src\WinIslands\             应用主体
 tests\WinIslands.Tests\     测试
 docs\IslandAPI.md           上岛 API 文档
 docs\PLUGIN_DEVELOPMENT.md  插件开发指南
+docs\FAQ.md                 常见问题
+docs\TROUBLESHOOTING.md     故障排查
+docs\PLUGIN_SECURITY.md     插件安全模型
+docs\release-notes\         历史版本更新日志
 build\                      发布与安装脚本
 ```
 
@@ -267,6 +271,6 @@ WinIslands 原创代码采用 [MIT License](LICENSE)。.NET、WPF、Windows SDK 
 
 <div align="center">
 
-**[下载 WinIslands](https://github.com/JudeKwong/WinIslands/releases/latest)** · [官网](https://WinIslands.JudeKwong.com) · [更新记录](RELEASE_NOTES.md)
+**[下载 WinIslands](https://github.com/JudeKwong/WinIslands/releases/latest)** · [官网](https://WinIslands.JudeKwong.com) · [更新记录](CHANGELOG.md)
 
 </div>

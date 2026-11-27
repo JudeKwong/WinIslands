@@ -15,11 +15,50 @@ publish/
 .vs/
 *.suo
 
-# Local release artifacts
+# Local release artifacts and temporary workspaces
 releases/
+_temp/
+.stability-test/
+backups/
 
-# Website (keep HTML out of the repo)
-website/
+# Code signing / secrets: NEVER commit
+*.pfx
+*.p12
+*.snk
+secrets/
 
-# Tencent WeType logs written into the source tree
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Third-party input-method logs written into the tree
+Tencent/
 src/WinIslands/Tencent/
+
+# One-off backups (keep them outside the repo instead)
+*.bak
+*.bak-*
+*.pre-*.bak
+
+# Website: source is versioned; only local/deploy caches are ignored
+website/.review/
+website/.wrangler/
+website/node_modules/
+
+# Build and release staging
+artifacts/
+macos/build/
+macos/dist/
+macos/**/bin/
+macos/**/obj/
+*.trx
+TestResults/
+
+# Local deploy caches
+website/.wrangler/
+website/tools/__pycache__/
+website/**/*.pyc
+
+macos/tools/__pycache__/
+macos/**/*.pyc

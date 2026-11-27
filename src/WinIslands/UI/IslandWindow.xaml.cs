@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -53,7 +53,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private static double ResponseFromStiffness(double stiffness) => 2.0 * Math.PI / Math.Sqrt(stiffness);
     /// <summary>展开内容在 ContentGrid 基础留白外额外增加的左右间距。</summary>
     private const double ExpandedContentExtraHorizontalMargin = 8.0;
-    // xiaotang-daozai notice/toast dimensions.
+    // 通知条与轻提示尺寸常量。
     private const double ReferenceNoticeWidth = 334.0;
     private const double ReferenceNoticeHeight = 44.0;
     private const double CopyToastHeight = 22.0;
@@ -200,7 +200,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private readonly DispatcherTimer _memoryTrimTimer;
     private readonly EventHandler _onThemeChanged;      // 具名处理器：窗口关闭时可退订，防泄漏
     private readonly EventHandler<AppSettings> _onSettingsChanged;
-    // xiaotang-daozai page transition constants.
+    // 页面切换过渡常量。
     private const double DaozaiPageSlideDistance = 46.0;
     private const double DaozaiPageOldSlideDistance = 18.0;
     private const double DaozaiPageTransitionSeconds = 0.55;
@@ -775,7 +775,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public Brush SliderTrackBrush => _theme.SliderTrackBrush;
     public Brush SliderThumbBrush => _theme.SliderThumbBrush;
 
-    // ── 岛仔（Daozai）皮肤 passthrough（颜色/按钮/页码豆均取自参考项目 theme.rs）──
+    // ── 经典黑皮肤色值直通（颜色/按钮/页码豆统一取色）──
     public bool IsDaozai => _theme.IsDaozai;
     public bool KeepExpandedForPreview { get; set; }
 
@@ -810,9 +810,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     public Brush DaozaiBlueBrush => _theme.DaozaiBlueBrush;
     public Brush DaozaiPurpleBrush => _theme.DaozaiPurpleBrush;
 
-    // Lyric style passthrough: expanded lyrics use fixed xiaotang-daozai metrics;
+    // 歌词样式直通：展开歌词使用固定度量；
     // standalone lyrics continue to expose the user-adjustable settings.
-    // The expanded island uses the compact visual lyric metrics from xiaotang-daozai.
+    // 展开态使用紧凑的视觉歌词度量。
     // Divide by FontScale because Card.LayoutTransform also scales the whole island;
     // this keeps the rendered text at the reference 10px/12px visual size.
     // Standalone lyrics continue to use the user's larger font-size settings.
@@ -1423,7 +1423,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     {
         if (GlassLayer is null) return;
         // 灵动岛本体只使用纯黑/主题色平面，不再叠加毛玻璃折射层。
-        if (_theme.IsDaozai) { GlassLayer.Opacity = 0; return; }
+        // 3.1.8 高对比度：关闭光学层，避免半透明叠加降低可读性。
+        if (_theme.IsDaozai || Accessibility.IsHighContrast) { GlassLayer.Opacity = 0; return; }
         var b = new SolidColorBrush(_theme.TintColor);
         b.Freeze();
         GlassLayer.Background = b;
@@ -1726,7 +1727,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// xiaotang-daozai 滚轮切页：停顿 180ms 重置、方向反转重置、阈值 8、
+    /// 滚轮切页：停顿 180ms 重置、方向反转重置、阈值 8、
     /// 两次切页至少间隔 200ms；负方向滚轮进入下一页。
     /// </summary>
     private void Card_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -1754,7 +1755,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// xiaotang-daozai 键盘切页：展开且非输入状态时，←/→ 直接切页；
+    /// 键盘切页：展开且非输入状态时，←/→ 直接切页；
     /// 与参考项目一致，方向键会清空滚轮余量，不额外加 200ms 间隔。
     /// </summary>
     private void Card_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -1797,7 +1798,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         oldVisual.Value.Element.Opacity = 1;
         oldVisual.Value.Element.IsHitTestVisible = false;
         oldVisual.Value.Transform.X = 0;
-        // 对齐 xiaotang-daozai 的绘制顺序：先画旧页，再画新页，避免反向切换时旧页盖住新页。
+        // 切页绘制顺序：先画旧页，再画新页，避免反向切换时旧页盖住新页。
         System.Windows.Controls.Panel.SetZIndex(oldVisual.Value.Element, 0);
 
         newVisual.Value.Element.SetCurrentValue(UIElement.VisibilityProperty, Visibility.Visible);

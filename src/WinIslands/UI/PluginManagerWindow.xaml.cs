@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
@@ -36,6 +37,8 @@ public sealed class PluginCardViewModel : ObservableObject
     public string Version => Manifest.Version;
     public string Description => Manifest.Description;
     public string PermissionSummary => Manifest.PermissionSummary;
+    public bool IsUnverified => !Manifest.IsHashVerified;
+    public string SecurityWarning => Manifest.SecurityWarning;
     public string DirectoryPath => Manifest.DirectoryPath;
     public string ManifestPath => Manifest.ManifestPath;
 
@@ -57,6 +60,19 @@ public sealed class PluginCardViewModel : ObservableObject
         set
         {
             if (Manifest.Enabled == value) return;
+
+            // 未校验插件不允许启用，必须先“校验并信任”。
+            if (value && !Manifest.IsHashVerified)
+            {
+                var en = Localization.CurrentLanguage == "en-US";
+                System.Windows.MessageBox.Show(
+                    en
+                        ? "This plugin has not been verified, so it will not run. Click \"Verify & Trust\" first."
+                        : "该插件尚未校验，当前不会运行。请先点击“校验并信任”。",
+                    "WinIslands", MessageBoxButton.OK, MessageBoxImage.Information);
+                OnPropertyChanged();
+                return;
+            }
 
             // 权限提示：启用带权限声明的插件前必须确认
             if (value && Manifest.Permissions.Count > 0)
@@ -85,7 +101,8 @@ public sealed class PluginCardViewModel : ObservableObject
     {
         get
         {
-            var (r, g, b) = _health?.IsRunning == true ? (0x34, 0xC7, 0x59)
+            var (r, g, b) = !Manifest.IsHashVerified ? (0xFF, 0xA7, 0x26)
+                : _health?.IsRunning == true ? (0x34, 0xC7, 0x59)
                 : _health?.FailureCount > 0 || !string.IsNullOrEmpty(_health?.LastError) ? (0xFF, 0x59, 0x4F)
                 : (0xA8, 0xA8, 0xB8);
             var brush = new SolidColorBrush(Color.FromRgb((byte)r, (byte)g, (byte)b));
@@ -99,6 +116,7 @@ public sealed class PluginCardViewModel : ObservableObject
     {
         get
         {
+            if (!Manifest.IsHashVerified) return "● " + Localization.Get("PluginMgr_Unverified");
             if (_health?.IsRunning == true) return "● " + Localization.Get("PluginMgr_HealthRunning");
             if (_health?.FailureCount > 0 || !string.IsNullOrEmpty(_health?.LastError)) return "● " + Localization.Get("PluginMgr_HealthIdle");
             return _health?.LastSuccessTime is not null
@@ -131,6 +149,8 @@ public sealed class PluginCardViewModel : ObservableObject
     public void RefreshAll()
     {
         OnPropertyChanged(nameof(Enabled));
+        OnPropertyChanged(nameof(IsUnverified));
+        OnPropertyChanged(nameof(SecurityWarning));
         OnPropertyChanged(nameof(HealthDetail));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(ErrorText));
@@ -280,6 +300,41 @@ public partial class PluginManagerWindow : Window
         catch (Exception ex) { AppLogger.Warn($"Open new-plugin wizard failed: {ex.Message}"); }
     }
 
+    /// <summary>用户确认后计算入口 SHA-256 并信任插件。</summary>
+    private void Trust_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not PluginCardViewModel card) return;
+        if (card.Manifest.IsHashVerified) return;
+
+        var en = Localization.CurrentLanguage == "en-US";
+        var message = en
+            ? $"Trust plugin \"{card.Name}\"?\n\nWinIslands will compute the SHA-256 of its entry file and write it to plugin.json. Only continue if you trust the source of this plugin."
+            : $"确认信任插件“{card.Name}”？\n\nWinIslands 会计算其入口文件的 SHA-256 并写回 plugin.json。请仅在确认插件来源可信时继续。";
+        if (System.Windows.MessageBox.Show(message, "WinIslands", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+            != MessageBoxResult.Yes)
+            return;
+
+        var ok = _plugins.VerifyAndTrust(card.Id);
+        ShowStatus(Localization.Get(ok ? "PluginMgr_Trusted" : "PluginMgr_TrustFailed"));
+        RefreshList();
+    }
+
+    /// <summary>读取 zip 内的 plugin.json，用于导入前展示名称与权限。</summary>
+    private static PluginManifest? TryReadZipManifest(string zipPath)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            var entry = archive.Entries.FirstOrDefault(x => x.FullName.Equals("plugin.json", StringComparison.OrdinalIgnoreCase))
+                        ?? archive.Entries.FirstOrDefault(x => x.FullName.EndsWith("/plugin.json", StringComparison.OrdinalIgnoreCase));
+            if (entry is null) return null;
+            using var stream = entry.Open();
+            using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+            return JsonSerializer.Deserialize<PluginManifest>(reader.ReadToEnd());
+        }
+        catch { return null; }
+    }
+
     /// <summary>从本地 zip 导入插件（A4）。</summary>
     private void Import_Click(object sender, RoutedEventArgs e)
     {
@@ -289,8 +344,27 @@ public partial class PluginManagerWindow : Window
             Filter = "WinIslands 插件包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
         };
         if (dialog.ShowDialog(this) != true) return;
+
+        var summary = TryReadZipManifest(dialog.FileName);
+        if (summary is null)
+        {
+            ShowStatus(Localization.Get("PluginMgr_ImportFailed"));
+            return;
+        }
+
+        var permissions = summary.Permissions.Count == 0
+            ? Localization.Get("Plugins_NoPermissions")
+            : string.Join(", ", summary.Permissions);
+        var confirm = string.Format(
+            Localization.Get("PluginMgr_ImportConfirm"),
+            string.IsNullOrWhiteSpace(summary.Name) ? summary.Id : summary.Name,
+            permissions);
+        if (System.Windows.MessageBox.Show(confirm, "WinIslands", MessageBoxButton.OKCancel, MessageBoxImage.Warning)
+            != MessageBoxResult.OK)
+            return;
+
         var ok = _plugins.ImportPlugin(dialog.FileName);
-        ShowStatus(ok ? Localization.Get("PluginMgr_Imported") : Localization.Get("PluginMgr_ImportFailed"));
+        ShowStatus(Localization.Get(ok ? "PluginMgr_Imported" : "PluginMgr_ImportFailed"));
         if (ok) RefreshList();
     }
 

@@ -4,7 +4,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using MenuItem = System.Windows.Controls.MenuItem;
+using ContextMenu = System.Windows.Controls.ContextMenu;
 using WinIslands.Services;
+using ThemeMode = WinIslands.Services.ThemeMode;
 
 namespace WinIslands.UI;
 

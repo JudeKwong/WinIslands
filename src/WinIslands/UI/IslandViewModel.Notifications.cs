@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -63,6 +63,14 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
             ExpiresAt = DateTime.UtcNow.AddSeconds(dur),
             MessengerUnread = unread,
         });
+
+        // 3.1.8 可访问性：通知出现时播报标题与正文，读屏用户无需看屏即可获知内容
+        try
+        {
+            var spoken = string.Join("，", new[] { title, subtitle, body }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
+            Accessibility.Announce(spoken);
+        }
+        catch { }
     }
 
     /// <summary>
@@ -90,7 +98,7 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         if (page is null) return;
         var oldPage = ActivePage;
         foreach (var p in _pages) p.IsActive = ReferenceEquals(p, page);
-        // 与 xiaotang-daozai 的 go() 一致：先切换页面状态并启动过渡，再发出属性通知，
+        // 切页顺序：先切换页面状态并启动过渡，再发出属性通知，
         // 避免 WPF 绑定在过渡首帧抢占 Visibility 造成闪烁。
         if (direction is int dir && oldPage is { } old && !ReferenceEquals(old, page))
             PageTransitionStarted?.Invoke(old, page, dir);
@@ -143,7 +151,7 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         if (signature != _pageSignature) RebuildPages();
     }
 
-    /// <summary>微信/QQ 未读：加入图标栈并弹出一张岛仔风格通知卡（不读取聊天正文）。</summary>
+    /// <summary>微信/QQ 未读：加入图标栈并弹出一张经典布局风格通知卡（不读取聊天正文）。</summary>
     public void ShowMessengerUnread(MessengerUnread unread)
     {
         if (DoNotDisturb.IsActive(_settings.Current)) return;

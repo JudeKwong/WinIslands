@@ -1,0 +1,168 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:WinIslands.Mac.UI"
+        x:Class="WinIslands.Mac.Views.IslandWindow"
+        Width="300" Height="42"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        CanResize="False"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Title="WinIslands">
+  <Border Name="IslandBorder" CornerRadius="21" Background="#F0141417" ClipToBounds="True"
+          BorderBrush="#26FFFFFF" BorderThickness="1">
+    <Border.ContextMenu>
+      <ContextMenu>
+        <MenuItem Header="展开 / 收起" Command="{Binding ToggleExpandCommand}"/>
+        <MenuItem Header="播放 / 暂停" Command="{Binding PlayPauseCommand}"/>
+        <Separator/>
+        <MenuItem Header="设置…" Command="{Binding OpenSettingsCommand}"/>
+        <Separator/>
+        <MenuItem Header="退出 WinIslands" Command="{Binding QuitCommand}"/>
+      </ContextMenu>
+    </Border.ContextMenu>
+    <Grid>
+      <!-- ═══ 紧凑态 ═══ -->
+      <Grid Name="CompactPanel">
+        <!-- 媒体 -->
+        <Grid Name="CompactMedia" ColumnDefinitions="Auto,Auto,*,Auto" VerticalAlignment="Center">
+          <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Margin="9,0,7,0"
+                  ClipToBounds="True" Background="#22FFFFFF">
+            <Image Name="CompactArt" Source="{Binding Artwork}" Stretch="UniformToFill"/>
+          </Border>
+          <TextBlock Grid.Column="1" Text="{Binding TrackTitle}" FontSize="12.5" FontWeight="SemiBold"
+                     Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="150"
+                     VerticalAlignment="Center"/>
+          <ui:MusicWave Grid.Column="3" Width="22" Height="14" Margin="8,0,10,0"
+                        IsPlaying="{Binding IsPlaying}" BarBrush="#F2FFFFFF" VerticalAlignment="Center"/>
+        </Grid>
+        <!-- 空闲时钟 -->
+        <Grid Name="CompactIdle" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+          <TextBlock Grid.Column="1" Text="{Binding ClockText}" FontSize="15" FontWeight="SemiBold"
+                     Foreground="#F2FFFFFF" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="2" Text="{Binding DateText}" FontSize="11" Foreground="#8CFFFFFF"
+                     Margin="8,0,12,0" VerticalAlignment="Center"/>
+        </Grid>
+        <!-- 推送 -->
+        <Grid Name="CompactPush" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+          <TextBlock Grid.Column="0" Text="{Binding PushIcon}" FontSize="15" Margin="12,0,8,0" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="{Binding PushTitle}" FontSize="12.5" FontWeight="SemiBold"
+                     Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="190" VerticalAlignment="Center"/>
+          <Ellipse Grid.Column="2" Width="8" Height="8" Margin="8,0,13,0" Fill="{Binding TypedAccentBrush}"
+                   VerticalAlignment="Center"/>
+        </Grid>
+      </Grid>
+
+      <!-- ═══ 展开态 ═══ -->
+      <Grid Name="ExpandedPanel" IsVisible="False">
+        <!-- 媒体展开 -->
+        <Grid Name="ExpandedMedia" RowDefinitions="Auto,Auto,Auto,Auto" Margin="14,11,14,12">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <Border Grid.Column="0" Width="64" Height="64" CornerRadius="12" ClipToBounds="True" Background="#22FFFFFF">
+              <Image Name="ExpandedArt" Source="{Binding Artwork}" Stretch="UniformToFill"/>
+            </Border>
+            <StackPanel Grid.Column="1" Margin="12,3,8,0" Spacing="3" VerticalAlignment="Top">
+              <TextBlock Text="{Binding TrackTitle}" FontSize="15" FontWeight="Bold" Foreground="#F5FFFFFF"
+                         TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding TrackArtist}" FontSize="12" Foreground="#A6FFFFFF"
+                         TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <Button Grid.Column="2" Content="⌄" Command="{Binding ToggleExpandCommand}" Width="26" Height="26"
+                    Padding="0" FontSize="13" Background="Transparent" Foreground="#80FFFFFF"
+                    VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+          </Grid>
+
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0" VerticalAlignment="Center">
+            <TextBlock Text="{Binding PositionText}" FontSize="10.5" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding ProgressValue, Mode=TwoWay}"
+                    Margin="8,0" Height="18" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="10.5" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+          </Grid>
+
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" Margin="0,8,0,0">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+              <Button Command="{Binding PreviousCommand}" Background="Transparent" Padding="4" Width="34" Height="34"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                <PathIcon Data="M11 12l8-7v14zM6 5h2v14H6z" Width="15" Height="15" Foreground="#E6FFFFFF"/>
+              </Button>
+              <Button Command="{Binding PlayPauseCommand}" Background="Transparent" Padding="4" Width="38" Height="38"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                <Grid>
+                  <PathIcon Data="M8 5l11 7-11 7z" Width="16" Height="16" Foreground="#FFFFFFFF"
+                            IsVisible="{Binding IsPaused}"/>
+                  <PathIcon Data="M6 5h4v14H6zM14 5h4v14h-4z" Width="16" Height="16" Foreground="#FFFFFFFF"
+                            IsVisible="{Binding IsPlaying}"/>
+                </Grid>
+              </Button>
+              <Button Command="{Binding NextCommand}" Background="Transparent" Padding="4" Width="34" Height="34"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                <PathIcon Data="M13 12L5 5v14zM16 5h2v14h-2z" Width="15" Height="15" Foreground="#E6FFFFFF"/>
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Grid.Row="3" Margin="0,9,0,0" Spacing="4">
+            <ui:KaraokeTextBlock Name="KaraokeLine" KaraokeText="{Binding LyricText}"
+                                 Words="{Binding LyricWords}" PositionSeconds="{Binding KaraokePosition}"
+                                 HighlightFraction="{Binding LineHighlightFraction}" IsPlaying="{Binding IsPlaying}"
+                                 HighlightBrush="#FFFFFFFF" BaseBrush="#5CFFFFFF"
+                                 FontSize="15" FontWeight="SemiBold" TextAlignment="Center"
+                                 MaxLines="1" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding NextLyricText}" FontSize="11" Foreground="#59FFFFFF"
+                       TextAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </Grid>
+
+        <!-- 推送展开 -->
+        <Grid Name="ExpandedPush" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="14,11,14,12">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding PushIcon}" FontSize="22" Margin="0,1,10,0" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="{Binding PushTitle}" FontSize="14.5" FontWeight="Bold" Foreground="#F5FFFFFF"
+                         TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding PushSubtitle}" FontSize="11.5" Foreground="#99FFFFFF"
+                         IsVisible="{Binding PushSubtitleVisible}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <Button Grid.Column="2" Content="✕" Command="{Binding DismissPushCommand}" Width="26" Height="26"
+                    Padding="0" FontSize="12" Background="Transparent" Foreground="#80FFFFFF"
+                    VerticalAlignment="Top" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+          </Grid>
+
+          <TextBlock Grid.Row="1" Text="{Binding PushBody}" FontSize="12.5" Foreground="#CCFFFFFF"
+                     TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding PushBodyVisible}" Margin="0,8,0,0"/>
+
+          <Image Grid.Row="2" Source="{Binding PushImage}" MaxHeight="96" Stretch="Uniform"
+                 HorizontalAlignment="Center" IsVisible="{Binding PushImageVisible}" Margin="0,8,0,0"/>
+
+          <ProgressBar Grid.Row="3" Minimum="0" Maximum="1" Value="{Binding PushProgress}"
+                       Foreground="{Binding TypedAccentBrush}" IsVisible="{Binding PushProgressVisible}"
+                       Height="6" Margin="0,10,0,0"/>
+
+          <ItemsControl Grid.Row="4" ItemsSource="{Binding PushButtons}" IsVisible="{Binding PushButtonsVisible}"
+                        Margin="0,10,0,0" HorizontalAlignment="Left">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Content="{Binding Label}" Command="{Binding Command}" CommandParameter="{Binding}"
+                        FontSize="12" Padding="12,5" CornerRadius="11"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Grid Grid.Row="5" ColumnDefinitions="*,Auto" IsVisible="{Binding PushInputVisible}" Margin="0,10,0,0">
+            <TextBox Text="{Binding PushInputValue, Mode=TwoWay}" PlaceholderText="{Binding PushInputPlaceholder}"
+                     FontSize="12.5" MinHeight="30" VerticalContentAlignment="Center"/>
+            <Button Grid.Column="1" Content="{Binding PushSubmitLabel}" Command="{Binding SubmitPushInputCommand}"
+                    FontSize="12" Padding="12,5" CornerRadius="11" Margin="8,0,0,0"/>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

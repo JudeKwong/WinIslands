@@ -41,6 +41,11 @@ public static class Localization
         ["PluginMgr_Import"] = "导入插件",
         ["PluginMgr_NewPlugin"] = "新建插件",
         ["PluginMgr_NewCreated"] = "插件已创建，正在重新扫描",
+        ["PluginMgr_Unverified"] = "未校验",
+        ["PluginMgr_Trust"] = "校验并信任",
+        ["PluginMgr_Trusted"] = "插件已校验并信任，正在启动",
+        ["PluginMgr_TrustFailed"] = "校验失败：入口文件不存在或无法写入清单",
+        ["PluginMgr_ImportConfirm"] = "即将导入插件：{0}\n\n申请权限：{1}\n\n导入后插件不会立即运行，需要你在插件管理器中点击“校验并信任”。是否继续？",
         ["Tray_Logs"] = "查看日志",
         ["Paused"] = "已暂停",
         ["NoMedia"] = "暂未检测到播放中的媒体",
@@ -132,7 +137,7 @@ public static class Localization
         ["Cider_Port"] = "端口（0 = 自动检测，默认 10767）",
         ["Cider_Token"] = "API Token（可留空）",
         ["Cider_HowTo"] = "在 Cider 中开启：设置 → 连接性 → 允许外部控制（Manage External Application Access），生成 Token 后填入。",
-        ["About_Text"] = "WinIslands — Windows 灵动岛\n灵感来自 macOS Dynamic Island。\n基于 .NET 8 + WPF，仅使用系统媒体会话与本地 API。",
+        ["About_Text"] = "WinIslands — Windows 灵动岛\n灵感来自 macOS Dynamic Island。\n基于 .NET 10 + WPF，仅使用系统媒体会话与本地 API。",
         ["Save"] = "保存",
         ["Cancel"] = "取消",
         ["Export"] = "导出配置",
@@ -392,6 +397,14 @@ public static class Localization
         ["Schedule_Add"] = "添加",
         ["Schedule_TimeHint"] = "格式：HH:mm 或日期时间",
         ["Update_Found"] = "发现新版本，请在通知中查看下载入口",
+        ["Update_DownloadInstall"] = "下载并安装",
+        ["Update_AvailableVersion"] = "发现新版本 {0}",
+        ["Update_AvailableMessage"] = "发现新版本 {0}。下载完成后会校验 SHA256，随后自动重启并完成更新。",
+        ["Update_ConfirmInstall"] = "将下载并安装 {0}，程序会重启一次。是否继续？",
+        ["Update_Downloading"] = "正在下载更新…",
+        ["Update_DownloadingPercent"] = "正在下载更新… {0}%",
+        ["Update_Verified"] = "校验通过，正在准备重启…",
+        ["Update_LaunchFailed"] = "无法启动更新程序，请稍后重试或前往发布页手动下载。",
 
         ["Prod_ClipboardMax"] = "保留条数",
         ["Prod_ClipboardNote"] = "点击灵动岛上的剪贴板组件可把该条复制回剪贴板；所有内容仅保存在本机。",
@@ -663,7 +676,7 @@ public static class Localization
         ["Cider_Port"] = "Port (0 = auto-detect, default 10767)",
         ["Cider_Token"] = "API token (optional)",
         ["Cider_HowTo"] = "In Cider: Settings → Connectivity → Manage External Application Access, generate a token and paste it here.",
-        ["About_Text"] = "WinIslands — Dynamic Island for Windows\nInspired by macOS Dynamic Island.\nBuilt with .NET 8 + WPF using the system media session and local APIs only.",
+        ["About_Text"] = "WinIslands — Dynamic Island for Windows\nInspired by macOS Dynamic Island.\nBuilt with .NET 10 + WPF using the system media session and local APIs only.",
         ["Save"] = "Save",
         ["Cancel"] = "Cancel",
         ["Export"] = "Export config",
@@ -936,6 +949,14 @@ public static class Localization
         ["Schedule_Add"] = "Add",
         ["Schedule_TimeHint"] = "Format: HH:mm or datetime",
         ["Update_Found"] = "New version found; see the download entry in the notification",
+        ["Update_DownloadInstall"] = "Download and install",
+        ["Update_AvailableVersion"] = "New version available: {0}",
+        ["Update_AvailableMessage"] = "Version {0} is available. The download will be verified with SHA256, then the app restarts to finish the update.",
+        ["Update_ConfirmInstall"] = "Download and install {0}? The app will restart once.",
+        ["Update_Downloading"] = "Downloading update…",
+        ["Update_DownloadingPercent"] = "Downloading update… {0}%",
+        ["Update_Verified"] = "Verified. Preparing to restart…",
+        ["Update_LaunchFailed"] = "Could not start the update helper. Try again later or download manually from the release page.",
 
         ["Prod_ClipboardMax"] = "Max entries",
         ["Prod_ClipboardNote"] = "Click the clipboard widget on the island to copy an entry back. Everything stays on this machine.",
@@ -1062,6 +1083,11 @@ public static class Localization
         ["PluginMgr_Import"] = "Import plugin",
         ["PluginMgr_NewPlugin"] = "New plugin",
         ["PluginMgr_NewCreated"] = "Plugin created, rescanning",
+        ["PluginMgr_Unverified"] = "Unverified",
+        ["PluginMgr_Trust"] = "Verify & Trust",
+        ["PluginMgr_Trusted"] = "Plugin verified and trusted; starting",
+        ["PluginMgr_TrustFailed"] = "Verification failed: entry missing or manifest not writable",
+        ["PluginMgr_ImportConfirm"] = "Import plugin: {0}\n\nRequested permissions: {1}\n\nThe plugin will not run until you click \"Verify & Trust\" in the Plugin Manager. Continue?",
         ["Tray_Logs"] = "Logs",
         ["Tray_Dnd"] = "Do Not Disturb",
         ["Tray_CheckUpdate"] = "Check for updates",
@@ -1096,7 +1122,3 @@ public static class Localization
         return table.TryGetValue(key, out var v) ? v : key;
     }
 }
-
-
-
-

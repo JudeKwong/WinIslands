@@ -1,0 +1,33 @@
+---
+name: Bug report
+about: Report a reproducible problem with WinIslands
+title: '[Bug] '
+labels: ['bug']
+assignees: []
+---
+
+## 问题描述
+
+请清楚描述发生了什么。
+
+## 复现步骤
+
+1.
+2.
+3.
+
+## 期望结果
+
+## 实际结果
+
+## 环境
+
+- WinIslands 版本：
+- Windows 版本（`winver`）：
+- 系统架构：x64 / ARM64
+- 显示器数量、缩放比例：
+- 播放器（如涉及媒体/歌词）：
+
+## 日志与截图
+
+请附加诊断信息（设置 → 诊断信息）或截图。请勿上传令牌、个人配置或隐私数据。

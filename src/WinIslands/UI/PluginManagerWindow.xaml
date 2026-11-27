@@ -9,6 +9,7 @@
         FontFamily="Segoe UI Variable Text, Segoe UI">
     <Window.Resources>
         <conv:EmptyStringToVisibilityConverter x:Key="NotEmptyToVis"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
@@ -90,6 +91,9 @@
                                     <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,16,0"/>
                                     <TextBlock Text="{Binding PermissionSummary}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,16,0"/>
+                                    <TextBlock Text="{Binding SecurityWarning}" FontSize="10" Foreground="#FF8A65" TextWrapping="Wrap"
+                                               Margin="0,6,16,0"
+                                               Visibility="{Binding SecurityWarning, Converter={StaticResource NotEmptyToVis}}"/>
                                     <TextBlock Text="{Binding ManifestPath}" FontSize="10" TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,16,0"
                                                ToolTip="{Binding ManifestPath}"/>
@@ -107,6 +111,9 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                    <Button Content="校验并信任" Style="{StaticResource CardButton}" Tag="{Binding}"
+                                            Click="Trust_Click" ToolTip="计算入口文件 SHA-256 并允许插件运行" Margin="0,0,6,0"
+                                            Visibility="{Binding IsUnverified, Converter={StaticResource BoolToVis}}"/>
                                     <CheckBox Content="启用" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,4,10,0"/>
                                     <Button Content="参数" Style="{StaticResource CardButton}" Tag="{Binding}"
                                             Click="Config_Click" ToolTip="修改插件的运行参数"

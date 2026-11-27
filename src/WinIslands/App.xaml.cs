@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.Windows;
@@ -10,6 +10,7 @@ using System.Windows.Media.Imaging;
 using WinIslands.Diagnostics;
 using WinIslands.Services;
 using WinIslands.UI;
+using Accessibility = WinIslands.UI.Accessibility;
 
 namespace WinIslands;
 
@@ -84,6 +85,13 @@ public partial class App : Application
         try { SetProcessDpiAwarenessContext(DpiAwarenessPerMonitorV2); }
         catch { /* manifest 已声明，忽略 */ }
 
+        // 3.1.8 可访问性：为所有窗口补齐自动化名称，并跟踪最近窗口用于读屏播报
+        WinIslands.UI.Accessibility.Register();
+        // 高对比度切换时重算主题（岛、迷你播放器会随 ThemeChanged 自动刷新）
+        WinIslands.UI.Accessibility.HighContrastChanged += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try { if (_settings is not null) _theme?.Apply(_settings.Current); } catch { }
+        }));
         // ── Crash safety: log everything, never show a raw crash dialog. ──
         // 3.1.2beta2 稳定性：托管异常链写 minidump + first-chance SEH 诊断日志，
         // 让 0xc0000005/0x80131506 这类此前不可复现的崩溃可被定位（配合 OS 的 WER LocalDumps）。
@@ -343,17 +351,7 @@ AppPaths.EnsureDirectories();
             _settings.Update(s => s.DoNotDisturbManual = on);
             _tray.SetDoNotDisturbChecked(on);
         };
-        _tray.UpdateRequested += async (_, _) =>
-        {
-            try
-            {
-                if (_updater is null) return;
-                var found = await _updater.CheckAsync();
-                MessageBox.Show(found ? Localization.Get("Update_Found") : Localization.Get("Update_None"),
-                    Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex) { AppLogger.Error("Check update failed", ex); }
-        };
+        _tray.UpdateRequested += async (_, _) => await CheckForUpdatesInteractiveAsync();
         _tray.LogsRequested += (_, _) =>
         {
             try { new LogViewerWindow().Show(); }

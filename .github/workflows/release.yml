@@ -1,0 +1,240 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish (for example v3.1.8)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  validate:
+    name: Validate release tag
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+      - id: version
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v(?<v>\d+\.\d+\.\d+)$') {
+            throw "Release tags must use v<major>.<minor>.<patch>: $tag"
+          }
+          $version = $Matches.v
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Release version: $version"
+
+  windows:
+    name: Windows x64 and ARM64
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            src/**/*.csproj
+            tests/**/*.csproj
+      - name: Restore and test
+        shell: pwsh
+        run: |
+          dotnet restore tests/WinIslands.Tests/WinIslands.Tests.csproj
+          dotnet test tests/WinIslands.Tests/WinIslands.Tests.csproj -c Release --no-restore
+      - name: Publish portable binaries
+        shell: pwsh
+        run: |
+          $version = '${{ needs.validate.outputs.version }}'
+          foreach ($rid in @('win-x64', 'win-arm64')) {
+            $out = "artifacts/publish/$rid"
+            dotnet restore src/WinIslands/WinIslands.csproj -r $rid -p:Version=$version
+            if ($LASTEXITCODE -ne 0) { throw "restore failed for $rid" }
+            dotnet publish src/WinIslands/WinIslands.csproj -c Release -r $rid --self-contained true --no-restore `
+              -p:Version=$version -p:AssemblyVersion=$version.0 -p:FileVersion=$version.0 `
+              -p:InformationalVersion=$version -o $out
+            if ($LASTEXITCODE -ne 0) { throw "publish failed for $rid" }
+            Copy-Item "$out/WinIslands.exe" "artifacts/WinIslands-$version-$rid.exe" -Force
+          }
+      - name: Sign Windows binaries when credentials are configured
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64) {
+            Write-Host 'No Windows signing certificate configured; publishing unsigned binaries.'
+            exit 0
+          }
+          ./build/sign-windows.ps1 -Path @(
+            "artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-x64.exe",
+            "artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-arm64.exe"
+          )
+      - name: Build universal installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = '${{ needs.validate.outputs.version }}'
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { throw 'ISCC.exe not found' }
+          New-Item -ItemType Directory -Force artifacts/installer | Out-Null
+          & $iscc "/DMyAppVersion=$version" "/DSourceDir=$PWD/artifacts/publish" "/DOutputDir=$PWD/artifacts/installer" build/installer.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+          Move-Item "artifacts/installer/WinIslands-Setup-$version.exe" "artifacts/WinIslands-Setup-$version.exe" -Force
+      - name: Sign installer when credentials are configured
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if ($env:WINDOWS_CERTIFICATE_BASE64) {
+            ./build/sign-windows.ps1 -Path "artifacts/WinIslands-Setup-${{ needs.validate.outputs.version }}.exe"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-assets
+          path: artifacts/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS Intel and Apple Silicon
+    needs: validate
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            macos/src/**/*.csproj
+            macos/tests/**/*.csproj
+      - name: Restore and test
+        run: |
+          dotnet restore macos/WinIslands.sln
+          dotnet test macos/tests/WinIslands.Core.Tests/WinIslands.Core.Tests.csproj -c Release --no-restore
+      - name: Publish macOS binaries
+        run: |
+          version='${{ needs.validate.outputs.version }}'
+          dotnet publish macos/src/WinIslands.Mac/WinIslands.Mac.csproj -c Release -r osx-arm64 --self-contained true -p:Version=$version -o macos/build/publish/osx-arm64
+          dotnet publish macos/src/WinIslands.Mac/WinIslands.Mac.csproj -c Release -r osx-x64 --self-contained true -p:Version=$version -o macos/build/publish/osx-x64
+      - name: Package, sign, notarize and staple
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          python3 macos/tools/package_mac.py --version '${{ needs.validate.outputs.version }}' --output-dir "$GITHUB_WORKSPACE/artifacts/mac"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-assets
+          path: artifacts/mac/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [validate, windows, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Extract release notes from CHANGELOG
+        shell: bash
+        run: |
+          version='${{ needs.validate.outputs.version }}'
+          awk -v v="$version" '
+            $0 ~ ("^## WinIslands " v "（") { capture = 1 }
+            capture && $0 ~ "^## WinIslands " && $0 !~ ("^## WinIslands " v) { exit }
+            capture { print }
+          ' CHANGELOG.md > artifacts/release-body.md
+          test -s artifacts/release-body.md || { echo "::error::Empty release notes"; exit 1; }
+          head -n 6 artifacts/release-body.md
+
+      - name: Generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          cd artifacts
+          find . -maxdepth 1 -type f \( -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: WinIslands ${{ needs.validate.outputs.version }}
+          body_path: artifacts/release-body.md
+          generate_release_notes: false
+          files: |
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-x64.exe
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-arm64.exe
+            artifacts/WinIslands-Setup-${{ needs.validate.outputs.version }}.exe
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-x64.zip
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.zip
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-x64.dmg
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.dmg
+            artifacts/SHA256SUMS.txt
+          fail_on_unmatched_files: true
+      - name: Verify uploaded assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag='${{ env.RELEASE_TAG }}'
+          cat > expected <<EOF
+          WinIslands-${{ needs.validate.outputs.version }}-win-x64.exe
+          WinIslands-${{ needs.validate.outputs.version }}-win-arm64.exe
+          WinIslands-Setup-${{ needs.validate.outputs.version }}.exe
+          WinIslands-${{ needs.validate.outputs.version }}-osx-x64.zip
+          WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.zip
+          WinIslands-${{ needs.validate.outputs.version }}-osx-x64.dmg
+          WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.dmg
+          SHA256SUMS.txt
+          EOF
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.assets[].name' | sort)"
+          echo "$actual"
+          missing=0
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            if ! grep -qxF "$name" <<< "$actual"; then
+              echo "::error::Missing release asset: $name"
+              missing=1
+            fi
+          done <<< "$expected"
+          exit $missing

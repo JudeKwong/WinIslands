@@ -1,8 +1,8 @@
-using WinIslands.UI;
+﻿using WinIslands.UI;
 
 namespace WinIslands.Tests;
 
-/// <summary>xiaotang-daozai 页面切页弹簧：验证 46px 滑入、连点打断与帧率一致性。</summary>
+/// <summary>页面切页弹簧：验证 46px 滑入、连点打断与帧率一致性。</summary>
 public sealed class DaozaiPageSpringTests
 {
     private static void Advance(DaozaiPageSpring spring, double dt, double seconds)

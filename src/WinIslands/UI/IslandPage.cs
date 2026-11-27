@@ -1,10 +1,10 @@
-using System.Windows.Media;
+﻿using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 
 namespace WinIslands.UI;
 
-/// <summary>展开后的一个功能页面（岛仔「页面管理」同款：顺序、显隐、强调色）。</summary>
+/// <summary>展开后的一个功能页面（页面管理：顺序、显隐、强调色）。</summary>
 public sealed class IslandPage : ObservableObject
 {
     private bool _isActive;

@@ -6,7 +6,7 @@ WinIslands 应用本体为 **MIT License**（见 [LICENSE](LICENSE)）。
 
 | 组件 | 用途 | 许可证 |
 | --- | --- | --- |
-| .NET 8 Runtime / SDK（Microsoft.NETCore.App, Microsoft.WindowsDesktop.App） | 运行时、WPF、WinForms | MIT |
+| .NET 10 Runtime / SDK（Microsoft.NETCore.App, Microsoft.WindowsDesktop.App） | 运行时、WPF、WinForms | MIT |
 | Windows SDK 投影 `Microsoft.Windows.SDK.NET.Ref`（CsWinRT） | `Windows.Media.Control`（SMTC）等 WinRT API 互操作 | MIT |
 | WPF（WindowsBase, PresentationFramework, PresentationCore） | 界面框架 | MIT |
 | Windows Forms（System.Windows.Forms, System.Drawing） | 托盘图标 NotifyIcon、文件夹对话框 | MIT |

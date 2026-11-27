@@ -1,4 +1,4 @@
-<Window x:Class="WinIslands.UI.IslandWindow"
+﻿<Window x:Class="WinIslands.UI.IslandWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:WinIslands.UI.Converters"
@@ -343,7 +343,7 @@
                         <ItemsControl.Resources>
                             <DataTemplate x:Key="TimeItem">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <!-- 岛仔同款：细描边圆环 + 粗体时间 -->
+                                    <!-- 展开顶栏：细描边圆环 + 粗体时间 -->
                                     <Border Width="18" Height="18" CornerRadius="9" Margin="0,0,6,0" VerticalAlignment="Center"
                                             BorderBrush="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#7955B8}"
                                             BorderThickness="1.5"
@@ -879,7 +879,7 @@
                         </TransformGroup>
                     </ScrollViewer.RenderTransform>
                     <StackPanel>
-                    <!-- 岛仔顶栏：日期/时钟 + 设置齿轮（不显示 WINISLANDS 标题） -->
+                    <!-- 展开顶栏：日期/时钟 + 设置齿轮（不显示 WINISLANDS 标题） -->
                     <Grid x:Name="DaozaiHeader" Height="20" Margin="0,0,0,2"
                           Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                         <Grid.ColumnDefinitions>
@@ -1056,7 +1056,7 @@
                             </TextBlock.RenderTransform>
                         </TextBlock>
                     </Grid>
-                    <!-- xiaotang-daozai page transition: all pages overlay in one cell. -->
+                    <!-- 页面切换过渡：所有页面叠放在同一单元格。 -->
                     <Grid x:Name="DaozaiPageHost" Width="399" Height="126" ClipToBounds="True">
                     <StackPanel x:Name="MusicPagePanel" Width="399" Height="126"
                                 Visibility="Collapsed">
@@ -1331,7 +1331,7 @@
                     </StackPanel>
                     </Grid>
 
-                    <!-- 岛仔页码豆：真实页面导航 -->
+                    <!-- 展开态页码豆：真实页面导航 -->
                     <ItemsControl x:Name="PageDots" ItemsSource="{Binding Pages}" HorizontalAlignment="Center" Margin="0,1,0,0"
                                   Visibility="{Binding IsDaozai, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                         <ItemsControl.ItemsPanel>
@@ -1339,7 +1339,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Tag="{Binding}" Click="PageDot_Click" Cursor="Hand" Background="Transparent"
+                                <Button Tag="{Binding}" Click="PageDot_Click" Cursor="Hand" Focusable="False" IsTabStop="False" Background="Transparent"
                                         BorderThickness="0" Padding="0" Height="10">
                                     <Border x:Name="Dot" Width="4" Height="4" CornerRadius="2"
                                             Background="{Binding DataContext.DaozaiDotBrush, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue=#5C5C60}"/>
@@ -1354,12 +1354,12 @@
                     </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
-                <Button Style="{StaticResource IconButton}" Command="{Binding PrevPageCommand}" Focusable="False"
+                <Button Style="{StaticResource IconButton}" Command="{Binding PrevPageCommand}" AutomationProperties.Name="上一页"
                         HorizontalAlignment="Left" VerticalAlignment="Center" Width="28" Height="28" Opacity="0.8"
                         Visibility="{Binding PageNavVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
-                <Button Style="{StaticResource IconButton}" Command="{Binding NextPageCommand}" Focusable="False"
+                <Button Style="{StaticResource IconButton}" Command="{Binding NextPageCommand}" AutomationProperties.Name="下一页"
                         HorizontalAlignment="Right" VerticalAlignment="Center" Width="28" Height="28" Opacity="0.8"
                         Visibility="{Binding PageNavVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
@@ -1367,7 +1367,7 @@
                 </Grid>
             </Grid>
         </Border>
-        <!-- xiaotang-daozai reference copy toast: 2.4s, 160ms fade-in, 300ms fade-out. -->
+        <!-- 复制成功轻提示：显示 2.4s，160ms 淡入、300ms 淡出 -->
         <Border x:Name="CopyToast" Height="22" MaxWidth="310" Padding="13,0"
                 CornerRadius="11" Background="#2C2C30"
                 HorizontalAlignment="Center" VerticalAlignment="Top"

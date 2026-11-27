@@ -1,7 +1,7 @@
-namespace WinIslands.UI;
+﻿namespace WinIslands.UI;
 
 /// <summary>
-/// xiaotang-daozai 页面过渡使用的二阶阻尼弹簧：
+/// 页面过渡使用的二阶阻尼弹簧：
 /// x'' = -k(x - target) - c·x'，半隐式欧拉 + 最多 1/480 秒子步。
 /// </summary>
 public sealed class DaozaiPageSpring

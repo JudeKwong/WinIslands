@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -374,7 +374,7 @@ public partial class IslandWindow
     /// iOS 液态形变圆角（2.0.7）：紧凑胶囊 = 高度/2（完整药丸），展开卡片 = 用户设置半径（封顶）。
     /// 纯函数，便于单元测试。
     /// </summary>
-    /// <summary>岛仔皮肤：胶囊/展开都用参考项目的圆角规则（圆角=min(高/2,33)）。</summary>
+    /// <summary>经典布局皮肤：胶囊/展开都用参考项目的圆角规则（圆角=min(高/2,33)）。</summary>
     private double ComputeRuntimeRadius(double height)
     {
         if (!_theme.IsDaozai) return ComputeCardRuntimeRadius(height, _settings.Current.CornerRadius);

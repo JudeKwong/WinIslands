@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -49,7 +49,7 @@ public sealed class MessengerUnread
 
 /// <summary>
 /// 监听 Windows ShellHook 的 HSHELL_FLASH，识别微信/QQ 任务栏闪烁。
-/// 参考岛仔的 wechat.rs：只根据任务栏提醒判断有无新消息，不读取联系人/聊天正文。
+/// 参考经典布局的 wechat.rs：只根据任务栏提醒判断有无新消息，不读取联系人/聊天正文。
 /// 全程 try/catch，注册失败只记日志，不影响主流程。
 /// </summary>
 public sealed class MessengerUnreadMonitor : IDisposable

@@ -6,6 +6,7 @@ using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using Brushes = System.Windows.Media.Brushes;
 using WinIslands.Services;
+using ThemeMode = WinIslands.Services.ThemeMode;
 
 namespace WinIslands.UI;
 
@@ -35,7 +36,7 @@ public sealed class ThemeService
     public Color TintColor { get; private set; } = Color.FromRgb(0x1E, 0x1E, 0x2E);
     public double Opacity { get; private set; } = 0.92;
 
-    // ── 岛仔（Daozai）皮肤专用色板：取自参考项目 theme.rs 的逐像素取色 ──
+    // ── 经典黑皮肤专用色板：按设计稿逐像素取色 ──
     public bool IsDaozai { get; private set; }
     public Brush DaozaiSurfaceBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x18));
     public Brush DaozaiButtonBrush { get; private set; } = new SolidColorBrush(Color.FromRgb(0x28, 0x28, 0x2B));
@@ -138,7 +139,7 @@ public sealed class ThemeService
         {
             ThemeMode.Light => false,
             ThemeMode.Dark => true,
-            // 岛仔默认是纯黑刘海/胶囊，Auto 时固定深色；用户显式选浅色才切浅色
+            // 经典布局默认是纯黑刘海/胶囊，Auto 时固定深色；用户显式选浅色才切浅色
             _ => IsDaozai ? true : (OverrideDark ?? ThemeHelper.IsSystemDark()),
         };
         IsDark = dark;
@@ -180,7 +181,7 @@ public sealed class ThemeService
         {
             if (IsDaozai)
             {
-                // 岛仔经典黑：纯黑岛体 + 白/灰双层级文字 + 深灰按钮
+                // 经典黑：纯黑岛体 + 白/灰双层级文字 + 深灰按钮
                 TextPrimary = new SolidColorBrush(Colors.White);
                 TextSecondary = new SolidColorBrush(Color.FromRgb(0x8E, 0x8E, 0x99));
                 // 灵动岛紧凑态与展开态都保持纯黑平面，无额外描边或玻璃高光。
@@ -204,7 +205,7 @@ public sealed class ThemeService
         {
             if (IsDaozai)
             {
-                // 岛仔浅色：接近 iOS 浅灰卡片 + 深色文字
+                // 浅色：接近 iOS 浅灰卡片 + 深色文字
                 TextPrimary = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1E));
                 TextSecondary = new SolidColorBrush(Color.FromRgb(0x6C, 0x6C, 0x70));
                 CardBorder = new SolidColorBrush(Color.FromRgb(0xE5, 0xE5, 0xEA));
@@ -233,6 +234,19 @@ public sealed class ThemeService
         // 灵动岛本体（紧凑/展开）统一保持纯黑胶囊；毛玻璃只用于设置页与菜单。
         var compactAlpha = IsDaozai ? (byte)Math.Round(255 * Opacity) : (byte)Math.Round(224 * Opacity);
         CardBackground = new SolidColorBrush(Color.FromArgb(compactAlpha, TintColor.R, TintColor.G, TintColor.B));
+
+        // 3.1.8 高对比度：使用系统窗口色 + 系统文字色，保证低视力 / 读屏用户
+        // 在高对比度主题下也能看清岛内文字与边框（不做半透明、不取桌面颜色）。
+        if (Accessibility.IsHighContrast)
+        {
+            CardBackground = new SolidColorBrush(SystemColors.WindowColor);
+            CardBorder = new SolidColorBrush(SystemColors.WindowTextColor);
+            TextPrimary = new SolidColorBrush(SystemColors.WindowTextColor);
+            TextSecondary = new SolidColorBrush(SystemColors.GrayTextColor);
+            ButtonHoverBrush = new SolidColorBrush(SystemColors.HighlightColor);
+            SliderTrackBrush = new SolidColorBrush(SystemColors.ControlDarkColor);
+            SliderThumbBrush = new SolidColorBrush(SystemColors.WindowTextColor);
+        }
 
         FreezeAll();
         ThemeChanged?.Invoke(this, EventArgs.Empty);

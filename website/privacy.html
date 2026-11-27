@@ -1,0 +1,140 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WinIslands 隐私政策 · Privacy Policy</title>
+<meta name="description" content="WinIslands 隐私政策：本地优先、默认不收集。说明本软件如何处理您的信息，包含数据存储位置、可选联网功能、系统权限与联系方式。" />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2" />
+<link rel="stylesheet" href="css/style.css" />
+<link rel="canonical" href="https://winislands.judekwong.com/privacy.html" />
+<meta name="theme-color" content="#05070d" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="WinIslands" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:title" content="WinIslands 隐私政策 · Privacy Policy" />
+<meta property="og:description" content="WinIslands 隐私政策：本地优先、默认不收集。说明本软件如何处理您的信息。" />
+<meta property="og:url" content="https://winislands.judekwong.com/privacy.html" />
+<style>
+  .privacy { max-width: 880px; margin: 0 auto; padding: 72px 24px 96px; }
+  .privacy-card { background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 44px 48px; }
+  .privacy h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 750; letter-spacing: -.5px; margin: 0 0 8px; }
+  .privacy .meta { color: var(--text-faint); font-size: .9rem; margin-bottom: 8px; }
+  .privacy h2 { font-size: 1.25rem; margin: 34px 0 12px; color: var(--text); }
+  .privacy p { color: var(--text-dim); line-height: 1.85; margin: 10px 0; }
+  .privacy ul { color: var(--text-dim); line-height: 1.85; padding-left: 22px; margin: 10px 0; }
+  .privacy li { margin: 6px 0; }
+  .privacy code { font-family: var(--mono); font-size: .88em; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; word-break: break-all; }
+  .privacy a { color: var(--cyan); }
+  .privacy .foot-note { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: .85rem; }
+  @media (max-width: 640px) { .privacy { padding: 40px 16px 64px; } .privacy-card { padding: 28px 22px; } }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-pill" aria-hidden="true"><i></i><i></i></span>
+      <span class="brand-text">WinIslands</span>
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html#features">功能</a>
+      <a href="index.html#download">下载</a>
+      <a href="index.html#api">上岛 API</a>
+      <a href="privacy.html">隐私政策</a>
+      <a href="agreement.html">用户协议</a>
+      <a href="https://github.com/JudeKwong/WinIslands/releases" target="_blank" rel="noopener">更新日志</a>
+      <a class="nav-gh" href="https://github.com/JudeKwong/WinIslands" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main class="privacy">
+  <div class="privacy-card">
+    <h1>WinIslands 隐私政策</h1>
+    <p class="meta">最后更新日期：2026 年 9 月 13 日 · 生效日期：2026 年 9 月 13 日</p>
+    <p>本隐私政策说明 WinIslands（"本软件"、"我们"）如何处理您的信息。我们贯彻"本地优先、默认不收集"的原则：除您主动开启的功能外，本软件完全离线运行，不收集、不存储、不上传您的任何个人数据。</p>
+
+    <h2>1. 我们收集的信息</h2>
+    <p>本软件本身不收集、不保存、不传输任何个人信息。软件没有账号体系、没有遥测（telemetry）、没有统计上报、没有广告 SDK、没有崩溃上报服务。</p>
+
+    <h2>2. 数据存储位置（全部在本机）</h2>
+    <p>软件产生的全部配置与运行数据仅保存在您的电脑本地，例如：</p>
+    <ul>
+      <li>配置文件：<code>%APPDATA%\WinIslands</code></li>
+      <li>剪贴板历史：仅保存在本机本地数据库/文件中，不会同步到任何服务器</li>
+      <li>主题、组件布局、歌词偏移、日程提醒、待办、快捷启动器等设置：仅保存在本机</li>
+    </ul>
+    <p>卸载本软件后，上述本地数据不会自动清除；如果您希望彻底删除，请手动删除 <code>%APPDATA%\WinIslands</code> 目录。</p>
+
+    <h2>3. 您主动开启的联网功能（可选）</h2>
+    <p>以下功能默认关闭，仅在您明确开启并使用时，才会向对应服务发送必要请求，且仅传输完成该功能所必需的最少信息：</p>
+    <ul>
+      <li><strong>在线歌词</strong>：当您选择"在线歌词"作为歌词来源时，软件会向您选择的歌词服务发送当前播放歌曲的歌曲名/歌手等信息以获取歌词。支持的第三方服务包括：AMLL TTML 歌词数据库（api.amll.dev）、QQ 音乐歌词接口（c.y.qq.com）、网易云音乐歌词接口（music.163.com）。这些服务由其各自运营方维护，请以各服务的隐私政策为准。</li>
+      <li><strong>天气组件</strong>：当您在灵动岛添加天气组件并允许联网时，软件会向 Open-Meteo（open-meteo.com）及其地理编码服务发送城市名和大致经纬度以获取天气数据。</li>
+      <li><strong>版本更新检查</strong>：软件启动时会向 GitHub API（api.github.com）查询最新版本号，仅传输版本查询请求，不发送您的个人信息。您可以在设置中关闭自动检查更新。</li>
+      <li><strong>媒体歌词本地接口（Cider）</strong>：如需与 Apple Music 的 Cider 客户端联动，软件仅与本机 127.0.0.1 的 Cider 本地 API 通信，不会将数据发送到公网。</li>
+    </ul>
+    <p>除上述功能外，本软件不会在未经您同意的情况下发起任何网络请求。</p>
+
+    <h2>4. 本机服务与端口</h2>
+    <p>"上岛 API"监听本机 127.0.0.1 上的随机端口，仅接受本机程序调用，默认不对外网开放。通过该接口推送的内容仅显示在您的灵动岛上，不会上传到任何服务器。该服务默认关闭，需您在设置中手动开启。</p>
+
+    <h2>5. Windows 系统权限/能力说明</h2>
+    <p>本软件为正常运行需要使用以下系统能力，所有能力均在您本机使用：</p>
+    <ul>
+      <li>Windows 通知（读取/展示通知）</li>
+      <li>全局媒体会话 SMTC（控制媒体播放、读取专辑封面等）</li>
+      <li>系统电量、网络、CPU/GPU/内存/磁盘等本机状态信息</li>
+      <li>剪贴板读取（仅用于剪贴板历史功能，数据不出本机）</li>
+      <li>全局快捷键、文件拖放等常规桌面功能</li>
+    </ul>
+    <p>本软件不申请摄像头、麦克风、通讯录、位置（除非使用天气组件时您主动输入城市）等敏感权限。</p>
+
+    <h2>6. 第三方链接</h2>
+    <p>软件内及官网可能包含指向第三方网站/服务的链接（如歌词、天气、GitHub 等），点击后将离开本软件，由相应第三方自行处理您的信息，我们对其行为不承担责任。</p>
+
+    <h2>7. 儿童隐私</h2>
+    <p>本软件面向一般用户，不针对 13 岁以下儿童设计，也不会故意收集儿童的个人信息。</p>
+
+    <h2>8. 政策变更</h2>
+    <p>我们可能不时更新本隐私政策。重大变更将在官网（https://WinIslands.JudeKwong.com）发布新版政策并以更新日期标明。继续使用本软件即表示您接受更新后的政策。</p>
+
+    <h2>9. 联系我们</h2>
+    <p>如果您对本隐私政策或数据隐私有任何疑问，请通过以下方式联系我们：</p>
+    <ul>
+      <li>官网：<a href="https://WinIslands.JudeKwong.com" target="_blank" rel="noopener">https://WinIslands.JudeKwong.com</a></li>
+      <li>GitHub Issues：<a href="https://github.com/JudeKwong/WinIslands/issues" target="_blank" rel="noopener">https://github.com/JudeKwong/WinIslands/issues</a></li>
+      <li>邮箱：JudeKwong@outlook.com（请以官网最新公布的联系方式为准）</li>
+    </ul>
+
+    <p class="foot-note">© 2026 WinIslands · MIT License</p>
+  </div>
+</main>
+
+<!-- ===== 页脚 ===== -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-pill" aria-hidden="true"><i></i><i></i></span>
+      <span>WinIslands</span>
+    </div>
+    <p class="footer-tag">Windows 上也值得有一点 iPhone 的小心思。</p>
+    <div class="footer-links">
+      <a href="https://github.com/JudeKwong/WinIslands" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/JudeKwong/WinIslands/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/JudeKwong/WinIslands/blob/main/README.md" target="_blank" rel="noopener">README</a>
+      <a href="https://github.com/JudeKwong/WinIslands/blob/main/docs/IslandAPI.md" target="_blank" rel="noopener">上岛 API</a>
+      <a href="privacy.html">隐私政策</a>
+      <a href="agreement.html">用户协议</a>
+    </div>
+    <p class="footer-copy">© <span id="year"></span> WinIslands · MIT License · 本页由 WinIslands 团队维护</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

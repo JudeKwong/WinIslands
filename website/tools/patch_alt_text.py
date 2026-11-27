@@ -1,0 +1,10 @@
+﻿from pathlib import Path
+p = Path(r'E:\MyFiles\Program\WinIsland\website\index.html')
+s = p.read_text(encoding='utf-8')
+s = s.replace('WinIslands 高级主视觉：深色玻璃质感灵动岛。', 'WinIslands 文案主视觉：灵动来到 Windows。')
+s = s.replace('WinIslands 歌词功能宣传图：每一个字，都跟着光。', 'WinIslands 文案主视觉：歌词跟着光走。')
+s = s.replace('WinIslands 组件视觉：多枚玻璃胶囊的组合。', 'WinIslands 文案主视觉：一切皆可上岛。')
+s = s.replace('WinIslands 上岛 API 宣传图：让任何软件，都能上岛。', 'WinIslands 文案主视觉：开发者也能上岛。')
+s = s.replace('WinIslands 社交分享图。', 'WinIslands 文案主视觉：Windows 上的灵动岛。')
+p.write_text(s, encoding='utf-8')
+print('updated alt text')

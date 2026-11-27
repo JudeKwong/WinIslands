@@ -19,6 +19,7 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using MessageBox = System.Windows.MessageBox;
 using WinIslands.Diagnostics;
 using WinIslands.Services;
+using ThemeMode = WinIslands.Services.ThemeMode;
 using Color = System.Windows.Media.Color;
 using Brush = System.Windows.Media.Brush;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
@@ -73,8 +74,8 @@ public partial class SettingsWindow : Window
             {
                 var dark = settings.Theme switch
                 {
-                    ThemeMode.Light => false,
-                    ThemeMode.Dark => true,
+                    WinIslands.Services.ThemeMode.Light => false,
+                    WinIslands.Services.ThemeMode.Dark => true,
                     _ => ThemeHelper.IsSystemDark(),
                 };
                 var hwnd = new WindowInteropHelper(this).Handle;
@@ -290,8 +291,8 @@ public partial class SettingsWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         var dark = _service.Current.Theme switch
         {
-            ThemeMode.Light => false,
-            ThemeMode.Dark => true,
+            WinIslands.Services.ThemeMode.Light => false,
+            WinIslands.Services.ThemeMode.Dark => true,
             _ => ThemeHelper.IsSystemDark(),
         };
         // 注意：不用 ApplyAcrylic —— 在 AllowsTransparency 窗口上会渲染出黑色大块
@@ -856,11 +857,25 @@ public partial class SettingsWindow : Window
     {
         if (_updater is null) return;
         BtnCheckUpdate.IsEnabled = false;
+        TxtUpdateStatus.Text = string.Empty;
         try
         {
             var found = await _updater.CheckAsync();
-            MessageBox.Show(this, found ? Localization.Get("Update_Found") : Localization.Get("Update_None"),
-                Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
+            if (found && _updater.LastAvailable is { } info)
+            {
+                BtnDownloadUpdate.Content = Localization.Get("Update_DownloadInstall");
+                BtnDownloadUpdate.Visibility = Visibility.Visible;
+                TxtUpdateStatus.Text = string.Format(Localization.Get("Update_AvailableVersion"), info.Version);
+                MessageBox.Show(this,
+                    string.Format(Localization.Get("Update_AvailableMessage"), info.Version),
+                    Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                BtnDownloadUpdate.Visibility = Visibility.Collapsed;
+                MessageBox.Show(this, Localization.Get("Update_None"),
+                    Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
         catch (Exception ex)
         {
@@ -873,6 +888,55 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void DownloadUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updater?.LastAvailable is not { } info) return;
+        if (MessageBox.Show(this, string.Format(Localization.Get("Update_ConfirmInstall"), info.Version),
+                Localization.Get("Update_Title"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
+        BtnCheckUpdate.IsEnabled = false;
+        BtnDownloadUpdate.IsEnabled = false;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateProgress.Value = 0;
+        TxtUpdateStatus.Text = Localization.Get("Update_Downloading");
+        try
+        {
+            var progress = new Progress<double>(p =>
+            {
+                UpdateProgress.Value = p;
+                TxtUpdateStatus.Text = string.Format(Localization.Get("Update_DownloadingPercent"),
+                    (int)Math.Round(p * 100));
+            });
+            var file = await _updater.DownloadAsync(info, progress);
+            UpdateProgress.Value = 1;
+            TxtUpdateStatus.Text = Localization.Get("Update_Verified");
+
+            var needsElevation = !UpdaterService.CurrentInstallIsWritable();
+            if (!_updater.LaunchInstaller(file, needsElevation))
+            {
+                MessageBox.Show(this, Localization.Get("Update_LaunchFailed"),
+                    Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 给更新脚本一点时间挂起等待，再正常退出；脚本会在进程退出后替换并重启。
+            await Task.Delay(400);
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Download update failed", ex);
+            MessageBox.Show(this, ex.Message, Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            TxtUpdateStatus.Text = ex.Message;
+            UpdateProgress.Visibility = Visibility.Collapsed;
+        }
+        finally
+        {
+            BtnCheckUpdate.IsEnabled = true;
+            BtnDownloadUpdate.IsEnabled = true;
+        }
+    }
     // ── 组件顺序：横向拖拽排序（鼠标捕获 + 落点计算，不经过 OLE DragDrop）──
     // 说明：WPF 的 DragDrop.DoDragDrop 会进入 OLE 嵌套消息循环；在部分注入环境/CLR 组合下
     // 会触发 0xc0000005/0x80131506（本次崩溃即发生在 Chip_PreviewMouseMove → DoDragDrop）。

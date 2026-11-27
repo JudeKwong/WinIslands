@@ -1,0 +1,144 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WinIslands.Mac.Views.SettingsWindow"
+        Title="WinIslands 设置" Width="760" Height="500" MinWidth="660" MinHeight="420"
+        WindowStartupLocation="CenterScreen">
+  <Grid ColumnDefinitions="200,*">
+    <!-- 左：导航 -->
+    <Border Grid.Column="0" Background="#14000000">
+      <StackPanel Margin="10,14">
+        <TextBlock Text="设置" FontSize="19" FontWeight="Bold" Margin="10,0,0,12"/>
+        <ListBox Name="NavList" SelectedIndex="0" Background="Transparent" BorderThickness="0">
+          <ListBoxItem Content="通用"/>
+          <ListBoxItem Content="媒体"/>
+          <ListBoxItem Content="上岛 API"/>
+          <ListBoxItem Content="歌词"/>
+          <ListBoxItem Content="关于"/>
+        </ListBox>
+      </StackPanel>
+    </Border>
+
+    <!-- 右：内容 -->
+    <ScrollViewer Grid.Column="1" Padding="22,18">
+      <Grid>
+        <!-- 通用 -->
+        <StackPanel Name="PageGeneral" Spacing="12">
+          <TextBlock Text="通用" FontSize="17" FontWeight="Bold"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="语言" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="LangBox" Width="240">
+              <ComboBoxItem Content="简体中文"/>
+              <ComboBoxItem Content="English"/>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="主题" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="ThemeBox" Width="240">
+              <ComboBoxItem Content="跟随系统"/>
+              <ComboBoxItem Content="浅色"/>
+              <ComboBoxItem Content="深色"/>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="灵动岛位置" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="PosBox" Width="240">
+              <ComboBoxItem Content="顶部居中"/>
+              <ComboBoxItem Content="右上角"/>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="展开动画" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="AnimBox" Width="240">
+              <ComboBoxItem Content="弹簧（默认）"/>
+              <ComboBoxItem Content="柔和弹簧"/>
+              <ComboBoxItem Content="弹性回弹"/>
+              <ComboBoxItem Content="淡入淡出"/>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Name="AnimDurLabel" Text="动画时长：700ms" FontSize="12" Opacity="0.7"/>
+            <Slider Name="AnimDurSlider" Minimum="300" Maximum="1400" Width="240"/>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="双击灵动岛动作" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="DoubleClickBox" Width="240">
+              <ComboBoxItem Content="播放 / 暂停"/>
+              <ComboBoxItem Content="打开设置"/>
+              <ComboBoxItem Content="无"/>
+            </ComboBox>
+          </StackPanel>
+          <CheckBox Name="HideNoMediaBox" Content="无媒体时自动隐藏灵动岛"/>
+          <CheckBox Name="AlwaysVisibleBox" Content="常驻显示（无视媒体状态）"/>
+        </StackPanel>
+
+        <!-- 媒体 -->
+        <StackPanel Name="PageMedia" Spacing="12" IsVisible="False">
+          <TextBlock Text="媒体" FontSize="17" FontWeight="Bold"/>
+          <TextBlock Text="macOS 通过 AppleScript 读取 Music.app / Spotify；Cider 通过本地 HTTP API（零配置自动探测端口与 Token）。"
+                     TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+          <CheckBox Name="CiderEnabledBox" Content="启用 Cider 集成"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="Cider API 端口（0 = 自动探测）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="CiderPortBox" Width="140"/>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="Cider Token（留空自动从 Cider 配置读取）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="CiderTokenBox" Width="360" PasswordChar="•"/>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- 上岛 API -->
+        <StackPanel Name="PageApi" Spacing="12" IsVisible="False">
+          <TextBlock Text="上岛 API" FontSize="17" FontWeight="Bold"/>
+          <TextBlock Text="本机回环 HTTP 接口（默认仅 127.0.0.1），第三方程序可推送灵动岛卡片。修改端口/开关后立即生效；Token 用于防误连。"
+                     TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+          <CheckBox Name="ApiEnabledBox" Content="启用上岛 API"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="监听端口" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="ApiPortBox" Width="140"/>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="访问 Token（可选）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="ApiTokenBox" Width="360"/>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="默认显示时长（秒）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="ApiDurationBox" Width="140"/>
+          </StackPanel>
+          <TextBlock Name="ApiStatusText" FontSize="12" Opacity="0.7"/>
+        </StackPanel>
+
+        <!-- 歌词 -->
+        <StackPanel Name="PageLyrics" Spacing="12" IsVisible="False">
+          <TextBlock Text="歌词" FontSize="17" FontWeight="Bold"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="首选来源（未命中自动回退）" FontSize="12" Opacity="0.7"/>
+            <ComboBox Name="LyricsSourceBox" Width="240">
+              <ComboBoxItem Content="自动"/>
+              <ComboBoxItem Content="本地 .lrc 文件"/>
+              <ComboBoxItem Content="AMLL TTML（逐字）"/>
+              <ComboBoxItem Content="Cider"/>
+              <ComboBoxItem Content="在线（网易云）"/>
+            </ComboBox>
+          </StackPanel>
+          <CheckBox Name="AmllBox" Content="启用 AMLL TTML 逐字歌词（api.amll.dev，非官方）"/>
+          <CheckBox Name="OnlineLyricsBox" Content="启用在线歌词（网易云非官方接口）"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="本地歌词文件夹（.lrc；留空使用默认位置）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="LyricsFolderBox" Width="360"/>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- 关于 -->
+        <StackPanel Name="PageAbout" Spacing="10" IsVisible="False">
+          <TextBlock Text="关于" FontSize="17" FontWeight="Bold"/>
+          <TextBlock Name="AboutVersion" FontSize="13"/>
+          <TextBlock Text="WinIslands —— 一款现代化、多功能的灵动岛组件（macOS 版）" FontSize="13"/>
+          <TextBlock Text="媒体控制 · 逐字歌词 · 上岛 API · 菜单栏常驻" FontSize="12" Opacity="0.7"/>
+          <TextBlock Text="开源许可：MIT License" FontSize="12" Opacity="0.7"/>
+          <TextBlock Text="本地优先：无遥测、无默认联网；在线歌词/天气等均为可选开关。" FontSize="12" Opacity="0.7" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</Window>

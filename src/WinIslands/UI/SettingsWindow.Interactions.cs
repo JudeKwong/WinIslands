@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -93,7 +93,7 @@ public partial class SettingsWindow : Window
         Mouse.OverrideCursor = null;
     }
 
-    // ── 页面管理：竖向拖拽排序（岛仔 page_order 交互）──
+    // ── 页面管理：竖向拖拽排序（经典布局 page_order 交互）──
     private Point _pageDragStart;
     private PageManageRow? _pageDragRow;
     private FrameworkElement? _pageDragHandle;
@@ -155,7 +155,7 @@ public partial class SettingsWindow : Window
         Mouse.OverrideCursor = null;
     }
 
-    // ── 组件管理：竖向拖拽排序（岛仔页面管理同款）──
+    // ── 组件管理：竖向拖拽排序（经典布局页面管理同款）──
     private Point _componentDragStart;
     private ComponentRow? _componentDragRow;
     private FrameworkElement? _componentDragHandle;

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -340,7 +340,7 @@ public partial class IslandWindow
     {
         try
         {
-            if (_theme.IsDaozai) { ClearCoverTint(); SubscribeTintRendering(false); return; } // 岛仔经典黑不随封面取色
+            if (_theme.IsDaozai) { ClearCoverTint(); SubscribeTintRendering(false); return; } // 经典布局经典黑不随封面取色
             var src = _vm.Artwork;
             if (src is null || !_settings.Current.CoverTintBackground || !IsVisible || !_vm.IsExpanded)
             {

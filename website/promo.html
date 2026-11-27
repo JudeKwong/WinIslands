@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8">
+<style>
+body{margin:0;background:#000;overflow:hidden;}
+canvas{display:block;}
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+var COVER_URL = "data:image/jpeg;base64,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";
+var LYRICS = [{"chars":"孩童只望望欢乐","start":0,"duration":3},{"chars":"大人只知道期望","start":3,"duration":3},{"chars":"为何都不大汉得","start":6,"duration":3},{"chars":"努力体康对方","start":9,"duration":3},{"chars":"陪我讲出我们最后何以生玐","start":12,"duration":3},{"chars":"明月光 为何又照地堂","start":15,"duration":3},{"chars":"Shall we talk Shall we talk","start":18,"duration":3}];
+var SONG = {"title":"Shall We Talk","artist":"Eason Chan","album":"Shall We Talk"};
+var TOTAL_DUR = 35000;
+
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+var coverImg = new Image();
+coverImg.src = COVER_URL;
+
+// ===== Springs (non-linear, silky) =====
+// Slow soft spring for island expand/collapse
+function silkySpring(t) {
+  var damping=18, stiffness=120, mass=1.5;
+  var omega0 = Math.sqrt(stiffness / mass);
+  var zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  var omegaD = omega0 * Math.sqrt(1 - zeta * zeta);
+  var ts = t * 0.6;
+  return 1 - Math.exp(-zeta * omega0 * ts) * (Math.cos(omegaD * ts) + (zeta * omega0 / omegaD) * Math.sin(omegaD * ts));
+}
+// Soft spring for notifications
+function notifSpring(t) {
+  var damping=20, stiffness=80, mass=1.5;
+  var omega0 = Math.sqrt(stiffness / mass);
+  var zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  var omegaD = omega0 * Math.sqrt(1 - zeta * zeta);
+  var ts = t * 0.5;
+  return 1 - Math.exp(-zeta * omega0 * ts) * (Math.cos(omegaD * ts) + (zeta * omega0 / omegaD) * Math.sin(omegaD * ts));
+}
+// Original app springs for reference
+function springEase(t) {
+  var damping=12, stiffness=200, mass=1;
+  var omega0 = Math.sqrt(stiffness / mass);
+  var zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  var omegaD = omega0 * Math.sqrt(1 - zeta * zeta);
+  var ts = t * 1.7;
+  return 1 - Math.exp(-zeta * omega0 * ts) * (Math.cos(omegaD * ts) + (zeta * omega0 / omegaD) * Math.sin(omegaD * ts));
+}
+function smoothStep(t) { return t * t * (3 - 2 * t); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2; }
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ===== Song position mapping =====
+function getSongPos(t) {
+  if (t < 2500) return 0;
+  if (t < 11500) return (t - 2500) / 1000;
+  if (t < 15500) return 9;
+  if (t < 24500) return 9 + (t - 15500) / 1000;
+  if (t < 27500) return 18;
+  // 27.5-32.5s: continue with last lyric line
+  return 18 + (t - 27500) / 1000;
+}
+
+// ===== Get current lyric line and karaoke progress =====
+function getLyricProgress(songPos) {
+  var lineIdx = -1, progress = 0;
+  for (var i = LYRICS.length - 1; i >= 0; i--) {
+    if (songPos >= LYRICS[i].start) {
+      lineIdx = i;
+      progress = clamp((songPos - LYRICS[i].start) / LYRICS[i].duration, 0, 1);
+      break;
+    }
+  }
+  return { lineIdx: lineIdx, progress: progress };
+}
+
+// ===== Per-character karaoke (smoothstep, first char starts unlit) =====
+function drawKaraokeLine(text, x, y, fontSize, progress, opacity) {
+  ctx.font = "600 " + fontSize + "px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  var litCount = Math.floor(progress * text.length);
+  var blendFrac = progress * text.length - litCount;
+  var blendSmooth = smoothStep(blendFrac);
+  var charX = x;
+  for (var i = 0; i < text.length; i++) {
+    var cw = ctx.measureText(text[i]).width;
+    var r, g, b;
+    if (i < litCount) { r=255; g=255; b=255; }
+    else if (i === litCount && blendFrac > 0.001) {
+      var val = Math.round(lerp(90, 255, blendSmooth));
+      r=val; g=val; b=val;
+    } else { r=90; g=90; b=90; }
+    ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + opacity + ")";
+    ctx.fillText(text[i], charX, y);
+    charX += cw;
+  }
+  return charX - x;
+}
+// ===== Waveform =====
+function drawWaveform(x, y, w, h, t, opacity) {
+  var barCount = 5, barW = 2.5, gap = 2.5;
+  for (var i = 0; i < barCount; i++) {
+    var phase = t * 0.005 + i * 0.6;
+    var amp = Math.abs(Math.sin(phase)) * 0.4 + Math.abs(Math.sin(phase * 1.7 + 0.5)) * 0.35 + 0.15;
+    amp = clamp(amp, 0.12, 1);
+    var barH = amp * h;
+    var bx = x + i * (barW + gap);
+    var by = y + (h - barH) / 2;
+    ctx.fillStyle = "rgba(108, 92, 231, " + opacity + ")";
+    roundRect(bx, by, barW, barH, 1.25);
+    ctx.fill();
+  }
+}
+
+// ===== Icons (smaller) =====
+function drawPlayIcon(x, y, s, o) {
+  ctx.fillStyle = "rgba(255,255,255," + o + ")";
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.2, y);
+  ctx.lineTo(x + s * 0.85, y + s * 0.5);
+  ctx.lineTo(x + s * 0.2, y + s);
+  ctx.closePath();
+  ctx.fill();
+}
+function drawPauseIcon(x, y, s, o) {
+  ctx.fillStyle = "rgba(255,255,255," + o + ")";
+  var bw = s * 0.28;
+  roundRect(x, y, bw, s, 2); ctx.fill();
+  roundRect(x + bw + s * 0.16, y, bw, s, 2); ctx.fill();
+}
+function drawNextIcon(x, y, s, o) {
+  ctx.fillStyle = "rgba(255,255,255," + o + ")";
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + s * 0.6, y + s * 0.5);
+  ctx.lineTo(x, y + s);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(x + s * 0.6, y, 2, s);
+}
+
+// ===== Draw island =====
+function drawIsland(expandProgress, songPos, t, isPlaying, islandAlpha) {
+  if (islandAlpha === undefined) islandAlpha = 1;
+  var compactW = 520, expandedW = 640;
+  var compactH = 54, expandedH = 390;
+  var w = lerp(compactW, expandedW, expandProgress);
+  var h = lerp(compactH, expandedH, expandProgress);
+  var cx = 960;
+  var x = cx - w / 2;
+  var y = 46;
+  var r = lerp(27, 27, expandProgress);
+  var padX = lerp(14, 24, expandProgress);
+  var coverSize = lerp(34, 70, expandProgress);
+  var coverR = lerp(10, 18, expandProgress);
+
+  ctx.globalAlpha = islandAlpha;
+
+  // Background with shadow
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 8;
+  roundRect(x, y, w, h, r);
+  ctx.fillStyle = "#101018";
+  ctx.fill();
+  ctx.restore();
+
+  // Border
+  roundRect(x, y, w, h, r);
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Clip
+  ctx.save();
+  roundRect(x, y, w, h, r);
+  ctx.clip();
+
+  // Album cover
+  var coverX = x + padX;
+  var compactCoverY = y + (compactH - 34) / 2;
+  var expandedCoverY = y + 22;
+  var coverY = lerp(compactCoverY, expandedCoverY, expandProgress);
+  if (coverImg.complete && coverImg.naturalWidth > 0) {
+    ctx.save();
+    roundRect(coverX, coverY, coverSize, coverSize, coverR);
+    ctx.clip();
+    ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize);
+    ctx.restore();
+  } else {
+    roundRect(coverX, coverY, coverSize, coverSize, coverR);
+    ctx.fillStyle = "#2a2a3a";
+    ctx.fill();
+  }
+
+  var lp = getLyricProgress(songPos);
+  var compactOpacity = clamp(1 - smoothStep(expandProgress), 0, 1);
+  var expandedOpacity = clamp(smoothStep(expandProgress), 0, 1);
+
+  // === Compact content ===
+  if (compactOpacity > 0.01) {
+    ctx.globalAlpha = compactOpacity * islandAlpha;
+    var titleX = coverX + coverSize + 14;
+    var titleY = y + h / 2;
+
+    if (lp.lineIdx >= 0) {
+      drawKaraokeLine(LYRICS[lp.lineIdx].chars, titleX, titleY, 14, lp.progress, 1);
+    } else {
+      ctx.font = "600 13px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.fillText(SONG.title, titleX, titleY);
+    }
+
+    // Controls: play/pause + next only (smaller, Apple-style)
+    var rightX = x + w - padX;
+    var cs = 11;
+    var ctrlY = y + (h - cs) / 2;
+    drawNextIcon(rightX - cs, ctrlY, cs, 0.55);
+    rightX -= cs + 7;
+    if (isPlaying) { drawPauseIcon(rightX - cs, ctrlY, cs, 0.85); }
+    else { drawPlayIcon(rightX - cs, ctrlY, cs, 0.85); }
+    ctx.globalAlpha = islandAlpha;
+  }
+
+  // === Expanded content ===
+  if (expandedOpacity > 0.01) {
+    ctx.globalAlpha = expandedOpacity * islandAlpha;
+
+    var eTitleX = coverX + coverSize + 16;
+    ctx.font = "700 16px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.fillText(SONG.title, eTitleX, y + 16);
+    ctx.font = "400 13px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(SONG.artist, eTitleX, y + 38);
+
+    // Lyrics list
+    var lyricsTop = y + coverSize + 34;
+    var lyricsBottom = y + h - 60;
+    var lyricsH = lyricsBottom - lyricsTop;
+    var lineH = 30;
+    var activeY = lyricsTop + lyricsH / 2;
+
+    for (var i = Math.max(0, lp.lineIdx - 3); i <= Math.min(LYRICS.length - 1, lp.lineIdx + 3); i++) {
+      var lineY = activeY + (i - lp.lineIdx) * lineH;
+      if (lineY < lyricsTop - 5 || lineY > lyricsBottom + 5) continue;
+      if (i === lp.lineIdx) {
+        drawKaraokeLine(LYRICS[i].chars, x + padX, lineY, 15, lp.progress, 1);
+      } else {
+        var dist = Math.abs(i - lp.lineIdx);
+        var lo = 0.4 / dist;
+        ctx.font = "500 14px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+        ctx.fillStyle = "rgba(255,255,255," + lo + ")";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        ctx.fillText(LYRICS[i].chars, x + padX, lineY);
+      }
+    }
+
+    // Progress bar
+    var pbY = y + h - 38;
+    var pbX = x + padX;
+    var pbW = w - padX * 2;
+    var pv = clamp(songPos / 21, 0, 1);
+    roundRect(pbX, pbY, pbW, 4, 2);
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fill();
+    roundRect(pbX, pbY, pbW * pv, 4, 2);
+    ctx.fillStyle = "#6C5CE7";
+    ctx.fill();
+
+    ctx.font = "500 11px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.textBaseline = "top";
+    var mm = Math.floor(songPos / 60);
+    var ss = Math.floor(songPos % 60);
+    ctx.textAlign = "left";
+    ctx.fillText(mm + ":" + (ss < 10 ? "0" + ss : ss), pbX, pbY + 8);
+    ctx.textAlign = "right";
+    ctx.fillText("0:21", pbX + pbW, pbY + 8);
+
+    // Controls: play/pause + next (smaller, centered, Apple-style)
+    var cs2 = 15;
+    var totalCtrlW = cs2 * 2 + 10;
+    var ctrlStart = cx - totalCtrlW / 2;
+    var ctrlY2 = pbY + 20;
+    if (isPlaying) { drawPauseIcon(ctrlStart, ctrlY2, cs2, 0.85); }
+    else { drawPlayIcon(ctrlStart, ctrlY2, cs2, 0.85); }
+    drawNextIcon(ctrlStart + cs2 + 10, ctrlY2, cs2, 0.55);
+
+    ctx.globalAlpha = islandAlpha;
+  }
+
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// ===== Notification (top-right, spring slide-in) =====
+function drawNotification(text, subtext, progress, t) {
+  var w = 320, h = 68, margin = 24;
+  var targetX = 1920 - w - margin;
+  var startX = 1920 + 30;
+  var x = lerp(startX, targetX, progress);
+  var y = 46;
+  var r = 18;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowBlur = 25;
+  ctx.shadowOffsetY = 6;
+  roundRect(x, y, w, h, r);
+  ctx.fillStyle = "#1c1c28";
+  ctx.fill();
+  ctx.restore();
+  roundRect(x, y, w, h, r);
+  ctx.strokeStyle = "rgba(255,255,255,0.1)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  var iconX = x + 14, iconY = y + 14, iconSize = 40;
+  roundRect(iconX, iconY, iconSize, iconSize, 12);
+  ctx.fillStyle = "#6C5CE7";
+  ctx.fill();
+
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = "600 14px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.fillText(text, iconX + iconSize + 10, y + 24);
+  ctx.font = "400 12px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.fillText(subtext, iconX + iconSize + 10, y + 46);
+}
+
+// ===== Title screen =====
+function drawTitleScreen(p) {
+  var opacity;
+  if (p < 0.15) { opacity = easeOutCubic(p / 0.15); }
+  else if (p > 0.8) { opacity = 1 - easeInOutCubic((p - 0.8) / 0.2); }
+  else { opacity = 1; }
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "800 72px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.98)";
+  ctx.fillText("WinIslands", 960, 500);
+  ctx.font = "400 22px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.fillText("Windows 11 / 10 灵动岛组件", 960, 560);
+  ctx.restore();
+}
+
+// ===== CTA =====
+function drawCTA(p) {
+  var opacity = easeOutCubic(clamp(p / 0.15, 0, 1));
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "800 64px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.98)";
+  ctx.fillText("WinIslands", 960, 480);
+  ctx.font = "400 20px -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif";
+  ctx.fillStyle = "rgba(108, 92, 231, 0.9)";
+  ctx.fillText("WinIslands.JudeKwong.com", 960, 540);
+  ctx.restore();
+}
+// ===== Main render =====
+function renderAt(elapsed) {
+  ctx.fillStyle = "#06060a";
+  ctx.fillRect(0, 0, 1920, 1080);
+  var grad = ctx.createRadialGradient(960, 300, 0, 960, 300, 900);
+  grad.addColorStop(0, "rgba(108, 92, 231, 0.06)");
+  grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1920, 1080);
+
+  var t = elapsed;
+
+  // Island fade in/out alpha
+  var islandAlpha = 1;
+  if (t > 2500 && t < 3500) {
+    islandAlpha = easeOutCubic((t - 2500) / 1000);
+  } else if (t > 32000 && t < 32500) {
+    islandAlpha = 1 - easeOutCubic((t - 32000) / 500);
+  } else if (t >= 32500) {
+    islandAlpha = 0;
+  }
+
+  if (t < 2500) {
+    drawTitleScreen(t / 2500);
+  } else if (t < 11500) {
+    var sp = getSongPos(t);
+    drawIsland(0, sp, t, true, islandAlpha);
+  } else if (t < 15500) {
+    // Spring expand (silky, non-linear)
+    var et = (t - 11500) / 1000;
+    var ep = silkySpring(et);
+    drawIsland(ep, 9, t, true, islandAlpha);
+  } else if (t < 24500) {
+    var sp = getSongPos(t);
+    drawIsland(1, sp, t, true, islandAlpha);
+  } else if (t < 27500) {
+    // Spring collapse (silky, non-linear)
+    var ct = (t - 24500) / 1000;
+    var ep = 1 - silkySpring(ct);
+    drawIsland(ep, 18, t, false, islandAlpha);
+  } else if (t < 32500) {
+    // Compact island + more lyrics (no notifications)
+    var sp = getSongPos(t);
+    drawIsland(0, sp, t, false, islandAlpha);
+  } else {
+    drawCTA((t - 32500) / 2500);
+  }
+}
+
+// ===== Setup =====
+window.__promoReady = false;
+coverImg.onload = function() { window.__promoReady = true; };
+if (coverImg.complete) window.__promoReady = true;
+
+var startTime = null;
+function previewLoop(now) {
+  if (startTime === null) startTime = now;
+  var elapsed = now - startTime;
+  if (elapsed < 35000) {
+    renderAt(elapsed);
+    requestAnimationFrame(previewLoop);
+  } else {
+    startTime = now;
+    requestAnimationFrame(previewLoop);
+  }
+}
+if (!window.__captureMode) {
+  requestAnimationFrame(previewLoop);
+}
+</script>
+</body>
+</html>

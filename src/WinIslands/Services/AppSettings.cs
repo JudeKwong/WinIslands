@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using System.IO;
@@ -213,7 +213,7 @@ public sealed class AppSettings
     // ── 组件（灵动岛显示内容，Idle/Playing 可分别勾选）──
     public ComponentFlags Components { get; set; } = new();
     public string WidgetOrder { get; set; } = "Time,Weather"; // 组件摆放顺序（逗号分隔的键）
-    // 展开后的功能页面：顺序 + 隐藏项（岛仔「页面管理」同款）
+    // 展开后的功能页面：顺序 + 隐藏项（页面管理）
     public List<string> PageOrder { get; set; } = new() { "Music" };
     public List<string> HiddenPages { get; set; } = new();
     /// <summary>插件组件显隐（键=插件 ID；缺省时默认显示）。</summary>
@@ -349,7 +349,7 @@ public sealed class AppSettings
     }
 
     /// <summary>
-    /// 配置版本 2 → 3：切换到岛仔（Daozai）视觉皮肤。
+    /// 配置版本 2 → 3：切换到经典黑视觉皮肤。
     /// 只迁移仍是旧默认值的项，用户手动改过的外观参数保持不变。
     /// </summary>
     internal static bool ApplyDaozaiDefaultsV3(AppSettings s)
@@ -568,7 +568,7 @@ public sealed class SettingsService
                     loaded.NormalizeNonFiniteValues();
                     // 3.1.2beta3：默认组件精简 + 轻量化（仅 v1 旧配置迁移一次）
                     var migrated = AppSettings.ApplyLeanDefaultsV2(loaded);
-                    // 3.1.2beta5：切换到岛仔（Daozai）视觉皮肤（仅旧默认外观迁移一次）
+                    // 3.1.2beta5：切换到经典黑视觉皮肤（仅旧默认外观迁移一次）
                     migrated |= AppSettings.ApplyDaozaiDefaultsV3(loaded);
                     // 3.1.2beta6：默认改为参考项目的纯黑岛体（毛玻璃保留为可选皮肤）
                     migrated |= AppSettings.ApplyBlackDaozaiV4(loaded);

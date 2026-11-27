@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+
+
+  <PropertyGroup>
+
+    <OutputType>Exe</OutputType>
+
+    <TargetFramework>net10.0</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>WinIslands</AssemblyName>
+
+    <RootNamespace>WinIslands.Mac</RootNamespace>
+
+    <Version>3.1.8</Version>
+
+    <AssemblyVersion>3.1.8.0</AssemblyVersion>
+
+    <InformationalVersion>3.1.8</InformationalVersion>
+
+    <FileVersion>3.1.8.0</FileVersion>
+
+    <Product>WinIslands</Product>
+
+    <Description>A macOS-style Dynamic Island for macOS - media controls, lyrics and more.</Description>
+
+    <!-- Avalonia 12.1.1 的 analyzers/generators 需要 Roslyn 4.14+（本机 SDK 8 为 4.11），加载失败仅产生此警告 -->
+
+    <!-- AVLN3001：窗口构造函数带参（依赖注入），不走 RuntimeXamlLoader，故不需要无参公共构造函数 -->
+
+    <NoWarn>$(NoWarn);CS9057;AVLN3001</NoWarn>
+
+    <!-- 从 WPF 移植：全量使用反射绑定（与 Windows 版一致），不开编译期绑定 -->
+
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+
+  </PropertyGroup>
+
+
+
+  <!-- 发布采用普通文件夹布局（非 single-file）：
+
+       single-file 会把 apphost 重新拼接，交叉构建下签名被剥离且无法用代码签名工具补回；
+
+       文件夹布局里各原生库自带微软签名，仅 apphost 需打包时补 ad-hoc 签名（tools/package_mac.py） -->
+
+  <ItemGroup>
+
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+
+    <PackageReference Include="Semi.Avalonia" Version="12.1.0.1" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <AvaloniaResource Include="Assets/**" Exclude="Assets/*.py" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <ProjectReference Include="..\WinIslands.Core\WinIslands.Core.csproj" />
+
+  </ItemGroup>
+
+
+
+</Project>
+

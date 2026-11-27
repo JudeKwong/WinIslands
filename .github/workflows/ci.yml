@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  windows:
+    name: Windows build and tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            src/**/*.csproj
+            tests/**/*.csproj
+      - name: Restore
+        run: dotnet restore tests/WinIslands.Tests/WinIslands.Tests.csproj
+      - name: Build
+        run: dotnet build tests/WinIslands.Tests/WinIslands.Tests.csproj -c Release --no-restore
+      - name: Test
+        run: dotnet test tests/WinIslands.Tests/WinIslands.Tests.csproj -c Release --no-build --logger "trx;LogFileName=windows-tests.trx"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results
+          path: tests/WinIslands.Tests/TestResults/*.trx
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS build and core tests
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            macos/src/**/*.csproj
+            macos/tests/**/*.csproj
+      - name: Restore
+        run: dotnet restore macos/WinIslands.sln
+      - name: Build app
+        run: dotnet build macos/src/WinIslands.Mac/WinIslands.Mac.csproj -c Release --no-restore
+      - name: Test core
+        run: dotnet test macos/tests/WinIslands.Core.Tests/WinIslands.Core.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=macos-tests.trx"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-results
+          path: macos/tests/WinIslands.Core.Tests/TestResults/*.trx
+          if-no-files-found: ignore

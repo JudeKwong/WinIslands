@@ -9,22 +9,35 @@ using System.Windows.Threading;
 using System.Windows.Media.Imaging;
 using WinIslands.Diagnostics;
 using WinIslands.Services;
+using ThemeMode = WinIslands.Services.ThemeMode;
 using WinIslands.UI;
 
 namespace WinIslands;
 
 public partial class App : Application
 {
-    /// <summary>检查更新；有新版时弹通知（可带下载链接）。</summary>
+    /// <summary>检查更新；有新版时在灵动岛与托盘提示。</summary>
     private async Task CheckForUpdatesAsync(bool showWhenUpToDate)
     {
         try
         {
             if (_updater is null) return;
             var hasNew = await _updater.CheckAsync();
-            if (!hasNew && showWhenUpToDate)
+            if (hasNew && _updater.LastAvailable is { } info)
+            {
+                var title = Localization.Get("Update_Title");
+                var message = string.Format(Localization.Get("Update_AvailableMessage"), info.Version);
+                _ = Dispatcher.BeginInvoke(() =>
+                {
+                    _vm?.ShowEventCard("update:available", title, message, "\uE895", "info", 8);
+                    _tray?.Notify(title, message);
+                });
+            }
+            else if (!hasNew && showWhenUpToDate)
+            {
                 _ = Dispatcher.BeginInvoke(() => _vm?.ShowEventCard("update:none",
                     Localization.Get("Update_Title"), Localization.Get("Update_None"), "\uE72E", "info", 5));
+            }
         }
         catch (Exception ex)
         {
@@ -32,6 +45,67 @@ public partial class App : Application
         }
     }
 
+    /// <summary>托盘/菜单触发的交互式检查：发现新版本时询问是否下载并安装。</summary>
+    private async Task CheckForUpdatesInteractiveAsync()
+    {
+        if (_updater is null) return;
+        try
+        {
+            var found = await _updater.CheckAsync();
+            if (!found || _updater.LastAvailable is not { } info)
+            {
+                MessageBox.Show(Localization.Get("Update_None"), Localization.Get("Update_Title"),
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (MessageBox.Show(string.Format(Localization.Get("Update_ConfirmInstall"), info.Version),
+                    Localization.Get("Update_Title"), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                await DownloadAndInstallUpdateAsync(info);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Check update failed", ex);
+            MessageBox.Show(ex.Message, Localization.Get("Update_Title"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>下载、校验并安装更新；成功后正常退出，由独立脚本替换并重启。</summary>
+    private async Task DownloadAndInstallUpdateAsync(UpdateInfo info)
+    {
+        if (_updater is null) return;
+        var lastBucket = -1;
+        var progress = new Progress<double>(p =>
+        {
+            var pct = (int)Math.Round(p * 100);
+            var bucket = pct / 10;
+            if (bucket == lastBucket) return;
+            lastBucket = bucket;
+            _vm?.ShowEventCard("update:download", Localization.Get("Update_Downloading"),
+                string.Format(Localization.Get("Update_DownloadingPercent"), pct), "\uE896", "info", 30);
+        });
+        try
+        {
+            var file = await _updater.DownloadAsync(info, progress);
+            _vm?.ShowEventCard("update:verified", Localization.Get("Update_Title"),
+                Localization.Get("Update_Verified"), "\uE73E", "success", 6);
+            var needsElevation = !UpdaterService.CurrentInstallIsWritable();
+            if (!_updater.LaunchInstaller(file, needsElevation))
+            {
+                MessageBox.Show(Localization.Get("Update_LaunchFailed"), Localization.Get("Update_Title"),
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            await Task.Delay(400);
+            Shutdown();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Download update failed", ex);
+            MessageBox.Show(ex.Message, Localization.Get("Update_Title"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
     private async Task RunDiagnosticsAsync()
     {
         try
@@ -83,7 +157,7 @@ public partial class App : Application
     private void RefreshScheduledTheme(AppSettings s)
     {
         if (_theme is null) return;
-        var enabled = s.ThemeScheduledEnabled && s.Theme == ThemeMode.Auto;
+        var enabled = s.ThemeScheduledEnabled && s.Theme == WinIslands.Services.ThemeMode.Auto;
         bool? dark = null;
         if (enabled)
         {

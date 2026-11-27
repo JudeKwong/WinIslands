@@ -76,6 +76,18 @@ public sealed class PluginManifest
 
     [JsonIgnore]
     public string PermissionSummary => Permissions.Count == 0 ? "无额外权限" : string.Join(", ", Permissions);
+
+    /// <summary>入口文件是否已通过 SHA-256 校验。未校验的插件只展示、不运行。</summary>
+    [JsonIgnore]
+    public bool IsHashVerified { get; set; }
+
+    /// <summary>未通过 SHA-256 校验时为 true；插件管理器据此显示「校验并信任」按钮。</summary>
+    [JsonIgnore]
+    public bool IsUnverified => !IsHashVerified;
+
+    /// <summary>安全提示（未校验、权限说明等），供插件管理器展示。</summary>
+    [JsonIgnore]
+    public string SecurityWarning { get; set; } = "";
 }
 
 /// <summary>
@@ -170,6 +182,9 @@ public sealed class PluginService : IDisposable
     /// <summary>最小轮询间隔（秒）。防止插件配置过密导致进程风暴，拖垮系统。</summary>
     private const int MinPluginIntervalSeconds = 5;
     private const int AutoDisableFailureThreshold = 5;
+    /// <summary>清单中允许声明的权限；未知权限视为错误，避免“写了但没生效”的假安全感。</summary>
+    private static readonly HashSet<string> KnownPermissions = new(StringComparer.OrdinalIgnoreCase)
+        { "network", "filesystem", "processes" };
     private bool _started;
     private bool _disposed;
 
@@ -212,13 +227,13 @@ public sealed class PluginService : IDisposable
         lock (_gate)
         {
             _plugins.AddRange(discovered);
-            foreach (var manifest in discovered.Where(p => p.Enabled))
+            foreach (var manifest in discovered.Where(p => p.Enabled && p.IsHashVerified))
                 runtimes.Add(new PluginRuntime(manifest));
             _runtimes.AddRange(runtimes);
         }
 
         foreach (var runtime in runtimes) StartRuntime(runtime);
-        AppLogger.Info($"Plugin scan complete: {discovered.Count} manifest(s), {runtimes.Count} enabled");
+        AppLogger.Info($"Plugin scan complete: {discovered.Count} manifest(s), {runtimes.Count} enabled, {discovered.Count(p => !p.IsHashVerified)} unverified");
         PluginsReloaded?.Invoke(this, EventArgs.Empty);
     }
 
@@ -245,6 +260,38 @@ public sealed class PluginService : IDisposable
         }
     }
 
+    /// <summary>
+    /// 计算入口文件的 SHA-256 并写回 plugin.json，把“未校验”插件提升为可信。
+    /// 这是用户明确确认后的动作；未校验插件在此之前不会运行。
+    /// </summary>
+    public bool VerifyAndTrust(string pluginId)
+    {
+        var manifest = Plugins.FirstOrDefault(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (manifest is null || string.IsNullOrWhiteSpace(manifest.ManifestPath)) return false;
+        var entry = ResolveEntryPath(manifest);
+        if (entry is null || !File.Exists(entry)) return false;
+        try
+        {
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(entry)))
+                .ToLowerInvariant();
+            var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest.ManifestPath));
+            if (node is null) return false;
+            node["sha256"] = hash;
+            File.WriteAllText(manifest.ManifestPath,
+                node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            manifest.Sha256 = hash;
+            manifest.IsHashVerified = true;
+            manifest.SecurityWarning = "";
+            Reload();
+            AppLogger.Info($"Plugin trusted after hash verification: {pluginId} ({hash[..12]}…)");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin hash trust failed [{pluginId}]: {ex.Message}");
+            return false;
+        }
+    }
     /// <summary>写入插件参数(config)并立即重新扫描，使环境变量与间隔等生效。</summary>
     public bool SetConfig(string pluginId, IReadOnlyDictionary<string, string> config)
     {
@@ -353,6 +400,18 @@ public sealed class PluginService : IDisposable
                 var entryPath = Path.GetFullPath(Path.Combine(targetDir, manifest.Entry));
                 if (!entryPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(entryPath))
                     return false;
+
+                // 若压缩包声明了 sha256，安装前必须与真实入口文件一致，拒绝被篡改的包。
+                if (!string.IsNullOrWhiteSpace(manifest.Sha256))
+                {
+                    var expected = manifest.Sha256.Replace("-", "").Trim();
+                    var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(entryPath)));
+                    if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+                    {
+                        AppLogger.Warn($"Plugin import rejected: SHA-256 mismatch ({manifest.Id}).");
+                        return false;
+                    }
+                }
             }
 
             createdDir = null; // 安装成功，保留目录
@@ -441,6 +500,18 @@ $component = @{
 @{ components = @($component) } | ConvertTo-Json -Compress -Depth 6
 ";
             File.WriteAllText(Path.Combine(targetDir, "run.ps1"), templatePs1, new System.Text.UTF8Encoding(false));
+
+            // 模板由本程序生成，直接写入口哈希，创建后即可运行，无需用户再手动信任。
+            var entryHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                File.ReadAllBytes(Path.Combine(targetDir, "run.ps1")))).ToLowerInvariant();
+            var manifestPath = Path.Combine(targetDir, "plugin.json");
+            var manifestNode = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifestPath));
+            if (manifestNode is not null)
+            {
+                manifestNode["sha256"] = entryHash;
+                File.WriteAllText(manifestPath,
+                    manifestNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            }
 
             Reload();
             return null;
@@ -540,10 +611,10 @@ $component = @{
             var pluginDirectory = Path.GetDirectoryName(manifestPath)!;
             var manifest = JsonSerializer.Deserialize<PluginManifest>(File.ReadAllText(manifestPath), JsonOptions);
             if (manifest is null) return null;
-            manifest.Id = manifest.Id.Trim();
+            manifest.Id = (manifest.Id ?? "").Trim();
             manifest.Name = string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name.Trim();
-            manifest.Entry = manifest.Entry.Trim();
-            manifest.DirectoryPath = pluginDirectory;
+            manifest.Entry = (manifest.Entry ?? "").Trim();
+            manifest.DirectoryPath = Path.GetFullPath(pluginDirectory);
             manifest.ManifestPath = manifestPath;
             manifest.IntervalSeconds = Math.Clamp(manifest.IntervalSeconds, 0, 86400);
             // 防御：任何 >0 的轮询间隔不得小于 5 秒，避免 PowerShell/WMI 进程风暴
@@ -553,12 +624,28 @@ $component = @{
             manifest.MaxOutputKb = Math.Clamp(manifest.MaxOutputKb, 1, 1024);
 
             if (string.IsNullOrWhiteSpace(manifest.Id) ||
+                manifest.Id is "." or ".." ||
                 !Regex.IsMatch(manifest.Id, "^[A-Za-z0-9._-]{1,80}$") ||
                 string.IsNullOrWhiteSpace(manifest.Entry))
             {
                 AppLogger.Warn($"Plugin manifest invalid: {manifestPath}");
                 return null;
             }
+
+            // 权限白名单：未知权限直接拒绝，避免“声明了但没生效”的假安全感。
+            var permissions = new List<string>();
+            foreach (var raw in manifest.Permissions)
+            {
+                var permission = (raw ?? "").Trim().ToLowerInvariant();
+                if (permission.Length == 0) continue;
+                if (!KnownPermissions.Contains(permission))
+                {
+                    AppLogger.Warn($"Plugin manifest has unknown permission '{permission}': {manifestPath}");
+                    return null;
+                }
+                if (!permissions.Contains(permission)) permissions.Add(permission);
+            }
+            manifest.Permissions = permissions;
 
             var entry = ResolveEntryPath(manifest);
             if (entry is null || !File.Exists(entry) || !IsSupportedEntry(entry))
@@ -567,14 +654,33 @@ $component = @{
                 return null;
             }
 
+            // 工作目录必须位于插件目录内，防止 ../.. 逃逸。
+            if (!string.IsNullOrWhiteSpace(manifest.WorkingDirectory))
+            {
+                var workingDirectory = Path.GetFullPath(Path.Combine(manifest.DirectoryPath, manifest.WorkingDirectory));
+                if (!IsInsideDirectory(manifest.DirectoryPath, workingDirectory))
+                {
+                    AppLogger.Warn($"Plugin working directory escapes plugin folder: {manifestPath}");
+                    return null;
+                }
+                manifest.WorkingDirectory = workingDirectory;
+            }
+
+            manifest.IsHashVerified = false;
             if (!string.IsNullOrWhiteSpace(manifest.Sha256))
             {
+                var expected = manifest.Sha256.Replace("-", "").Trim();
                 var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(entry)));
-                if (!string.Equals(actual, manifest.Sha256.Replace("-", ""), StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
                 {
                     AppLogger.Warn($"Plugin SHA-256 mismatch: {manifestPath}");
                     return null;
                 }
+                manifest.IsHashVerified = true;
+            }
+            else
+            {
+                manifest.SecurityWarning = "未校验：清单缺少 sha256，插件不会被运行。请在插件管理器中点击“校验并信任”。";
             }
 
             return manifest;
@@ -586,6 +692,18 @@ $component = @{
         }
     }
 
+    /// <summary>判断 candidate 是否位于 directory 内（含目录本身），统一处理大小写与分隔符。</summary>
+    internal static bool IsInsideDirectory(string directory, string candidate)
+    {
+        try
+        {
+            var root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var full = Path.GetFullPath(candidate);
+            return full.Equals(root, StringComparison.OrdinalIgnoreCase)
+                || full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
     internal static bool IsSupportedEntry(string path)
         => Path.GetExtension(path).ToLowerInvariant() is ".exe" or ".cmd" or ".bat" or ".ps1" or ".com";
 
@@ -634,6 +752,8 @@ $component = @{
                 AppLogger.Warn($"Plugin failed to start: {manifest.Id}");
                 return;
             }
+            // Job Object：限制内存、退出时清理；未声明 processes 时禁止创建子进程。
+            using var sandbox = PluginSandbox.Attach(process, manifest.Permissions.Contains("processes"));
             AppLogger.Debug($"Plugin process started: {manifest.Id}");
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
@@ -739,7 +859,22 @@ $component = @{
 
     private ProcessStartInfo BuildStartInfo(PluginManifest manifest)
     {
-        var entry = ResolveEntryPath(manifest)!;
+        // 兜底：未通过 SHA-256 校验的插件绝不允许启动（即使调用方漏掉了 IsHashVerified 判断）。
+        if (!manifest.IsHashVerified)
+            throw new InvalidOperationException($"Plugin '{manifest.Id}' is not hash-verified and cannot run.");
+
+        var entry = ResolveEntryPath(manifest)
+                    ?? throw new InvalidOperationException($"Plugin '{manifest.Id}' entry escapes its plugin directory.");
+
+        // 工作目录二次校验：清单加载时校验过一次，启动前再确认，防止运行期被改写。
+        var workingDirectory = manifest.DirectoryPath;
+        if (!string.IsNullOrWhiteSpace(manifest.WorkingDirectory))
+        {
+            workingDirectory = Path.GetFullPath(Path.Combine(manifest.DirectoryPath, manifest.WorkingDirectory));
+            if (!IsInsideDirectory(manifest.DirectoryPath, workingDirectory))
+                throw new InvalidOperationException($"Plugin '{manifest.Id}' working directory escapes its plugin directory.");
+        }
+
         var extension = Path.GetExtension(entry).ToLowerInvariant();
         var startInfo = new ProcessStartInfo
         {
@@ -750,9 +885,7 @@ $component = @{
             StandardOutputEncoding = new System.Text.UTF8Encoding(false),
             StandardErrorEncoding = new System.Text.UTF8Encoding(false),
             WindowStyle = ProcessWindowStyle.Hidden,
-            WorkingDirectory = string.IsNullOrWhiteSpace(manifest.WorkingDirectory)
-                ? manifest.DirectoryPath
-                : Path.GetFullPath(Path.Combine(manifest.DirectoryPath, manifest.WorkingDirectory)),
+            WorkingDirectory = workingDirectory,
         };
 
         if (extension == ".ps1")
@@ -777,6 +910,12 @@ $component = @{
             startInfo.FileName = entry;
         }
 
+
+        // 向插件明确传递其身份、目录、校验状态与已授予权限，便于插件自行降级行为。
+        startInfo.Environment["WINISLANDS_PLUGIN_ID"] = manifest.Id;
+        startInfo.Environment["WINISLANDS_PLUGIN_DIR"] = manifest.DirectoryPath;
+        startInfo.Environment["WINISLANDS_PLUGIN_VERIFIED"] = "1";
+        startInfo.Environment["WINISLANDS_PLUGIN_PERMISSIONS"] = string.Join(",", manifest.Permissions);
 
         foreach (var pair in manifest.Config)
         {

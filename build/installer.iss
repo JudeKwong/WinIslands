@@ -1,0 +1,65 @@
+﻿; WinIslands universal installer template.
+; All version/path values are supplied by build-release.ps1 or the release workflow.
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0"
+#endif
+#ifndef MyBuildNumber
+  #define MyBuildNumber "0"
+#endif
+#ifndef SourceDir
+  #define SourceDir "..\artifacts\publish"
+#endif
+#ifndef OutputDir
+  #define OutputDir "..\artifacts\installer"
+#endif
+
+#define MyAppName "WinIslands"
+#define MyAppPublisher "WinIslands"
+#define MyAppExeName "WinIslands.exe"
+
+[Setup]
+AppId={{D8E63E7C-4B2A-4F5E-9C4A-2F6B0C1D9E3A}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+VersionInfoVersion={#MyAppVersion}.{#MyBuildNumber}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+UninstallDisplayIcon={app}\{#MyAppExeName}
+OutputDir={#OutputDir}
+OutputBaseFilename=WinIslands-Setup-{#MyAppVersion}
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+ArchitecturesAllowed=x64compatible arm64
+ArchitecturesInstallIn64BitMode=x64compatible arm64
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+CloseApplications=no
+RestartApplications=no
+UsePreviousAppDir=yes
+SetupLogging=yes
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "chinesesimplified"; MessagesFile: "{#SourcePath}\languages\ChineseSimplified.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "autostart"; Description: "Start WinIslands automatically with Windows"; GroupDescription: "Startup:"
+
+[Files]
+Source: "{#SourceDir}\win-x64\WinIslands.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsX64OS
+Source: "{#SourceDir}\win-arm64\WinIslands.exe"; DestDir: "{app}"; DestName: "WinIslands.exe"; Flags: ignoreversion; Check: IsARM64
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "WinIslands"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
