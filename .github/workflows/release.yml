@@ -156,7 +156,7 @@ jobs:
           }
           if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report -Raw }
           ./build/check-performance-budget.ps1 -RuntimeReport $report
-          if ($LASTEXITCODE -ne 0) { throw 'Runtime performance budget failed.' }
+          if (-not $?) { throw 'Runtime performance budget failed.' }
           if ($process.ExitCode -ne 0) { throw "Startup benchmark exited with code $($process.ExitCode)." }
       - name: Measure idle CPU and memory
         shell: pwsh
