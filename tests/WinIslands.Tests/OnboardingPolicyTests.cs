@@ -35,6 +35,7 @@ public class OnboardingPolicyTests
     [InlineData("--screenshot-scale=2")]
     [InlineData("--page=music")]
     [InlineData("--demo-at=0.5")]
+    [InlineData("--startup-benchmark=C:\\temp\\startup.json")]
     public void AutomationAndDiagnostics_NeverShows(string arg)
     {
         var settings = new AppSettings();

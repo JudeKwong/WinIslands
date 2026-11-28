@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace WinIslands.Services;
 
 /// <summary>AMLL TTML 歌词源返回结果：LRC 用于行级索引，Ttml 用于逐字卡拉OK。</summary>
-public sealed record AmllLyricsResult(LrcDocument Lrc, TtmlDocument? Ttml)
+public sealed record AmllLyricsResult(LrcDocument Lrc, TtmlDocument? Ttml, string? Raw = null)
 {
     public static AmllLyricsResult Empty { get; } = new(new LrcDocument(), null);
 }
@@ -50,7 +50,7 @@ public sealed class AmllTtmlApiService
                     var ttml = TtmlParser.Parse(ttmlText);
                     // 从 TTML 行重建 LRC 行（同一来源，保证行级索引与逐字时间轴一一对应）
                     var lrc = BuildLrcFromTtml(ttml);
-                    if (!lrc.IsEmpty) return new AmllLyricsResult(lrc, ttml);
+                    if (!lrc.IsEmpty) return new AmllLyricsResult(lrc, ttml, ttmlText);
                 }
             }
 
@@ -59,7 +59,7 @@ public sealed class AmllTtmlApiService
             if (lrclib is not null && !string.IsNullOrWhiteSpace(lrclib.SyncedLyrics))
             {
                 var doc = LrcParser.Parse(lrclib.SyncedLyrics);
-                if (!doc.IsEmpty) return new AmllLyricsResult(doc, null);
+                if (!doc.IsEmpty) return new AmllLyricsResult(doc, null, lrclib.SyncedLyrics);
             }
 
             return AmllLyricsResult.Empty;
@@ -71,6 +71,26 @@ public sealed class AmllTtmlApiService
         }
     }
 
+    /// <summary>Rebuild a cached AMLL payload (TTML XML or plain LRC) without network access.</summary>
+    public static AmllLyricsResult FromRaw(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return AmllLyricsResult.Empty;
+        try
+        {
+            if (raw.TrimStart().StartsWith('<'))
+            {
+                var ttml = TtmlParser.Parse(raw);
+                var lrc = BuildLrcFromTtml(ttml);
+                return lrc.IsEmpty ? AmllLyricsResult.Empty : new AmllLyricsResult(lrc, ttml, raw);
+            }
+            var doc = LrcParser.Parse(raw);
+            return doc.IsEmpty ? AmllLyricsResult.Empty : new AmllLyricsResult(doc, null, raw);
+        }
+        catch
+        {
+            return AmllLyricsResult.Empty;
+        }
+    }
     private async Task<LyricsSearchItem?> SearchFirstAsync(string title, string artist, string album, CancellationToken ct)
     {
         try

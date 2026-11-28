@@ -94,6 +94,7 @@ public partial class SettingsWindow : Window
         TxtMailPass.Password = _vm.Working.MailPassword; // PasswordBox 不支持绑定，回填初值
         InitAudioOutput();
         InitCardStyle();
+        InitUpdateChannel();
 
         // 插件：设置页内展示已加载插件，并连接插件管理器/插件目录/开发指南。
         BtnOpenPluginManager.IsEnabled = _plugins is not null && _openPluginManager is not null;
@@ -648,6 +649,11 @@ public partial class SettingsWindow : Window
         LblNotificationMode.Text = Localization.Get("Notifications_Mode");
         LblNotificationApps.Text = Localization.Get("Notifications_Apps");
         TxtNotificationAppsHint.Text = Localization.Get("Notifications_AppsHint");
+        ChkNotificationTakeover.Content = Localization.Get("Notifications_Takeover");
+        LblNotificationTimeout.Text = Localization.Get("Notifications_Timeout");
+        LblNotificationQueue.Text = Localization.Get("Notifications_Queue");
+        ChkNotificationFold.Content = Localization.Get("Notifications_Fold");
+        ChkNotificationDebounce.Content = Localization.Get("Notifications_Debounce");
         ChkCopyToast.Content = Localization.Get("Clipboard_Toast");
         NavGeneral.Text = Localization.Get("Settings_General");
         NavQuick.Text = Localization.Get("Settings_QuickActions");
@@ -715,6 +721,12 @@ public partial class SettingsWindow : Window
         ChkAlwaysVisible.Content = Localization.Get("General_AlwaysVisible");
         LblDoubleClick.Text = Localization.Get("General_DoubleClick");
         LblMiddleClick.Text = Localization.Get("General_MiddleClick");
+        ChkHoverExpand.Content = Localization.Get("General_HoverExpand");
+        LblHoverExpandDelay.Text = Localization.Get("General_HoverExpandDelay");
+        LblHoverCollapseDelay.Text = Localization.Get("General_HoverCollapseDelay");
+        ChkWheelPage.Content = Localization.Get("General_WheelPage");
+        ChkWheelInvert.Content = Localization.Get("General_WheelInvert");
+        TxtInteractionHint.Text = Localization.Get("General_InteractionHint");
         CbiDcPlayPause.Content = Localization.Get("DoubleClick_PlayPause");
         CbiDcOpenSettings.Content = Localization.Get("DoubleClick_OpenSettings");
         CbiDcNone.Content = Localization.Get("DoubleClick_None");
@@ -849,7 +861,12 @@ public partial class SettingsWindow : Window
         LblMailInterval.Text = Localization.Get("Mail_Interval");
         TxtMailNote.Text = Localization.Get("Mail_Note");
         ChkAutoUpdateCheck.Content = Localization.Get("Update_Enabled");
+        LblUpdateChannel.Text = Localization.Get("Update_Channel");
+        CmbUpdateChannelStable.Content = Localization.Get("Update_ChannelStable");
+        CmbUpdateChannelBeta.Content = Localization.Get("Update_ChannelBeta");
         BtnCheckUpdate.Content = Localization.Get("Update_CheckNow");
+        BtnRollback.Content = Localization.Get("Update_Rollback");
+        BtnRollback.IsEnabled = _updater?.GetRollbackPoint() is not null;
         TxtUpdateNote.Text = Localization.Get("Update_Note");
 
     }
@@ -860,7 +877,7 @@ public partial class SettingsWindow : Window
         TxtUpdateStatus.Text = string.Empty;
         try
         {
-            var found = await _updater.CheckAsync();
+            var found = await _updater.CheckAsync(_vm.Working.UpdateChannel);
             if (found && _updater.LastAvailable is { } info)
             {
                 BtnDownloadUpdate.Content = Localization.Get("Update_DownloadInstall");
@@ -912,6 +929,10 @@ public partial class SettingsWindow : Window
             UpdateProgress.Value = 1;
             TxtUpdateStatus.Text = Localization.Get("Update_Verified");
 
+            // 便携版更新前留一个回滚点；安装包升级由安装器自身管理版本。
+            if (!info.Asset.Name.Contains("-Setup-", StringComparison.OrdinalIgnoreCase))
+                _updater.CreateRollbackPoint();
+
             var needsElevation = !UpdaterService.CurrentInstallIsWritable();
             if (!_updater.LaunchInstaller(file, needsElevation))
             {
@@ -940,6 +961,41 @@ public partial class SettingsWindow : Window
     // ── 组件顺序：横向拖拽排序（鼠标捕获 + 落点计算，不经过 OLE DragDrop）──
     // 说明：WPF 的 DragDrop.DoDragDrop 会进入 OLE 嵌套消息循环；在部分注入环境/CLR 组合下
     // 会触发 0xc0000005/0x80131506（本次崩溃即发生在 Chip_PreviewMouseMove → DoDragDrop）。
+
+    private void InitUpdateChannel()
+    {
+        CmbUpdateChannel.SelectionChanged += (_, _) =>
+        {
+            var channel = CmbUpdateChannel.SelectedIndex == 1 ? "Beta" : "Stable";
+            _vm.Working.UpdateChannel = channel;
+        };
+        CmbUpdateChannel.SelectedIndex = string.Equals(_vm.Working.UpdateChannel, "Beta", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    }
+
+    private void Rollback_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updater?.GetRollbackPoint() is not { } point)
+        {
+            MessageBox.Show(this, Localization.Get("Update_RollbackNone"), Localization.Get("Update_Title"),
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (MessageBox.Show(this, string.Format(Localization.Get("Update_RollbackConfirm"), point.Version),
+                Localization.Get("Update_Title"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
+        var needsElevation = !UpdaterService.CurrentInstallIsWritable();
+        if (!_updater.LaunchRollback(needsElevation))
+        {
+            MessageBox.Show(this, Localization.Get("Update_RollbackFailed"), Localization.Get("Update_Title"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        _updater.ClearRollbackPoint();
+        MessageBox.Show(this, string.Format(Localization.Get("Update_RollbackStarted"), point.Version),
+            Localization.Get("Update_Title"), MessageBoxButton.OK, MessageBoxImage.Information);
+        System.Windows.Application.Current.Shutdown();
+    }
 
     private void MediaUp_Click(object sender, RoutedEventArgs e)
     {
@@ -971,6 +1027,26 @@ public partial class SettingsWindow : Window
             _vm.Working.LyricsFolder = dlg.SelectedPath;
     }
 
+    private async void ClearLyricsCache_Click(object sender, RoutedEventArgs e)
+    {
+        if (_island is null) return;
+        BtnClearLyricsCache.IsEnabled = false;
+        TxtLyricsCacheStatus.Text = "正在清理…";
+        try
+        {
+            await _island.ClearLyricsDiskCacheAsync();
+            TxtLyricsCacheStatus.Text = "已清空，正在重新获取当前歌词";
+        }
+        catch (Exception ex)
+        {
+            TxtLyricsCacheStatus.Text = "清理失败";
+            AppLogger.Warn($"Clear lyrics cache failed: {ex.Message}");
+        }
+        finally
+        {
+            BtnClearLyricsCache.IsEnabled = true;
+        }
+    }
     /// <summary>邮箱密码由 PasswordBox 输入（PasswordBox 不支持绑定），实时写入 Working，随自动保存立即生效。</summary>
     private void MailPass_PasswordChanged(object sender, RoutedEventArgs e)
     {

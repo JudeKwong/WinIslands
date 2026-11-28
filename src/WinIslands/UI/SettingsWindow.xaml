@@ -586,6 +586,16 @@
                                 <ComboBoxItem x:Name="CbiMcOpenSettings" Tag="OpenSettings" Content="打开设置"/>
                                 <ComboBoxItem x:Name="CbiMcNone" Tag="None" Content="无动作"/>
                             </ComboBox>
+                            <CheckBox x:Name="ChkHoverExpand" IsChecked="{Binding Working.HoverExpandEnabled}"/>
+                            <TextBlock x:Name="LblHoverExpandDelay" Style="{StaticResource Label}"/>
+                            <Slider Minimum="0" Maximum="1500" Width="300" HorizontalAlignment="Left" IsSnapToTickEnabled="True" TickFrequency="20"
+                                    Value="{Binding Working.HoverExpandDelayMs}"/>
+                            <TextBlock x:Name="LblHoverCollapseDelay" Style="{StaticResource Label}"/>
+                            <Slider Minimum="0" Maximum="2000" Width="300" HorizontalAlignment="Left" IsSnapToTickEnabled="True" TickFrequency="20"
+                                    Value="{Binding Working.HoverCollapseDelayMs}"/>
+                            <CheckBox x:Name="ChkWheelPage" IsChecked="{Binding Working.WheelPageNavigationEnabled}"/>
+                            <CheckBox x:Name="ChkWheelInvert" IsChecked="{Binding Working.WheelPageInvertDirection}"/>
+                            <TextBlock x:Name="TxtInteractionHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,10"/>
                             <CheckBox x:Name="ChkReduceMotion" IsChecked="{Binding Working.ReduceMotion}"/>
                             <CheckBox x:Name="ChkLowPower" IsChecked="{Binding Working.LowPowerMode}"/>
                             <CheckBox x:Name="ChkShowLunar" IsChecked="{Binding Working.ShowLunarOnDate}"/>
@@ -1109,7 +1119,11 @@
                             <TextBox Text="{Binding Working.LyricsFolder}"/>
                             <Button x:Name="BtnBrowse" Grid.Column="1" Content="浏览..." Margin="6,0,0,0" Click="BrowseLyrics_Click"/>
                         </Grid>
-                        <CheckBox x:Name="ChkStandaloneLyrics" Content="启用独立歌词小窗" IsChecked="{Binding Working.StandaloneLyricsWindow}" Margin="0,10,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button x:Name="BtnClearLyricsCache" Content="清空远程歌词缓存" Padding="10,4" Click="ClearLyricsCache_Click"/>
+                            <TextBlock x:Name="TxtLyricsCacheStatus" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>                        <CheckBox x:Name="ChkStandaloneLyrics" Content="启用独立歌词小窗" IsChecked="{Binding Working.StandaloneLyricsWindow}" Margin="0,10,0,0"/>
                         <CheckBox Content="逐字高亮（卡拉OK效果）" IsChecked="{Binding Working.KaraokeHighlight}"/>
                         <CheckBox x:Name="ChkBilingual" Content="双语歌词（自动合并相邻翻译行）" IsChecked="{Binding Working.BilingualLyrics}" Margin="0,8,0,0"/>
                         <TextBlock x:Name="LblLyricsOpacity" Style="{StaticResource Label}" Text="歌词小窗不透明度" Margin="0,12,0,0"/>
@@ -1166,8 +1180,16 @@
 
 <TabItem x:Name="TabUpdate" Header="Update">
                     <StackPanel Margin="10,6">
+                        <TextBlock x:Name="LblUpdateChannel" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbUpdateChannel" Width="240" HorizontalAlignment="Left" Margin="0,0,0,8">
+                            <ComboBoxItem x:Name="CmbUpdateChannelStable" Content="正式版"/>
+                            <ComboBoxItem x:Name="CmbUpdateChannelBeta" Content="测试版（Beta）"/>
+                        </ComboBox>
                         <CheckBox x:Name="ChkAutoUpdateCheck" IsChecked="{Binding Working.AutoUpdateCheck}"/>
-                        <Button x:Name="BtnCheckUpdate" Padding="14,6" Margin="0,10,0,0" Click="CheckUpdate_Click"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button x:Name="BtnCheckUpdate" Padding="14,6" Margin="0,0,8,0" Click="CheckUpdate_Click"/>
+                            <Button x:Name="BtnRollback" Padding="14,6" Click="Rollback_Click"/>
+                        </StackPanel>
 
                         <Button x:Name="BtnDownloadUpdate" Padding="14,6" Margin="0,8,0,0" Visibility="Collapsed" Click="DownloadUpdate_Click"/>
                         <ProgressBar x:Name="UpdateProgress" Height="4" Margin="0,10,0,0" Minimum="0" Maximum="1" Visibility="Collapsed"/>
@@ -1299,6 +1321,34 @@
                                      TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="8,6" FontSize="12"/>
                             <TextBlock x:Name="TxtNotificationAppsHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,6,0,0" MaxWidth="560"/>
+                            <Border Height="1" Background="{DynamicResource TextSecondaryBrush}" Opacity="0.25" Margin="0,16,0,14" HorizontalAlignment="Left" Width="520"/>
+                            <CheckBox x:Name="ChkNotificationTakeover" IsChecked="{Binding Working.NotificationTakeoverEnabled}"/>
+                            <Grid Margin="0,12,0,0" HorizontalAlignment="Left" Width="520">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="LblNotificationTimeout" FontSize="12" VerticalAlignment="Center"/>
+                                <Slider Grid.Column="1" Minimum="2" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Working.NotificationTimeoutSeconds}" Margin="12,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" MinWidth="40" VerticalAlignment="Center" FontSize="12"
+                                           Text="{Binding Working.NotificationTimeoutSeconds, StringFormat={}{0} s}"/>
+                            </Grid>
+                            <Grid Margin="0,6,0,0" HorizontalAlignment="Left" Width="520">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="LblNotificationQueue" FontSize="12" VerticalAlignment="Center"/>
+                                <Slider Grid.Column="1" Minimum="3" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Working.NotificationQueueMax}" Margin="12,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" MinWidth="40" VerticalAlignment="Center" FontSize="12"
+                                           Text="{Binding Working.NotificationQueueMax, StringFormat={}{0}}"/>
+                            </Grid>
+                            <CheckBox x:Name="ChkNotificationFold" IsChecked="{Binding Working.NotifyFoldEnabled}" Margin="0,12,0,0"/>
+                            <CheckBox x:Name="ChkNotificationDebounce" IsChecked="{Binding Working.NotificationDebounce}" Margin="0,8,0,0"/>
                             <CheckBox x:Name="ChkCopyToast" IsChecked="{Binding Working.CopyToastEnabled}" Margin="0,16,0,0"/>
                         </StackPanel>
                     </ScrollViewer>

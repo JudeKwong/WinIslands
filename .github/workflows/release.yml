@@ -31,7 +31,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_TAG }}
@@ -52,10 +52,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
           cache: true
@@ -81,6 +81,12 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "publish failed for $rid" }
             Copy-Item "$out/WinIslands.exe" "artifacts/WinIslands-$version-$rid.exe" -Force
           }
+      - name: Generate NuGet dependency report
+        shell: pwsh
+        run: |
+          dotnet list src/WinIslands/WinIslands.csproj package --include-transitive --format json |
+            Out-File -FilePath artifacts/nuget-windows.json -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet dependency report failed' }
       - name: Sign Windows binaries when credentials are configured
         shell: pwsh
         env:
@@ -118,10 +124,38 @@ jobs:
           if ($env:WINDOWS_CERTIFICATE_BASE64) {
             ./build/sign-windows.ps1 -Path "artifacts/WinIslands-Setup-${{ needs.validate.outputs.version }}.exe"
           }
-      - uses: actions/upload-artifact@v4
+      - name: Enforce release performance budget
+        shell: pwsh
+        run: |
+          $version = '${{ needs.validate.outputs.version }}'
+          ./build/check-performance-budget.ps1 `
+            -PortableExe @(
+              "artifacts/WinIslands-$version-win-x64.exe",
+              "artifacts/WinIslands-$version-win-arm64.exe"
+            ) `
+            -Installer "artifacts/WinIslands-Setup-$version.exe"
+      - name: Benchmark cold startup
+        shell: pwsh
+        run: |
+          $version = '${{ needs.validate.outputs.version }}'
+          $exe = "artifacts/WinIslands-$version-win-x64.exe"
+          $report = Join-Path $PWD 'artifacts/startup-benchmark.json'
+          $process = Start-Process -FilePath $exe -ArgumentList "--startup-benchmark=$report" -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(30000)) {
+            Stop-Process -Id $process.Id -Force
+            throw 'Startup benchmark timed out after 30 seconds.'
+          }
+          if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report -Raw }
+          ./build/check-performance-budget.ps1 -RuntimeReport $report
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime performance budget failed.' }
+          if ($process.ExitCode -ne 0) { throw "Startup benchmark exited with code $($process.ExitCode)." }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-release-assets
-          path: artifacts/*.exe
+          path: |
+            artifacts/*.exe
+            artifacts/nuget-windows.json
+            artifacts/startup-benchmark.json
           if-no-files-found: error
 
   macos:
@@ -130,10 +164,10 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
           cache: true
@@ -157,7 +191,10 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           python3 macos/tools/package_mac.py --version '${{ needs.validate.outputs.version }}' --output-dir "$GITHUB_WORKSPACE/artifacts/mac"
-      - uses: actions/upload-artifact@v4
+      - name: Generate NuGet dependency report
+        run: |
+          dotnet list macos/src/WinIslands.Mac/WinIslands.Mac.csproj package --include-transitive --format json > artifacts/mac/nuget-macos.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-release-assets
           path: artifacts/mac/*
@@ -169,13 +206,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
           merge-multiple: true
+      - name: Generate CycloneDX SBOM
+        shell: bash
+        run: |
+          version='${{ needs.validate.outputs.version }}'
+          python3 build/generate_sbom.py \
+            --artifacts artifacts \
+            --version "$version" \
+            --output "artifacts/WinIslands-$version-sbom.cdx.json"
+          python3 -m json.tool "artifacts/WinIslands-$version-sbom.cdx.json" > /dev/null
       - name: Extract release notes from CHANGELOG
         shell: bash
         run: |
@@ -192,10 +238,10 @@ jobs:
         shell: bash
         run: |
           cd artifacts
-          find . -maxdepth 1 -type f \( -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS.txt
+          find . -maxdepth 1 -type f \( -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.cdx.json' \) ! -name 'SHA256SUMS.txt' -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Create release and upload assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: WinIslands ${{ needs.validate.outputs.version }}
@@ -209,6 +255,7 @@ jobs:
             artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.zip
             artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-x64.dmg
             artifacts/WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.dmg
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-sbom.cdx.json
             artifacts/SHA256SUMS.txt
           fail_on_unmatched_files: true
       - name: Verify uploaded assets
@@ -225,6 +272,7 @@ jobs:
           WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.zip
           WinIslands-${{ needs.validate.outputs.version }}-osx-x64.dmg
           WinIslands-${{ needs.validate.outputs.version }}-osx-arm64.dmg
+          WinIslands-${{ needs.validate.outputs.version }}-sbom.cdx.json
           SHA256SUMS.txt
           EOF
           actual="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.assets[].name' | sort)"

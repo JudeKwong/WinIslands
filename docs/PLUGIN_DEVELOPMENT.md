@@ -241,3 +241,20 @@ WinIslands 会把配置转换为环境变量传给插件进程，例如：
 - `WINISLANDS_PLUGIN_CONFIG_UNIT=metric`
 
 插件可以直接读取这些环境变量，不需要读取 WinIslands 主配置。`config_schema` 字段保留给后续自动生成设置界面使用。
+
+## 10. 模板、示例与自检工具
+
+| 资源 | 路径 | 用途 |
+| --- | --- | --- |
+| 最小示例 | `docs/sdk-examples/plugin-hello-world` | 可直接复制的内存占用插件 |
+| 模板与提交指南 | `docs/PLUGIN_TEMPLATE.md` | 从零创建、发布、提交社区 |
+| 清单校验脚本 | `tools/validate-plugin.ps1` | 与运行时一致的静态校验 |
+| 社区提交表单 | GitHub Issues →「插件展示 / Plugin showcase」 | 申请收录插件 |
+
+本地校验示例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\validate-plugin.ps1 .\my-plugin
+```
+
+脚本会检查 id 格式、入口类型与目录逃逸、权限白名单、数值范围、sha256 格式与实际哈希，并在有错误时返回退出码 1。

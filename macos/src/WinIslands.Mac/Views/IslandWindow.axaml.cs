@@ -41,6 +41,8 @@ public partial class IslandWindow : Window
     private CancellationTokenSource? _animCts;
     private DispatcherTimer? _recenterTimer;
     private DispatcherTimer? _clickTimer;
+    private DispatcherTimer? _hoverExpandTimer;
+    private DispatcherTimer? _hoverCollapseTimer;
     private bool _pressActive;
     private bool _dragging;
     private PixelPoint _dragStartPos;
@@ -70,7 +72,24 @@ public partial class IslandWindow : Window
             _border.PointerMoved += OnBorderPointerMoved;
             _border.PointerReleased += OnBorderPointerReleased;
             _border.PointerWheelChanged += OnWheel;
+            _border.PointerEntered += OnPointerEnter;
+            _border.PointerExited += OnPointerExit;
         }
+
+        _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _hoverExpandTimer.Tick += (_, _) =>
+        {
+            _hoverExpandTimer!.Stop();
+            if (_settings.Current.HoverExpandEnabled && !_vm.IsExpanded)
+                _vm.ToggleExpandCommand.Execute(null);
+        };
+        _hoverCollapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(160) };
+        _hoverCollapseTimer.Tick += (_, _) =>
+        {
+            _hoverCollapseTimer!.Stop();
+            if (_settings.Current.HoverExpandEnabled && _vm.IsExpanded)
+                _vm.ToggleExpandCommand.Execute(null);
+        };
 
         _vm.PropertyChanged += OnVmPropertyChanged;
         Opened += (_, _) =>
@@ -95,6 +114,25 @@ public partial class IslandWindow : Window
     {
         _reallyClosing = true;
         Close();
+    }
+
+
+    private void OnPointerEnter(object? sender, PointerEventArgs e)
+    {
+        _hoverCollapseTimer?.Stop();
+        if (!_settings.Current.HoverExpandEnabled || _vm.IsExpanded) return;
+        if (_hoverExpandTimer is null) return;
+        _hoverExpandTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(_settings.Current.HoverExpandDelayMs, 0, 1500));
+        _hoverExpandTimer.Start();
+    }
+
+    private void OnPointerExit(object? sender, PointerEventArgs e)
+    {
+        _hoverExpandTimer?.Stop();
+        if (!_settings.Current.HoverExpandEnabled || !_vm.IsExpanded) return;
+        if (_hoverCollapseTimer is null) return;
+        _hoverCollapseTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(_settings.Current.HoverCollapseDelayMs, 0, 2000));
+        _hoverCollapseTimer.Start();
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

@@ -26,6 +26,7 @@ public sealed class LyricsService
     private readonly CiderMediaProvider? _cider;
     private readonly OnlineLyricsService _online = new();
     private readonly AmllTtmlApiService _amll = new();
+    private readonly LyricsCacheStore _diskCache = new();
     private readonly Dictionary<string, LyricsResult> _cache = new();
     private readonly object _cacheLock = new();
     // 本地 .lrc 目录索引缓存：避免每次查询都枚举整个歌词目录（60s TTL）
@@ -104,7 +105,15 @@ public sealed class LyricsService
             case "AMLL":
             {
                 if (!_settings.Current.AmllTtmlEnabled) return LyricsResult.Empty;
+                if (_diskCache.TryRead(LyricsSourceKind.AmllTtml, track, out var cachedAmll))
+                {
+                    var rebuilt = AmllTtmlApiService.FromRaw(cachedAmll);
+                    if (!rebuilt.Lrc.IsEmpty)
+                        return new LyricsResult(rebuilt.Lrc, LyricsSourceKind.AmllTtml, "AMLL TTML (cache)", rebuilt.Ttml);
+                }
                 var amll = await _amll.FetchAsync(track.Title, track.Artist, track.Album, ct);
+                if (!amll.Lrc.IsEmpty && !string.IsNullOrWhiteSpace(amll.Raw))
+                    _diskCache.Write(LyricsSourceKind.AmllTtml, track, amll.Raw);
                 return amll.Lrc.IsEmpty ? LyricsResult.Empty : new LyricsResult(amll.Lrc, LyricsSourceKind.AmllTtml, "AMLL TTML", amll.Ttml);
             }
             case "CIDER":
@@ -118,9 +127,15 @@ public sealed class LyricsService
             case "ONLINE":
             {
                 if (!_settings.Current.OnlineLyricsEnabled) return LyricsResult.Empty;
+                if (_diskCache.TryRead(LyricsSourceKind.Online, track, out var cachedOnline))
+                {
+                    var cachedDoc = LrcParser.Parse(cachedOnline);
+                    if (!cachedDoc.IsEmpty) return new LyricsResult(cachedDoc, LyricsSourceKind.Online, "Netease (cache)");
+                }
                 var lrc = await _online.FetchLrcAsync(track.Title, track.Artist, ct);
                 if (string.IsNullOrWhiteSpace(lrc)) return LyricsResult.Empty;
                 var doc = LrcParser.Parse(lrc);
+                if (!doc.IsEmpty) _diskCache.Write(LyricsSourceKind.Online, track, lrc);
                 return doc.IsEmpty ? LyricsResult.Empty : new LyricsResult(doc, LyricsSourceKind.Online, "Netease");
             }
             default:
@@ -152,9 +167,16 @@ public sealed class LyricsService
         // 2) AMLL TTML API —— 逐字卡拉OK歌词库（独立开关，默认开启；失败自动降级到下一来源）。
         if (_settings.Current.AmllTtmlEnabled)
         {
+            if (_diskCache.TryRead(LyricsSourceKind.AmllTtml, track, out var cachedAmll))
+            {
+                var rebuilt = AmllTtmlApiService.FromRaw(cachedAmll);
+                if (!rebuilt.Lrc.IsEmpty)
+                    return new LyricsResult(rebuilt.Lrc, LyricsSourceKind.AmllTtml, "AMLL TTML (cache)", rebuilt.Ttml);
+            }
             var amll = await _amll.FetchAsync(track.Title, track.Artist, track.Album, ct);
             if (!amll.Lrc.IsEmpty)
             {
+                if (!string.IsNullOrWhiteSpace(amll.Raw)) _diskCache.Write(LyricsSourceKind.AmllTtml, track, amll.Raw);
                 return new LyricsResult(amll.Lrc, LyricsSourceKind.AmllTtml, "AMLL TTML", amll.Ttml);
             }
         }
@@ -173,11 +195,20 @@ public sealed class LyricsService
         // 4) Online API — strictly opt-in.
         if (_settings.Current.OnlineLyricsEnabled)
         {
+            if (_diskCache.TryRead(LyricsSourceKind.Online, track, out var cachedOnline))
+            {
+                var cachedDoc = LrcParser.Parse(cachedOnline);
+                if (!cachedDoc.IsEmpty) return new LyricsResult(cachedDoc, LyricsSourceKind.Online, "Netease (cache)");
+            }
             var lrc = await _online.FetchLrcAsync(track.Title, track.Artist, ct);
             if (!string.IsNullOrWhiteSpace(lrc))
             {
                 var doc = LrcParser.Parse(lrc);
-                if (!doc.IsEmpty) return new LyricsResult(doc, LyricsSourceKind.Online, "Netease");
+                if (!doc.IsEmpty)
+                {
+                    _diskCache.Write(LyricsSourceKind.Online, track, lrc);
+                    return new LyricsResult(doc, LyricsSourceKind.Online, "Netease");
+                }
             }
         }
 
@@ -251,6 +282,11 @@ public sealed class LyricsService
         lock (_cacheLock) _cache.Clear();
         lock (_dirIndexLock) _dirIndex.Clear();
     }
+
+    /// <summary>Clear the persistent remote-lyrics cache (online providers / AMLL).</summary>
+    public void ClearDiskCache() => _diskCache.Clear();
+
+    public (int Count, long Bytes) GetDiskCacheStats() => _diskCache.GetStats();
 
     /// <summary>取得目录内 .lrc 文件列表（60 秒内复用，避免频繁枚举音乐库目录）。</summary>
     private string[] GetLrcIndex(string dir)

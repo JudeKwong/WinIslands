@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -58,7 +58,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private const double ReferenceNoticeHeight = 44.0;
     private const double CopyToastHeight = 22.0;
     private const double CopyToastBottomGap = 8.0;
-    private double ExpandedHeight => ReferenceExpandedHeight / FontScale;
+    // 展开尺寸按所在显示器工作区自动收缩（小屏/竖屏不被裁切），正常屏幕保持统一参考尺寸。
+    private readonly double _expandedFitScale = 1.0;
+    private readonly double _expandedMaxVisualHeight = double.PositiveInfinity;
+    private double ExpandedHeight => ReferenceExpandedHeight * _expandedFitScale / FontScale;
     private double ManualCompactW => Math.Clamp(_settings.Current.CompactWidth / FontScale, 240 / FontScale, 520 / FontScale);
     private double ManualCompactH => Math.Clamp(_settings.Current.CompactHeight / FontScale, 48 / FontScale, 140 / FontScale);
     /// <summary>
@@ -183,7 +186,8 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             return _noPushCompactH;
         }
     }
-    private double ExpandedWidth => ReferenceExpandedWidth / FontScale;
+    private double ExpandedWidth => ReferenceExpandedWidth * _expandedFitScale / FontScale;
+    private double ExpandedVisualWidth => ReferenceExpandedWidth * _expandedFitScale;
 
     private const int WM_NCHITTEST = 0x0084;
     private const int HTCLIENT = 1;
@@ -453,6 +457,22 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _screen = screen;
         Screen = screen;
 
+        // 先按显示器工作区计算展开适配比例：几何规则集中在 IslandLayoutMetrics（可单测）。
+        try
+        {
+            var work = ScreenHelper.DpiWorkArea(screen);
+            var fit = IslandLayoutMetrics.ComputeExpanded(
+                ReferenceExpandedWidth, ReferenceExpandedHeight, 1.0,
+                ScreenHelper.GetDpiScale(screen), work.Width, work.Height);
+            _expandedFitScale = fit.FitScale;
+            _expandedMaxVisualHeight = Math.Max(ReferenceExpandedHeight, work.Height - 40);
+        }
+        catch
+        {
+            _expandedFitScale = 1.0;
+            _expandedMaxVisualHeight = double.PositiveInfinity;
+        }
+
         DataContext = vm;
         InitializeComponent();
         // 页面可见性由过渡代码独占控制，防止绑定异步覆盖首帧过渡。
@@ -478,7 +498,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.SizeChanged += OnCardSizeChanged;
 
         // 悬停交互：进入 200ms 后展开，移开 120ms 后收起，展开/收起全程可被下一次悬停打断。
-        _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Clamp(_settings.Current.HoverCollapseDelayMs, 0, 2000)) };
         _collapseTimer.Tick += (_, _) =>
         {
             _collapseTimer.Stop();
@@ -486,7 +506,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             if (_vm.IsExpanded) _vm.IsExpanded = false;
         };
 
-        _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _hoverExpandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Clamp(_settings.Current.HoverExpandDelayMs, 0, 1500)) };
         _hoverExpandTimer.Tick += (_, _) =>
         {
             _hoverExpandTimer.Stop();
@@ -514,7 +534,10 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _compactRestoreTimer.Stop();
             // 注意：这里不要碰 _memoryTrimTimer——内存修剪是常驻节电服务，
             // 若在每次收起时被 Stop，空闲内存回收将永久停用（2.1.5 修复）。
-            if (IsLoaded && !_vm.IsExpanded) RestoreCompactLayout();
+            if (IsLoaded && !_vm.IsExpanded)
+                RestoreCompactLayout(clearAnimations: true,
+                    targetWidth: _lastCollapseTargetW > 0 ? _lastCollapseTargetW : null,
+                    targetHeight: _lastCollapseTargetH > 0 ? _lastCollapseTargetH : null);
         };
 
         _memoryTrimTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
@@ -541,6 +564,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         Card.MouseEnter += (_, _) =>
         {
             _collapseTimer.Stop();
+            if (!_settings.Current.HoverExpandEnabled) return;
             if (_resizing || _mouseDownOnCard || _draggedCard || _fileDragArmed) return;
             if (!_vm.IsExpanded) _hoverExpandTimer.Start();
         };
@@ -550,7 +574,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             _hoverExpandTimer.Stop();
             if (_resizing || KeepExpandedForPreview) return; // 预览截图保持展开，不影响正常悬停收回
             Cursor = null;
-            if (_vm.IsExpanded) _collapseTimer.Start();
+            if (_settings.Current.HoverExpandEnabled && _vm.IsExpanded) _collapseTimer.Start();
         };
 
         // 单击只参与双击判定，不再负责展开/收起；窗口内第二次单击执行快捷动作。
@@ -589,6 +613,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
             LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
             Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
             RefreshAnimationConstants(); // 2.4.4：动画常量随设置即时刷新
+            ApplyInteractionSettings();
         };
         // 2.3.0：启动时立即按当前低功耗设置同步一次（不等待设置变更事件）
         SpringTicker.CapAt60Fps = _settings.Current.LowPowerMode;
@@ -598,6 +623,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         LyricEmphasis.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.4.0
         Marquee.LowPowerModeOverride = _settings.Current.LowPowerMode; // 2.2.5
         RefreshAnimationConstants(); // 2.4.4：启动即按当前设置缓存动画常量
+        ApplyInteractionSettings();
         _vm.PropertyChanged += OnVmPropertyChanged;
         _vm.PageTransitionStarted += OnPageTransitionStarted;
         _theme.ThemeChanged += _onThemeChanged;
@@ -1583,7 +1609,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         ExpandedContent.Measure(new System.Windows.Size(contentWidth, double.PositiveInfinity));
         var measured = ExpandedContent.DesiredSize.Height;
         if (!double.IsFinite(measured) || measured <= 0) measured = minHeight;
-        var maxHeight = Math.Max(minHeight, Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 1200) / FontScale);
+        var requestedMax = Math.Max(minHeight, Math.Clamp(_settings.Current.MaxExpandedHeight, 240, 1200) / FontScale);
+        var screenMax = double.IsFinite(_expandedMaxVisualHeight) ? _expandedMaxVisualHeight / FontScale : requestedMax;
+        var maxHeight = Math.Max(minHeight, Math.Min(requestedMax, screenMax));
         return Math.Clamp(measured + 4, minHeight, maxHeight);
     }
 
@@ -1594,14 +1622,15 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         // 推送卡片更宽时继续放大窗口，避免右侧组件被裁切。
         var compactWidth = knownCompactWidth ?? CompactWidth;
         var compactHeight = CompactHeight;
-        var w = _vm.IsExpanded ? ReferenceExpandedWidth : Math.Max(ReferenceExpandedWidth, compactWidth * FontScale);
+        var w = _vm.IsExpanded ? ExpandedVisualWidth : Math.Max(ExpandedVisualWidth, compactWidth * FontScale);
         // 宿主窗口必须始终容纳当前（含动画中的）卡片；否则 Root 会把卡片左右裁掉，
         // 圆角因此变成直角（快速展开/收起 + 宽度变化时最容易复现）。
         if (Card is not null && double.IsFinite(Card.ActualWidth) && Card.ActualWidth > 0)
             w = Math.Max(w, Card.ActualWidth);
+        var expandedMinHeight = ReferenceExpandedHeight * _expandedFitScale;
         var h = _vm.IsExpanded
-            ? Math.Max(ReferenceExpandedHeight, expandedVisualHeight ?? ReferenceExpandedHeight)
-            : Math.Max(ReferenceExpandedHeight, compactHeight * FontScale);
+            ? Math.Max(expandedMinHeight, expandedVisualHeight ?? expandedMinHeight)
+            : Math.Max(expandedMinHeight, compactHeight * FontScale);
         w *= _previewScale;
         h *= _previewScale;
         if (Math.Abs(Width - w) > 0.5 || Math.Abs(Height - h) > 0.5)
@@ -1733,6 +1762,7 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     private void Card_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (!_vm.IsExpanded || !_vm.HasMultiplePages || e.Delta == 0) return;
+        if (!_settings.Current.WheelPageNavigationEnabled) return;
 
         var now = Environment.TickCount64;
         if (_pageWheelDelta != 0
@@ -1750,7 +1780,9 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
         _pageWheelDelta = 0;
         if (_pageWheelNavigationTick != 0 && now - _pageWheelNavigationTick < DaozaiWheelNavigationIntervalMs) return;
 
-        _vm.NavigatePage(e.Delta < 0 ? 1 : -1);
+        var direction = e.Delta < 0 ? 1 : -1;
+        if (_settings.Current.WheelPageInvertDirection) direction = -direction;
+        _vm.NavigatePage(direction);
         _pageWheelNavigationTick = now;
     }
 
@@ -1760,13 +1792,49 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void Card_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (!_vm.IsExpanded || !_vm.HasMultiplePages) return;
-        if (e.Key != Key.Left && e.Key != Key.Right) return;
+        if (!_vm.IsExpanded) return;
         if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return;
+
+        var ctrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+        if (ctrl && (e.Key == Key.Left || e.Key == Key.Right))
+        {
+            _ = _vm.SeekRelativeAsync(e.Key == Key.Right ? MediaControlMath.SeekStepSeconds : -MediaControlMath.SeekStepSeconds);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.VolumeUp && _vm.HasVolumeControl)
+        {
+            _vm.StepVolume(MediaControlMath.VolumeStep);
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.VolumeDown && _vm.HasVolumeControl)
+        {
+            _vm.StepVolume(-MediaControlMath.VolumeStep);
+            e.Handled = true;
+            return;
+        }
+
+        if (!_vm.HasMultiplePages) return;
+        if (e.Key != Key.Left && e.Key != Key.Right) return;
 
         _pageWheelDelta = 0;
         _vm.NavigatePage(e.Key == Key.Right ? 1 : -1);
         e.Handled = true;
+    }
+    /// <summary>交互自定义：悬停延迟与开关即时生效。</summary>
+    private void ApplyInteractionSettings()
+    {
+        if (_hoverExpandTimer is null || _collapseTimer is null) return;
+        var s = _settings.Current;
+        _hoverExpandTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(s.HoverExpandDelayMs, 0, 1500));
+        _collapseTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(s.HoverCollapseDelayMs, 0, 2000));
+        if (!s.HoverExpandEnabled)
+        {
+            _hoverExpandTimer.Stop();
+            _collapseTimer.Stop();
+        }
     }
     private void OnPageTransitionStarted(IslandPage fromPage, IslandPage toPage, int direction)
     {
@@ -2380,7 +2448,27 @@ public partial class IslandWindow : Window, INotifyPropertyChanged
     /// <summary>第三方应用上岛：推送卡片淡入 + 轻微缩放的丝滑动画。</summary>
     private void PlayPushCardAnimation()
     {
-        if (!IsLoaded || CompactPushCard is null || !_vm.HasActivePush) return;
+        if (!IsLoaded || CompactPushCard is null) return;
+        if (!_vm.HasActivePush)
+        {
+            // 通知到期或关闭：立刻收干净推送卡片相关动画，避免残留圆形应用图标/半透明残影。
+            _pushCardStoryboard?.Stop();
+            _pushCardStoryboard = null;
+            _pushOpacitySpring?.Stop();
+            _pushScaleSpring?.Stop();
+            CompactPushCard.BeginAnimation(UIElement.OpacityProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            CompactPushScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            CompactPushCard.Opacity = 0;
+            CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
+            foreach (var rotate in new[] { CompactNoticeBellRotate, ExpandedNoticeBellRotate })
+            {
+                if (rotate is null) continue;
+                rotate.BeginAnimation(RotateTransform.AngleProperty, null);
+                rotate.Angle = 0;
+            }
+            return;
+        }
         // 先清掉上一条通知可能仍在运行的动画，避免透明度停在 0。
         _pushCardStoryboard?.Stop();
         _pushCardStoryboard = null;

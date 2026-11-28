@@ -177,6 +177,8 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         PlayPauseCommand = new AsyncRelayCommand(_ => TogglePlayPauseLocalAsync());
         NextCommand = new AsyncRelayCommand(_ => _coordinator.NextAsync());
         PreviousCommand = new AsyncRelayCommand(_ => _coordinator.PreviousAsync());
+        SeekBackwardCommand = new AsyncRelayCommand(_ => SeekRelativeAsync(-MediaControlMath.SeekStepSeconds));
+        SeekForwardCommand = new AsyncRelayCommand(_ => SeekRelativeAsync(MediaControlMath.SeekStepSeconds));
         OpenSettingsCommand = new RelayCommand(_ => OpenSettingsRequested?.Invoke(this, EventArgs.Empty));
         ToggleLyricsWindowCommand = new RelayCommand(_ => ToggleLyricsWindowRequested?.Invoke(this, EventArgs.Empty));
 
@@ -427,6 +429,10 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand PlayPauseCommand { get; }
     public AsyncRelayCommand NextCommand { get; }
     public AsyncRelayCommand PreviousCommand { get; }
+    public AsyncRelayCommand SeekBackwardCommand { get; }
+    public AsyncRelayCommand SeekForwardCommand { get; }
+    public string SeekBackwardHint => Localization.Get("Media_SeekBackHint");
+    public string SeekForwardHint => Localization.Get("Media_SeekForwardHint");
     public RelayCommand OpenSettingsCommand { get; }
     public RelayCommand ToggleLyricsWindowCommand { get; }
 
@@ -2116,6 +2122,12 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         if (_snapshot is not null) await LoadLyricsAsync(_snapshot);
     }
 
+    /// <summary>Clear the persisted remote-lyrics cache and reload the current track.</summary>
+    public async Task ClearLyricsDiskCacheAsync()
+    {
+        _lyricsService.ClearDiskCache();
+        await RefreshLyricsAsync();
+    }
     /// <summary>
     /// Demo mode (--demo): injects a fake track so the island can be previewed
     /// without any media playing. Also writes a sample .lrc for lyrics.
@@ -2353,6 +2365,31 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         await _coordinator.SeekAsync(target);
     }
 
+    /// <summary>相对跳转指定秒数（正数前进、负数后退），夹在 0..总时长之间。</summary>
+    public async Task SeekRelativeAsync(double deltaSeconds)
+    {
+        if (!CanSeek || DurationSeconds <= 0) return;
+        var current = _suppressSeek > 0 ? Position.TotalSeconds : _interpolatedPosition;
+        var target = MediaControlMath.SeekTarget(current, DurationSeconds, deltaSeconds);
+        _suppressSeek++;
+        try
+        {
+            await _coordinator.SeekAsync(target);
+            _interpolatedPosition = target;
+            _lastPositionTime = DateTime.UtcNow;
+        }
+        finally
+        {
+            _suppressSeek--;
+        }
+    }
+
+    /// <summary>按固定步长调整音量（0..1 之间）。</summary>
+    public void StepVolume(double delta)
+    {
+        if (!HasVolumeControl) return;
+        Volume = MediaControlMath.VolumeTarget(Volume, delta);
+    }
     /// <summary>
     /// 乐观播放/暂停：点击按钮后立即切换本地状态，避免快照状态延迟期间
     /// 本地进度继续推进，导致暂停后歌词高亮/进度条“跳回”暂停点。

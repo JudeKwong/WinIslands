@@ -88,6 +88,10 @@ public sealed class PluginManifest
     /// <summary>安全提示（未校验、权限说明等），供插件管理器展示。</summary>
     [JsonIgnore]
     public string SecurityWarning { get; set; } = "";
+
+    /// <summary>清单校验警告汇总（JSON 忽略）：版本/作者/描述缺失、sha256 缺失等非阻断问题。</summary>
+    [JsonIgnore]
+    public string ValidationSummary { get; set; } = "";
 }
 
 /// <summary>
@@ -616,6 +620,21 @@ $component = @{
             manifest.Entry = (manifest.Entry ?? "").Trim();
             manifest.DirectoryPath = Path.GetFullPath(pluginDirectory);
             manifest.ManifestPath = manifestPath;
+
+            // 统一清单校验：与插件管理器/开发者工具共用同一套规则，先拦截硬错误。
+            var validation = PluginManifestValidator.Validate(manifest, manifest.DirectoryPath);
+            if (!validation.IsValid)
+            {
+                foreach (var issue in validation.Errors)
+                    AppLogger.Warn($"Plugin manifest [{issue.Code}] {manifestPath}: {issue.Message}");
+                return null;
+            }
+            if (validation.Warnings.Count > 0)
+            {
+                manifest.ValidationSummary = string.Join("；", validation.Warnings.Select(w => w.Message));
+                foreach (var issue in validation.Warnings)
+                    AppLogger.Info($"Plugin manifest warning [{issue.Code}] {manifestPath}: {issue.Message}");
+            }
             manifest.IntervalSeconds = Math.Clamp(manifest.IntervalSeconds, 0, 86400);
             // 防御：任何 >0 的轮询间隔不得小于 5 秒，避免 PowerShell/WMI 进程风暴
             if (manifest.IntervalSeconds > 0 && manifest.IntervalSeconds < MinPluginIntervalSeconds)

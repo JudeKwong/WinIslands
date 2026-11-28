@@ -403,12 +403,20 @@ public partial class App : Application
     }
 
     // ── 崩溃自动恢复（1.2.0）──
-    /// <summary>崩溃后自动重启：如用户开启了 AutoRestartOnCrash，在崩溃前启动新实例。</summary>
+    private static readonly RestartStormGuard RestartGuard = new(maxRestarts: 3, window: TimeSpan.FromMinutes(15));
+
+    /// <summary>崩溃后自动重启：如用户开启了 AutoRestartOnCrash，在崩溃前启动新实例。
+    /// 15 分钟内最多自动重启 3 次，超过后停止重启并记录，避免“启动即崩溃”的死循环。</summary>
     private void TryAutoRestartOnCrash()
     {
         try
         {
             if (_settings is null || !_settings.Current.AutoRestartOnCrash) return;
+            if (!RestartGuard.TryRecord(DateTime.UtcNow))
+            {
+                AppLogger.Warn($"Auto-restart suppressed: {RestartGuard.CountInWindow(DateTime.UtcNow)} restarts within 15 minutes.");
+                return;
+            }
             var exePath = Environment.ProcessPath;
             if (string.IsNullOrEmpty(exePath)) return;
             AppLogger.Info($"Auto-restart enabled; launching new instance: {exePath}");

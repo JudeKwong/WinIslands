@@ -20,6 +20,11 @@ public static class DiagnosticsCommand
         sb.AppendLine($".NET: {Environment.Version}");
         sb.AppendLine($"Settings file: {AppPaths.SettingsFile} exists={File.Exists(AppPaths.SettingsFile)}");
         sb.AppendLine($"Settings: language={settings.Current.Language} theme={settings.Current.Theme} monitor={settings.Current.Monitor} ciderEnabled={settings.Current.CiderEnabled}");
+        if (AppHealthMonitor.Current is { } health)
+        {
+            sb.AppendLine($"Health: ui={health.Status} lastBeat={health.LastBeatAge.TotalMilliseconds:0}ms degraded={health.DegradedCount} unresponsive={health.UnresponsiveCount} recovered={health.RecoveryCount}");
+            sb.AppendLine($"Runtime: managed={health.ManagedMemoryMb}MB threads={health.ThreadCount} uptime={health.Uptime:hh\\:mm\\:ss}");
+        }
 
         // SMTC
         sb.AppendLine();

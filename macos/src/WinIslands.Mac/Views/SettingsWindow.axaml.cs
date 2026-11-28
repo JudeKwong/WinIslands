@@ -23,7 +23,8 @@ public partial class SettingsWindow : Window
     private ComboBox? _langBox, _themeBox, _posBox, _animBox, _doubleClickBox, _lyricsSourceBox;
     private Slider? _animDurSlider;
     private TextBlock? _animDurLabel;
-    private CheckBox? _hideNoMediaBox, _alwaysVisibleBox;
+    private CheckBox? _hideNoMediaBox, _alwaysVisibleBox, _hoverExpandBox;
+    private TextBox? _hoverExpandDelayBox, _hoverCollapseDelayBox;
     private CheckBox? _ciderEnabledBox;
     private TextBox? _ciderPortBox, _ciderTokenBox;
     private CheckBox? _apiEnabledBox;
@@ -54,6 +55,9 @@ public partial class SettingsWindow : Window
         _animDurLabel = this.FindControl<TextBlock>("AnimDurLabel");
         _hideNoMediaBox = this.FindControl<CheckBox>("HideNoMediaBox");
         _alwaysVisibleBox = this.FindControl<CheckBox>("AlwaysVisibleBox");
+        _hoverExpandBox = this.FindControl<CheckBox>("HoverExpandBox");
+        _hoverExpandDelayBox = this.FindControl<TextBox>("HoverExpandDelayBox");
+        _hoverCollapseDelayBox = this.FindControl<TextBox>("HoverCollapseDelayBox");
         _ciderEnabledBox = this.FindControl<CheckBox>("CiderEnabledBox");
         _ciderPortBox = this.FindControl<TextBox>("CiderPortBox");
         _ciderTokenBox = this.FindControl<TextBox>("CiderTokenBox");
@@ -146,6 +150,10 @@ public partial class SettingsWindow : Window
             _hideNoMediaBox.IsCheckedChanged += (_, _) => Apply(() => _settings.Current.HideWhenNoMedia = _hideNoMediaBox.IsChecked == true);
         if (_alwaysVisibleBox is not null)
             _alwaysVisibleBox.IsCheckedChanged += (_, _) => Apply(() => _settings.Current.IslandAlwaysVisible = _alwaysVisibleBox.IsChecked == true);
+        if (_hoverExpandBox is not null)
+            _hoverExpandBox.IsCheckedChanged += (_, _) => Apply(() => _settings.Current.HoverExpandEnabled = _hoverExpandBox.IsChecked == true);
+        BindIntBox(_hoverExpandDelayBox, v => _settings.Current.HoverExpandDelayMs = Math.Clamp(v, 0, 1500));
+        BindIntBox(_hoverCollapseDelayBox, v => _settings.Current.HoverCollapseDelayMs = Math.Clamp(v, 0, 2000));
 
         if (_ciderEnabledBox is not null)
             _ciderEnabledBox.IsCheckedChanged += (_, _) => Apply(() => _settings.Current.CiderEnabled = _ciderEnabledBox.IsChecked == true);
@@ -264,6 +272,9 @@ public partial class SettingsWindow : Window
         };
         if (_hideNoMediaBox is not null) _hideNoMediaBox.IsChecked = s.HideWhenNoMedia;
         if (_alwaysVisibleBox is not null) _alwaysVisibleBox.IsChecked = s.IslandAlwaysVisible;
+        if (_hoverExpandBox is not null) _hoverExpandBox.IsChecked = s.HoverExpandEnabled;
+        if (_hoverExpandDelayBox is not null) _hoverExpandDelayBox.Text = Math.Clamp(s.HoverExpandDelayMs, 0, 1500).ToString();
+        if (_hoverCollapseDelayBox is not null) _hoverCollapseDelayBox.Text = Math.Clamp(s.HoverCollapseDelayMs, 0, 2000).ToString();
         if (_ciderEnabledBox is not null) _ciderEnabledBox.IsChecked = s.CiderEnabled;
         if (_ciderPortBox is not null) _ciderPortBox.Text = s.CiderPort.ToString();
         if (_ciderTokenBox is not null) _ciderTokenBox.Text = s.CiderToken;

@@ -49,6 +49,7 @@ public partial class App : Application
     private RssMailService? _rssMail;
     private DispatcherTimer? _powerStateTimer;   // 3.1.7 省电模式采样（30s，仅变化时通知后台闸门）
     private bool _gateSuspendedLogged;
+    private AppHealthMonitor? _healthMonitor;
 
     // ── 效率工具 / 波纹 / 更新服务（共享实例：设置页与灵动岛组件共用同一份数据）──
     private AudioWaveService? _wave;
@@ -128,6 +129,10 @@ AppPaths.EnsureDirectories();
         }
 
         _singleInstance.ShowRequested += (_, _) => Dispatcher.BeginInvoke(() => _vm?.ForceShow());
+
+        // ── UI 健康监测：心跳延迟 / 卡死时写诊断，不打断用户 ──
+        _healthMonitor = new AppHealthMonitor(Dispatcher);
+        _healthMonitor.Start();
 
         // ── Services ──
         _settings = new SettingsService();
@@ -216,8 +221,10 @@ AppPaths.EnsureDirectories();
                 var appName = string.IsNullOrWhiteSpace(e.AppDisplayName)
                     ? (string.IsNullOrWhiteSpace(e.AppUserModelId) ? Localization.Get("Notification_DefaultTitle") : e.AppUserModelId)
                     : e.AppDisplayName;
-                var body = string.IsNullOrWhiteSpace(e.Body) ? e.Title : e.Title + "\n" + e.Body;
-                _vm?.ShowEventCard("app:" + e.AppUserModelId, appName, body, "\uE7E7", "info", 6);
+                // 标题用通知标题，副标题用应用名，正文放通知内容；
+                // 这样「同来源同标题折叠」才有意义（不同应用同名标题不会互相合并）。
+                var notificationTitle = string.IsNullOrWhiteSpace(e.Title) ? appName : e.Title.Trim();
+                _vm?.ShowEventCard("app:" + e.AppUserModelId, notificationTitle, appName, "\uE7E7", "info", null, e.Body);
             });
         };
         _vm = new IslandViewModel(_coordinator, _settings, _lyrics,
@@ -638,6 +645,11 @@ AppPaths.EnsureDirectories();
             _ = CaptureRoundTripAsync(roundTripArg["--roundtrip-diag=".Length..]);
 
         // 首次正常启动：等主界面与后台服务完成首帧后再显示引导，避免阻塞启动。
+        // CI performance gate: sample the first idle frame, memory and startup duration, then exit.
+        var startupBenchmarkArg = e.Args.FirstOrDefault(a => a.StartsWith("--startup-benchmark=", StringComparison.OrdinalIgnoreCase));
+        if (startupBenchmarkArg is not null)
+            _ = CaptureStartupBenchmarkAsync(startupBenchmarkArg["--startup-benchmark=".Length..]);
+
         if (_settings is not null && OnboardingPolicy.ShouldShow(_settings.Current, e.Args))
             Dispatcher.BeginInvoke(new Action(ShowOnboarding), DispatcherPriority.ApplicationIdle);
     }
@@ -689,6 +701,8 @@ AppPaths.EnsureDirectories();
                 SystemEvents.SessionSwitch -= _sessionSwitchHandler;
             if (_powerModeHandler is not null)
                 SystemEvents.PowerModeChanged -= _powerModeHandler;
+            _healthMonitor?.Dispose();
+            _healthMonitor = null;
             _themeScheduleTimer.Stop();
             _stateSaveTimer.Stop();
             _powerStateTimer?.Stop();

@@ -53,7 +53,7 @@ WinIslands 是一款开源的 Windows 灵动岛组件。平时收起在屏幕顶
 | --- | --- |
 | 今天的时间和天气 | 时间、日期、农历、节气与天气组件，单行或多行排列 |
 | 电脑现在怎么样 | CPU、GPU、内存、磁盘、网络、电量和音频波纹状态 |
-| 常用操作快一点 | 快捷开关、快速启动器、剪贴板历史、番茄钟和待办 |
+| 常用操作快一点 | 快捷开关、快速启动器、媒体控制与系统状态 |
 | 只看自己需要的 | 组件显隐、图标、排序、播放 / 空闲状态分别配置 |
 
 组件支持拖拽排序、单行 / 多行模式、自定义图标和字体缩放。完整布局可以在 **设置 → 组件** 中调整。
@@ -132,7 +132,6 @@ WinIslands 支持本地组件插件。插件以独立进程运行，读取标准
 | `Ctrl+Alt+I` | 显示 / 隐藏灵动岛 |
 | `Ctrl+Alt+Space` | 展开 / 收起 |
 | `Ctrl+Space` | 快速启动器 |
-| `Ctrl+Alt+V` | 剪贴板历史 |
 
 常用命令行参数：`--demo` 演示模式 · `--diagnose` 输出诊断报告 · `--settings` 启动时打开设置。
 
@@ -251,11 +250,23 @@ docs\PLUGIN_DEVELOPMENT.md  插件开发指南
 docs\FAQ.md                 常见问题
 docs\TROUBLESHOOTING.md     故障排查
 docs\PLUGIN_SECURITY.md     插件安全模型
+docs\PERFORMANCE_BUDGET.md  性能预算与发布门禁
+docs\SUPPLY_CHAIN.md        供应链、SBOM 与校验
+docs\RELEASING.md           发布、资产命名与回滚
 docs\release-notes\         历史版本更新日志
 build\                      发布与安装脚本
 ```
 
 </details>
+
+## 参与贡献
+
+欢迎提交缺陷修复、插件、文档与界面建议。
+
+- 开发环境、构建命令与 PR 要求见 [贡献指南](CONTRIBUTING.md)。
+- 安全问题请按 [安全政策](SECURITY.md) 私密报告，不要开公开 Issue。
+- 依赖锁定、CodeQL、SBOM 与校验和说明见 [供应链与构建验证](docs/SUPPLY_CHAIN.md)。
+- 维护者发布流程见 [发布与回滚](docs/RELEASING.md)。
 
 ## 开源与致谢
 
@@ -271,6 +282,6 @@ WinIslands 原创代码采用 [MIT License](LICENSE)。.NET、WPF、Windows SDK 
 
 <div align="center">
 
-**[下载 WinIslands](https://github.com/JudeKwong/WinIslands/releases/latest)** · [官网](https://WinIslands.JudeKwong.com) · [更新记录](CHANGELOG.md)
+**[下载 WinIslands](https://github.com/JudeKwong/WinIslands/releases/latest)** · [官网](https://WinIslands.JudeKwong.com) · [更新记录](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md)
 
 </div>

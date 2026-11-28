@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using System.IO;
@@ -106,6 +106,12 @@ public sealed class AppSettings
     public bool GlobalHotkeysEnabled { get; set; } = true;         // 全局快捷键
     public string DoubleClickAction { get; set; } = "PlayPause";   // 双击灵动岛快捷动作：PlayPause | OpenSettings | None
     public string MiddleClickAction { get; set; } = "PlayPause";   // 中键单击灵动岛快捷动作（与双击动作同值域）
+    // ── 交互自定义 ──
+    public bool HoverExpandEnabled { get; set; } = true;      // 鼠标悬停自动展开
+    public int HoverExpandDelayMs { get; set; } = 200;        // 悬停展开延迟（0~1500ms）
+    public int HoverCollapseDelayMs { get; set; } = 120;      // 移开鼠标后收起延迟（0~2000ms）
+    public bool WheelPageNavigationEnabled { get; set; } = true;  // 展开模式滚轮切页
+    public bool WheelPageInvertDirection { get; set; } = false;   // 滚轮切页方向反转
     // ── 快捷操作按钮（展开卡片底部一排）──
     // QuickActions = 全部可用操作的顺序；QuickActionsShown = 勾选显示的子集。
     public bool QuickActionsEnabled { get; set; } = true;
@@ -290,7 +296,8 @@ public sealed class AppSettings
 
     // ── 复制提示 ──
     public bool CopyToastEnabled { get; set; } = true;       // 复制文本时提示「已复制」
-    public bool AutoUpdateCheck { get; set; } = false;          // 自动检查 GitHub 新版本（默认关，需联网）
+    public bool AutoUpdateCheck { get; set; } = false;
+    public string UpdateChannel { get; set; } = "Stable";    // Stable | Beta（测试版同时接收预发布）          // 自动检查 GitHub 新版本（默认关，需联网）
     public int KeyIndicatorSeconds { get; set; } = 3;              // 键盘指示灯出现时长（秒）
 
     // ── 1.0.10 新增：临时上岛 / 合并胶囊 ──
@@ -482,6 +489,8 @@ public sealed class AppSettings
     /// <summary>清除非法或非有限浮点值，避免 NaN / Infinity 写入 JSON 后导致设置窗口崩溃。</summary>
     public void NormalizeNonFiniteValues()
     {
+        HoverExpandDelayMs = Math.Clamp(HoverExpandDelayMs, 0, 1500);
+        HoverCollapseDelayMs = Math.Clamp(HoverCollapseDelayMs, 0, 2000);
         IslandManualLeft = NormalizeCoordinate(IslandManualLeft);
         IslandManualTop = NormalizeCoordinate(IslandManualTop);
         MiniPlayerLeft = NormalizeCoordinate(MiniPlayerLeft);

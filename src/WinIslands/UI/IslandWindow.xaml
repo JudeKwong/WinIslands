@@ -1,4 +1,4 @@
-﻿<Window x:Class="WinIslands.UI.IslandWindow"
+<Window x:Class="WinIslands.UI.IslandWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:WinIslands.UI.Converters"
@@ -1310,7 +1310,10 @@
                                         <Grid x:Name="WaveRingHostExpanded" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" Visibility="Collapsed"/>
                                         <Grid x:Name="WaveParticlesHostExpanded" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" Visibility="Collapsed"/>
                                     </StackPanel>
-                                    <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanPrevious}">
+                                    <Button Style="{StaticResource IconButton}" Width="21" Height="24" Padding="0" Margin="0,0,1,0" Command="{Binding SeekBackwardCommand}" IsEnabled="{Binding CanSeek}"
+                                            ToolTip="{Binding SeekBackwardHint}">
+                                        <TextBlock Text="−15" FontSize="7.5" VerticalAlignment="Center"/>
+                                    </Button>                                    <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanPrevious}">
                                         <TextBlock Text="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
                                     </Button>
                                     <Button Style="{StaticResource IconButton}" Width="28" Height="24" Padding="0" Command="{Binding PlayPauseCommand}">
@@ -1318,6 +1321,9 @@
                                     </Button>
                                     <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Command="{Binding NextCommand}" IsEnabled="{Binding CanNext}">
                                         <TextBlock Text="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                                    </Button>                                    <Button Style="{StaticResource IconButton}" Width="21" Height="24" Padding="0" Margin="1,0,0,0" Command="{Binding SeekForwardCommand}" IsEnabled="{Binding CanSeek}"
+                                            ToolTip="{Binding SeekForwardHint}">
+                                        <TextBlock Text="+15" FontSize="7.5" VerticalAlignment="Center"/>
                                     </Button>
                                 </StackPanel>
 
@@ -1376,8 +1382,13 @@
             <Border.RenderTransform>
                 <TranslateTransform x:Name="CopyToastTranslate" Y="64"/>
             </Border.RenderTransform>
-            <TextBlock Text="{Binding CopyToastText}" FontSize="11.5" Foreground="White"
-                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 复制成功：闪电图标 + 文本 -->
+                <TextBlock Text="&#xE945;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                           Foreground="#FFD60A" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Text="{Binding CopyToastText}" FontSize="11.5" Foreground="White"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
         </Border>
     </Grid>
 </Window>

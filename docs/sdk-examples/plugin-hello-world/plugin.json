@@ -1,0 +1,18 @@
+{
+  "id": "com.winislands.sample.hello-world",
+  "name": "示例：内存占用",
+  "version": "1.0.0",
+  "description": "最小可运行的 WinIslands 本地组件插件示例，展示 stdout JSON 协议。",
+  "author": "WinIslands",
+  "entry": "run.ps1",
+  "arguments": [],
+  "enabled": true,
+  "run_at_startup": true,
+  "interval_seconds": 30,
+  "timeout_seconds": 10,
+  "max_output_kb": 64,
+  "permissions": [
+    "processes"
+  ],
+  "sha256": "8C0543B10A89E0696E074768003A181F0970DBA156E68DD511B4BD33C1E4B84F"
+}

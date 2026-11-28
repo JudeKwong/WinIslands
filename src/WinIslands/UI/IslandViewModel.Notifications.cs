@@ -25,52 +25,63 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// 系统事件以「灵动岛卡片」形式展示（iOS 风格）：自动过期、弹簧动画入场、不阻塞主流程。
-    /// 复用上岛推送队列：同 id 覆盖；到点后由 CheckPushExpiry 自动回收。
+    /// 复用上岛推送队列：同来源同标题（折叠开启时）合并计数；未指定时长时使用全局默认时长。
     /// </summary>
     public void ShowEventCard(string id, string title, string? subtitle, string icon,
-        string type = "info", int durationSeconds = 5, string? body = null, MessengerUnread? unread = null)
+        string type = "info", int? durationSeconds = null, string? body = null, MessengerUnread? unread = null)
     {
         // 勿扰模式：灵动岛事件卡片不展示（白名单仍展示由上层决定，这里只做总开关）
         if (DoNotDisturb.IsActive(_settings.Current)) return;
-        // 通知去抖：同类型通知 2 秒内只保留最新一条（避免快速连续触发导致队列堆积）
-        if (_settings.Current.NotificationDebounce)
-        {
-            _lastEventTimes.TryGetValue(type ?? "info", out var lastTime);
-            if (DateTime.Now - lastTime < TimeSpan.FromSeconds(2))
-            {
-                // 同一应用的重复通知不丢弃：落回队列合并为一条并累加 ×N。
-                var repeated = _pushes.Any(p => string.Equals(p.Id, "sys:" + id, StringComparison.Ordinal));
-                if (!repeated)
-                {
-                    AppLogger.Info($"Notification debounced: {title} (type={type})");
-                    return;
-                }
-            }
-            _lastEventTimes[type ?? "info"] = DateTime.Now;
-        }
-        var dur = Math.Max(2, durationSeconds);
 
-        PushIsland(new IslandPush
+        var typeKey = string.IsNullOrWhiteSpace(type) ? "info" : type.Trim().ToLowerInvariant();
+        var foldEnabled = _settings.Current.NotifyFoldEnabled;
+        var duration = NotificationPolicy.ResolveDurationSeconds(durationSeconds, _settings.Current.NotificationTimeoutSeconds);
+        var push = new IslandPush
         {
-            Id = "sys:" + id,
+            Id = NotificationPolicy.BuildCardId(id, title, foldEnabled),
             Title = title,
             Subtitle = subtitle ?? string.Empty,
             Body = body ?? string.Empty,
             Icon = icon,
-            Type = type ?? "info",
+            Type = typeKey,
             Priority = "high", // 系统事件优先于普通第三方推送展示
-            DurationSeconds = dur,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(dur),
+            DurationSeconds = duration,
+            ExpiresAt = DateTime.UtcNow.AddSeconds(duration),
             MessengerUnread = unread,
-        });
+        };
 
-        // 3.1.8 可访问性：通知出现时播报标题与正文，读屏用户无需看屏即可获知内容
+        // 去抖：同一条卡片（来源+标题）在 2 秒内重复到达时不再重复播报；
+        // 已在队列中的则继续合并计数（×N），不会被直接丢弃。
+        var queued = _pushes.Any(p => string.Equals(p.Id, push.Id, StringComparison.Ordinal));
+        if (_settings.Current.NotificationDebounce)
+        {
+            _lastEventTimes.TryGetValue(push.Id, out var lastTime);
+            if (!queued && DateTime.Now - lastTime < TimeSpan.FromSeconds(2))
+            {
+                AppLogger.Info($"Notification debounced: {title} (id={push.Id})");
+                return;
+            }
+            _lastEventTimes[push.Id] = DateTime.Now;
+            if (_lastEventTimes.Count > 256) PruneEventTimes();
+        }
+
+        PushIsland(push);
+
+        // 可访问性：通知出现时播报标题与正文，读屏用户无需看屏即可获知内容
         try
         {
             var spoken = string.Join("，", new[] { title, subtitle, body }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
             Accessibility.Announce(spoken);
         }
         catch { }
+    }
+
+    /// <summary>清理去抖记录，避免长时间运行后字典无限增长。</summary>
+    private void PruneEventTimes()
+    {
+        var cutoff = DateTime.Now.AddMinutes(-10);
+        foreach (var key in _lastEventTimes.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList())
+            _lastEventTimes.Remove(key);
     }
 
     /// <summary>
@@ -243,10 +254,19 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
     /// <summary>上岛 API 收到推送：加入/更新推送队列（同 id 覆盖、保留原过期时间），并按优先级刷新显示。</summary>
     public void PushIsland(IslandPush push)
     {
+        if (push is null) return;
+
+        // 未指定时长时使用设置里的全局默认时长；时长统一收敛到 2..30 秒。
+        var duration = NotificationPolicy.ResolveDurationSeconds(push.DurationSeconds, _settings.Current.NotificationTimeoutSeconds);
+        push.DurationSeconds = duration;
+        push.ExpiresAt ??= DateTime.UtcNow.AddSeconds(duration);
+        if (string.IsNullOrWhiteSpace(push.Id))
+            push.Id = NotificationPolicy.BuildCardId("api", push.Title, _settings.Current.NotifyFoldEnabled);
+
         var idx = _pushes.FindIndex(p => string.Equals(p.Id, push.Id, StringComparison.Ordinal));
         if (idx >= 0)
         {
-            // 更新内容，保持原过期时间
+            // 更新内容，保持原过期时间（重复推送不无限续期）
             if (_pushes[idx].ExpiresAt is DateTime e) push.ExpiresAt = e;
             push.RepeatCount = Math.Clamp(_pushes[idx].RepeatCount + 1, 1, 99);
             _pushes[idx] = push;
@@ -256,7 +276,7 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
             _pushes.Add(push);
         }
         RecomputeActivePush();
-        AppLogger.Info($"Island push: '{push.Title}' (id={push.Id}, priority={push.Priority ?? "normal"})");
+        AppLogger.Info($"Island push: '{push.Title}' (id={push.Id}, priority={push.Priority ?? "normal"}, {duration}s)");
     }
 
     /// <summary>上岛 API 移除/过期指定推送。</summary>
@@ -277,22 +297,23 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
     /// <summary>按 优先级高→低、入队 早→晚 重排队列并选出当前显示项（过期项同时清除）。</summary>
     private void RecomputeActivePush()
     {
+        var now = DateTime.UtcNow;
         var dropped = _pushes
-            .Where(p => p.ExpiresAt is DateTime e && e <= DateTime.UtcNow)
+            .Where(p => p.ExpiresAt is DateTime e && e <= now)
             .ToList();
-        var maxQueue = Math.Clamp(_settings.Current.NotificationQueueMax, 3, 20);
+
+        var maxQueue = NotificationPolicy.ClampQueueDepth(_settings.Current.NotificationQueueMax);
         while (_pushes.Count - dropped.Count > maxQueue)
         {
-            var minIdx = 0;
-            var minRank = int.MaxValue;
-            for (var j = 0; j < _pushes.Count; j++)
-            {
-                if (dropped.Contains(_pushes[j])) continue;
-                var rank = _pushes[j].PriorityRank + TypePriorityRank(_pushes[j].Type);
-                if (rank < minRank) { minRank = rank; minIdx = j; }
-            }
-            dropped.Add(_pushes[minIdx]);
+            // 超容量时丢弃优先级最低的一条（同优先级时保留较早入队的，丢弃较新的更“旧的”语义见 FindOverflowIndex）
+            var overflow = NotificationPolicy.FindOverflowIndex(
+                _pushes,
+                p => p.PriorityRank + TypePriorityRank(p.Type),
+                p => dropped.Contains(p));
+            if (overflow < 0) break;
+            dropped.Add(_pushes[overflow]);
         }
+
         foreach (var push in dropped)
         {
             _pushes.Remove(push);

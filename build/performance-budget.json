@@ -1,0 +1,7 @@
+{
+  "portableExeMaxMiB": 90,
+  "installerMaxMiB": 160,
+  "startupMaxMilliseconds": 12000,
+  "workingSetMaxMiB": 350,
+  "privateMemoryMaxMiB": 300
+}

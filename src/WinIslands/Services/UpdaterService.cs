@@ -32,6 +32,42 @@ public sealed class UpdateInfo
     public bool IsPortable => Asset.Name.Contains("-win-", StringComparison.OrdinalIgnoreCase);
 }
 
+/// <summary>更新渠道：正式版只取正式发布；测试版同时接受预发布。</summary>
+public enum UpdateChannel
+{
+    Stable = 0,
+    Beta = 1,
+}
+
+/// <summary>GitHub Releases 资产的内部解析结果。</summary>
+internal sealed class ReleaseAssetPayload
+{
+    public string Name { get; init; } = "";
+    public string Url { get; init; } = "";
+    public long Size { get; init; }
+    public string Digest { get; init; } = "";
+}
+
+/// <summary>GitHub Releases 发布信息的内部解析结果。</summary>
+internal sealed class ReleasePayload
+{
+    public string Tag { get; init; } = "";
+    public string PageUrl { get; init; } = "";
+    public string Notes { get; init; } = "";
+    public bool IsPrerelease { get; init; }
+    public DateTimeOffset PublishedAt { get; init; }
+    public List<ReleaseAssetPayload> Assets { get; init; } = new();
+}
+
+/// <summary>上一版本的回滚点（备份文件 + 元数据）。</summary>
+public sealed class RollbackPoint
+{
+    public string Version { get; set; } = "";
+    public string BackupPath { get; set; } = "";
+    public string InstallPath { get; set; } = "";
+    public DateTime CreatedUtc { get; set; }
+}
+
 /// <summary>
 /// 自更新：访问 GitHub Releases 最新版，比较版本，校验 SHA256 后下载。
 /// 仅在你手动开启（或点击“立即检查”）时联网，不上报任何数据。
@@ -53,50 +89,44 @@ public sealed class UpdaterService
     public event Action<string, string>? NewVersionAvailable; // version, url
 
     /// <summary>检查最新版本；返回 true 表示存在新版本。任何网络异常都安全返回 false。</summary>
-    public async Task<bool> CheckAsync()
+    /// <param name="channel">Stable（默认）或 Beta；Beta 渠道同时包含预发布版本。</param>
+    public async Task<bool> CheckAsync(string channel = "Stable")
     {
         LastAvailable = null;
+        var includePrerelease = IsBetaChannel(channel);
+
         // 逐个候选仓库尝试：账号改名后旧名会 404，新名可用；两者都试可避免更新检查静默失效。
         foreach (var repo in RepoCandidates)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get,
-                    $"https://api.github.com/repos/{repo}/releases/latest");
-                request.Headers.UserAgent.ParseAdd("WinIslands-Updater/1.0");
-                request.Headers.Accept.ParseAdd("application/vnd.github+json");
-                using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                if (!response.IsSuccessStatusCode) continue;
-                var json = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                var tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() : "";
-                var url = root.TryGetProperty("html_url", out var u) ? u.GetString() : "";
-                var notes = root.TryGetProperty("body", out var b) ? b.GetString() : "";
-                if (string.IsNullOrWhiteSpace(tag)) continue;
-                var latest = ParseVersion(tag);
+                var release = await FetchReleaseAsync(repo, includePrerelease);
+                if (release is null || string.IsNullOrWhiteSpace(release.Tag)) continue;
+
+                var latest = ParseVersion(release.Tag);
                 var current = ParseVersion(CurrentVersion());
                 if (latest <= 0 || current <= 0) continue;
+
                 Repo = repo; // 记录可用仓库，回退链接使用它
                 if (latest <= current) return false;
 
-                var version = NormalizeVersion(tag);
-                var asset = await SelectAssetAsync(root, version);
+                var version = NormalizeVersion(release.Tag);
+                var asset = await SelectAssetAsync(release, version);
                 if (asset is null)
                 {
-                    AppLogger.Debug($"Update {tag} has no compatible Windows asset; falling back to release page.");
-                    NewVersionAvailable?.Invoke(tag, url ?? $"https://github.com/{repo}/releases");
+                    AppLogger.Debug($"Update {release.Tag} has no compatible Windows asset; falling back to release page.");
+                    NewVersionAvailable?.Invoke(release.Tag, release.PageUrl);
                     return true;
                 }
                 LastAvailable = new UpdateInfo
                 {
-                    Tag = tag,
+                    Tag = release.Tag,
                     Version = version,
-                    PageUrl = url ?? $"https://github.com/{repo}/releases",
-                    Notes = notes ?? "",
+                    PageUrl = release.PageUrl,
+                    Notes = release.Notes,
                     Asset = asset,
                 };
-                NewVersionAvailable?.Invoke(tag, LastAvailable.PageUrl);
+                NewVersionAvailable?.Invoke(release.Tag, LastAvailable.PageUrl);
                 return true;
             }
             catch (Exception ex)
@@ -105,6 +135,99 @@ public sealed class UpdaterService
             }
         }
         return false;
+    }
+
+    /// <summary>判断渠道字符串是否为 Beta。</summary>
+    public static bool IsBetaChannel(string? channel)
+        => string.Equals((channel ?? string.Empty).Trim(), "Beta", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<ReleasePayload?> FetchReleaseAsync(string repo, bool includePrerelease)
+    {
+        if (!includePrerelease)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"https://api.github.com/repos/{repo}/releases/latest");
+            AddGitHubHeaders(request);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return ParseRelease(doc.RootElement);
+        }
+
+        using (var request = new HttpRequestMessage(HttpMethod.Get,
+                   $"https://api.github.com/repos/{repo}/releases?per_page=30"))
+        {
+            AddGitHubHeaders(request);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+
+            var candidates = new List<ReleasePayload>();
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                if (item.TryGetProperty("draft", out var draft) && draft.ValueKind == JsonValueKind.True) continue;
+                candidates.Add(ParseRelease(item));
+            }
+            return PickNewestRelease(candidates);
+        }
+    }
+
+    /// <summary>从候选发布中挑选版本号最高的一条；同版本时优先正式版。</summary>
+    internal static ReleasePayload? PickNewestRelease(IEnumerable<ReleasePayload> releases)
+    {
+        ReleasePayload? best = null;
+        var bestVersion = -1L;
+        foreach (var candidate in releases)
+        {
+            if (candidate is null) continue;
+            var version = ParseVersion(candidate.Tag);
+            if (version <= 0) continue;
+            var better = version > bestVersion
+                || (version == bestVersion && best is not null && best.IsPrerelease && !candidate.IsPrerelease);
+            if (!better) continue;
+            best = candidate;
+            bestVersion = version;
+        }
+        return best;
+    }
+
+    private static void AddGitHubHeaders(HttpRequestMessage request)
+    {
+        request.Headers.UserAgent.ParseAdd("WinIslands-Updater/1.0");
+        request.Headers.Accept.ParseAdd("application/vnd.github+json");
+    }
+
+    private static ReleasePayload ParseRelease(JsonElement root)
+    {
+        var payload = new ReleasePayload
+        {
+            Tag = GetString(root, "tag_name") ?? "",
+            PageUrl = GetString(root, "html_url") ?? "",
+            Notes = GetString(root, "body") ?? "",
+            IsPrerelease = root.TryGetProperty("prerelease", out var pre) && pre.ValueKind == JsonValueKind.True,
+            PublishedAt = root.TryGetProperty("published_at", out var pub) && pub.ValueKind == JsonValueKind.String
+                && DateTimeOffset.TryParse(pub.GetString(), out var when) ? when : DateTimeOffset.MinValue,
+        };
+
+        if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+            return payload;
+
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (asset.ValueKind != JsonValueKind.Object) continue;
+            payload.Assets.Add(new ReleaseAssetPayload
+            {
+                Name = GetString(asset, "name") ?? "",
+                Url = GetString(asset, "browser_download_url") ?? "",
+                Size = asset.TryGetProperty("size", out var size) && size.TryGetInt64(out var n) ? n : 0,
+                Digest = GetString(asset, "digest") ?? "",
+            });
+        }
+        return payload;
     }
 
     /// <summary>
@@ -224,6 +347,147 @@ public sealed class UpdaterService
         }
     }
 
+    /// <summary>
+    /// 安装新版本前写入回滚点：把当前 exe 备份到应用数据目录，并记录版本。
+    /// 返回 false 表示备份失败（此时仍可继续更新，但无法自动回滚）。
+    /// </summary>
+    public bool CreateRollbackPoint()
+    {
+        try
+        {
+            var exe = AppPaths.ExePath;
+            if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return false;
+
+            var dir = RollbackDir;
+            Directory.CreateDirectory(dir);
+            foreach (var old in Directory.GetFiles(dir, "*.bak"))
+            {
+                try { File.Delete(old); } catch { }
+            }
+
+            var version = CurrentVersion();
+            var backup = Path.Combine(dir, $"WinIslands-{version}-win-x64.bak");
+            File.Copy(exe, backup, true);
+
+            var point = new RollbackPoint
+            {
+                Version = version,
+                BackupPath = backup,
+                InstallPath = exe,
+                CreatedUtc = DateTime.UtcNow,
+            };
+            File.WriteAllText(RollbackFile, JsonSerializer.Serialize(point), new UTF8Encoding(false));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Debug($"Create rollback point failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>读取当前可用的回滚点；备份不存在时返回 null。</summary>
+    public RollbackPoint? GetRollbackPoint()
+    {
+        try
+        {
+            if (!File.Exists(RollbackFile)) return null;
+            var point = JsonSerializer.Deserialize<RollbackPoint>(File.ReadAllText(RollbackFile));
+            if (point is null || string.IsNullOrWhiteSpace(point.BackupPath)) return null;
+            return File.Exists(point.BackupPath) ? point : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 启动独立脚本：等待本进程退出 → 用备份覆盖当前 exe → 重新启动。
+    /// 返回 false 表示没有回滚点或脚本无法启动。
+    /// </summary>
+    public bool LaunchRollback(bool requireElevation = false)
+    {
+        var point = GetRollbackPoint();
+        if (point is null) return false;
+
+        var scriptPath = Path.Combine(Path.GetTempPath(), "WinIslands", $"rollback-{Guid.NewGuid():N}.ps1");
+        Directory.CreateDirectory(Path.GetDirectoryName(scriptPath)!);
+        File.WriteAllText(scriptPath, RollbackScript, new UTF8Encoding(false));
+
+        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        if (!File.Exists(powershell)) powershell = "powershell.exe";
+
+        var logPath = Path.Combine(AppPaths.AppDataDir, "rollback.log");
+        var arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden " +
+                        $"-File \"{scriptPath}\" -WaitPid {Environment.ProcessId} " +
+                        $"-Source \"{point.BackupPath}\" -Target \"{point.InstallPath}\" -LogFile \"{logPath}\"";
+
+        var psi = new ProcessStartInfo(powershell)
+        {
+            UseShellExecute = true,
+            Arguments = arguments,
+            WindowStyle = ProcessWindowStyle.Hidden,
+        };
+        if (requireElevation) psi.Verb = "runas";
+
+        try
+        {
+            Process.Start(psi);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Failed to start rollback helper", ex);
+            try { File.Delete(scriptPath); } catch { }
+            return false;
+        }
+    }
+
+    /// <summary>回滚成功后清理回滚点，避免重复回滚到更旧的版本。</summary>
+    public void ClearRollbackPoint()
+    {
+        try { File.Delete(RollbackFile); } catch { }
+    }
+
+    private static string RollbackDir => Path.Combine(AppPaths.AppDataDir, "rollback");
+    private static string RollbackFile => Path.Combine(RollbackDir, "rollback.json");
+
+    private const string RollbackScript = """
+param(
+    [Parameter(Mandatory=$true)][int]$WaitPid,
+    [Parameter(Mandatory=$true)][string]$Source,
+    [Parameter(Mandatory=$true)][string]$Target,
+    [Parameter(Mandatory=$true)][string]$LogFile
+)
+$ErrorActionPreference = 'SilentlyContinue'
+function Write-Log([string]$message) {
+    try { Add-Content -LiteralPath $LogFile -Value ("[{0}] {1}" -f (Get-Date -Format s), $message) } catch { }
+}
+Write-Log "rollback helper started; waiting for pid $WaitPid"
+try { Wait-Process -Id $WaitPid -Timeout 120 -ErrorAction Stop } catch { Write-Log "wait ended: $($_.Exception.Message)" }
+Start-Sleep -Milliseconds 500
+$restored = $false
+for ($i = 0; $i -lt 60; $i++) {
+    try {
+        Copy-Item -LiteralPath $Source -Destination $Target -Force -ErrorAction Stop
+        $restored = $true
+        break
+    } catch {
+        if ($i % 5 -eq 0) { Write-Log "restore attempt $i failed: $($_.Exception.Message)" }
+        Start-Sleep -Milliseconds 500
+    }
+}
+if ($restored) {
+    Write-Log "rollback copied; restarting $Target"
+    Start-Process -FilePath $Target -ArgumentList '--rolled-back'
+} else {
+    Write-Log "rollback failed; backup kept at $Source"
+}
+Remove-Item -LiteralPath $PSCommandPath -Force
+""";
+
     /// <summary>检查程序所在目录是否可直接写入（Program Files 需要提权）。</summary>
     public static bool CurrentInstallIsWritable()
     {
@@ -281,11 +545,8 @@ Remove-Item -LiteralPath $Source -Force
 Remove-Item -LiteralPath $PSCommandPath -Force
 """;
 
-    private static async Task<UpdateAsset?> SelectAssetAsync(JsonElement releaseRoot, string version)
+    private static async Task<UpdateAsset?> SelectAssetAsync(ReleasePayload release, string version)
     {
-        if (!releaseRoot.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
-            return null;
-
         var arch = RuntimeInformation.ProcessArchitecture switch
         {
             Architecture.Arm64 => "arm64",
@@ -295,30 +556,25 @@ Remove-Item -LiteralPath $PSCommandPath -Force
         var portable = $"WinIslands-{version}-win-{arch}.exe";
         var setup = $"WinIslands-Setup-{version}.exe";
 
-        var list = assets.EnumerateArray().ToList();
-        var chosen = list.FirstOrDefault(a => string.Equals(GetString(a, "name"), portable, StringComparison.OrdinalIgnoreCase));
-        if (chosen.ValueKind == JsonValueKind.Undefined)
-            chosen = list.FirstOrDefault(a => string.Equals(GetString(a, "name"), setup, StringComparison.OrdinalIgnoreCase));
-        if (chosen.ValueKind == JsonValueKind.Undefined) return null;
+        var chosen = release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, portable, StringComparison.OrdinalIgnoreCase));
+        chosen ??= release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, setup, StringComparison.OrdinalIgnoreCase));
+        if (chosen is null) return null;
 
-        var name = GetString(chosen, "name") ?? "";
-        var url = GetString(chosen, "browser_download_url") ?? "";
-        var size = chosen.TryGetProperty("size", out var s) && s.TryGetInt64(out var n) ? n : 0;
         var sha = "";
-        if (chosen.TryGetProperty("digest", out var d) && d.ValueKind == JsonValueKind.String)
-        {
-            var digest = d.GetString() ?? "";
-            if (digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)) sha = digest[7..];
-        }
+        if (chosen.Digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+            sha = chosen.Digest[7..];
         // 旧版本 GitHub 没有 digest 字段时，从我们发布的 SHA256SUMS.txt 里异步读取，避免阻塞 UI 线程。
         if (sha.Length == 0)
         {
-            var sums = list.FirstOrDefault(a => string.Equals(GetString(a, "name"), "SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
-            if (sums.ValueKind != JsonValueKind.Undefined)
-                sha = await ReadHashFromSumsAsync(GetString(sums, "browser_download_url") ?? "", name);
+            var sums = release.Assets.FirstOrDefault(a =>
+                string.Equals(a.Name, "SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
+            if (sums is not null)
+                sha = await ReadHashFromSumsAsync(sums.Url, chosen.Name);
         }
 
-        return new UpdateAsset { Name = name, Url = url, Size = size, Sha256 = sha };
+        return new UpdateAsset { Name = chosen.Name, Url = chosen.Url, Size = chosen.Size, Sha256 = sha };
     }
 
     private static async Task<string> ReadHashFromSumsAsync(string sumsUrl, string assetName)

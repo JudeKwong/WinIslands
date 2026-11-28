@@ -5,8 +5,6 @@ namespace WinIslands.Services;
 /// <summary>勿扰模式判定：手动开关或时间段自动生效。</summary>
 public static class DoNotDisturb
 {
-    /// <summary>平台注入的「会议中」判定（Windows=MeetingMonitor；macOS 未实现时保持 null）。</summary>
-    public static Func<bool>? MeetingStateProvider { get; set; }
 
     /// <summary>是否处于勿扰：手动开关或时间段自动生效；白名单来源（10 勿扰白名单）不受勿扰影响。</summary>
     public static bool IsActive(AppSettings s) => IsActive(s, null);
@@ -15,8 +13,6 @@ public static class DoNotDisturb
     {
         if (IsAllowlisted(s, source)) return false;
         if (s.DoNotDisturbManual) return true;
-        // 开会静音助手：检测到会议时自动勿扰（仅本机前台窗口检测，不联网）
-        if (s.MeetingAssistantEnabled && s.MeetingAutoDnd && MeetingStateProvider?.Invoke() == true) return true;
         if (!s.DoNotDisturbEnabled) return false;
         var start = TimeOfDay(s.DoNotDisturbStartHour, s.DoNotDisturbStartMinute);
         var end = TimeOfDay(s.DoNotDisturbEndHour, s.DoNotDisturbEndMinute);

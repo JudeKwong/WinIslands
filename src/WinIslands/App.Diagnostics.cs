@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Microsoft.Win32;
 using System.Windows;
 using Application = System.Windows.Application;
@@ -429,6 +431,61 @@ public partial class App : Application
                 ? "Collapse-frame diagnostic PASSED: every sampled frame kept a height-derived radius for 1.5 s."
                 : $"Collapse-frame diagnostic FAILED: {failures.Count} issue(s).");
             Shutdown(passed ? 0 : 1);
+        }
+    }
+    private async Task CaptureStartupBenchmarkAsync(string rawPath)
+    {
+        var exitCode = 1;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+                throw new ArgumentException("Benchmark output path is empty.", nameof(rawPath));
+
+            // Let bindings, first layout, timers and background services reach idle.
+            await Task.Delay(1500);
+
+            using var process = Process.GetCurrentProcess();
+            var startupMilliseconds = Math.Max(0L, (long)(DateTime.Now - process.StartTime).TotalMilliseconds);
+            var sample = new RuntimePerformanceSample(
+                startupMilliseconds,
+                Environment.WorkingSet,
+                process.PrivateMemorySize64);
+            var budget = PerformanceBudget.Evaluate(sample);
+            var path = Path.GetFullPath(rawPath);
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
+            var report = new
+            {
+                schemaVersion = 1,
+                product = "WinIslands",
+                version = typeof(App).Assembly.GetName().Version?.ToString(),
+                capturedAtUtc = DateTime.UtcNow,
+                startupMilliseconds,
+                workingSetMiB = Math.Round(sample.WorkingSetMiB, 1),
+                privateMemoryMiB = Math.Round(sample.PrivateMemoryMiB, 1),
+                threadCount = process.Threads.Count,
+                withinBudget = budget.WithinBudget,
+                violations = budget.Violations,
+            };
+            var json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json + Environment.NewLine, new System.Text.UTF8Encoding(false));
+
+            foreach (var violation in budget.Violations)
+                AppLogger.Error("Performance budget: " + violation);
+            AppLogger.Info(
+                $"Startup benchmark: {startupMilliseconds} ms, working set {sample.WorkingSetMiB:0.0} MiB, " +
+                $"private {sample.PrivateMemoryMiB:0.0} MiB, within budget={budget.WithinBudget}.");
+            exitCode = budget.WithinBudget ? 0 : 2;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Startup benchmark failed", ex);
+            exitCode = 1;
+        }
+        finally
+        {
+            Shutdown(exitCode);
         }
     }
 }

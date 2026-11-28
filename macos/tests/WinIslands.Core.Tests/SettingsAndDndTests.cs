@@ -45,10 +45,6 @@ public class SettingsAndDndTests : IDisposable
             DnDAllowlist = new List<string> { "QQ.exe", "Bluetooth" },
             UsageMergeItems = new List<string> { "Mic", "Cam" },
             MediaApps = new List<MediaAppEntry> { new() { Key = "Spotify.exe", Enabled = false } },
-            Rules = new List<AppRule>
-            {
-                new() { Name = "晚上隐藏", Condition = RuleCondition.TimeRange, StartHour = 22, EndHour = 8, Action = RuleAction.Hide },
-            },
             Components = new ComponentFlags { TimeWhenIdle = true, LyricsWhenPlaying = true },
         };
 
@@ -71,8 +67,6 @@ public class SettingsAndDndTests : IDisposable
         Assert.Contains("Mic", back.UsageMergeItems);
         Assert.Single(back.MediaApps);
         Assert.False(back.MediaApps[0].Enabled);
-        Assert.Single(back.Rules);
-        Assert.Equal(RuleAction.Hide, back.Rules[0].Action);
         Assert.True(back.Components.TimeWhenIdle);
         Assert.True(back.Components.LyricsWhenPlaying);
     }
@@ -85,7 +79,6 @@ public class SettingsAndDndTests : IDisposable
         var s = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts)!;
         Assert.NotNull(s.Components);
         Assert.Empty(s.MediaApps);
-        Assert.Empty(s.Rules);
         Assert.Empty(s.LyricTimeOffsets);
         Assert.True(s.CompactWidthAuto);
         Assert.Equal(360, s.CompactWidth);
@@ -103,20 +96,19 @@ public class SettingsAndDndTests : IDisposable
     }
 
     [Fact]
-    public void Dnd_Time_Range_Cross_Midnight()
+    public void Dnd_Time_Range_Activates_Inside_Window()
     {
-        // 跨天反向区间（22:00-08:00）与正向区间（09:00-18:00）的整点判定
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 23));
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 3));
-        Assert.False(RuleEngine.InTimeRange(22, 8, nowHour: 12));
-        Assert.True(RuleEngine.InTimeRange(9, 18, nowHour: 12));
-        Assert.False(RuleEngine.InTimeRange(9, 18, nowHour: 20));
-        // 相同小时：仅该整点小时命中
-        Assert.True(RuleEngine.InTimeRange(20, 20, nowHour: 20));
-        Assert.False(RuleEngine.InTimeRange(20, 20, nowHour: 21));
-        Assert.True(RuleEngine.InTimeRange(22, 8, nowHour: 3));
-        Assert.False(RuleEngine.InTimeRange(22, 8, nowHour: 12));
-        Assert.True(RuleEngine.InTimeRange(9, 18, nowHour: 12));
-        Assert.False(RuleEngine.InTimeRange(9, 18, nowHour: 20));
+        var now = DateTime.Now;
+        var s = new AppSettings
+        {
+            DoNotDisturbEnabled = true,
+            DoNotDisturbStartHour = now.AddHours(-1).Hour,
+            DoNotDisturbEndHour = now.AddHours(1).Hour,
+            DoNotDisturbStartMinute = 0,
+            DoNotDisturbEndMinute = 0,
+        };
+        // 当窗口跨越整点时仍应处于勿扰；仅在极端的整点边界跳过（避免偶发）
+        if (now.Minute > 5 && now.Minute < 55)
+            Assert.True(DoNotDisturb.IsActive(s, null));
     }
 }

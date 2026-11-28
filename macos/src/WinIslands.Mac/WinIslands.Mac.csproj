@@ -18,13 +18,13 @@
 
     <RootNamespace>WinIslands.Mac</RootNamespace>
 
-    <Version>3.1.8</Version>
+    <Version>3.1.9</Version>
 
-    <AssemblyVersion>3.1.8.0</AssemblyVersion>
+    <AssemblyVersion>3.1.9.0</AssemblyVersion>
 
-    <InformationalVersion>3.1.8</InformationalVersion>
+    <InformationalVersion>3.1.9</InformationalVersion>
 
-    <FileVersion>3.1.8.0</FileVersion>
+    <FileVersion>3.1.9.0</FileVersion>
 
     <Product>WinIslands</Product>
 

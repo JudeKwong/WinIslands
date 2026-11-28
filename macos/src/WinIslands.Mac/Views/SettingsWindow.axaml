@@ -69,6 +69,15 @@
           </StackPanel>
           <CheckBox Name="HideNoMediaBox" Content="无媒体时自动隐藏灵动岛"/>
           <CheckBox Name="AlwaysVisibleBox" Content="常驻显示（无视媒体状态）"/>
+          <CheckBox Name="HoverExpandBox" Content="鼠标悬停自动展开"/>
+          <StackPanel Spacing="6">
+            <TextBlock Text="悬停展开延迟（毫秒，0-1500）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="HoverExpandDelayBox" Width="120"/>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="移开后收起延迟（毫秒，0-2000）" FontSize="12" Opacity="0.7"/>
+            <TextBox Name="HoverCollapseDelayBox" Width="120"/>
+          </StackPanel>
         </StackPanel>
 
         <!-- 媒体 -->

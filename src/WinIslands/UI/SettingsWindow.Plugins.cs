@@ -50,7 +50,7 @@ public partial class SettingsWindow : Window
                     ? Localization.Get("Plugins_NoDescription")
                     : p.Description,
                 MetaText = BuildPluginMeta(p),
-                StatusText = Localization.Get(p.Enabled ? "Plugins_Enabled" : "Plugins_Disabled"),
+                StatusText = BuildPluginStatus(p),
                 Enabled = p.Enabled,
             })
             .ToList();
@@ -72,7 +72,26 @@ public partial class SettingsWindow : Window
         parts.Add(string.Format(Localization.Get("Plugins_Permissions"), permissions));
         if (plugin.IntervalSeconds > 0)
             parts.Add(string.Format(Localization.Get("Plugins_Interval"), plugin.IntervalSeconds));
+        if (!string.IsNullOrWhiteSpace(plugin.ValidationSummary))
+            parts.Add(string.Format(Localization.Get("Plugins_ValidationWarn"), plugin.ValidationSummary));
         return string.Join("  ·  ", parts);
+    }
+
+    /// <summary>设置页状态列：未启用 → 已停用；运行中/最近成功/失败次数来自健康快照。</summary>
+    private string BuildPluginStatus(PluginManifest plugin)
+    {
+        if (!plugin.Enabled) return Localization.Get("Plugins_Disabled");
+        try
+        {
+            var health = _plugins?.GetHealth(plugin.Id);
+            if (health is null) return Localization.Get("Plugins_Enabled");
+            if (health.IsRunning) return Localization.Get("Plugins_Running");
+            if (health.FailureCount > 0) return string.Format(Localization.Get("Plugins_HealthError"), health.FailureCount);
+            if (health.LastSuccessTime is DateTime success)
+                return string.Format(Localization.Get("Plugins_LastSuccess"), success.ToLocalTime().ToString("HH:mm:ss"));
+        }
+        catch { }
+        return Localization.Get("Plugins_Enabled");
     }
 
     private void OpenPluginManager_Click(object sender, RoutedEventArgs e)

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.ComponentModel;
@@ -150,13 +150,20 @@ public partial class IslandWindow
         // 展开内容保持可见以播放「自下而上」的交错淡出动画，动画结束后由 AnimateCard 回调隐藏
         ExpandedContent.Visibility = Visibility.Visible;
         ExpandedContent.Opacity = 1;
+        // 3.1.9：收起开始时只测量一次紧凑尺寸，并让整个动画/收尾共用同一目标。
+        // 此前收起过程中会多次重读 CompactWidth（动画前、动画中、1200ms 兜底、弹簧收尾），
+        // 布局状态稍有差异就会把宽度二次改写，表现为收回后突然横向跳一下。
+        var targetCompactWidth = CompactWidth;
+        var targetCompactHeight = CompactHeight;
+        _lastCollapseTargetW = targetCompactWidth;
+        _lastCollapseTargetH = targetCompactHeight;
         // 60fps 优化：收起动画期间展开内容固定宽度，不随卡片宽度逐帧重排
         // 保持收起动画启动时的展开宽度：文字不瞬间重排（溢出部分由圆角裁剪收住，且随淡化隐藏）
-        ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, CompactWidth) - 20 - ExpandedContentExtraHorizontalMargin);
+        ExpandedContent.Width = Math.Max(120, Math.Max(Card.ActualWidth, targetCompactWidth) - 20 - ExpandedContentExtraHorizontalMargin);
 
         // 尺寸收尾由 OnCardSpringSettled 统一写回 _cardTargetW/H（始终是最新目标，兼容收起途中
         // 被紧凑尺寸重定向连续接管），不再用固定 CompactWidth 回调覆盖，避免收回后宽度/高度错位。
-        AnimateCard(CompactWidth, CompactHeight, expand: false);
+        AnimateCard(targetCompactWidth, targetCompactHeight, expand: false);
     }
 
     /// <summary>
@@ -395,6 +402,9 @@ public partial class IslandWindow
 
     /// <summary>逐帧统一应用圆角：裁剪几何 + 卡片边框 + 玻璃层三者同步，形变全程圆角连续（消除"圆角变方框"）。</summary>
     private double _lastAppliedCardRadius = double.NaN;   // 2.1.2：圆角写入去抖，收敛/静止帧不再刷布局
+    /// <summary>最近一次收起捕获的紧凑目标尺寸：整段收起只测量一次，动画与收尾共用。</summary>
+    private double _lastCollapseTargetW;
+    private double _lastCollapseTargetH;
 
     /// <summary>
     /// iOS 真弹簧展开/收起（默认 Spring 动效）：
@@ -431,7 +441,7 @@ public partial class IslandWindow
         ExpandedContent.Visibility = Visibility.Visible;
         PillRow.Visibility = Visibility.Visible;
         // 动画期间固定展开内容宽度，避免逐帧重排（60fps 保持布局稳定）
-        ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, CompactWidth)) - 20 - ExpandedContentExtraHorizontalMargin);
+        ExpandedContent.Width = Math.Max(120, (expand ? ExpandedWidth : Math.Max(Card.ActualWidth, width)) - 20 - ExpandedContentExtraHorizontalMargin);
 
         _expandedFadeIn = expand; // 2.0.9：记录淡入方向，交叉淡入曲线据此解耦胶囊行与内容
         var fadeTo = expand ? 1.0 : 0.0;
@@ -472,9 +482,12 @@ public partial class IslandWindow
     }
 
     /// <summary>统一恢复紧凑态布局：快速展开/收回后避免尺寸、层级或宽度残留导致胶囊显示不全。</summary>
-    private void RestoreCompactLayout(bool clearAnimations = true)
+    private void RestoreCompactLayout(bool clearAnimations = true, double? targetWidth = null, double? targetHeight = null)
     {
         if (!IsLoaded || _vm.IsExpanded || _cardAnimating) return;
+        // 3.1.9：优先使用本次收起捕获的目标尺寸，避免收尾阶段再次测量导致宽度跳变。
+        var compactWidth = targetWidth ?? CompactWidth;
+        var compactHeight = targetHeight ?? CompactHeight;
 
         if (clearAnimations)
         {
@@ -487,8 +500,8 @@ public partial class IslandWindow
             ExpandedTranslate.BeginAnimation(TranslateTransform.YProperty, null);
         }
 
-        Card.Width = CompactWidth;
-        Card.Height = CompactHeight;
+        Card.Width = compactWidth;
+        Card.Height = compactHeight;
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         ContentGrid.RowDefinitions[1].Height = GridLength.Auto;
         ContentGrid.VerticalAlignment = VerticalAlignment.Center;
@@ -497,11 +510,11 @@ public partial class IslandWindow
         ExpandedContent.Visibility = Visibility.Collapsed;
         ExpandedContent.Opacity = 0;
         ExpandedContent.Width = double.NaN;
-        UpdateCompactContentWidth(CompactWidth);
+        UpdateCompactContentWidth(compactWidth);
         ResetContentParallax();
         // 等卡片尺寸与内容布局都落定后再校正宿主窗口，避免动画尾部出现裁边。
-        EnsureWindowSizeFits(CompactWidth);
-        FinalizeCardShape(CompactWidth, CompactHeight, force: true);
+        EnsureWindowSizeFits(compactWidth);
+        FinalizeCardShape(compactWidth, compactHeight, force: true);
         ScheduleCardShapeReconcile();
     }
 
@@ -540,7 +553,7 @@ public partial class IslandWindow
             }
             else
             {
-                RestoreCompactLayout(clearAnimations: false);
+                RestoreCompactLayout(clearAnimations: false, targetWidth: _cardTargetW, targetHeight: _cardTargetH);
             }
             var cb = _cardSpringCompleted; // 先取再清，避免回调里再次触发动画导致重复收尾
             _cardSpringCompleted = null;
@@ -652,6 +665,13 @@ public partial class IslandWindow
     {
         if (_pushOpacitySpring?.IsActive == true || _pushScaleSpring?.IsActive == true) return;
         if (CompactPushCard is null) return;
+        // 卡片已经过期/被关闭时不能再把透明度拉回 1，否则会残留一个圆形应用图标。
+        if (!_vm.HasActivePush)
+        {
+            CompactPushCard.Opacity = 0;
+            if (CompactPushScale is not null) CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
+            return;
+        }
         CompactPushCard.Opacity = 1;
         if (CompactPushScale is not null) CompactPushScale.ScaleX = CompactPushScale.ScaleY = 1;
     }

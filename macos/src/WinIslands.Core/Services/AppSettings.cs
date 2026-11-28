@@ -53,18 +53,6 @@ public sealed class ComponentFlags
     public bool VolumeWhenPlaying { get; set; } = true;
     public bool CapsLockWhenIdle { get; set; } = false;
     public bool CapsLockWhenPlaying { get; set; } = false;
-    public bool ClipboardWhenIdle { get; set; } = false;
-    public bool ClipboardWhenPlaying { get; set; } = true;
-    public bool TodoWhenIdle { get; set; } = true;
-    public bool TodoWhenPlaying { get; set; } = false;
-    public bool TimerWhenIdle { get; set; } = false;
-    public bool TimerWhenPlaying { get; set; } = false;
-    public bool ScheduleWhenIdle { get; set; } = true;
-    public bool ScheduleWhenPlaying { get; set; } = false;
-    public bool HolidayWhenIdle { get; set; } = true;   // 节假日倒计时：空闲时显示
-    public bool HolidayWhenPlaying { get; set; } = false;
-    public bool MeetingWhenIdle { get; set; } = false;      // 会议中状态（开会静音助手）
-    public bool MeetingWhenPlaying { get; set; } = false;
     public bool DiskWhenIdle { get; set; } = false;         // 磁盘剩余空间（系统盘）
     public bool DiskWhenPlaying { get; set; } = false;
     public bool InputMethodWhenIdle { get; set; } = false;   // 输入法状态（中/英 + 输入法名）
@@ -117,6 +105,10 @@ public sealed class AppSettings
     public bool GlobalHotkeysEnabled { get; set; } = true;         // 全局快捷键
     public string DoubleClickAction { get; set; } = "PlayPause";   // 双击灵动岛快捷动作：PlayPause | OpenSettings | None
     public string MiddleClickAction { get; set; } = "PlayPause";   // 中键单击灵动岛快捷动作（与双击动作同值域）
+    // 鼠标悬停自动展开（与 Windows 版一致；单击仍可手动切换）
+    public bool HoverExpandEnabled { get; set; } = true;
+    public int HoverExpandDelayMs { get; set; } = 200;      // 悬停展开延迟（0~1500ms）
+    public int HoverCollapseDelayMs { get; set; } = 160;    // 移开鼠标后收起延迟（0~2000ms）
     // ── 快捷操作按钮（展开卡片底部一排）──
     // QuickActions = 全部可用操作的顺序；QuickActionsShown = 勾选显示的子集。
     public bool QuickActionsEnabled { get; set; } = true;
@@ -142,8 +134,6 @@ public sealed class AppSettings
     public string HotkeyExpand { get; set; } = "Ctrl+Alt+Space";
     public string HotkeyLauncher { get; set; } = "Ctrl+Space";          // 快速启动器（注意：Ctrl+Space 与中文输入法切换键冲突时可改其它组合）
     public bool QuickLauncherEnabled { get; set; } = true;              // 快速启动器开关
-    public string HotkeyClipboardPanel { get; set; } = "Ctrl+Alt+V";   // 剪贴板历史面板快捷键
-    public bool ClipboardPanelEnabled { get; set; } = true;             // 剪贴板历史面板开关
     public int LowBatteryThreshold { get; set; } = 20;             // 低电量提醒阈值（%）
     public bool LowBatteryPersistentEnabled { get; set; } = true;   // 1.2.4 低电量常驻指示（右上角电量胶囊，常驻不反复弹通知）
     public bool ChargedNotifyEnabled { get; set; } = true;          // 充电完成提醒：连接电源且电量达到阈值时弹一次
@@ -239,8 +229,6 @@ public sealed class AppSettings
     public string NotificationPosition { get; set; } = "TopRight"; // TopRight = 右上角
     public bool NotifyFoldEnabled { get; set; } = true;           // 通知折叠：同来源同标题只保留一条并累加数量
     // ── #10 通知历史（展开卡片底部列表，可点击重新弹出）──
-    public bool NotificationHistoryEnabled { get; set; } = true; // 记录通知历史
-    public int NotificationHistoryMax { get; set; } = 20;        // 通知历史条数上限（1~100）
     public int NotificationQueueMax { get; set; } = 8;   // 通知队列最大深度：超过时自动丢弃最低优先级的旧通知
     public bool NotificationDebounce { get; set; } = true; // 通知去抖：同类型通知 2 秒内只显示最新一条
 
@@ -251,7 +239,6 @@ public sealed class AppSettings
     public int IslandApiDefaultDuration { get; set; } = 30;      // 默认显示时长（秒），推送方可按条覆盖
 
     // ── 显示规则（条件规则引擎）──
-    public List<AppRule> Rules { get; set; } = new();   // 条件满足时自动隐藏/收起/强制显示
 
     // ── 外观增强（主题预设 / 字体 / 字号 / 圆角 / 封面取色）──
     public string ThemePreset { get; set; } = "Default";   // 皮肤预设：Default | Ocean | Forest | Sunset | Neon | Mono | Grape | Sky | Rose | Amber | Lime | Teal | Lavender | Crimson | Midnight | Coffee | Sakura | Aurora | Custom
@@ -282,19 +269,9 @@ public sealed class AppSettings
     public List<string> DnDAllowlist { get; set; } = new();   // 勿扰白名单：来源 exe/AppName（大小写不敏感），白名单内的来源仍弹横幅
 
     // ── 开会静音助手（会议检测 + 自动勿扰；纯本机启发式，不联网）──
-    public bool MeetingAssistantEnabled { get; set; } = false;   // 总开关：检测会议（默认关，避免误报）
-    public bool MeetingAutoDnd { get; set; } = true;             // 会议中自动开启勿扰（不弹通知横幅）
-    public string MeetingKeywords { get; set; } = "";          // 自定义会议关键词（逗号分隔；留空用内置列表）
 
     // ── 屏幕录制 / 截图提示（默认关，避免打扰；PrintScreen 钩子 + 录制进程轮询）──
-    public bool ScreenCaptureNotifyEnabled { get; set; } = false;  // 总开关
-    public bool RecordingDndEnabled { get; set; } = false;      // 录屏时自动勿扰（不弹通知横幅）
-    public bool ScreenshotNotifyEnabled { get; set; } = true;      // 按 PrintScreen 截图时提示
-    public bool RecordingNotifyEnabled { get; set; } = true;       // 检测到录制软件时提示
     // ── 日历事件提醒（.ics 本地解析，默认关）──
-    public bool CalendarEnabled { get; set; } = false;    // 总开关
-    public string CalendarIcsPath { get; set; } = "";     // .ics 日历文件路径
-    public int CalendarAdvanceMinutes { get; set; } = 10; // 提前提醒分钟
     // ── RSS 订阅 / 邮件提醒（默认关；仅用户开启后联网，不上报数据）──
     public bool RssNotifyEnabled { get; set; } = false;   // RSS 订阅总开关
     public string RssUrls { get; set; } = "";             // 逗号分隔的订阅地址（RSS 2.0 / Atom）
@@ -310,15 +287,7 @@ public sealed class AppSettings
 
 
     // ── 效率工具 ──
-    public bool ClipboardHistoryEnabled { get; set; } = false;  // 剪贴板历史（默认关，随需开启）
-    public int ClipboardHistoryMax { get; set; } = 15;
     public bool CopyToastEnabled { get; set; } = true;       // 复制文本时提示「已复制」
-    public bool CodeToastEnabled { get; set; } = true;       // 识别短信验证码并高亮提示
-    public bool CopyProgressEnabled { get; set; } = true;    // 大文本复制显示进度（估算）
-    public int CopyProgressThreshold { get; set; } = 4000;   // 触发进度提示的最小字符数
-    public bool PomodoroEnabled { get; set; } = false;          // 番茄钟/计时器
-    public int PomodoroWorkMinutes { get; set; } = 25;
-    public int PomodoroBreakMinutes { get; set; } = 5;
     public bool AutoUpdateCheck { get; set; } = false;          // 自动检查 GitHub 新版本（默认关，需联网）
     public int KeyIndicatorSeconds { get; set; } = 3;              // 键盘指示灯出现时长（秒）
 
@@ -328,7 +297,7 @@ public sealed class AppSettings
     public bool FileCopyNotifyEnabled { get; set; } = true;        // 文件复制/移动进行中上岛
     public bool DownloadProgressEnabled { get; set; } = false;     // 下载进行中上岛（默认关）
     public bool UsageMergeEnabled { get; set; } = false;           // 「使用中」合并胶囊（默认关）
-    public List<string> UsageMergeItems { get; set; } = new() { "Mic", "Cam", "Meeting", "Recording" }; // 参与合并的组件
+    public List<string> UsageMergeItems { get; set; } = new() { "Mic", "Cam" }; // 参与合并的组件
 
     /// <summary>合并胶囊中是否包含麦克风（方便设置界面勾选绑定）。</summary>
     public bool UsageMergeMic
@@ -344,19 +313,7 @@ public sealed class AppSettings
         set { if (value && !UsageMergeItems.Contains("Cam")) UsageMergeItems.Add("Cam"); else if (!value) UsageMergeItems.Remove("Cam"); }
     }
 
-    /// <summary>合并胶囊中是否包含会议中。</summary>
-    public bool UsageMergeMeeting
-    {
-        get => UsageMergeItems.Contains("Meeting");
-        set { if (value && !UsageMergeItems.Contains("Meeting")) UsageMergeItems.Add("Meeting"); else if (!value) UsageMergeItems.Remove("Meeting"); }
-    }
 
-    /// <summary>合并胶囊中是否包含录屏中。</summary>
-    public bool UsageMergeRecording
-    {
-        get => UsageMergeItems.Contains("Recording");
-        set { if (value && !UsageMergeItems.Contains("Recording")) UsageMergeItems.Add("Recording"); else if (!value) UsageMergeItems.Remove("Recording"); }
-    }
 
 
     public string ActiveProfile { get; set; } = "Default";   // 当前配置档案名
@@ -384,11 +341,6 @@ public sealed class AppSettings
         c.QuickActionsShown = new List<string>(QuickActionsShown);
         c.CallNotifyApps = new List<string>(CallNotifyApps);
         c.MediaApps = new List<MediaAppEntry>(MediaApps);
-        c.Rules = Rules.Where(r => r is not null).Select(r => new AppRule
-        {
-            Enabled = r.Enabled, Name = r.Name, Condition = r.Condition,
-            StartHour = r.StartHour, EndHour = r.EndHour, AppMatch = r.AppMatch, Action = r.Action,
-        }).ToList();
         return c;
     }
 }

@@ -29,6 +29,9 @@ public static class AppPaths
 
     public static string LyricsDir => Path.Combine(AppDataDir, "Lyrics");
 
+    /// <summary>Fetch-result cache for online / AMLL lyrics.</summary>
+    public static string LyricsCacheDir => Path.Combine(AppDataDir, "lyrics-cache");
+
     /// <summary>用户插件目录：%APPDATA%\WinIslands\plugins。</summary>
     public static string PluginsDir => Path.Combine(AppDataDir, "plugins");
 

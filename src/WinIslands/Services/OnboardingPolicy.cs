@@ -23,6 +23,7 @@ public static class OnboardingPolicy
         "--demo-at=",
         "--collapse-frames-diag=",
         "--roundtrip-diag=",
+        "--startup-benchmark=",
         "--stress-island",
     };
 

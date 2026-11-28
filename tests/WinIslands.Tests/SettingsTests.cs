@@ -59,4 +59,22 @@ public class SettingsTests : IDisposable
         var svc = new SettingsService();
         Assert.False(svc.TryImport("{ not valid json "));
     }
-}
+
+    [Fact]
+    public void InteractionSettings_Roundtrip_And_Clamp()
+    {
+        var svc = new SettingsService();
+        svc.Current.HoverExpandEnabled = false;
+        svc.Current.HoverExpandDelayMs = 9999;
+        svc.Current.HoverCollapseDelayMs = -5;
+        svc.Current.WheelPageNavigationEnabled = false;
+        svc.Current.WheelPageInvertDirection = true;
+        svc.Save();
+
+        var svc2 = new SettingsService();
+        Assert.False(svc2.Current.HoverExpandEnabled);
+        Assert.Equal(1500, svc2.Current.HoverExpandDelayMs);
+        Assert.Equal(0, svc2.Current.HoverCollapseDelayMs);
+        Assert.False(svc2.Current.WheelPageNavigationEnabled);
+        Assert.True(svc2.Current.WheelPageInvertDirection);
+    }}
