@@ -172,13 +172,17 @@ jobs:
           $cpu1 = $process.TotalProcessorTime
           $sw.Stop()
           $workingSetMiB = [math]::Round($process.WorkingSet64 / 1MB, 1)
+          $privateMiB = [math]::Round($process.PrivateMemorySize64 / 1MB, 1)
           $idleCpuPercent = [math]::Round(($cpu1 - $cpu0).TotalMilliseconds / $sw.Elapsed.TotalMilliseconds * 100, 2)
-          $report = @{ idleCpuPercent = $idleCpuPercent; workingSetMiB = $workingSetMiB; sampleSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
+          $report = @{ idleCpuPercent = $idleCpuPercent; workingSetMiB = $workingSetMiB; privateMemoryMiB = $privateMiB; sampleSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
           Stop-Process -Id $process.Id -Force
           $report | ConvertTo-Json | Out-File -FilePath 'artifacts/idle-budget.json' -Encoding utf8
           Get-Content 'artifacts/idle-budget.json' -Raw
           if ($idleCpuPercent -gt 5) { throw "Idle CPU budget exceeded: $idleCpuPercent% of one core (limit 5%)." }
-          if ($workingSetMiB -gt 350) { throw "Idle memory budget exceeded: $workingSetMiB MiB (limit 350)." }
+          if ($privateMiB -gt 300) { throw "Idle private memory budget exceeded: $privateMiB MiB (limit 300)." }
+          # Working set includes software-rendered UI surfaces and shared pages on headless CI
+          # runners, so it is only a coarse ceiling here; private memory is the real signal.
+          if ($workingSetMiB -gt 600) { throw "Idle working set exceeded: $workingSetMiB MiB (limit 600)." }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-release-assets

@@ -16,7 +16,7 @@
 - 🔐 **供应链与发布**：工作流依赖固定到完整 SHA，新增 CodeQL 与 Dependabot；发布生成 CycloneDX SBOM，SHA256SUMS 覆盖 SBOM；新增性能预算门禁、冷启动基准与空闲 CPU 门禁，并为发布产物生成 SLSA 构建来源证明；支持 Windows 签名与 macOS 公证
 - 🧹 **功能精简**：移除会议监测与自动勿扰、截图录音提醒、待办、番茄钟、日程与节假日倒计时、剪贴板历史、验证码识别与大文本复制进度提示
 - 📚 **文档与社区**：新增安全政策、贡献指南、行为准则、性能预算、供应链验证、发布与回滚文档，以及插件 Issue 模板
-- ✅ **质量验证**：Windows 828 项测试全部通过；macOS 核心测试通过；发布版冷启动基准约 5.0 秒、工作集约 261 MiB、私有内存约 148 MiB，均在预算内
+- ✅ **质量验证**：Windows 828 项测试全部通过；macOS 核心测试通过；发布版冷启动基准约 3.6 秒、工作集约 314 MiB、私有内存约 141 MiB，均在预算内
 
 ## WinIslands 3.1.9 (Stable)
 ### What's New
@@ -30,7 +30,7 @@
 - 🔐 **Supply chain and release**: workflow dependencies are pinned to full SHAs, CodeQL and Dependabot were added, releases publish a CycloneDX SBOM and cover it in SHA256SUMS, a performance-budget gate and cold-start benchmark run on every release, and Windows signing plus macOS notarization are supported
 - 🧹 **Simplified feature set**: removed meeting detection and auto Do Not Disturb, screenshot/recording reminders, to-dos, Pomodoro timers, schedule and holiday countdowns, clipboard history, verification-code detection and large-text copy progress
 - 📚 **Docs and community**: added security policy, contributing guide, code of conduct, performance budget, supply-chain verification, release and rollback docs, and a plugin issue template
-- ✅ **Verification**: all 828 Windows tests pass, macOS core tests pass, and the release cold-start benchmark is about 5.0 s with a 261 MiB working set and 148 MiB private memory, all within budget
+- ✅ **Verification**: all 828 Windows tests pass, macOS core tests pass, and the release cold-start benchmark is about 3.6 s with a 314 MiB working set and 141 MiB private memory, all within budget
 
 ### 校验
 
