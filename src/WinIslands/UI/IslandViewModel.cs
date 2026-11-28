@@ -179,6 +179,8 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         PreviousCommand = new AsyncRelayCommand(_ => _coordinator.PreviousAsync());
         SeekBackwardCommand = new AsyncRelayCommand(_ => SeekRelativeAsync(-MediaControlMath.SeekStepSeconds));
         SeekForwardCommand = new AsyncRelayCommand(_ => SeekRelativeAsync(MediaControlMath.SeekStepSeconds));
+        ToggleShuffleCommand = new AsyncRelayCommand(_ => _coordinator.ToggleShuffleAsync());
+        CycleRepeatCommand = new AsyncRelayCommand(_ => _coordinator.CycleRepeatAsync());
         OpenSettingsCommand = new RelayCommand(_ => OpenSettingsRequested?.Invoke(this, EventArgs.Empty));
         ToggleLyricsWindowCommand = new RelayCommand(_ => ToggleLyricsWindowRequested?.Invoke(this, EventArgs.Empty));
 
@@ -431,6 +433,8 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand PreviousCommand { get; }
     public AsyncRelayCommand SeekBackwardCommand { get; }
     public AsyncRelayCommand SeekForwardCommand { get; }
+    public AsyncRelayCommand ToggleShuffleCommand { get; }
+    public AsyncRelayCommand CycleRepeatCommand { get; }
     public string SeekBackwardHint => Localization.Get("Media_SeekBackHint");
     public string SeekForwardHint => Localization.Get("Media_SeekForwardHint");
     public RelayCommand OpenSettingsCommand { get; }
@@ -528,6 +532,37 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
 
     private bool _canSeek;
     public bool CanSeek { get => _canSeek; private set => Set(ref _canSeek, value); }
+
+    private bool _canShuffle;
+    public bool CanShuffle { get => _canShuffle; private set => Set(ref _canShuffle, value); }
+
+    private bool _canRepeat;
+    public bool CanRepeat { get => _canRepeat; private set => Set(ref _canRepeat, value); }
+
+    private bool _shuffleActive;
+    public bool ShuffleActive
+    {
+        get => _shuffleActive;
+        private set
+        {
+            if (!Set(ref _shuffleActive, value)) return;
+            OnPropertyChanged(nameof(ShuffleGlyph));
+        }
+    }
+
+    private MediaRepeatMode _repeatMode;
+    public MediaRepeatMode RepeatMode
+    {
+        get => _repeatMode;
+        private set
+        {
+            if (!Set(ref _repeatMode, value)) return;
+            OnPropertyChanged(nameof(RepeatGlyph));
+        }
+    }
+
+    public string ShuffleGlyph => "\uE8B1";
+    public string RepeatGlyph => RepeatMode == MediaRepeatMode.Track ? "\uE8ED" : "\uE8EE";
 
     private bool _hasVolumeControl;
     public bool HasVolumeControl { get => _hasVolumeControl; private set => Set(ref _hasVolumeControl, value); }

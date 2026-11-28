@@ -20,6 +20,14 @@ public enum PlaybackStatus
     Paused = 5,
 }
 
+/// <summary>Normalized repeat mode across providers.</summary>
+public enum MediaRepeatMode
+{
+    None = 0,
+    Track = 1,
+    List = 2,
+}
+
 /// <summary>Immutable track metadata.</summary>
 public sealed record TrackInfo(
     string Title,
@@ -52,6 +60,12 @@ public sealed record MediaSnapshot
     public bool CanPrevious { get; init; } = true;
     public bool CanSeek { get; init; } = true;
     public bool HasVolumeControl { get; init; }
+    public bool? ShuffleActive { get; init; }      // null = provider has no shuffle state
+    public MediaRepeatMode RepeatMode { get; init; }
+    public bool CanShuffle { get; init; }
+    public bool CanRepeat { get; init; }
+    public double? PlaybackRate { get; init; }     // null = unknown / unsupported
+    public bool CanSetPlaybackRate { get; init; }
     public bool HasLyrics { get; init; }
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.Now;
 

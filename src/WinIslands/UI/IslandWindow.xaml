@@ -1313,7 +1313,17 @@
                                     <Button Style="{StaticResource IconButton}" Width="21" Height="24" Padding="0" Margin="0,0,1,0" Command="{Binding SeekBackwardCommand}" IsEnabled="{Binding CanSeek}"
                                             ToolTip="{Binding SeekBackwardHint}">
                                         <TextBlock Text="−15" FontSize="7.5" VerticalAlignment="Center"/>
-                                    </Button>                                    <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanPrevious}">
+                                    </Button>                                    <Button Style="{StaticResource IconButton}" Width="22" Height="24" Padding="0" Margin="0,0,2,0"
+                                            Command="{Binding ToggleShuffleCommand}" ToolTip="随机播放"
+                                            Visibility="{Binding CanShuffle, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding ShuffleGlyph}" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Width="22" Height="24" Padding="0" Margin="0,0,2,0"
+                                            Command="{Binding CycleRepeatCommand}" ToolTip="循环模式"
+                                            Visibility="{Binding CanRepeat, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding RepeatGlyph}" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Width="24" Height="24" Padding="0" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanPrevious}">
                                         <TextBlock Text="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
                                     </Button>
                                     <Button Style="{StaticResource IconButton}" Width="28" Height="24" Padding="0" Command="{Binding PlayPauseCommand}">

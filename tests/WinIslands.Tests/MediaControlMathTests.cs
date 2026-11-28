@@ -1,3 +1,4 @@
+using WinIslands.Services;
 using WinIslands.UI;
 
 namespace WinIslands.Tests;
@@ -37,6 +38,17 @@ public sealed class MediaControlMathTests
     [InlineData(0.50, double.NaN, 0.50)]
     public void VolumeTarget_ClampsWithinUnitRange(double volume, double delta, double expected)
         => Assert.Equal(expected, MediaControlMath.VolumeTarget(volume, delta), 6);
+
+    [Theory]
+    [InlineData(MediaRepeatMode.None, MediaRepeatMode.Track)]
+    [InlineData(MediaRepeatMode.Track, MediaRepeatMode.List)]
+    [InlineData(MediaRepeatMode.List, MediaRepeatMode.None)]
+    public void NextRepeatMode_CyclesThroughAllModes(MediaRepeatMode current, MediaRepeatMode expected)
+        => Assert.Equal(expected, MediaControlMath.NextRepeatMode(current));
+
+    [Fact]
+    public void NextRepeatMode_UnknownValueFallsBackToNone()
+        => Assert.Equal(MediaRepeatMode.None, MediaControlMath.NextRepeatMode((MediaRepeatMode)99));
 
     [Fact]
     public void VolumeTarget_HandlesNaNVolume()

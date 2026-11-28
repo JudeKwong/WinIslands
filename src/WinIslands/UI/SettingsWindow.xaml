@@ -1,4 +1,4 @@
-<Window x:Class="WinIslands.UI.SettingsWindow"
+﻿<Window x:Class="WinIslands.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:WinIslands.UI.Converters"
@@ -603,18 +603,19 @@
                             <TextBlock x:Name="TxtHotkeysHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" Margin="0,0,0,10"/>
                             <TextBlock x:Name="LblHotkeyToggle" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyToggleVisible, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyToggleVisible, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock x:Name="LblHotkeyPlayPause" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyPlayPause, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyPlayPause, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock x:Name="LblHotkeyNext" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyNext, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyNext, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock x:Name="LblHotkeyPrev" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyPrev, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyPrev, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock x:Name="LblHotkeyExpand" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyExpand, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyExpand, UpdateSourceTrigger=PropertyChanged}"/>
                             <CheckBox x:Name="ChkQuickLauncher" IsChecked="{Binding Working.QuickLauncherEnabled}"/>
                             <TextBlock x:Name="LblHotkeyLauncher" Style="{StaticResource Label}"/>
-                            <TextBox Width="220" HorizontalAlignment="Left" Text="{Binding Working.HotkeyLauncher, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="220" HorizontalAlignment="Left" TextChanged="Hotkey_TextChanged" Text="{Binding Working.HotkeyLauncher, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock x:Name="TxtHotkeyConflict" FontSize="11" Foreground="#E06C75" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
                             <TextBlock x:Name="LblLowBattery" Style="{StaticResource Label}"/>
                             <Slider Minimum="0" Maximum="50" Value="{Binding Working.LowBatteryThreshold}" Width="300" HorizontalAlignment="Left"
                                     IsSnapToTickEnabled="True" TickFrequency="5"/>
@@ -1350,6 +1351,12 @@
                             <CheckBox x:Name="ChkNotificationFold" IsChecked="{Binding Working.NotifyFoldEnabled}" Margin="0,12,0,0"/>
                             <CheckBox x:Name="ChkNotificationDebounce" IsChecked="{Binding Working.NotificationDebounce}" Margin="0,8,0,0"/>
                             <CheckBox x:Name="ChkCopyToast" IsChecked="{Binding Working.CopyToastEnabled}" Margin="0,16,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                <Button x:Name="BtnTestNotification" Padding="12,5" Click="TestNotification_Click"/>
+                                <Button x:Name="BtnExportNotificationRules" Padding="12,5" Margin="8,0,0,0" Click="ExportNotificationRules_Click"/>
+                                <Button x:Name="BtnImportNotificationRules" Padding="12,5" Margin="8,0,0,0" Click="ImportNotificationRules_Click"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TxtNotificationRulesHint" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0" MaxWidth="560"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem></TabControl>

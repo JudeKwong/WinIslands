@@ -136,6 +136,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="新建插件" Style="{StaticResource CardButton}" Click="NewPlugin_Click" Margin="0,0,8,0"/>
                     <Button Content="导入插件" Style="{StaticResource CardButton}" Click="Import_Click" Margin="0,0,8,0"/>
+                    <Button Content="从网址导入" Style="{StaticResource CardButton}" Click="ImportFromUrl_Click" Margin="0,0,8,0"/>
+                    <Button Content="从网址导入" Style="{StaticResource CardButton}" Click="ImportFromUrl_Click" Margin="0,0,8,0"/>
                     <Button Content="打开用户插件目录" Style="{StaticResource CardButton}" Click="OpenUserFolder_Click" Margin="0,0,8,0"/>
                     <Button Content="重新扫描" Style="{StaticResource CardButton}" Click="Reload_Click"/>
                 </StackPanel>

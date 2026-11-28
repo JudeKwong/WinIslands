@@ -1,3 +1,5 @@
+using WinIslands.Services;
+
 namespace WinIslands.UI;
 
 /// <summary>媒体控制的纯计算规则：相对跳转与音量步进，便于单元测试。</summary>
@@ -14,6 +16,14 @@ public static class MediaControlMath
         if (double.IsNaN(deltaSeconds)) deltaSeconds = 0;
         return Math.Clamp(positionSeconds + deltaSeconds, 0, durationSeconds);
     }
+
+    /// <summary>Repeat modes cycle None -> Track -> List -> None.</summary>
+    public static MediaRepeatMode NextRepeatMode(MediaRepeatMode current) => current switch
+    {
+        MediaRepeatMode.None => MediaRepeatMode.Track,
+        MediaRepeatMode.Track => MediaRepeatMode.List,
+        _ => MediaRepeatMode.None,
+    };
 
     /// <summary>音量步进目标：始终落在 0..1 之间。</summary>
     public static double VolumeTarget(double volume, double delta)

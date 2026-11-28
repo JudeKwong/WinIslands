@@ -144,6 +144,10 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
         CanNext = snapshot.CanNext;
         CanPrevious = snapshot.CanPrevious;
         CanSeek = snapshot.CanSeek && snapshot.DurationSeconds > 0;
+        CanShuffle = snapshot.CanShuffle;
+        CanRepeat = snapshot.CanRepeat;
+        ShuffleActive = snapshot.ShuffleActive == true;
+        RepeatMode = snapshot.RepeatMode;
         HasVolumeControl = snapshot.HasVolumeControl;
         _suppressVolume = true;
         Volume = snapshot.Volume ?? 0;

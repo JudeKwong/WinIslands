@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Windows.Media;
 using Windows.Media.Control;
 
 using System.IO;
@@ -542,6 +543,45 @@ public sealed class SmtcMediaProvider : IDisposable
         catch (Exception ex) { AppLogger.Warn($"SMTC seek failed: {ex.Message}"); return false; }
     }
 
+
+    /// <summary>Toggle shuffle on the active SMTC session.</summary>
+    public async Task<bool> ToggleShuffleAsync()
+    {
+        var s = _session;
+        if (s is null) return false;
+        try
+        {
+            var current = s.GetPlaybackInfo()?.IsShuffleActive ?? false;
+            return await s.TryChangeShuffleActiveAsync(!current).AsTask();
+        }
+        catch (Exception ex) { AppLogger.Warn($"SMTC shuffle failed: {ex.Message}"); return false; }
+    }
+
+    /// <summary>Cycle repeat None -> Track -> List -> None on the active session.</summary>
+    public async Task<bool> CycleRepeatAsync()
+    {
+        var s = _session;
+        if (s is null) return false;
+        try
+        {
+            var current = ToRepeatMode(s.GetPlaybackInfo()?.AutoRepeatMode);
+            var next = WinIslands.UI.MediaControlMath.NextRepeatMode(current) switch
+            {
+                MediaRepeatMode.Track => MediaPlaybackAutoRepeatMode.Track,
+                MediaRepeatMode.List => MediaPlaybackAutoRepeatMode.List,
+                _ => MediaPlaybackAutoRepeatMode.None,
+            };
+            return await s.TryChangeAutoRepeatModeAsync(next).AsTask();
+        }
+        catch (Exception ex) { AppLogger.Warn($"SMTC repeat failed: {ex.Message}"); return false; }
+    }
+
+    private static MediaRepeatMode ToRepeatMode(MediaPlaybackAutoRepeatMode? mode) => mode switch
+    {
+        MediaPlaybackAutoRepeatMode.Track => MediaRepeatMode.Track,
+        MediaPlaybackAutoRepeatMode.List => MediaRepeatMode.List,
+        _ => MediaRepeatMode.None,
+    };
 
     /// <summary>当前全部活跃的 SMTC 会话（含状态与是否当前跟随）。</summary>
     public IReadOnlyList<MediaSessionInfo> GetSessions()

@@ -17,6 +17,8 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 env:
   DOTNET_NOLOGO: true
@@ -124,6 +126,13 @@ jobs:
           if ($env:WINDOWS_CERTIFICATE_BASE64) {
             ./build/sign-windows.ps1 -Path "artifacts/WinIslands-Setup-${{ needs.validate.outputs.version }}.exe"
           }
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: |
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-x64.exe
+            artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-arm64.exe
+            artifacts/WinIslands-Setup-${{ needs.validate.outputs.version }}.exe
       - name: Enforce release performance budget
         shell: pwsh
         run: |
@@ -149,6 +158,27 @@ jobs:
           ./build/check-performance-budget.ps1 -RuntimeReport $report
           if ($LASTEXITCODE -ne 0) { throw 'Runtime performance budget failed.' }
           if ($process.ExitCode -ne 0) { throw "Startup benchmark exited with code $($process.ExitCode)." }
+      - name: Measure idle CPU and memory
+        shell: pwsh
+        run: |
+          $exe = 'artifacts/WinIslands-${{ needs.validate.outputs.version }}-win-x64.exe'
+          $process = Start-Process -FilePath $exe -WindowStyle Hidden -PassThru
+          Start-Sleep -Seconds 12
+          $process.Refresh()
+          $cpu0 = $process.TotalProcessorTime
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          $cpu1 = $process.TotalProcessorTime
+          $sw.Stop()
+          $workingSetMiB = [math]::Round($process.WorkingSet64 / 1MB, 1)
+          $idleCpuPercent = [math]::Round(($cpu1 - $cpu0).TotalMilliseconds / $sw.Elapsed.TotalMilliseconds * 100, 2)
+          $report = @{ idleCpuPercent = $idleCpuPercent; workingSetMiB = $workingSetMiB; sampleSeconds = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
+          Stop-Process -Id $process.Id -Force
+          $report | ConvertTo-Json | Out-File -FilePath 'artifacts/idle-budget.json' -Encoding utf8
+          Get-Content 'artifacts/idle-budget.json' -Raw
+          if ($idleCpuPercent -gt 5) { throw "Idle CPU budget exceeded: $idleCpuPercent% of one core (limit 5%)." }
+          if ($workingSetMiB -gt 350) { throw "Idle memory budget exceeded: $workingSetMiB MiB (limit 350)." }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-release-assets
@@ -156,6 +186,7 @@ jobs:
             artifacts/*.exe
             artifacts/nuget-windows.json
             artifacts/startup-benchmark.json
+            artifacts/idle-budget.json
           if-no-files-found: error
 
   macos:
@@ -194,6 +225,12 @@ jobs:
       - name: Generate NuGet dependency report
         run: |
           dotnet list macos/src/WinIslands.Mac/WinIslands.Mac.csproj package --include-transitive --format json > artifacts/mac/nuget-macos.json
+      - name: Attest macOS build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: |
+            artifacts/mac/*.zip
+            artifacts/mac/*.dmg
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-release-assets

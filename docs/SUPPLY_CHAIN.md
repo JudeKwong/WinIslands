@@ -50,6 +50,16 @@ WinIslands-<version>-sbom.cdx.json
 python build/generate_sbom.py --artifacts artifacts --version 3.1.9 --output artifacts/WinIslands-3.1.9-sbom.cdx.json
 ```
 
+## 构建来源证明
+
+发布工作流使用 GitHub 官方 `actions/attest-build-provenance` 为 Windows 便携版、安装包以及 macOS 的 zip / dmg 生成构建来源证明（SLSA build provenance）。证明由 GitHub OIDC 签发，记录构建仓库、提交、工作流与产物摘要，可用以下命令验证：
+
+```bash
+gh attestation verify WinIslands-3.1.9-win-x64.exe --repo JudeKwong/WinIslands
+```
+
+来源证明与 SHA256 校验和互为补充：校验和防篡改，来源证明说明产物确实由本仓库的发布工作流构建。
+
 ## 校验和
 
 Release 会生成 `SHA256SUMS.txt`，覆盖：

@@ -344,8 +344,61 @@ public partial class PluginManagerWindow : Window
             Filter = "WinIslands 插件包 (*.zip)|*.zip|所有文件 (*.*)|*.*",
         };
         if (dialog.ShowDialog(this) != true) return;
+        TryImportZip(dialog.FileName);
+    }
 
-        var summary = TryReadZipManifest(dialog.FileName);
+    /// <summary>从 https 网址下载插件包并导入（大小与协议受限）。</summary>
+    private async void ImportFromUrl_Click(object sender, RoutedEventArgs e)
+    {
+        var input = PromptForUrl();
+        if (string.IsNullOrWhiteSpace(input)) return;
+        if (!Uri.TryCreate(input.Trim(), UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            ShowStatus("仅支持 https 网址");
+            return;
+        }
+
+        const long maxBytes = 20L * 1024 * 1024;
+        var temp = Path.Combine(Path.GetTempPath(), "winislands-plugin-" + Guid.NewGuid().ToString("N") + ".zip");
+        try
+        {
+            ShowStatus("正在下载插件包…");
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WinIslands-PluginImport/1.0");
+            using var response = await http.GetAsync(uri, System.Net.Http.HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(true);
+            response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength is > maxBytes)
+            {
+                ShowStatus("插件包超过 20 MB，已取消");
+                return;
+            }
+            await using (var file = File.Create(temp))
+            {
+                await response.Content.CopyToAsync(file).ConfigureAwait(true);
+            }
+            var length = new FileInfo(temp).Length;
+            if (length == 0 || length > maxBytes)
+            {
+                ShowStatus(Localization.Get("PluginMgr_ImportFailed"));
+                return;
+            }
+            ShowStatus("下载完成，正在校验插件包…");
+            TryImportZip(temp);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Plugin URL import failed: {ex.Message}");
+            ShowStatus(Localization.Get("PluginMgr_ImportFailed"));
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+        }
+    }
+
+    private void TryImportZip(string path)
+    {
+        var summary = TryReadZipManifest(path);
         if (summary is null)
         {
             ShowStatus(Localization.Get("PluginMgr_ImportFailed"));
@@ -363,9 +416,42 @@ public partial class PluginManagerWindow : Window
             != MessageBoxResult.OK)
             return;
 
-        var ok = _plugins.ImportPlugin(dialog.FileName);
+        var ok = _plugins.ImportPlugin(path);
         ShowStatus(Localization.Get(ok ? "PluginMgr_Imported" : "PluginMgr_ImportFailed"));
         if (ok) RefreshList();
+    }
+
+    private string? PromptForUrl()
+    {
+        var box = new TextBox
+        {
+            Text = "https://",
+            Margin = new Thickness(0, 0, 0, 10),
+            Padding = new Thickness(6, 4, 6, 4),
+        };
+        var okButton = new Button { Content = "下载并导入", Padding = new Thickness(14, 5, 14, 5), IsDefault = true };
+        var cancelButton = new Button { Content = "取消", Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(8, 0, 0, 0), IsCancel = true };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(okButton);
+        buttons.Children.Add(cancelButton);
+        var panel = new StackPanel { Margin = new Thickness(14) };
+        panel.Children.Add(new TextBlock { Text = "插件包网址（.zip，需 https）", Margin = new Thickness(0, 0, 0, 8) });
+        panel.Children.Add(box);
+        panel.Children.Add(buttons);
+
+        var dialog = new Window
+        {
+            Title = "从网址导入插件",
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.NoResize,
+            Content = panel,
+        };
+        okButton.Click += (_, _) => dialog.DialogResult = true;
+        dialog.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
+        return dialog.ShowDialog() == true ? box.Text : null;
     }
 
     private void OpenUserFolder_Click(object sender, RoutedEventArgs e)

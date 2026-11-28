@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -528,6 +528,155 @@ public partial class SettingsWindow : Window
         UpdateDndStatus();
     }
 
+    // ?? ??????? ??????????????????????????????????????????
+    private void Hotkey_TextChanged(object sender, TextChangedEventArgs e) => UpdateHotkeyConflictHint();
+
+    /// <summary>???????????????????????????????</summary>
+    private void UpdateHotkeyConflictHint()
+    {
+        if (TxtHotkeyConflict is null || _vm?.Working is null) return;
+        var bindings = new (string Action, string Gesture)[]
+        {
+            (Localization.Get("General_HotkeyToggle"), _vm.Working.HotkeyToggleVisible),
+            (Localization.Get("General_HotkeyPlayPause"), _vm.Working.HotkeyPlayPause),
+            (Localization.Get("General_HotkeyNext"), _vm.Working.HotkeyNext),
+            (Localization.Get("General_HotkeyPrev"), _vm.Working.HotkeyPrev),
+            (Localization.Get("General_HotkeyExpand"), _vm.Working.HotkeyExpand),
+            (Localization.Get("General_HotkeyLauncher"), _vm.Working.QuickLauncherEnabled ? _vm.Working.HotkeyLauncher : string.Empty),
+        };
+        var conflicts = HotkeyConflictDetector.FindConflicts(bindings);
+        var invalid = HotkeyConflictDetector.FindInvalid(bindings);
+        var parts = new List<string>();
+        if (conflicts.Count > 0)
+            parts.Add(string.Format(Localization.Get("General_HotkeyConflict"), string.Join(", ", conflicts)));
+        if (invalid.Count > 0)
+            parts.Add(string.Format(Localization.Get("General_HotkeyInvalid"), string.Join(", ", invalid)));
+        TxtHotkeyConflict.Text = string.Join("  ", parts);
+        TxtHotkeyConflict.Visibility = parts.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    // ?? ?????????/?? ?????????????????????????????????
+    private void TestNotification_Click(object sender, RoutedEventArgs e)
+    {
+        if (_island is null) return;
+        if (DoNotDisturb.IsActive(_vm.Working))
+        {
+            MessageBox.Show(this, Localization.Get("Notify_TestBlocked"), Localization.Get("Settings_Rules"),
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        _island.ShowEventCard("settings:test-notification",
+            Localization.Get("Notify_TestTitle"),
+            Localization.Get("Notify_TestBody"),
+            "\uE7E7", "info", 5);
+    }
+
+    private void ExportNotificationRules_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new SaveFileDialog
+            {
+                Title = Localization.Get("Notify_ExportTitle"),
+                FileName = "WinIslands-NotificationRules.json",
+                DefaultExt = ".json",
+                Filter = "JSON (*.json)|*.json|All files (*.*)|*.*",
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            var dto = new NotificationRulesFile
+            {
+                FilterMode = _vm.Working.NotificationAppFilterMode.ToString(),
+                Apps = new List<string>(_vm.Working.NotificationAppFilters ?? new List<string>()),
+                DndScheduleEnabled = _vm.Working.DoNotDisturbEnabled,
+                DndManual = _vm.Working.DoNotDisturbManual,
+                DndStartHour = _vm.Working.DoNotDisturbStartHour,
+                DndEndHour = _vm.Working.DoNotDisturbEndHour,
+                DndStartMinute = _vm.Working.DoNotDisturbStartMinute,
+                DndEndMinute = _vm.Working.DoNotDisturbEndMinute,
+                DndAllowlist = new List<string>(_vm.Working.DnDAllowlist ?? new List<string>()),
+            };
+            File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true }));
+            TxtNotificationRulesHint.Text = Localization.Get("Notify_RulesExported");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Notification rules export failed: {ex.Message}");
+            MessageBox.Show(this, ex.Message, Localization.Get("Settings_Rules"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ImportNotificationRules_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = Localization.Get("Notify_ImportTitle"),
+                Filter = "JSON (*.json)|*.json|All files (*.*)|*.*",
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            var dto = JsonSerializer.Deserialize<NotificationRulesFile>(
+                File.ReadAllText(dialog.FileName),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (dto is null || dto.Version is < 1 or > 1)
+                throw new InvalidDataException(Localization.Get("Notify_RulesInvalid"));
+
+            var mode = Enum.TryParse<NotificationAppFilterMode>(dto.FilterMode, ignoreCase: true, out var parsed)
+                ? parsed
+                : NotificationAppFilterMode.All;
+            var apps = (dto.Apps ?? new List<string>())
+                .Select(a => (a ?? string.Empty).Trim())
+                .Where(a => a.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(500)
+                .ToList();
+
+            _vm.Working.NotificationAppFilterMode = mode;
+            _vm.NotificationAppFiltersText = string.Join(Environment.NewLine, apps);
+            _vm.Working.DoNotDisturbEnabled = dto.DndScheduleEnabled;
+            _vm.Working.DoNotDisturbManual = dto.DndManual;
+            _vm.Working.DoNotDisturbStartHour = Math.Clamp(dto.DndStartHour, 0, 23);
+            _vm.Working.DoNotDisturbEndHour = Math.Clamp(dto.DndEndHour, 0, 23);
+            _vm.Working.DoNotDisturbStartMinute = Math.Clamp(dto.DndStartMinute, 0, 55);
+            _vm.Working.DoNotDisturbEndMinute = Math.Clamp(dto.DndEndMinute, 0, 55);
+            _vm.Working.DnDAllowlist = (dto.DndAllowlist ?? new List<string>())
+                .Select(a => (a ?? string.Empty).Trim())
+                .Where(a => a.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(200)
+                .ToList();
+
+            // AppSettings ??????? DataContext ????????????
+            var dc = DataContext;
+            DataContext = null;
+            DataContext = dc;
+            UpdateDndStatus();
+            UpdateHotkeyConflictHint();
+            _vm.Save();
+            TxtNotificationRulesHint.Text = Localization.Get("Notify_RulesImported");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Notification rules import failed: {ex.Message}");
+            MessageBox.Show(this, ex.Message, Localization.Get("Settings_Rules"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Notification rules file schema (version 1).</summary>
+    private sealed class NotificationRulesFile
+    {
+        public int Version { get; set; } = 1;
+        public string FilterMode { get; set; } = "All";
+        public List<string> Apps { get; set; } = new();
+        public bool DndScheduleEnabled { get; set; }
+        public bool DndManual { get; set; }
+        public int DndStartHour { get; set; } = 22;
+        public int DndEndHour { get; set; } = 8;
+        public int DndStartMinute { get; set; }
+        public int DndEndMinute { get; set; }
+        public List<string> DndAllowlist { get; set; } = new();
+    }
+
     /// <summary>一键创建内置示例插件（plugin.json + run.ps1）。</summary>
     private void CreateSamplePlugin_Click(object sender, RoutedEventArgs e)
     {
@@ -655,6 +804,11 @@ public partial class SettingsWindow : Window
         ChkNotificationFold.Content = Localization.Get("Notifications_Fold");
         ChkNotificationDebounce.Content = Localization.Get("Notifications_Debounce");
         ChkCopyToast.Content = Localization.Get("Clipboard_Toast");
+        BtnTestNotification.Content = Localization.Get("Notify_Test");
+        BtnExportNotificationRules.Content = Localization.Get("Notify_Export");
+        BtnImportNotificationRules.Content = Localization.Get("Notify_Import");
+        TxtNotificationRulesHint.Text = Localization.Get("Notify_RulesHint");
+        UpdateHotkeyConflictHint();
         NavGeneral.Text = Localization.Get("Settings_General");
         NavQuick.Text = Localization.Get("Settings_QuickActions");
         NavAppearance.Text = Localization.Get("Settings_Appearance");

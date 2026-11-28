@@ -9,14 +9,14 @@
 
 - 🩺 **运行稳定性**：新增界面健康监测、卡顿与未响应检测、崩溃转储与异常退出保护；启动与后台服务延后初始化，降低首帧卡顿
 - 🪟 **展开布局重新设计**：统一各页展开尺寸，歌词字号更紧凑，播放控制固定在底部；顶部时间与设置按钮完整显示；展开 / 收起状态机重写，收起后立即保持圆角，不再出现直角闪烁
-- 🖱️ **交互重新设计**：鼠标悬停自动展开并可配置延迟，滚轮在展开页之间切换；切页动画只渲染目标页，不再闪到其他页面
-- 🔔 **通知重新设计**：通知按队列展示并自动去抖，复制成功显示闪电反馈；过期通知彻底清理，不再残留圆形应用图标；展开模式移除通知历史
-- 🧩 **插件体系完善**：插件清单校验与权限提示，新增 Hello World 示例、插件模板、开发指南与安全说明；设置页新增插件入口
-- 🎵 **媒体与歌词**：支持相对跳转与音量控制；歌词请求加入本地缓存，多来源切换更稳定，进度条与封面、文字不再重叠
-- 🔐 **供应链与发布**：工作流依赖固定到完整 SHA，新增 CodeQL 与 Dependabot；发布生成 CycloneDX SBOM，SHA256SUMS 覆盖 SBOM；新增性能预算门禁与冷启动基准；支持 Windows 签名与 macOS 公证
+- 🖱️ **交互重新设计**：鼠标悬停自动展开并可配置延迟，滚轮在展开页之间切换；切页动画只渲染目标页，不再闪到其他页面；快捷键支持实时冲突检测
+- 🔔 **通知重新设计**：通知按队列展示并自动去抖，复制成功显示闪电反馈；过期通知彻底清理，不再残留圆形应用图标；展开模式移除通知历史；支持发送测试通知与规则 JSON 导入导出
+- 🧩 **插件体系完善**：插件清单校验与权限提示，支持本地 zip 与 https 网址导入；新增 Hello World 示例、插件模板、开发指南与安全说明；设置页新增插件入口
+- 🎵 **媒体与歌词**：支持相对跳转、音量、随机播放与循环模式切换；歌词请求加入本地缓存，多来源切换更稳定，进度条与封面、文字不再重叠
+- 🔐 **供应链与发布**：工作流依赖固定到完整 SHA，新增 CodeQL 与 Dependabot；发布生成 CycloneDX SBOM，SHA256SUMS 覆盖 SBOM；新增性能预算门禁、冷启动基准与空闲 CPU 门禁，并为发布产物生成 SLSA 构建来源证明；支持 Windows 签名与 macOS 公证
 - 🧹 **功能精简**：移除会议监测与自动勿扰、截图录音提醒、待办、番茄钟、日程与节假日倒计时、剪贴板历史、验证码识别与大文本复制进度提示
 - 📚 **文档与社区**：新增安全政策、贡献指南、行为准则、性能预算、供应链验证、发布与回滚文档，以及插件 Issue 模板
-- ✅ **质量验证**：Windows 820 项测试全部通过；macOS 核心测试通过；发布版冷启动基准约 5.0 秒、工作集约 261 MiB、私有内存约 148 MiB，均在预算内
+- ✅ **质量验证**：Windows 828 项测试全部通过；macOS 核心测试通过；发布版冷启动基准约 5.0 秒、工作集约 261 MiB、私有内存约 148 MiB，均在预算内
 
 ## WinIslands 3.1.9 (Stable)
 ### What's New
@@ -24,13 +24,13 @@
 - 🩺 **Runtime stability**: added UI health monitoring, hang detection, crash dumps and abnormal-exit protection; startup and background services initialize later to reduce first-frame stalls
 - 🪟 **Redesigned expanded layout**: every page shares one expanded size, lyrics are more compact, and playback controls stay pinned to the bottom; the clock and settings button are fully visible; the expand/collapse state machine was rewritten so rounded corners remain immediately after collapse
 - 🖱️ **Redesigned interaction**: hover expands the island with a configurable delay, and the wheel switches between expanded pages; page transitions render only the target page and no longer flash another page
-- 🔔 **Redesigned notifications**: notifications are queued and debounced, copy actions show a lightning confirmation, expired notices are fully cleared without leaving an app icon, and notification history is removed from expanded mode
-- 🧩 **Plugin improvements**: manifest validation and permission prompts, a Hello World example, plugin template, development guide and security notes; plugins now have a dedicated entry in Settings
-- 🎵 **Media and lyrics**: relative seeking and volume control; lyrics requests are cached locally and source switching is more stable; the progress bar no longer overlaps the artwork or text
+- 🔔 **Redesigned notifications**: notifications are queued and debounced, copy actions show a lightning confirmation, expired notices are fully cleared without leaving an app icon, notification history is removed from expanded mode, and rules can be exported/imported as JSON or tested on demand
+- 🧩 **Plugin improvements**: manifest validation and permission prompts, local zip and https URL import, a Hello World example, plugin template, development guide and security notes; plugins now have a dedicated entry in Settings
+- 🎵 **Media and lyrics**: relative seeking, volume, shuffle and repeat-mode switching; lyrics requests are cached locally and source switching is more stable; the progress bar no longer overlaps the artwork or text
 - 🔐 **Supply chain and release**: workflow dependencies are pinned to full SHAs, CodeQL and Dependabot were added, releases publish a CycloneDX SBOM and cover it in SHA256SUMS, a performance-budget gate and cold-start benchmark run on every release, and Windows signing plus macOS notarization are supported
 - 🧹 **Simplified feature set**: removed meeting detection and auto Do Not Disturb, screenshot/recording reminders, to-dos, Pomodoro timers, schedule and holiday countdowns, clipboard history, verification-code detection and large-text copy progress
 - 📚 **Docs and community**: added security policy, contributing guide, code of conduct, performance budget, supply-chain verification, release and rollback docs, and a plugin issue template
-- ✅ **Verification**: all 820 Windows tests pass, macOS core tests pass, and the release cold-start benchmark is about 5.0 s with a 261 MiB working set and 148 MiB private memory, all within budget
+- ✅ **Verification**: all 828 Windows tests pass, macOS core tests pass, and the release cold-start benchmark is about 5.0 s with a 261 MiB working set and 148 MiB private memory, all within budget
 
 ### 校验
 

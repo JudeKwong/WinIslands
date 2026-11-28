@@ -291,6 +291,24 @@ public sealed class MediaCoordinator : IDisposable
         return false;
     }
 
+    /// <summary>Shuffle is only exposed by the SMTC provider for now.</summary>
+    public async Task<bool> ToggleShuffleAsync()
+    {
+        if (Current?.CanShuffle != true) return false;
+        var ok = await _smtc.ToggleShuffleAsync();
+        if (ok) _ = RefreshNowAsync();
+        return ok;
+    }
+
+    /// <summary>Cycle repeat mode on the SMTC provider.</summary>
+    public async Task<bool> CycleRepeatAsync()
+    {
+        if (Current?.CanRepeat != true) return false;
+        var ok = await _smtc.CycleRepeatAsync();
+        if (ok) _ = RefreshNowAsync();
+        return ok;
+    }
+
     public async Task<bool> SetVolumeAsync(double volume01)
     {
         if (Current?.Source == MediaSourceKind.Cider) return await _cider.SetVolumeAsync(volume01);
